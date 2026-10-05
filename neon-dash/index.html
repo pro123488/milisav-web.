@@ -199,20 +199,23 @@ kbd { font: 500 .8rem var(--font-body); padding: 2px 8px; border-radius: 6px; bo
    FÍSICA  (unidades: casillas y segundos; y crece hacia arriba)
    ===================================================================== */
 const DT = 1 / 120;            // paso fijo de simulación
-const VX = 10.4;               // velocidad horizontal (casillas/s)
-const GRAV = 62, JUMP_V = 16.2, FALL_MAX = 24;
-const PAD_V = 21, ORB_V = 15.8;
-const SHIP_UP = 46, SHIP_DOWN = 34, SHIP_VMAX = 9;
+const VX = 9.2;                // velocidad horizontal (casillas/s)
+const GRAV = 54, JUMP_V = 16.5, FALL_MAX = 24;
+const PAD_V = 21, ORB_V = 16;
+const SHIP_UP = 42, SHIP_DOWN = 32, SHIP_VMAX = 8;
+const COYOTE = 0.07;           // saltar justo después de salir de un borde
+const BUFFER = 0.09;           // un toque justo antes de aterrizar cuenta como salto
+const SNAP = 0.16;             // si rozas la esquina de un bloque, te sube en vez de matarte
 const SHIP_H = 0.7;            // altura de la caja de la nave
 const CEIL = 8;                // y del techo en los tramos de nave
-const INSET = 0.1;             // los pinchos usan una caja de jugador algo más pequeña
+const INSET = 0.14;            // los pinchos usan una caja de jugador algo más pequeña
 const EPS = 1e-6;
 const EV_JUMP = 1, EV_PAD = 2, EV_ORB = 4, EV_PORTAL = 8;
 let MARGIN = 0;                // solo para pruebas: infla los peligros para medir holgura
 
 function newState() {
   return { x: 0, y: 0, vy: 0, w: 1, h: 1, mode: 'cube', ground: true, dead: false, done: false,
-           prevHold: false, pressT: 1, used: [], rot: 0, t: 0, ev: 0 };
+           prevHold: false, pressT: 1, air: 0, jumped: false, used: [], rot: 0, t: 0, ev: 0 };
 }
 
 function rectHit(ax0, ax1, ay0, ay1, bx0, bx1, by0, by1) {
@@ -228,7 +231,8 @@ function step(s, lv, hold) {
   let landed = false;
 
   if (s.mode === 'cube') {
-    if (s.ground && hold) { s.vy = JUMP_V; s.ground = false; s.pressT = 1; s.ev |= EV_JUMP; }
+    const canJump = s.ground || (!s.jumped && s.air < COYOTE);
+    if (canJump && (hold || s.pressT < BUFFER)) { s.vy = JUMP_V; s.ground = false; s.jumped = true; s.pressT = 1; s.ev |= EV_JUMP; }
     s.vy = Math.max(s.vy - GRAV * DT, -FALL_MAX);
   } else {
     s.vy += (hold ? SHIP_UP : -SHIP_DOWN) * DT;
@@ -252,6 +256,7 @@ function step(s, lv, hold) {
             const top = o.y + o.h;
             if (s.vy <= 0 && prevY >= top - EPS) { s.y = top; s.vy = 0; landed = true; }
             else if (s.vy > 0 && prevY + s.h <= o.y + EPS) { s.y = o.y - s.h; s.vy = 0; }
+            else if (s.mode === 'cube' && top - s.y <= SNAP) { s.y = top; s.vy = 0; landed = true; }
             else s.dead = true;
           } else if (MARGIN && rectHit(s.x - MARGIN, s.x + s.w + MARGIN, s.y, s.y + s.h, o.x, o.x + o.w, o.y, o.y + o.h)) {
             const canLand = s.vy <= 0 && prevY >= o.y + o.h - EPS;
@@ -268,14 +273,14 @@ function step(s, lv, hold) {
         }
         case 'p': {
           if (s.used.indexOf(o.id) < 0 && rectHit(s.x, s.x + s.w, s.y, s.y + s.h, o.x, o.x + 1, o.y, o.y + 0.3)) {
-            s.used.push(o.id); s.vy = PAD_V; s.ground = false; landed = false; s.ev |= EV_PAD;
+            s.used.push(o.id); s.vy = PAD_V; s.ground = false; s.jumped = true; landed = false; s.ev |= EV_PAD;
           }
           break;
         }
         case 'o': {
           if (s.used.indexOf(o.id) < 0 && s.pressT < 0.1 &&
               rectHit(s.x, s.x + s.w, s.y, s.y + s.h, o.x + 0.05, o.x + 0.95, o.y + 0.05, o.y + 0.95)) {
-            s.used.push(o.id); s.vy = ORB_V; s.pressT = 1; s.ground = false; landed = false; s.ev |= EV_ORB;
+            s.used.push(o.id); s.vy = ORB_V; s.pressT = 1; s.ground = false; s.jumped = true; landed = false; s.ev |= EV_ORB;
           }
           break;
         }
@@ -285,7 +290,7 @@ function step(s, lv, hold) {
             if (o.to === 'ship' && s.mode === 'cube') {
               s.mode = 'ship'; s.y += (1 - SHIP_H) / 2; s.h = SHIP_H; s.rot = 0; s.ev |= EV_PORTAL;
             } else if (o.to === 'cube' && s.mode === 'ship') {
-              s.mode = 'cube'; s.y = Math.max(0, s.y - (1 - SHIP_H) / 2); s.h = 1; s.rot = 0; s.ground = false; s.ev |= EV_PORTAL;
+              s.mode = 'cube'; s.y = Math.max(0, s.y - (1 - SHIP_H) / 2); s.h = 1; s.rot = 0; s.ground = false; s.jumped = true; s.ev |= EV_PORTAL;
             }
           }
           break;
@@ -294,7 +299,10 @@ function step(s, lv, hold) {
       if (s.dead) return;
     }
   }
-  if (s.mode === 'cube') s.ground = landed;
+  if (s.mode === 'cube') {
+    if (landed) { s.ground = true; s.jumped = false; s.air = 0; }
+    else { s.ground = false; s.air += DT; }
+  }
   if (s.x >= lv.end) s.done = true;
 }
 
@@ -317,16 +325,13 @@ const CHUNKS = {
   spkBlk: L => { L.spike(0); L.block(4, 0, 3, 1); return 7; },
   blkSpk: L => { L.block(0, 0, 3, 1); L.spike(3); return 4; },
   stairs2: L => { L.block(0, 0, 3, 1); L.block(3, 0, 3, 2); return 6; },
-  stairs3: L => { L.block(0, 0, 3, 1); L.block(3, 0, 3, 2); L.block(6, 0, 3, 3); return 9; },
   bridge:  L => { L.block(0, 0, 2, 1); L.spikes(2, 3); L.block(5, 0, 2, 1); return 7; },
   bridge2: L => { L.block(0, 0, 2, 1); L.spikes(2, 4); L.block(6, 0, 2, 1); return 8; },
-  bridge3: L => { L.block(0, 0, 2, 2); L.spikes(2, 4); L.block(6, 0, 2, 2); return 8; },
   pad1:    L => { L.pad(0); L.spikes(3, 4); return 7; },
   padBlock: L => { L.pad(0); L.block(5, 0, 3, 2); return 8; },
   padTwo:  L => { L.pad(0); L.spikes(3, 3); L.pad(10); L.block(15, 0, 3, 2); return 18; },
   orb1:    L => { L.spikes(0, 6); L.orb(2.5, 1.6); return 6; },
   orb2:    L => { L.spikes(0, 11); L.orb(2.5, 1.6); L.orb(8, 1.6); return 11; },
-  orb3:    L => { L.spikes(0, 16); L.orb(2.5, 1.6); L.orb(8, 1.6); L.orb(13.5, 1.6); return 16; },
   zig:     L => { L.block(0, 0, 1, 1); L.spike(4); L.block(8, 0, 1, 1); L.spike(12); return 13; },
   hurdles: L => { L.spikes(0, 2); L.block(5, 0, 2, 1); L.spikes(10, 3); return 13; },
   // --- nave ---
@@ -334,27 +339,16 @@ const CHUNKS = {
     const W = 70;
     L.portal(0, 'ship', 0, 4);
     L.block(4, CEIL, W - 12, 40);
-    L.block(16, 0, 2, 3); L.block(27, CEIL - 3, 2, 3); L.block(38, 0, 2, 4); L.block(49, CEIL - 3, 2, 3);
+    L.block(16, 0, 2, 3); L.block(28, CEIL - 3, 2, 3); L.block(40, 0, 2, 3); L.block(52, CEIL - 3, 2, 3);
     L.portal(W - 3, 'cube', 0, CEIL);
     return W;
   },
   shipB: L => {
-    const W = 92;
+    const W = 88;
     L.portal(0, 'ship', 0, 4);
     L.block(4, CEIL, W - 12, 40);
-    L.block(14, 0, 2, 4); L.block(22, CEIL - 4, 2, 4); L.block(30, 0, 2, 3); L.block(38, CEIL - 3, 2, 3);
-    L.block(46, 0, 2, 4); L.block(54, CEIL - 4, 2, 4); L.block(62, 0, 2, 3); L.block(70, CEIL - 3, 2, 3);
-    L.portal(W - 3, 'cube', 0, CEIL);
-    return W;
-  },
-  shipC: L => {
-    const W = 110;
-    L.portal(0, 'ship', 0, 4);
-    L.block(4, CEIL, W - 12, 40);
-    L.block(14, 0, 2, 4); L.block(21, CEIL - 4, 2, 4);
-    L.spikes(30, 3); L.spike(36, CEIL - 1, { dir: 'down' }); L.spike(37, CEIL - 1, { dir: 'down' });
-    L.block(44, 0, 2, 4); L.block(50, CEIL - 4, 2, 4); L.block(56, 0, 2, 4); L.block(62, CEIL - 4, 2, 4);
-    L.block(72, 0, 2, 3); L.block(78, CEIL - 3, 2, 3); L.block(84, 0, 2, 3); L.block(90, CEIL - 3, 2, 3);
+    L.block(14, 0, 2, 3); L.block(24, CEIL - 3, 2, 3); L.block(34, 0, 2, 4); L.block(44, CEIL - 3, 2, 3);
+    L.block(54, 0, 2, 3); L.block(64, CEIL - 4, 2, 4);
     L.portal(W - 3, 'cube', 0, CEIL);
     return W;
   },
@@ -369,7 +363,7 @@ function buildLevel(theme, spec) {
       const dir = o.dir || 'up', size = o.size || 1, hh = size === 1 ? 0.5 : 0.28;
       const X = x + ox;
       objs.push({ k: 'h', x: X, y, dir, size, id: id++,
-        x0: X + 0.32, x1: X + 0.68,
+        x0: X + 0.34, x1: X + 0.66,
         y0: dir === 'up' ? y : y + 1 - hh, y1: dir === 'up' ? y + hh : y + 1 });
     },
     spikes(x, n, y = 0, o = {}) { for (let i = 0; i < n; i++) L.spike(x + i, y, o); },
@@ -402,13 +396,13 @@ const THEMES = [
 ];
 
 const SPECS = [
-  { start: 22, seq: ['s1', 10, 's1', 9, 's2', 10, 'blk1', 9, 's3', 10, 'twin', 9, 'stairs2', 9, 's2', 9,
-                     'bridge', 10, 'spkBlk', 9, 's1', 8, 's2', 9, 'half', 9, 'twin2', 9, 's3', 10, 'blk2', 9, 'twin', 9,
-                     'stairs2', 9, 's2', 8, 'bridge2', 10, 'blkSpk', 9, 's1', 8, 'trio', 9, 's3'], tail: 16 },
-  { start: 22, seq: ['s2', 10, 'pad1', 10, 'trio', 9, 'stairs3', 9, 'bridge2', 10, 'padBlock', 10, 'orb1', 10,
-                     's3', 9, 'shipA', 10, 'blkSpk', 9, 'orb2', 10, 'twin2', 9, 'zig', 10, 'padTwo', 9, 's3'], tail: 16 },
-  { start: 22, seq: ['s3', 9, 'orb2', 10, 'bridge3', 10, 'hurdles', 9, 'shipB', 10, 'padTwo', 9, 'trio', 9,
-                     'orb3', 10, 'zig', 9, 'shipC', 10, 'twin2', 9, 'bridge2', 9, 'orb2', 10, 's3'], tail: 16 },
+  { start: 24, seq: ['s1', 11, 's1', 10, 's2', 11, 'blk1', 10, 's3', 11, 'twin', 10, 'stairs2', 10, 's2', 10,
+                     'bridge', 11, 'spkBlk', 10, 's1', 9, 's2', 10, 'half', 10, 'twin2', 10, 's3', 11, 'blk2', 10,
+                     'twin', 10, 'stairs2', 10, 's2', 9, 'bridge2', 11, 'blkSpk', 10, 's1', 9, 'twin', 10, 's3'], tail: 16 },
+  { start: 24, seq: ['s2', 11, 'pad1', 11, 'twin', 10, 'stairs2', 10, 'bridge2', 11, 'padBlock', 11, 'orb1', 11,
+                     's3', 10, 'shipA', 11, 'blkSpk', 10, 'orb1', 11, 'twin2', 10, 'zig', 11, 'padTwo', 10, 's3'], tail: 16 },
+  { start: 24, seq: ['s3', 10, 'orb2', 11, 'bridge2', 11, 'twin2', 10, 'shipB', 11, 'padTwo', 10, 'trio', 10,
+                     'orb2', 11, 'zig', 10, 'shipA', 11, 'hurdles', 10, 'bridge2', 10, 'orb2', 11, 's3'], tail: 16 },
 ];
 
 const LEVELS = THEMES.map((t, i) => buildLevel(t, SPECS[i]));
