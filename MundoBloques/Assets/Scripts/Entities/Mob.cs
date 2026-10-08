@@ -345,8 +345,9 @@ namespace MundoBloques
                     {
                         love = 0; mate.love = 0; breedCooldown = 240f; mate.breedCooldown = 240f;
                         Advancements.Event("breed");
-                        var baby = Mob.Create(def, (transform.position + mate.transform.position) * 0.5f, true);
-                        baby.sheared = false; baby.woolColor = woolColor;
+                        var baby = Mob.Create(def, (transform.position + mate.transform.position) * 0.5f, true, (def.key == "horse" || def.key == "cat") ? woolColor : -1);
+                        baby.sheared = false;
+                        if (def.key == "sheep") { baby.woolColor = woolColor; baby.RecolorSheep(); }
                         Particles.Burst(transform.position + Vector3.up, new Color32(255, 80, 120, 255), 10, 1.5f, 0.12f, 0.8f);
                         Sfx.Play(Clip.Pop, transform.position, 0.6f, 1.4f);
                     }

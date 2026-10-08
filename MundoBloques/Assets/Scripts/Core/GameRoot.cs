@@ -30,7 +30,8 @@ namespace MundoBloques
         public readonly HashSet<string> advDone = new HashSet<string>();
         public readonly MapData map = new MapData();
         public List<BoatDto> savedBoats = new List<BoatDto>();
-        float mapTimer;
+        float mapTimer, persistTimer;
+        public bool quitting;
         public readonly HashSet<int> persistentIds = new HashSet<int>();
         public List<MobDto> savedMobs = new List<MobDto>();
         GameObject menuCam;
@@ -132,17 +133,50 @@ namespace MundoBloques
         public void RestoreMobs()
         {
             if (world == null || world.dim != Dim.Overworld) return;
-            foreach (var d in savedMobs)
+            foreach (var d in savedMobs) persistentIds.Add(d.id);    // evita que las estructuras vuelvan a crearlos
+            StreamPersistentMobs();
+        }
+
+        static MobDto ToDto(Mob m)
+        {
+            var p = m.transform.position;
+            return new MobDto { k = m.def.key, x = p.x, y = p.y, z = p.z, hx = m.home.x, hy = m.home.y, hz = m.home.z, id = m.spawnId, f = m.Flags, c = m.woolColor, hp = m.health };
+        }
+
+        /// <summary>Crea las criaturas guardadas que estan cerca y guarda (y quita) las que se han quedado muy lejos.</summary>
+        public void StreamPersistentMobs()
+        {
+            if (world == null || world.dim != Dim.Overworld || player == null) return;
+            var pp = player.transform.position;
+            var alive = new HashSet<int>();
+            for (int i = Entity.All.Count - 1; i >= 0; i--)
             {
-                persistentIds.Add(d.id);
-                bool alive = false;
-                for (int i = 0; i < Entity.All.Count; i++) { var m = Entity.All[i] as Mob; if (m != null && m.spawnId == d.id && !m.dead) { alive = true; break; } }
-                if (alive || persistentDead.Contains(d.id)) continue;
+                var m = Entity.All[i] as Mob;
+                if (m == null || m.dead || !m.persistent || m.spawnId == 0) continue;
+                alive.Add(m.spawnId);
+                if ((m.transform.position - pp).sqrMagnitude > 180f * 180f && m.Rider == null && !(m.villager != null && m.villager.trading))
+                {
+                    var dto = ToDto(m);
+                    bool found = false;
+                    for (int k = 0; k < savedMobs.Count; k++) if (savedMobs[k].id == dto.id) { savedMobs[k] = dto; found = true; break; }
+                    if (!found) savedMobs.Add(dto);
+                    alive.Remove(m.spawnId);
+                    Destroy(m.gameObject);
+                }
+            }
+            for (int k = 0; k < savedMobs.Count; k++)
+            {
+                var d = savedMobs[k];
+                if (alive.Contains(d.id) || persistentDead.Contains(d.id)) continue;
+                float dx = d.x - pp.x, dz = d.z - pp.z;
+                if (dx * dx + dz * dz > 110f * 110f) continue;
+                if (!world.IsLoaded(Mathf.FloorToInt(d.x), Mathf.FloorToInt(d.z))) continue;
                 var def = MobDefs.Get(d.k); if (def == null) continue;
                 var mob = Mob.Create(def, new Vector3(d.hx, d.hy, d.hz), (d.f & 8) != 0, d.f != 0 || d.c != 0 ? d.c : -1);
                 mob.transform.position = new Vector3(d.x, d.y, d.z);
                 mob.persistent = true; mob.spawnId = d.id; mob.home = new Vector3(d.hx, d.hy, d.hz);
                 mob.ApplyFlags(d.f, d.hp);
+                alive.Add(d.id);
             }
         }
 
@@ -182,6 +216,8 @@ namespace MundoBloques
                         mapTimer -= dt;
                         if (mapTimer <= 0f) { mapTimer = 0.5f; if (world.dim == Dim.Overworld) map.CaptureAround(world, pcx, pcz, 9, Time.time, 6); }
                         Advancements.Tick(this, player, dt);
+                        persistTimer -= dt;
+                        if (persistTimer <= 0f) { persistTimer = 2f; StreamPersistentMobs(); }
                         sky.Step(dt, player, world, viewDist);
                         MobSpawner.Tick(this, dt);
                         activateTimer -= dt;
@@ -274,6 +310,7 @@ namespace MundoBloques
         public void ReturnToMenu()
         {
             if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this);
+            if (player != null) player.Dismount();
             state = GameState.Menu; paused = false;
             weather.Clear(); sky.overcast = 0f; sky.flash = 0f;
             ClearWorld();
@@ -287,6 +324,7 @@ namespace MundoBloques
         IEnumerator BeginSession(string name, int seed, bool creativeMode, LevelDto dto)
         {
             state = GameState.Loading; paused = false;
+            if (player != null) player.Dismount();
             ui.HideMainMenu();
             ui.ShowLoading("Preparando el mundo...", 0.02f);
             yield return null;
@@ -298,6 +336,7 @@ namespace MundoBloques
             dynId = 0x40000000;
             foreach (var sm in savedMobs) if (sm.id > dynId) dynId = sm.id;
             savedBoats = dto != null && dto.boats != null ? new List<BoatDto>(dto.boats) : new List<BoatDto>();
+            if (dto != null && dto.dead != null) foreach (var dd in dto.dead) persistentDead.Add(dd);
             advDone.Clear(); Advancements.ClearEvents();
             if (dto != null && dto.adv != null) foreach (var a in dto.adv) advDone.Add(a);
             map.Clear(); map.Load(SaveSystem.MapFile(name));
@@ -398,7 +437,7 @@ namespace MundoBloques
             return new Vector3(0.5f, 70f, 0.5f);
         }
 
-        void OnApplicationQuit() { if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this); }
+        void OnApplicationQuit() { quitting = true; if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this); }
         void OnApplicationPause(bool p) { if (p && world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this); }
 
         // ================================================================== utilidades de juego
@@ -507,6 +546,7 @@ namespace MundoBloques
         {
             if (traveling || state != GameState.Playing) return;
             if (player.portalLock) return;
+            player.Dismount();
             if (kind == 1)
             {
                 if (world.dim == Dim.Overworld)
@@ -540,6 +580,7 @@ namespace MundoBloques
         IEnumerator Travel(Dim target, Vector3 dest, int portalKind, bool findPortal, bool respawn)
         {
             traveling = true;
+            if (player != null) player.Dismount();
             var prevState = state;
             state = GameState.Loading;
             ui.CloseAll();

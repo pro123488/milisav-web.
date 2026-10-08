@@ -100,7 +100,7 @@ namespace MundoBloques
             for (int i = 0; i < All.Count; i++)
             {
                 var e = All[i];
-                if (e == null || e.dead || e == this || e == owner || e is ItemEntity || e is Projectile) continue;
+                if (e == null || e.dead || e == this || e == owner || e is ItemEntity || e is Projectile || !e.Attackable) continue;
                 if (life < 0.15f && e == owner) continue;
                 var bx = e.Box.Grow(0.15f);
                 float t = bx.Ray(o, d, dist);
@@ -156,6 +156,8 @@ namespace MundoBloques
             {
                 Particles.Burst(owner.transform.position + Vector3.up, new Color32(130, 50, 220, 255), 20, 2f);
                 var p = transform.position;
+                var op = owner as Player;
+                if (op != null) op.Dismount();
                 owner.transform.position = new Vector3(p.x, p.y + 0.05f, p.z);
                 owner.vel = Vector3.zero; owner.fallDistance = 0;
                 if (owner.IsPlayer && !G.creative) owner.Damage(5f, p, null, 0f);

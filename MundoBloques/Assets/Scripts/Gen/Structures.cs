@@ -111,7 +111,7 @@ namespace MundoBloques
 
         static VillageLayout GetVillage(OverworldGen g, int rx, int rz)
         {
-            long key = ((long)(g.seed & 0xFFFF) << 44) ^ ((long)(rx & 0x3FFFFF) << 22) ^ (long)(rz & 0x3FFFFF);
+            long key = ((long)MathX.Hash(rx, 811, rz, g.seed) << 32) ^ MathX.Hash(g.seed, 812, rx, rz);
             lock (villageCache)
             {
                 VillageLayout v;
@@ -427,6 +427,21 @@ namespace MundoBloques
                 }
             foreach (var c in new[] { new[] { 0, 0 }, new[] { w - 1, 0 }, new[] { 0, d - 1 }, new[] { w - 1, d - 1 } }) { f.Set(c[0], 1, c[1], p.log); f.Set(c[0], 2, c[1], B.Torch); }
             f.Set(4, 0, 0, p.floor); f.Set(4, 0, d - 1, p.floor);
+            // valla alrededor del campo con un portillo en cada entrada (brazos en ejes del mundo segun la rotacion)
+            int wi = 0;
+            for (int i = 0; i < B.Log.Length; i++) if (B.Log[i] == p.log) { wi = i; break; }
+            bool even = (f.b.rot & 1) == 0;
+            int runBits = even ? 3 : 12, crossBits = even ? 12 : 3;
+            for (int x = 1; x < w - 1; x++)
+            {
+                if (x == 4)
+                {
+                    f.Set(4, 1, 0, B.Gate[wi], even ? 0 : 1); f.Set(4, 1, d - 1, B.Gate[wi], even ? 0 : 1);
+                    continue;
+                }
+                f.Set(x, 1, 0, B.Fence[wi], runBits); f.Set(x, 1, d - 1, B.Fence[wi], runBits);
+            }
+            for (int z = 1; z < d - 1; z++) { f.Set(0, 1, z, B.Fence[wi], crossBits); f.Set(w - 1, 1, z, B.Fence[wi], crossBits); }
         }
 
         static void Smithy(Frame f, Pal p, Rng r)

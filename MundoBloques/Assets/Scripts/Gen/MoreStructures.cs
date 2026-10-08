@@ -77,7 +77,7 @@ namespace MundoBloques
 
         internal static MineLayout GetMine(OverworldGen g, int rx, int rz)
         {
-            long key = ((long)(g.seed & 0xFFFF) << 44) ^ ((long)(rx & 0x3FFFFF) << 22) ^ (long)(rz & 0x3FFFFF);
+            long key = ((long)MathX.Hash(rx, 801, rz, g.seed) << 32) ^ MathX.Hash(g.seed, 802, rx, rz);
             lock (mineCache)
             {
                 MineLayout m;

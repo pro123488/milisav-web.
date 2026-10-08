@@ -21,7 +21,7 @@ namespace MundoBloques
             main.startSize = 0.12f;
             main.maxParticles = 1500;
             main.playOnAwake = false;
-            main.loop = false;
+            main.loop = true;
             var em = ps.emission; em.enabled = false;
             var sh = ps.shape; sh.enabled = false;
             var col = ps.colorOverLifetime; col.enabled = true;
@@ -30,7 +30,7 @@ namespace MundoBloques
                       new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, 0.6f), new GradientAlphaKey(0f, 1f) });
             col.color = g;
             var r = go.GetComponent<ParticleSystemRenderer>();
-            r.material = Mats.Particle;
+            r.sharedMaterial = Mats.Particle;
             r.renderMode = ParticleSystemRenderMode.Billboard;
             ps.Play();
         }

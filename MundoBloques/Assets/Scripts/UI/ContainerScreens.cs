@@ -575,6 +575,8 @@ namespace MundoBloques
             arrow.rectTransform.sizeDelta = new Vector2(90f * Mathf.Clamp01(f.cook / Mathf.Max(1f, f.cookTotal)), 14);
         }
 
+        public override void OnClose() { base.OnClose(); GameRoot.I.world.MarkModified(f.x, f.z); }
+
         protected override IEnumerable<Slot> QuickTargets(Slot from)
         {
             var st = from.Get();
@@ -601,6 +603,7 @@ namespace MundoBloques
             UIKit.Txt(root, "Inventario", 18, new Color(0.8f, 0.9f, 1f), TextAnchor.MiddleLeft, 34, 202, 200, 24);
             AddPlayerInventory(34, 230);
         }
+        public override void OnClose() { base.OnClose(); GameRoot.I.world.MarkModified(c.x, c.z); }
         protected override IEnumerable<Slot> QuickTargets(Slot from)
         {
             var l = new List<Slot>();

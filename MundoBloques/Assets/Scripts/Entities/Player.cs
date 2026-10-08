@@ -139,7 +139,7 @@ namespace MundoBloques
 
         void LateUpdate()
         {
-            if (mount != null && !dead && MountValid()) transform.position = mount.SeatPosition;
+            if (mount != null && !dead && G != null && G.state == GameState.Playing && MountValid()) transform.position = mount.SeatPosition;
         }
 
         void Look()

@@ -68,11 +68,11 @@ namespace MundoBloques
             main.gravityModifier = 0f;
             main.startLifetime = 1f;
             main.maxParticles = streak ? 3500 : 2500;
-            main.playOnAwake = false; main.loop = false;
+            main.playOnAwake = false; main.loop = true;
             var em = ps.emission; em.enabled = false;
             var sh = ps.shape; sh.enabled = false;
             var r = go.GetComponent<ParticleSystemRenderer>();
-            r.material = Mats.Particle;
+            r.sharedMaterial = Mats.Particle;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             r.receiveShadows = false;
             if (streak) { r.renderMode = ParticleSystemRenderMode.Stretch; r.velocityScale = 0.035f; r.lengthScale = 2f; }
@@ -221,7 +221,7 @@ namespace MundoBloques
                 var e = Entity.All[i];
                 if (e == null || e.dead || e is ItemEntity || e is Projectile || e is Boat) continue;
                 var d = e.transform.position - ground; float dy = d.y; d.y = 0f;
-                if (d.magnitude < 3.5f && Mathf.Abs(dy) < 6f) { e.Damage(8f, ground, null, 0.5f); e.SetOnFire(5f); }
+                if (d.magnitude < 3.5f && Mathf.Abs(dy) < 6f) { e.Damage(8f, ground, null, 0.5f); e.SetOnFire(5f); e.rainImmune = 6f; }
             }
         }
 
@@ -240,7 +240,7 @@ namespace MundoBloques
 
         void SpawnBolt(Vector3 ground, Vector3 camPos)
         {
-            if (bolt != null) Destroy(bolt);
+            if (bolt != null) { var oldMf = bolt.GetComponent<MeshFilter>(); if (oldMf != null && oldMf.sharedMesh != null) Destroy(oldMf.sharedMesh); Destroy(bolt); }
             const int segs = 18; const float height = 95f;
             var pts = new Vector3[segs + 1];
             for (int i = 0; i <= segs; i++)

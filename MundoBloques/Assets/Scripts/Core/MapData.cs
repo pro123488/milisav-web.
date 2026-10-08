@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Threading;
 using UnityEngine;
 
 namespace MundoBloques
@@ -48,8 +49,10 @@ namespace MundoBloques
             if (c == null || c.state != 2) return;
             long key = MathX.ChunkKey(c.cx, c.cz);
             Tile t;
-            if (!tiles.TryGetValue(key, out t)) { t = new Tile { cx = c.cx, cz = c.cz }; tiles[key] = t; }
+            bool isNew = false;
+            if (!tiles.TryGetValue(key, out t)) { t = new Tile { cx = c.cx, cz = c.cz }; tiles[key] = t; isNew = true; }
             t.lastCapture = now;
+            bool changed = isNew;
             var heights = new int[256];
             var cols = new Color32[256];
             for (int lz = 0; lz < 16; lz++)
@@ -86,9 +89,11 @@ namespace MundoBloques
                     int hn = lz < 15 ? heights[i + 16] : heights[i];       // vecino al norte (+z)
                     int hw = lx > 0 ? heights[i - 1] : heights[i];
                     float shade = 1f + Mathf.Clamp((heights[i] - hn) * 0.07f + (heights[i] - hw) * 0.04f, -0.32f, 0.32f);
-                    t.px[i] = Col.Mul(cols[i], shade);
+                    var nc = Col.Mul(cols[i], shade);
+                    var oc = t.px[i];
+                    if (nc.r != oc.r || nc.g != oc.g || nc.b != oc.b) { t.px[i] = nc; changed = true; }
                 }
-            dirty = true;
+            if (changed) dirty = true;
         }
 
         /// <summary>Captura chunks nuevos cerca del jugador y refresca los vecinos inmediatos de vez en cuando.</summary>
@@ -141,50 +146,83 @@ namespace MundoBloques
         }
 
         // ---------------------------------------------------------------- guardado
-        public void Save(string path)
+        static readonly object fileLock = new object();
+        volatile bool saving;
+
+        /// <summary>Guarda el mapa. Si es grande se escribe en un hilo aparte (sync = true obliga a esperar, p. ej. al salir).</summary>
+        public void Save(string path, bool sync = false)
         {
-            try
+            int n = tiles.Count;
+            var cxs = new int[n]; var czs = new int[n]; var data = new byte[n * 768];
+            int k = 0;
+            foreach (var t in tiles.Values)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(path));
-                using (var fs = File.Create(path))
-                using (var gz = new GZipStream(fs, CompressionLevel.Fastest))
-                using (var w = new BinaryWriter(gz))
-                {
-                    w.Write(1);
-                    w.Write(tiles.Count);
-                    foreach (var kv in tiles)
-                    {
-                        var t = kv.Value;
-                        w.Write(t.cx); w.Write(t.cz);
-                        for (int i = 0; i < 256; i++) { w.Write(t.px[i].r); w.Write(t.px[i].g); w.Write(t.px[i].b); }
-                    }
-                }
-                dirty = false;
+                cxs[k] = t.cx; czs[k] = t.cz;
+                int o = k * 768;
+                for (int i = 0; i < 256; i++) { data[o + i * 3] = t.px[i].r; data[o + i * 3 + 1] = t.px[i].g; data[o + i * 3 + 2] = t.px[i].b; }
+                k++;
             }
-            catch (Exception e) { Debug.LogWarning("No se pudo guardar el mapa: " + e.Message); }
+            dirty = false;
+            if (sync || n < 300) { WriteFile(path, cxs, czs, data); return; }
+            if (saving) { dirty = true; return; }
+            saving = true;
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { WriteFile(path, cxs, czs, data); }
+                finally { saving = false; }
+            });
+        }
+
+        static void WriteFile(string path, int[] cxs, int[] czs, byte[] data)
+        {
+            lock (fileLock)
+            {
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    string tmp = path + ".tmp";
+                    using (var fs = File.Create(tmp))
+                    using (var gz = new GZipStream(fs, CompressionLevel.Fastest))
+                    using (var w = new BinaryWriter(gz))
+                    {
+                        w.Write(1);
+                        w.Write(cxs.Length);
+                        for (int k = 0; k < cxs.Length; k++) { w.Write(cxs[k]); w.Write(czs[k]); w.Write(data, k * 768, 768); }
+                    }
+                    if (File.Exists(path)) File.Delete(path);
+                    File.Move(tmp, path);
+                }
+                catch (Exception e) { Debug.LogWarning("No se pudo guardar el mapa: " + e.Message); }
+            }
         }
 
         public void Load(string path)
         {
             tiles.Clear(); dirty = false;
-            if (!File.Exists(path)) return;
-            try
+            lock (fileLock)
             {
-                using (var fs = File.OpenRead(path))
-                using (var gz = new GZipStream(fs, CompressionMode.Decompress))
-                using (var r = new BinaryReader(gz))
+                if (!File.Exists(path)) return;
+                try
                 {
-                    if (r.ReadInt32() != 1) return;
-                    int n = r.ReadInt32();
-                    for (int k = 0; k < n; k++)
+                    using (var fs = File.OpenRead(path))
+                    using (var gz = new GZipStream(fs, CompressionMode.Decompress))
+                    using (var r = new BinaryReader(gz))
                     {
-                        var t = new Tile { cx = r.ReadInt32(), cz = r.ReadInt32(), lastCapture = -100f };
-                        for (int i = 0; i < 256; i++) t.px[i] = new Color32(r.ReadByte(), r.ReadByte(), r.ReadByte(), 255);
-                        tiles[MathX.ChunkKey(t.cx, t.cz)] = t;
+                        if (r.ReadInt32() != 1) return;
+                        int n = r.ReadInt32();
+                        var buf = new byte[768];
+                        for (int k = 0; k < n; k++)
+                        {
+                            var t = new Tile { cx = r.ReadInt32(), cz = r.ReadInt32(), lastCapture = -100f };
+                            int got = 0;
+                            while (got < 768) { int rd = r.Read(buf, got, 768 - got); if (rd <= 0) throw new EndOfStreamException(); got += rd; }
+                            for (int i = 0; i < 256; i++) t.px[i] = new Color32(buf[i * 3], buf[i * 3 + 1], buf[i * 3 + 2], 255);
+                            tiles[MathX.ChunkKey(t.cx, t.cz)] = t;
+                        }
                     }
                 }
+                catch (Exception e) { Debug.LogWarning("Mapa corrupto: " + e.Message); tiles.Clear(); }
             }
-            catch (Exception e) { Debug.LogWarning("Mapa corrupto: " + e.Message); tiles.Clear(); }
         }
     }
 }

@@ -10,6 +10,8 @@ namespace MundoBloques
         public abstract void Read(BinaryReader r);
         public virtual void Tick(World world, float dt) { }
         public virtual bool NeedsTick { get { return false; } }
+        /// <summary>Esta trabajando (el horno fundiendo): su chunk debe guardarse.</summary>
+        public virtual bool Active { get { return false; } }
 
         public static void WriteStack(BinaryWriter w, ItemStack s)
         {
@@ -50,6 +52,7 @@ namespace MundoBloques
         public float burn, burnMax, cook, cookTotal = 10f;
 
         public override bool NeedsTick { get { return true; } }
+        public override bool Active { get { return burn > 0f || cook > 0f; } }
 
         public override void Write(BinaryWriter w)
         {

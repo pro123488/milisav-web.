@@ -24,7 +24,7 @@ namespace MundoBloques
         public bool dragonDefeated, creditsShown;
         public long savedAt; public float playTime; public int kills;
         public int viewDist = 6;
-        public string[] adv; public BoatDto[] boats;
+        public string[] adv; public BoatDto[] boats; public int[] dead;
         public bool rain, storm; public int fish, pets;
     }
 
@@ -102,10 +102,11 @@ namespace MundoBloques
                 };
                 dto.mobs = g.CollectPersistentMobs();
                 dto.boats = g.CollectBoats();
+                dto.dead = new List<int>(g.persistentDead).ToArray();
                 dto.adv = new List<string>(g.advDone).ToArray();
                 dto.rain = g.weather != null && g.weather.WantRain; dto.storm = g.weather != null && g.weather.thunder;
                 dto.fish = p.fishCaught; dto.pets = p.petsTamed;
-                if (g.map.dirty) g.map.Save(MapFile(g.worldName));
+                if (g.map.dirty) g.map.Save(MapFile(g.worldName), g.quitting);
                 Directory.CreateDirectory(WorldDir(g.worldName));
                 File.WriteAllText(Path.Combine(WorldDir(g.worldName), "level.json"), JsonUtility.ToJson(dto));
                 g.world.SaveAll();

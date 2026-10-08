@@ -231,7 +231,7 @@ namespace MundoBloques
             if (c == null || c.state != 2) return null;
             int i = Chunk.Idx(x & 15, y, z & 15);
             BlockEntity e;
-            if (c.entities.TryGetValue(i, out e)) return e;
+            if (c.entities.TryGetValue(i, out e)) { c.modified = true; return e; }
             var b = Block.All[c.blocks[i]];
             if (b == B.Chest) e = new ChestEntity { x = x, y = y, z = z };
             else if (b == B.Furnace || b == B.FurnaceOn) e = new FurnaceEntity { x = x, y = y, z = z };
@@ -335,7 +335,15 @@ namespace MundoBloques
                 if (c == null) { tickEntities.RemoveAt(i); continue; }
                 if (Math.Abs(c.cx - pcx) > tickRadius + 1 || Math.Abs(c.cz - pcz) > tickRadius + 1) continue;
                 e.Tick(this, 0.05f);
+                if (e.Active) c.modified = true;
             }
+        }
+
+        /// <summary>Marca el chunk como modificado (cuando cambia el contenido de un cofre u horno).</summary>
+        public void MarkModified(int x, int z)
+        {
+            var c = GetChunk(x >> 4, z >> 4);
+            if (c != null) c.modified = true;
         }
 
         // ----------------------------------------------------------------

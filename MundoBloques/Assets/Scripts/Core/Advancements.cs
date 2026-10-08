@@ -73,7 +73,13 @@ namespace MundoBloques
 
             Add(Ex, "boat", "A navegar", "Súbete a un barco.", "boat", (g, p) => E("mount:boat"));
             Add(Ex, "horse", "A galope", "Monta un caballo ensillado.", "saddle", (g, p) => E("mount:horse"));
-            Add(Ex, "sky", "Cabeza en las nubes", "Pisa una isla celestial flotante.", "cloud_fluff", (g, p) => g.world.dim == Dim.Overworld && g.world.BiomeAt(Mathf.FloorToInt(p.transform.position.x), Mathf.FloorToInt(p.transform.position.z)) == BiomeId.Celestial);
+            Add(Ex, "sky", "Cabeza en las nubes", "Pisa una isla celestial flotante.", "cloud_fluff", (g, p) =>
+            {
+                if (g.world.dim != Dim.Overworld || !p.onGround) return false;
+                var pp = p.transform.position;
+                var under = g.world.GetBlock(Mathf.FloorToInt(pp.x), Mathf.FloorToInt(pp.y - 0.1f), Mathf.FloorToInt(pp.z));
+                return under == B.SkyGrass || under == B.SkyStone || under == B.SkyBricks || under == B.Cloud || under == B.SkyCrystal;
+            });
             Add(Ex, "explorer", "Cartógrafo", "Explora 300 chunks del mundo.", "paper", (g, p) => g.map.Count >= 300);
             Add(Ex, "explorer2", "Gran explorador", "Explora 2000 chunks del mundo.", "book", (g, p) => g.map.Count >= 2000);
             Add(Ex, "mine", "Minero valiente", "Abre un cofre de unas minas abandonadas.", "chest", (g, p) => E("chest:mineshaft"));

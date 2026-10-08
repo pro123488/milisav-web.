@@ -14,7 +14,7 @@ namespace MundoBloques
         public bool dead;
         public bool onGround, inWater, headInWater, inLava, hitWall, onLadder;
         public float fallDistance;
-        public float invuln, hurtFlash, burn;
+        public float invuln, hurtFlash, burn, rainImmune;
         public bool noGravity;
         public float stepHeight = 0.6f;
         public float airTime;
@@ -111,10 +111,11 @@ namespace MundoBloques
         {
             if (invuln > 0) invuln -= dt;
             if (hurtFlash > 0) hurtFlash -= dt;
+            if (rainImmune > 0f) rainImmune -= dt;
             if (burn > 0)
             {
                 burn -= dt;
-                if (inWater || (G.weather != null && G.weather.Wet(W, transform.position + Vector3.up * (height * 0.5f)))) burn = 0;
+                if (inWater || (rainImmune <= 0f && G.weather != null && G.weather.Wet(W, transform.position + Vector3.up * (height * 0.5f)))) burn = 0;
                 else if (Mathf.FloorToInt(burn * 2f) != Mathf.FloorToInt((burn + dt) * 2f)) { Damage(1f, transform.position, null, 0f); invuln = 0; }
             }
             if (inLava) { if (burn < 6f) burn = 6f; if (Random.value < dt * 2.5f) { Damage(4f, transform.position, null, 0f); } }
