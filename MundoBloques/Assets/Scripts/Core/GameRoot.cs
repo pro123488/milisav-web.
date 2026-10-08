@@ -407,6 +407,7 @@ namespace MundoBloques
             int pcx = Mathf.FloorToInt(pos.x) >> 4, pcz = Mathf.FloorToInt(pos.z) >> 4;
             float t = 0f;
             const int R = 2;
+            world.SetLoading(true);
             while (true)
             {
                 world.Stream(pcx, pcz);
@@ -424,6 +425,7 @@ namespace MundoBloques
                 if (t > 60f) break;
                 yield return null;
             }
+            if (world != null) world.SetLoading(false);
             for (int i = 0; i < 3; i++) { PumpMeshes(); yield return null; }
         }
 

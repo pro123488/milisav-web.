@@ -44,7 +44,7 @@ Notas:
 ## Qué incluye
 
 **Mundo**
-- Mundo abierto infinito por chunks (16×16×128), generado en hilos secundarios, con semilla, luz de cielo y de bloques, oclusión ambiental y color de bioma suavizado.
+- Mundo abierto infinito por chunks (16×16×128), generado y mallado en hilos secundarios (según tus núcleos) y guardado en segundo plano, con semilla, luz de cielo y de bloques, oclusión ambiental y color de bioma suavizado.
 - 25 biomas: océano (templado, profundo, helado, cálido), playa, río, llanura, bosque, abedulal, taiga, tundra, desierto, sabana, jungla, pantano, mesa, montañas, picos nevados, islas, setas, islas celestiales sobrenaturales y más.
 - Cuevas, lagos, ríos, océanos con islas, montañas, árboles por bioma, flores, hierba alta, nieve y hielo.
 - Estructuras: **aldeas** (casas, pozo, granjas, caminos, herreros y gatos), templos del desierto, mazmorras con cofres y spawner, ruinas flotantes, fortaleza (*stronghold*) con portal del Final, fortaleza del Abismo, **minas abandonadas** (túneles con soportes, antorchas, salas con cofres y un generador de arañas), **naufragios** en el fondo del mar o la playa con cofres de tesoro, y **portales en ruinas** con botín.

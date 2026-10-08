@@ -27,8 +27,15 @@ namespace MundoBloques
             return v;
         }
 
+        Item shownItem; int shownCount = int.MinValue, shownDamage;
+
         public void Show(ItemStack s)
         {
+            // las casillas se refrescan cada fotograma: si no ha cambiado nada, no se toca la interfaz (evita basura y reconstrucciones)
+            Item it = s.IsEmpty ? null : s.item;
+            int n = s.IsEmpty ? 0 : s.count, dmg = s.IsEmpty ? 0 : s.damage;
+            if (shownCount != int.MinValue && it == shownItem && n == shownCount && dmg == shownDamage) return;
+            shownItem = it; shownCount = n; shownDamage = dmg;
             if (s.IsEmpty) { icon.enabled = false; count.text = ""; bar.enabled = false; barBg.enabled = false; return; }
             icon.enabled = true;
             icon.uvRect = IconAtlas.UV(s.item.icon);
@@ -64,7 +71,7 @@ namespace MundoBloques
         bool showDebug;
         readonly List<Text> toasts = new List<Text>();
         readonly List<float> toastT = new List<float>();
-        float pickupT; Item pickupItem; int pickupCount;
+        float pickupT; Item pickupItem; int pickupCount; Item shownPickupItem; int shownPickupCount;
         string bossName; float bossFrac;
         float fpsT, fps; int fpsN;
         RawImage crossH;
@@ -219,6 +226,7 @@ namespace MundoBloques
             for (int i = 0; i < 9; i++) hotbar[i].Show(p.inv.slots[i]);
             // estadisticas
             bool surv = !g.creative;
+            int def = p.inv.TotalDefense();
             for (int i = 0; i < 10; i++)
             {
                 heartsR[i].gameObject.SetActive(surv);
@@ -229,7 +237,6 @@ namespace MundoBloques
                 heartsR[i].uvRect = IconAtlas.UV(IconAtlas.Ui(hn));
                 float fv = p.hunger - i * 2f;
                 foodR[i].uvRect = IconAtlas.UV(IconAtlas.Ui(fv >= 2f ? "ui_food_full" : (fv >= 1f ? "ui_food_half" : "ui_food_empty")));
-                int def = p.inv.TotalDefense();
                 armorR[i].gameObject.SetActive(surv && def > 0);
                 float av = def - i * 2f;
                 armorR[i].uvRect = IconAtlas.UV(IconAtlas.Ui(av >= 2f ? "ui_armor" : (av >= 1f ? "ui_armor_half" : "ui_armor_empty")));
@@ -241,7 +248,17 @@ namespace MundoBloques
             if (held != lastHeld) { lastHeld = held; itemNameT = 2f; itemName.text = held != null ? held.name : ""; }
             if (itemNameT > 0) { itemNameT -= dt; itemName.color = new Color(1, 1, 1, Mathf.Clamp01(itemNameT)); }
             // recogidas
-            if (pickupT > 0) { pickupT -= dt; pickupText.text = "+" + pickupCount + " " + pickupItem.name; pickupText.color = new Color(0.8f, 1f, 0.8f, Mathf.Clamp01(pickupT)); } else pickupText.text = "";
+            if (pickupT > 0)
+            {
+                pickupT -= dt;
+                if (pickupItem != shownPickupItem || pickupCount != shownPickupCount)
+                {
+                    shownPickupItem = pickupItem; shownPickupCount = pickupCount;
+                    pickupText.text = "+" + pickupCount + " " + pickupItem.name;
+                }
+                pickupText.color = new Color(0.8f, 1f, 0.8f, Mathf.Clamp01(pickupT));
+            }
+            else if (shownPickupItem != null) { shownPickupItem = null; pickupText.text = ""; }
             if (hintT > 0f) { hintT -= dt; hintText.color = new Color(1f, 0.95f, 0.7f, Mathf.Clamp01(hintT * 2f)); if (hintT <= 0f) hintText.text = ""; }
             // toasts
             for (int i = toasts.Count - 1; i >= 0; i--)
@@ -266,7 +283,8 @@ namespace MundoBloques
         void UpdateDebug(GameRoot g, Player p, float dt)
         {
             fpsT += dt; fpsN++;
-            if (fpsT >= 0.5f) { fps = fpsN / fpsT; fpsT = 0; fpsN = 0; }
+            if (fpsT < 0.25f && debugText.text.Length > 0) return;       // el texto se rehace 4 veces por segundo
+            fps = fpsN / fpsT; fpsT = 0; fpsN = 0;
             var pos = p.transform.position;
             int x = Mathf.FloorToInt(pos.x), y = Mathf.FloorToInt(pos.y), z = Mathf.FloorToInt(pos.z);
             var w = g.world;

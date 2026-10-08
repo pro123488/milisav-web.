@@ -24,15 +24,17 @@ namespace MundoBloques
             go.transform.SetParent(parent, false);
             src = go.AddComponent<AudioSource>();
             src.spatialBlend = 0f; src.loop = false; src.playOnAwake = false;
-            for (int i = 0; i < Moods; i++)
+            // un unico hilo de baja prioridad, una pieza tras otra: no compite con la generacion del mundo
+            var th = new Thread(() =>
             {
-                int k = i;
-                ThreadPool.QueueUserWorkItem(_ =>
+                for (int k = 0; k < Moods; k++)
                 {
                     try { var d = Synth(k); lock (ready) ready.Add(new KeyValuePair<int, float[]>(k, d)); }
                     catch (Exception e) { Debug.LogWarning("Musica: " + e.Message); }
-                });
-            }
+                }
+            });
+            th.IsBackground = true; th.Priority = System.Threading.ThreadPriority.BelowNormal; th.Name = "MusicSynth";
+            th.Start();
         }
 
         /// <summary>Se llama cada frame. g puede ser null en el menu principal.</summary>
@@ -134,9 +136,10 @@ namespace MundoBloques
             // reverberacion sencilla (peines)
             int[] delays = { (int)(0.061f * Rate), (int)(0.097f * Rate), (int)(0.143f * Rate), (int)(0.211f * Rate) };
             var wet = new float[buf.Length];
+            var y = new float[buf.Length];
             for (int d = 0; d < delays.Length; d++)
             {
-                var y = new float[buf.Length];
+                Array.Clear(y, 0, y.Length);
                 int dl = delays[d];
                 for (int i = 0; i < buf.Length; i++)
                 {

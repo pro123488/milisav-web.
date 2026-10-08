@@ -147,6 +147,7 @@ namespace MundoBloques
             if (highlight != null) Destroy(highlight);
             if (crackGo != null) Destroy(crackGo);
             if (crackMesh != null) Destroy(crackMesh);
+            if (highlightMesh != null) Destroy(highlightMesh);
         }
 
         void Look()

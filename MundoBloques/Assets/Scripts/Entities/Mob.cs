@@ -173,10 +173,11 @@ namespace MundoBloques
             if (G == null || W == null || G.paused || dead) return;
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
             var p0 = transform.position;
-            if (!W.IsLoaded(Mathf.FloorToInt(p0.x), Mathf.FloorToInt(p0.z))) return;
             var pl = G.player;
             float pd = pl != null ? (pl.transform.position - p0).magnitude : 0f;
+            // lejos del jugador se retiran aunque su chunk ya se haya descargado (si no, se quedarian para siempre)
             if (!persistent && pd > 112f) { dead = true; Destroy(gameObject); return; }
+            if (!W.IsLoaded(Mathf.FloorToInt(p0.x), Mathf.FloorToInt(p0.z))) return;
             if (!persistent && def.hostile && pd > 48f && Random.value < dt * 0.05f) { dead = true; Destroy(gameObject); return; }
             ageSec += dt;
             if (isBaby && ageSec > 600f) Grow();

@@ -14,7 +14,7 @@ namespace MundoBloques
         int bx, by, bz;
         float breakSoundTimer, attackCooldown, creativeRepeat, placeCooldown;
         GameObject highlight, crackGo;
-        Mesh crackMesh;
+        Mesh crackMesh, highlightMesh;
         Vector2[][] crackUv;
         public HeldItem held;
         static readonly Box[] tmpBoxes = new Box[12];
@@ -26,7 +26,7 @@ namespace MundoBloques
             // contorno del bloque apuntado
             highlight = new GameObject("Highlight");
             var mf = highlight.AddComponent<MeshFilter>(); var mr = highlight.AddComponent<MeshRenderer>();
-            var m = new Mesh();
+            var m = highlightMesh = new Mesh();
             var v = new List<Vector3>(); var idx = new List<int>(); var col = new List<Color32>(); var uv = new List<Vector2>(); var uv2 = new List<Vector2>();
             Vector3[] c = { new Vector3(0, 0, 0), new Vector3(1, 0, 0), new Vector3(1, 0, 1), new Vector3(0, 0, 1), new Vector3(0, 1, 0), new Vector3(1, 1, 0), new Vector3(1, 1, 1), new Vector3(0, 1, 1) };
             int[] e = { 0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7 };

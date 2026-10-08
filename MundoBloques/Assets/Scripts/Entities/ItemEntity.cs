@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MundoBloques
@@ -10,11 +11,26 @@ namespace MundoBloques
         Transform model;
         float bobSeed;
 
+        // objetos sueltos vivos: la fusion y el limite se recorren aqui y no por todas las entidades
+        const int MaxLive = 160;
+        static readonly List<ItemEntity> live = new List<ItemEntity>();
+        static MaterialPropertyBlock sharedMpb;
+
+        protected override void OnEnable() { base.OnEnable(); live.Add(this); }
+        protected override void OnDisable() { base.OnDisable(); live.Remove(this); }
+
         public override bool Attackable { get { return false; } }
 
         public static ItemEntity Spawn(Vector3 pos, ItemStack s, Vector3 vel, float delay = 0.6f)
         {
             if (s.IsEmpty) return null;
+            if (live.Count >= MaxLive)
+            {
+                // demasiados objetos: desaparece el mas antiguo
+                ItemEntity oldest = null;
+                for (int i = 0; i < live.Count; i++) if (!live[i].dead && (oldest == null || live[i].age > oldest.age)) oldest = live[i];
+                if (oldest != null) { oldest.dead = true; Destroy(oldest.gameObject); live.Remove(oldest); }
+            }
             var go = new GameObject("Item " + s.item.key);
             go.transform.SetParent(GameRoot.I.entityRoot, false);
             go.transform.position = pos;
@@ -37,10 +53,8 @@ namespace MundoBloques
             m.transform.localScale = Vector3.one * (cube ? 0.28f : 0.4f);
             model = m.transform;
             bobSeed = Random.value * 6.28f;
-            var mpb = new MaterialPropertyBlock();
-            mr.GetPropertyBlock(mpb);
-            mpb.SetFloat("_ObjLight", 0.9f);
-            mr.SetPropertyBlock(mpb);
+            if (sharedMpb == null) { sharedMpb = new MaterialPropertyBlock(); sharedMpb.SetFloat("_ObjLight", 0.9f); }
+            mr.SetPropertyBlock(sharedMpb);
         }
 
         void Update()
@@ -63,9 +77,9 @@ namespace MundoBloques
             // fusionar con vecinos
             if (age > 0.5f && Mathf.FloorToInt(age * 4f) != Mathf.FloorToInt((age - dt) * 4f))
             {
-                for (int i = 0; i < All.Count; i++)
+                for (int i = 0; i < live.Count; i++)
                 {
-                    var o = All[i] as ItemEntity;
+                    var o = live[i];
                     if (o == null || o == this || o.dead || !o.stack.SameKind(stack)) continue;
                     if ((o.transform.position - transform.position).sqrMagnitude > 1f) continue;
                     if (o.stack.count + stack.count > stack.Max) continue;

@@ -30,6 +30,7 @@ namespace MundoBloques
         public IChunkStore store;
         public int viewDist = 6;
         public int maxGen = 2, maxMesh = 2;
+        readonly int baseJobs;
 
         public readonly ConcurrentDictionary<long, Chunk> chunks = new ConcurrentDictionary<long, Chunk>();
         public readonly ConcurrentQueue<MeshData> meshResults = new ConcurrentQueue<MeshData>();
@@ -56,12 +57,22 @@ namespace MundoBloques
         {
             this.dim = dim; this.seed = seed;
             rng = new Rng(seed ^ 0x5DEECE6);
+            // trabajos de fondo a la vez: la mitad de los nucleos (el hilo principal y el audio tambien necesitan CPU)
+            baseJobs = Math.Max(1, Math.Min(4, Environment.ProcessorCount / 2));
+            maxGen = maxMesh = baseJobs;
             switch (dim)
             {
                 case Dim.Abismo: gen = new AbismoGen(seed); hasSky = false; sea = 31; break;
                 case Dim.Final: gen = new EndGen(seed); hasSky = false; sea = 0; break;
                 default: gen = new OverworldGen(seed); hasSky = true; sea = OverworldGen.Sea; break;
             }
+        }
+
+        /// <summary>En las pantallas de carga se usan casi todos los nucleos; durante el juego, solo la mitad.</summary>
+        public void SetLoading(bool on)
+        {
+            int n = on ? Math.Max(baseJobs, Math.Min(8, Environment.ProcessorCount - 1)) : baseJobs;
+            maxGen = maxMesh = n;
         }
 
         // ----------------------------------------------------------------

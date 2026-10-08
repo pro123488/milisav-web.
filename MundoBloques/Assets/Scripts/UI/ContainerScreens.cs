@@ -28,6 +28,7 @@ namespace MundoBloques
         public ItemStack cursor;
         RawImage cursorIcon; Text cursorCount;
         RectTransform tipRt; Text tipText; Image tipBg;
+        Item tipItem; int tipDamage; string tipCache, laidTip;
         public virtual bool CanCloseWithE { get { return true; } }
         protected string title = "";
         protected float W = 560, H = 500;
@@ -132,18 +133,31 @@ namespace MundoBloques
             else cursorCount.text = "";
             cursorTr.anchoredPosition = local + new Vector2(0, 0);
             // tooltip
-            string tip = hover != null ? Tooltip(hover.Get()) : ExtraTooltip(mouse);
+            string tip;
+            if (hover != null)
+            {
+                // el texto de un objeto solo se rehace cuando cambia el objeto o su desgaste, no en cada fotograma
+                var hs = hover.Get();
+                if (hs.IsEmpty) tip = null;
+                else if (hs.item == tipItem && hs.damage == tipDamage && tipCache != null) tip = tipCache;
+                else { tip = Tooltip(hs); tipItem = hs.item; tipDamage = hs.damage; tipCache = tip; }
+            }
+            else tip = ExtraTooltip(mouse);
             if (cursor.IsEmpty && !string.IsNullOrEmpty(tip))
             {
-                tipRt.gameObject.SetActive(true);
-                tipText.text = tip;
-                int lines = tip.Split('\n').Length;
-                float w = Mathf.Max(150f, MaxLen(tip) * 8.6f + 16f);
-                tipRt.sizeDelta = new Vector2(w, lines * 20f + 12f);
-                tipText.rectTransform.sizeDelta = new Vector2(w - 12f, lines * 20f + 6f);
+                if (!tipRt.gameObject.activeSelf) tipRt.gameObject.SetActive(true);
+                if (!string.Equals(tip, laidTip))
+                {
+                    laidTip = tip;
+                    tipText.text = tip;
+                    int lines = tip.Split('\n').Length;
+                    float w = Mathf.Max(150f, MaxLen(tip) * 8.6f + 16f);
+                    tipRt.sizeDelta = new Vector2(w, lines * 20f + 12f);
+                    tipText.rectTransform.sizeDelta = new Vector2(w - 12f, lines * 20f + 6f);
+                }
                 tipRt.anchoredPosition = local + new Vector2(16, -8);
             }
-            else tipRt.gameObject.SetActive(false);
+            else if (tipRt.gameObject.activeSelf) tipRt.gameObject.SetActive(false);
             TickExtra(dt, mouse, left, right);
         }
 
