@@ -424,7 +424,7 @@ namespace MundoBloques
                 {
                     Chunk n;
                     if (!chunks.TryGetValue(MathX.ChunkKey(cx + dx, cz + dz), out n) || n.state != 2) return false;
-                    if (needMesh && (n.meshedVersion < 0 || n.view == null && n.meshQueued)) return false;
+                    if (needMesh && n.view == null) return false;
                 }
             return true;
         }

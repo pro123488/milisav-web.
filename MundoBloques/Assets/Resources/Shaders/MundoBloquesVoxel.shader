@@ -10,6 +10,7 @@ Shader "MundoBloques/Voxel"
         _Cutoff ("Alpha cutoff", Range(0,1)) = 0.5
         _Tint ("Tint", Color) = (1,1,1,1)
         _ObjLight ("Luz del objeto (-1 = por vertice)", Float) = -1
+        _FogOn ("Niebla (1 = si)", Float) = 1
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src", Float) = 1
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst", Float) = 0
@@ -34,6 +35,7 @@ Shader "MundoBloques/Voxel"
             fixed _Cutoff;
             fixed4 _Tint;
             float _ObjLight;
+            float _FogOn;
 
             // Globales (las fija DayNight)
             float _MB_Sky;
@@ -69,7 +71,7 @@ Shader "MundoBloques/Voxel"
                 o.col = fixed4(v.color.rgb * l, v.color.a);
                 float3 vp = UnityObjectToViewPos(v.vertex);
                 float d = length(vp);
-                o.fog = saturate((d - _MB_FogStart) / max(0.001, _MB_FogEnd - _MB_FogStart));
+                o.fog = saturate((d - _MB_FogStart) / max(0.001, _MB_FogEnd - _MB_FogStart)) * _FogOn;
                 return o;
             }
 
