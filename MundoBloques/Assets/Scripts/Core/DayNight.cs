@@ -10,6 +10,8 @@ namespace MundoBloques
         public float dayLength = 1200f;
         public float skyBrightness = 1f;
         public bool frozen;
+        public float overcast;                     // 0..1 nubosidad por clima
+        public float flash;                        // destello de relampago 0..1
         public bool IsNight { get { return skyBrightness < 0.42f; } }
         public bool IsDay { get { return skyBrightness > 0.78f; } }
 
@@ -104,7 +106,7 @@ namespace MundoBloques
             float theta = time * Mathf.PI * 2f;
             float elev = Mathf.Sin(theta);
             float bright = Mathf.Clamp01(0.5f + elev * 1.2f);
-            skyBrightness = Mathf.Max(0.1f, bright);
+            skyBrightness = Mathf.Max(0.1f, bright * (1f - overcast * 0.38f));
             float ambient = 0.035f;
             Color skyC; float fogStart, fogEnd = Mathf.Max(24f, viewDist * 16f - 6f);
             fogStart = fogEnd * 0.55f;
@@ -115,14 +117,24 @@ namespace MundoBloques
                 lava = W(w, p).isLava;
             }
             bool sky = w.dim == Dim.Overworld;
-            if (w.dim == Dim.Overworld) { skyC = SkyColor(elev); }
+            if (w.dim == Dim.Overworld)
+            {
+                skyC = SkyColor(elev);
+                if (overcast > 0.001f)
+                {
+                    var grey = new Color(0.50f, 0.54f, 0.60f) * Mathf.Clamp01(bright * 1.15f + 0.03f);
+                    skyC = Color.Lerp(skyC, grey, overcast * 0.85f);
+                    fogEnd *= 1f - overcast * 0.3f; fogStart = fogEnd * 0.5f;
+                }
+                if (flash > 0.001f) skyC = Color.Lerp(skyC, new Color(0.9f, 0.93f, 1f), flash * 0.7f);
+            }
             else if (w.dim == Dim.Abismo) { skyC = new Color(0.32f, 0.07f, 0.04f); skyBrightness = 0f; ambient = 0.3f; fogStart = 8f; fogEnd = Mathf.Min(fogEnd, 70f); }
             else { skyC = new Color(0.06f, 0.03f, 0.09f); skyBrightness = 0f; ambient = 0.42f; fogStart = fogEnd * 0.7f; fogEnd *= 1.15f; }
             fog = skyC;
             if (underwater) { var wc = new Color(0.1f, 0.28f, 0.55f) * Mathf.Lerp(0.3f, 1f, skyBrightness); fog = wc; skyC = wc; fogStart = 0f; fogEnd = 22f; }
             if (lava) { fog = new Color(0.8f, 0.25f, 0.02f); skyC = fog; fogStart = 0f; fogEnd = 3.5f; }
             cam.backgroundColor = skyC;
-            Mats.SetGlobals(w.dim == Dim.Overworld ? skyBrightness : 0f, ambient, fog, fogStart, fogEnd);
+            Mats.SetGlobals(w.dim == Dim.Overworld ? Mathf.Clamp01(skyBrightness + flash * 0.5f) : 0f, ambient, fog, fogStart, fogEnd);
             cam.farClipPlane = 900f;
 
             // astros
@@ -133,9 +145,10 @@ namespace MundoBloques
                 var dirSun = new Vector3(Mathf.Cos(theta), Mathf.Sin(theta), 0.18f).normalized;
                 sun.position = rig.position + dirSun * 430f; sun.rotation = Quaternion.LookRotation(sun.position - rig.position);
                 moon.position = rig.position - dirSun * 430f; moon.rotation = Quaternion.LookRotation(moon.position - rig.position);
-                sunMpb.SetColor("_Tint", new Color(1f, 0.93f, 0.66f, elev > -0.1f ? 1f : 0f)); sunR.SetPropertyBlock(sunMpb);
-                moonMpb.SetColor("_Tint", new Color(0.82f, 0.88f, 1f, elev < 0.1f ? 1f : 0f)); moonR.SetPropertyBlock(moonMpb);
-                float night = Mathf.Clamp01(-elev * 3f);
+                float clear = 1f - overcast * 0.92f;
+                sunMpb.SetColor("_Tint", new Color(1f, 0.93f, 0.66f, elev > -0.1f ? clear : 0f)); sunR.SetPropertyBlock(sunMpb);
+                moonMpb.SetColor("_Tint", new Color(0.82f, 0.88f, 1f, elev < 0.1f ? clear : 0f)); moonR.SetPropertyBlock(moonMpb);
+                float night = Mathf.Clamp01(-elev * 3f) * clear;
                 starMpb.SetColor("_Tint", new Color(1f, 1f, 1f, night)); starR.SetPropertyBlock(starMpb);
                 stars.rotation = Quaternion.Euler(0, 0, theta * Mathf.Rad2Deg) * Quaternion.Euler(20, 0, 0);
                 // nubes ancladas al mundo
@@ -143,7 +156,7 @@ namespace MundoBloques
                 clouds.position = new Vector3(cp.x, 138f, cp.z);
                 float wind = Time.time * 1.2f;
                 cloudMat.mainTextureOffset = new Vector2((cp.x + wind) / 768f * 1f, cp.z / 768f);
-                float cb = Mathf.Lerp(0.18f, 1f, skyBrightness);
+                float cb = Mathf.Lerp(0.18f, 1f, skyBrightness) * (1f - overcast * 0.35f);
                 cloudMpb.SetColor("_Tint", new Color(cb, cb, Mathf.Min(1f, cb * 1.05f), 0.9f)); cloudR.SetPropertyBlock(cloudMpb);
             }
         }

@@ -17,6 +17,9 @@ namespace MundoBloques
         public bool portalLock;
         public int portalKind;      // 0 ninguno, 1 abismo, 2 final
         public int totalKills;
+        public IMount mount;
+        public Bobber bobber;
+        public int fishCaught, petsTamed;
 
         float camY = 1.62f, fov = 70f;
         float lastJumpTap = -1f, lastFwdTap = -1f;
@@ -68,13 +71,75 @@ namespace MundoBloques
             if (!dead)
             {
                 if (!uiOpen) { Look(); HotbarInput(); }
-                Movement(dt, uiOpen);
+                if (mount != null) MountedUpdate(dt, uiOpen); else Movement(dt, uiOpen);
                 Survival(dt);
                 if (!uiOpen) Interact(dt); else StopBreaking();
                 UpdatePortals(dt);
             }
             else StepPhysics(dt);
             UpdateCamera(dt);
+        }
+
+        // ---------------------------------------------------------------- monturas
+        bool MountValid()
+        {
+            var o = mount as Object;
+            var e = mount as Entity;
+            return o != null && e != null && !e.dead;
+        }
+
+        public void Mount(IMount m)
+        {
+            if (mount != null || m == null || m.Rider != null || dead) return;
+            mount = m; m.Rider = this;
+            vel = Vector3.zero; flying = false; sprinting = false; fallDistance = 0f;
+            StopBreaking(); CancelUse();
+            Advancements.Event(m is Boat ? "mount:boat" : "mount:horse");
+            G.ui.Hint("Mayús para bajar", 3f);
+        }
+
+        public void Dismount()
+        {
+            if (mount == null) return;
+            var m = mount; mount = null;
+            var obj = m as Object;
+            if (obj != null)
+            {
+                m.Rider = null;
+                var t = m.MountTransform;
+                var right = t.right; var fwd = t.forward; right.y = 0; fwd.y = 0;
+                Vector3[] offs = { right * 1.4f, -right * 1.4f, -fwd * 1.5f, fwd * 1.5f, Vector3.zero };
+                Vector3 best = t.position + Vector3.up * 1.2f; bool found = false;
+                for (int pass = 0; pass < 2 && !found; pass++)
+                    for (int i = 0; i < offs.Length && !found; i++)
+                        for (int dy = 0; dy <= 2 && !found; dy++)
+                        {
+                            var c = t.position + offs[i] + Vector3.up * (0.05f + dy);
+                            var box = AABB.At(c, width, height);
+                            if (Phys.Overlaps(W, box)) continue;
+                            if (pass == 0 && !Phys.HasGround(W, box, 1.2f)) continue;
+                            best = c; found = true;
+                        }
+                transform.position = best;
+            }
+            else mount = null;
+            vel = Vector3.zero; fallDistance = 0f; onGround = false;
+        }
+
+        void MountedUpdate(float dt, bool uiOpen)
+        {
+            if (!MountValid()) { mount = null; return; }
+            sneaking = false; flying = false;
+            if (!uiOpen && Inp.Pressed(Act.Sneak)) { Dismount(); return; }
+            transform.position = mount.SeatPosition;
+            vel = Vector3.zero; fallDistance = 0f; onGround = true;
+            sprinting = !uiOpen && Inp.Held(Act.Sprint);
+            UpdateMedia();
+        }
+
+        void LateUpdate()
+        {
+            if (mount != null && !dead && MountValid()) transform.position = mount.SeatPosition;
         }
 
         void Look()
@@ -310,6 +375,7 @@ namespace MundoBloques
         {
             if (dead) return;
             dead = true;
+            Dismount();
             StopBreaking(); CancelUse();
             G.OnPlayerDied();
         }
@@ -323,6 +389,7 @@ namespace MundoBloques
 
         public void Eat(Item food)
         {
+            Advancements.Event("eat:" + food.key);
             hunger = Mathf.Min(20f, hunger + food.hunger);
             saturation = Mathf.Min(hunger, saturation + food.saturation);
             if (food.key == "golden_apple") Heal(8f);

@@ -227,6 +227,9 @@ namespace MundoBloques
             S("shears", 1, " I|I ", 'I', "iron_ingot");
             L("flint_and_steel", 1, "iron_ingot", "flint");
             S("bow", 1, " SX|S X| SX", 'S', "stick", 'X', "string");
+            S("fishing_rod", 1, "  S| ST|S T", 'S', "stick", 'T', "string");
+            S("boat", 1, "P P|PPP", 'P', "#planks");
+            S("saddle", 1, "LLL|LIL", 'L', "leather", 'I', "iron_ingot");
             S("arrow", 4, "F|S|T", 'F', "flint", 'S', "stick", 'T', "feather");
             S("paper", 3, "CCC", 'C', "sugar_cane");
             L("sugar", 1, "sugar_cane");

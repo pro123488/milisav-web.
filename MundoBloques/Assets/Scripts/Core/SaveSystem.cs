@@ -8,7 +8,9 @@ namespace MundoBloques
 {
     [Serializable] public sealed class StackDto { public string k; public int n; public int d; }
 
-    [Serializable] public sealed class MobDto { public string k; public float x, y, z, hx, hy, hz; public int id; }
+    [Serializable] public sealed class MobDto { public string k; public float x, y, z, hx, hy, hz; public int id; public int f; public int c; public float hp; }
+
+    [Serializable] public sealed class BoatDto { public float x, y, z, yaw; }
 
     [Serializable]
     public sealed class LevelDto
@@ -22,6 +24,8 @@ namespace MundoBloques
         public bool dragonDefeated, creditsShown;
         public long savedAt; public float playTime; public int kills;
         public int viewDist = 6;
+        public string[] adv; public BoatDto[] boats;
+        public bool rain, storm; public int fish, pets;
     }
 
     /// <summary>Guardado en disco: nivel (JSON) y chunks modificados (binario comprimido).</summary>
@@ -53,6 +57,8 @@ namespace MundoBloques
             list.Sort((a, b) => b.savedAt.CompareTo(a.savedAt));
             return list;
         }
+
+        public static string MapFile(string name) { return Path.Combine(WorldDir(name), "map.bin"); }
 
         public static bool Exists(string name) { return File.Exists(Path.Combine(WorldDir(name), "level.json")); }
 
@@ -95,6 +101,11 @@ namespace MundoBloques
                     viewDist = g.world.viewDist
                 };
                 dto.mobs = g.CollectPersistentMobs();
+                dto.boats = g.CollectBoats();
+                dto.adv = new List<string>(g.advDone).ToArray();
+                dto.rain = g.weather != null && g.weather.WantRain; dto.storm = g.weather != null && g.weather.thunder;
+                dto.fish = p.fishCaught; dto.pets = p.petsTamed;
+                if (g.map.dirty) g.map.Save(MapFile(g.worldName));
                 Directory.CreateDirectory(WorldDir(g.worldName));
                 File.WriteAllText(Path.Combine(WorldDir(g.worldName), "level.json"), JsonUtility.ToJson(dto));
                 g.world.SaveAll();
@@ -107,7 +118,7 @@ namespace MundoBloques
             p.health = Mathf.Max(1f, dto.health); p.hunger = dto.hunger; p.saturation = dto.saturation;
             FromDto(dto.inv, p.inv.slots); FromDto(dto.armor, p.inv.armor); p.inv.selected = Mathf.Clamp(dto.sel, 0, 8);
             p.spawnPos = new Vector3(dto.sx, dto.sy, dto.sz); p.spawnDim = (Dim)dto.sdim; p.hasBed = dto.hasBed;
-            p.yaw = dto.yaw; p.pitch = dto.pitch; p.totalKills = dto.kills;
+            p.yaw = dto.yaw; p.pitch = dto.pitch; p.totalKills = dto.kills; p.fishCaught = dto.fish; p.petsTamed = dto.pets;
         }
 
         public sealed class ChunkStore : IChunkStore

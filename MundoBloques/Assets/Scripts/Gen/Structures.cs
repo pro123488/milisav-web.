@@ -103,6 +103,7 @@ namespace MundoBloques
                 }
             Dungeon(c, w, g);
             SkyRuin(c, w, g, win);
+            MoreStructures.Overworld(c, w, g);
         }
 
         // ---------------------------------------------------------------- aldeas

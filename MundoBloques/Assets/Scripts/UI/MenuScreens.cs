@@ -17,7 +17,8 @@ namespace MundoBloques
         UITextField nameField, seedField;
         bool newCreative;
         UIButton modeBtn;
-        UISlider sViewDist, sSens, sVolume;
+        UISlider sViewDist, sSens, sVolume, sMusic;
+        UIButton btnMinimap;
         Image loadingFill; Text loadingText;
         Text victoryText; float victoryScroll;
         bool menuVisible, pauseOpen, deathOpen, victoryOpen;
@@ -79,16 +80,20 @@ namespace MundoBloques
             menuButtons.Add(UIButton.Make(pageControls, "Atrás", 330, 505, 200, 44, () => ShowPage(pageMain)));
 
             // --- pausa ---
-            pausePanel = UIKit.Centered(screenRoot, "pause", 520, 470);
+            pausePanel = UIKit.Centered(screenRoot, "pause", 520, 520);
             var pbg = pausePanel.gameObject.AddComponent<Image>(); pbg.color = UIKit.Panel; pbg.raycastTarget = false;
             UIKit.Txt(pausePanel, "Juego en pausa", 32, Color.white, TextAnchor.MiddleCenter, 0, 8, 520, 44);
-            pauseButtons.Add(UIButton.Make(pausePanel, "Continuar", 40, 62, 440, 44, ClosePause, 20));
-            sViewDist = UISlider.Make(pausePanel, "Distancia de visión", 40, 122, 440, 3, 12, 6, v => Mathf.RoundToInt(v) + " chunks", v => { GameRoot.I.viewDist = Mathf.RoundToInt(v); });
-            sSens = UISlider.Make(pausePanel, "Sensibilidad del ratón", 40, 162, 440, 0.5f, 5f, 2.2f, v => v.ToString("0.0"), v => { if (GameRoot.I.player != null) GameRoot.I.player.lookSens = v; });
-            sVolume = UISlider.Make(pausePanel, "Volumen", 40, 202, 440, 0f, 1f, 0.8f, v => Mathf.RoundToInt(v * 100) + "%", v => { Sfx.volume = v; });
-            pauseButtons.Add(UIButton.Make(pausePanel, "Guardar partida", 40, 252, 440, 44, () => { SaveSystem.SaveLevel(GameRoot.I); Toast("Partida guardada."); }, 20));
-            pauseButtons.Add(UIButton.Make(pausePanel, "Ver controles", 40, 306, 440, 44, () => Toast("W A S D mover · E inventario · Q tirar · F3 datos · clic der. usar"), 20));
-            pauseButtons.Add(UIButton.Make(pausePanel, "Guardar y salir al menú", 40, 360, 440, 50, () => { ClosePause(); GameRoot.I.ReturnToMenu(); }, 20));
+            pauseButtons.Add(UIButton.Make(pausePanel, "Continuar", 40, 56, 440, 42, ClosePause, 20));
+            sViewDist = UISlider.Make(pausePanel, "Distancia de visión", 40, 108, 440, 3, 12, 6, v => Mathf.RoundToInt(v) + " chunks", v => { GameRoot.I.viewDist = Mathf.RoundToInt(v); Settings.viewDist = Mathf.RoundToInt(v); });
+            sSens = UISlider.Make(pausePanel, "Sensibilidad del ratón", 40, 144, 440, 0.5f, 5f, 2.2f, v => v.ToString("0.0"), v => { Settings.lookSens = v; if (GameRoot.I.player != null) GameRoot.I.player.lookSens = v; });
+            sVolume = UISlider.Make(pausePanel, "Volumen de efectos", 40, 180, 440, 0f, 1f, 0.8f, v => Mathf.RoundToInt(v * 100) + "%", v => { Sfx.volume = v; Settings.sfx = v; });
+            sMusic = UISlider.Make(pausePanel, "Volumen de la música", 40, 216, 440, 0f, 1f, 0.5f, v => Mathf.RoundToInt(v * 100) + "%", v => { Music.volume = v; Settings.music = v; });
+            btnMinimap = UIButton.Make(pausePanel, "Minimapa: sí", 40, 262, 215, 40, () => { MinimapOn = !MinimapOn; btnMinimap.label.text = "Minimapa: " + (MinimapOn ? "sí" : "no"); }, 18);
+            pauseButtons.Add(btnMinimap);
+            pauseButtons.Add(UIButton.Make(pausePanel, "Logros (L)", 265, 262, 215, 40, () => { ClosePause(); OpenAdv(); }, 18));
+            pauseButtons.Add(UIButton.Make(pausePanel, "Guardar partida", 40, 312, 440, 42, () => { SaveSystem.SaveLevel(GameRoot.I); Settings.Save(); Toast("Partida guardada."); }, 20));
+            pauseButtons.Add(UIButton.Make(pausePanel, "Ver controles", 40, 362, 440, 42, () => Toast("WASD mover · E inventario · M mapa · L logros · Q tirar · F3 datos · clic der. usar"), 20));
+            pauseButtons.Add(UIButton.Make(pausePanel, "Guardar y salir al menú", 40, 414, 440, 50, () => { ClosePause(); GameRoot.I.ReturnToMenu(); }, 20));
             pausePanel.gameObject.SetActive(false);
 
             // --- muerte ---
@@ -184,18 +189,20 @@ namespace MundoBloques
         public void OpenPause()
         {
             pauseOpen = true; pausePanel.gameObject.SetActive(true); GameRoot.I.paused = true;
-            sViewDist.value = GameRoot.I.viewDist; if (GameRoot.I.player != null) sSens.value = GameRoot.I.player.lookSens; sVolume.value = Sfx.volume;
+            sViewDist.value = GameRoot.I.viewDist; if (GameRoot.I.player != null) sSens.value = GameRoot.I.player.lookSens; sVolume.value = Sfx.volume; sMusic.value = Music.volume;
+            btnMinimap.label.text = "Minimapa: " + (MinimapOn ? "sí" : "no");
         }
 
         public void ClosePause()
         {
-            pauseOpen = false; pausePanel.gameObject.SetActive(false); GameRoot.I.paused = false;
+            pauseOpen = false; pausePanel.gameObject.SetActive(false); GameRoot.I.paused = false; Settings.Save();
         }
 
         public void CloseAll()
         {
             if (container != null) CloseContainer();
             if (pauseOpen) ClosePause();
+            CloseMap(); CloseAdv();
             HideDeath(); HideVictory();
             pausePanel.gameObject.SetActive(false);
         }
@@ -261,7 +268,7 @@ namespace MundoBloques
             }
             if (pauseOpen)
             {
-                sViewDist.Tick(mouse); sSens.Tick(mouse); sVolume.Tick(mouse);
+                sViewDist.Tick(mouse); sSens.Tick(mouse); sVolume.Tick(mouse); sMusic.Tick(mouse);
                 foreach (var b in pauseButtons) b.Tick(mouse, click);
             }
             if (deathOpen) foreach (var b in deathButtons) b.Tick(mouse, click);

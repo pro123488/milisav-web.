@@ -48,6 +48,22 @@ namespace MundoBloques
                 new E("ender_pearl", 1, 2, 3), new E("iron_ingot", 1, 3, 6), new E("gold_ingot", 1, 2, 4), new E("bread", 1, 3, 6), new E("apple", 1, 2, 5),
                 new E("book", 1, 2, 4), new E("diamond", 1, 1, 1), new E("paper", 2, 5, 5), new E("golden_apple", 1, 1, 0.7f), new E("iron_pickaxe", 1, 1, 1.2f),
                 new E("arrow", 3, 8, 4), new E("coal", 2, 5, 5), new E("blaze_powder", 1, 2, 1));
+            Def("mineshaft", 3, 6,
+                new E("coal", 2, 6, 10), new E("iron_ingot", 1, 3, 6), new E("copper_ingot", 1, 4, 6), new E("gold_ingot", 1, 2, 3), new E("torch", 3, 8, 8),
+                new E("bread", 1, 3, 5), new E("lapis", 2, 6, 4), new E("iron_pickaxe", 1, 1, 1.2f), new E("diamond", 1, 1, 0.8f), new E("ruby", 1, 1, 0.6f),
+                new E("sapphire", 1, 1, 0.6f), new E("amethyst_shard", 1, 3, 2), new E("tnt", 1, 2, 1), new E("stick", 2, 6, 6), new E("bone", 1, 3, 3),
+                new E("golden_apple", 1, 1, 0.3f), new E("raw_iron", 1, 3, 4));
+            Def("shipwreck", 3, 6,
+                new E("emerald", 1, 4, 5), new E("gold_ingot", 1, 4, 6), new E("iron_ingot", 1, 4, 6), new E("diamond", 1, 2, 2), new E("sapphire", 1, 2, 2),
+                new E("ruby", 1, 1, 1.5f), new E("amethyst_shard", 1, 4, 3), new E("lapis", 2, 6, 4), new E("book", 1, 2, 3), new E("saddle", 1, 1, 1),
+                new E("fishing_rod", 1, 1, 1.5f), new E("golden_apple", 1, 1, 0.8f), new E("bow", 1, 1, 0.8f));
+            Def("shipwreck_supply", 4, 8,
+                new E("bread", 2, 6, 10), new E("cooked_cod", 2, 5, 8), new E("cooked_salmon", 2, 4, 6), new E("apple", 1, 4, 6), new E("carrot", 1, 4, 6),
+                new E("potato", 1, 4, 6), new E("coal", 2, 6, 6), new E("string", 1, 4, 6), new E("stick", 2, 6, 6), new E("arrow", 3, 8, 4), new E("torch", 3, 8, 5),
+                new E("feather", 1, 4, 4), new E("leather", 1, 3, 3), new E("oak_planks", 2, 8, 5));
+            Def("ruined_portal", 3, 5,
+                new E("obsidian", 1, 4, 8), new E("flint_and_steel", 1, 1, 3), new E("gold_ingot", 1, 4, 6), new E("iron_ingot", 1, 3, 5), new E("glowstone_dust", 1, 4, 4),
+                new E("golden_apple", 1, 1, 1), new E("quartz", 1, 4, 4), new E("abyss_brick", 1, 4, 3), new E("abismita_scrap", 1, 1, 0.5f), new E("diamond", 1, 1, 0.5f));
             Def("abyss", 4, 7,
                 new E("gold_ingot", 1, 3, 8), new E("iron_ingot", 1, 3, 6), new E("obsidian", 2, 4, 4), new E("glowstone_dust", 2, 5, 6), new E("quartz", 2, 6, 6),
                 new E("diamond", 1, 2, 2), new E("abismita_scrap", 1, 1, 1), new E("flint_and_steel", 1, 1, 2), new E("golden_apple", 1, 1, 1.5f),

@@ -9,7 +9,7 @@ namespace MundoBloques
     public enum Act
     {
         Forward, Back, Left, Right, Jump, Sneak, Sprint,
-        Inventory, Drop, Pause, Debug, Recipes, Fly, Backspace, Enter, Tab,
+        Inventory, Drop, Pause, Debug, Recipes, Fly, Backspace, Enter, Tab, Map, Advancements,
         Hotbar1, Hotbar2, Hotbar3, Hotbar4, Hotbar5, Hotbar6, Hotbar7, Hotbar8, Hotbar9,
         Count
     }
@@ -66,6 +66,8 @@ namespace MundoBloques
             c[(int)Act.Backspace] = KeyCode.Backspace;
             c[(int)Act.Enter] = KeyCode.Return;
             c[(int)Act.Tab] = KeyCode.Tab;
+            c[(int)Act.Map] = KeyCode.M;
+            c[(int)Act.Advancements] = KeyCode.L;
             for (int i = 0; i < 9; i++) c[(int)Act.Hotbar1 + i] = KeyCode.Alpha1 + i;
             return c;
         }
@@ -117,6 +119,8 @@ namespace MundoBloques
                 case Act.Backspace: return Key.Backspace;
                 case Act.Enter: return Key.Enter;
                 case Act.Tab: return Key.Tab;
+                case Act.Map: return Key.M;
+                case Act.Advancements: return Key.L;
                 default: return Key.Digit1 + (int)(a - Act.Hotbar1);
             }
         }

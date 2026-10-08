@@ -523,6 +523,7 @@ namespace MundoBloques
 
         void TakeCraft()
         {
+            if (current != null) Advancements.Event("craft:" + current.outKey);
             for (int i = 0; i < grid.Length; i++)
             {
                 if (grid[i].IsEmpty) continue;
@@ -554,7 +555,7 @@ namespace MundoBloques
         {
             AddSlot(f.slots, 0, 150, 56, st => Recipes.FindSmelt(st.item) != null);
             AddSlot(f.slots, 1, 150, 150, st => st.item.fuel > 0);
-            AddOutput(330, 100, () => f.slots[2], () => { f.slots[2].Clear(); });
+            AddOutput(330, 100, () => f.slots[2], () => { if (!f.slots[2].IsEmpty) Advancements.Event("smelt:" + f.slots[2].item.key); f.slots[2].Clear(); });
             // el slot de salida debe permitir tomar todo el stack
             UIKit.Txt(root, "Ingrediente", 15, new Color(0.7f, 0.8f, 0.9f), TextAnchor.MiddleLeft, 200, 66, 120, 24);
             UIKit.Txt(root, "Combustible", 15, new Color(0.7f, 0.8f, 0.9f), TextAnchor.MiddleLeft, 200, 160, 120, 24);

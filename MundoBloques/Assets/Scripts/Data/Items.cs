@@ -230,6 +230,9 @@ namespace MundoBloques
             Special("lava_bucket", "Cubo de lava", "bucket|" + Hex(0xFF7A1A), "lava_bucket").fuel = 1000;
             Special("eye_of_end", "Ojo del Final", "eye_end", "eye", 64);
             Special("bone_meal", "Polvo de hueso", "dust|" + Hex(0xF0F0E0), "bonemeal", 64);
+            var rod = Special("fishing_rod", "Caña de pescar", "fishing_rod", "rod"); rod.durability = 64; rod.kind = ItemKind.Tool; rod.fuel = 15;
+            Special("boat", "Barco", "boat", "boat").fuel = 20;
+            Special("saddle", "Montura", "saddle", "saddle");
 
             // ---- armadura ----
             string[] armKeys = { "helmet", "chestplate", "leggings", "boots" };

@@ -49,7 +49,7 @@ namespace MundoBloques
     {
         Canvas canvas;
         RectTransform root, hudRoot, screenRoot, overlayRoot;
-        public bool IsOpen { get { return container != null || pauseOpen || deathOpen || victoryOpen; } }
+        public bool IsOpen { get { return container != null || pauseOpen || deathOpen || victoryOpen || mapOpen || advOpen; } }
 
         // HUD
         SlotView[] hotbar = new SlotView[9];
@@ -68,6 +68,7 @@ namespace MundoBloques
         string bossName; float bossFrac;
         float fpsT, fps; int fpsN;
         RawImage crossH;
+        Text hintText; float hintT;
 
         public void Build()
         {
@@ -83,6 +84,7 @@ namespace MundoBloques
             BuildHud();
             BuildMenus();
             BuildContainers();
+            BuildMap();
         }
 
         RectTransform NewLayer(string name)
@@ -113,6 +115,7 @@ namespace MundoBloques
             // mira
             var ch = UIKit.Centered(hudRoot, "cross", 20, 20);
             var h = UIKit.Img(ch, "h", 2, 9, 16, 2, new Color(1, 1, 1, 0.8f)); var v = UIKit.Img(ch, "v", 9, 2, 2, 16, new Color(1, 1, 1, 0.8f));
+            hintText = UIKit.Txt(UIKit.Anchored(hudRoot, "hint", new Vector2(0.5f, 0.5f), 0, -70, 700, 30), "", 22, new Color(1f, 0.95f, 0.7f), TextAnchor.MiddleCenter, 0, 0, 700, 30);
             debugText = UIKit.Txt(UIKit.Rect(hudRoot, "dbg", 8, 6, 560, 300), "", 15, Color.white, TextAnchor.UpperLeft, 0, 0, 560, 300);
             debugText.gameObject.SetActive(false);
             // barra del jefe
@@ -151,6 +154,9 @@ namespace MundoBloques
             if (toasts.Count > 5) { Destroy(toasts[0].transform.parent.gameObject); toasts.RemoveAt(0); toastT.RemoveAt(0); }
         }
 
+        /// <summary>Mensaje breve bajo la mira (avisos de pesca, montar, mascotas...).</summary>
+        public void Hint(string msg, float secs = 2f) { if (hintText == null) return; hintText.text = msg; hintT = secs; }
+
         public void Flash(Color c) { flashColor = c; flashT = 1f; }
         public void SetPortalOverlay(float a) { portalImg.color = new Color(0.45f, 0.1f, 0.8f, a * 0.6f); }
         public void SetBoss(string name, float frac) { bossName = name; bossFrac = frac; }
@@ -182,19 +188,31 @@ namespace MundoBloques
             {
                 if (Inp.Pressed(Act.Pause))
                 {
-                    if (container != null) CloseContainer();
+                    if (mapOpen) CloseMap();
+                    else if (advOpen) CloseAdv();
+                    else if (container != null) CloseContainer();
                     else if (pauseOpen) ClosePause();
                     else OpenPause();
                 }
-                else if (Inp.Pressed(Act.Inventory) && !pauseOpen && (container == null || container.CanCloseWithE))
+                else if (Inp.Pressed(Act.Inventory) && !pauseOpen && !mapOpen && !advOpen && (container == null || container.CanCloseWithE))
                 {
                     if (container != null) CloseContainer();
                     else if (g.creative) OpenCreative(); else OpenInventory();
+                }
+                else if (Inp.Pressed(Act.Map) && !pauseOpen && !advOpen && container == null)
+                {
+                    if (mapOpen) CloseMap(); else OpenMap();
+                }
+                else if (Inp.Pressed(Act.Advancements) && !pauseOpen && !mapOpen && container == null)
+                {
+                    if (advOpen) CloseAdv(); else OpenAdv();
                 }
             }
             if (Inp.Pressed(Act.Debug)) { showDebug = !showDebug; debugText.gameObject.SetActive(showDebug); }
 
             if (container != null) container.Tick(dt, mouse);
+            TickMap(g, p, dt, mouse);
+            TickAdv(g, dt);
 
             // hotbar
             hotbarSel.rectTransform.anchoredPosition = new Vector2(p.inv.selected * 44 + 0, 0);
@@ -224,6 +242,7 @@ namespace MundoBloques
             if (itemNameT > 0) { itemNameT -= dt; itemName.color = new Color(1, 1, 1, Mathf.Clamp01(itemNameT)); }
             // recogidas
             if (pickupT > 0) { pickupT -= dt; pickupText.text = "+" + pickupCount + " " + pickupItem.name; pickupText.color = new Color(0.8f, 1f, 0.8f, Mathf.Clamp01(pickupT)); } else pickupText.text = "";
+            if (hintT > 0f) { hintT -= dt; hintText.color = new Color(1f, 0.95f, 0.7f, Mathf.Clamp01(hintT * 2f)); if (hintT <= 0f) hintText.text = ""; }
             // toasts
             for (int i = toasts.Count - 1; i >= 0; i--)
             {

@@ -13,6 +13,7 @@ namespace MundoBloques
         public World world;
         public Player player;
         public DayNight sky;
+        public Weather weather;
         public GameUI ui;
         public Transform entityRoot;
         public GameState state = GameState.Menu;
@@ -26,6 +27,10 @@ namespace MundoBloques
         public int viewDist = 6;
         public float skyBrightness { get { return sky != null ? (world != null && world.dim == Dim.Overworld ? sky.skyBrightness : 0f) : 1f; } }
 
+        public readonly HashSet<string> advDone = new HashSet<string>();
+        public readonly MapData map = new MapData();
+        public List<BoatDto> savedBoats = new List<BoatDto>();
+        float mapTimer;
         public readonly HashSet<int> persistentIds = new HashSet<int>();
         public List<MobDto> savedMobs = new List<MobDto>();
         GameObject menuCam;
@@ -56,6 +61,9 @@ namespace MundoBloques
             IconAtlas.Build(true);
             Mats.Init();
             Sfx.Init(transform);
+            Music.Init(transform);
+            Settings.Load();
+            viewDist = Settings.viewDist;
             Particles.Init(transform);
 
             entityRoot = new GameObject("Entities").transform;
@@ -63,6 +71,10 @@ namespace MundoBloques
             sky = new GameObject("Sky").AddComponent<DayNight>();
             sky.transform.SetParent(transform, false);
             sky.Init();
+            weather = new GameObject("Weather").AddComponent<Weather>();
+            weather.transform.SetParent(transform, false);
+            weather.Init();
+            BlockLogic.RainHook = (w, x, y, z) => world == w && weather != null && weather.RainAt(w, x, z) && w.SkyLight(x, y, z) >= 14;
             ui = new GameObject("UI").AddComponent<GameUI>();
             ui.transform.SetParent(transform, false);
             ui.Build();
@@ -80,7 +92,7 @@ namespace MundoBloques
                     var m = Entity.All[i] as Mob;
                     if (m == null || m.dead || !m.persistent || m.spawnId == 0) continue;
                     var p = m.transform.position;
-                    l.Add(new MobDto { k = m.def.key, x = p.x, y = p.y, z = p.z, hx = m.home.x, hy = m.home.y, hz = m.home.z, id = m.spawnId });
+                    l.Add(new MobDto { k = m.def.key, x = p.x, y = p.y, z = p.z, hx = m.home.x, hy = m.home.y, hz = m.home.z, id = m.spawnId, f = m.Flags, c = m.woolColor, hp = m.health });
                 }
                 // conservar los que aun no estan cargados como entidades
                 foreach (var d in savedMobs) { bool dup = false; foreach (var e in l) if (e.id == d.id) { dup = true; break; } if (!dup && !persistentDead.Contains(d.id)) l.Add(d); }
@@ -89,7 +101,33 @@ namespace MundoBloques
             return savedMobs.ToArray();
         }
 
+        public BoatDto[] CollectBoats()
+        {
+            if (world != null && world.dim == Dim.Overworld)
+            {
+                var l = new List<BoatDto>();
+                for (int i = 0; i < Entity.All.Count; i++)
+                {
+                    var b = Entity.All[i] as Boat;
+                    if (b == null || b.dead) continue;
+                    var p = b.transform.position;
+                    l.Add(new BoatDto { x = p.x, y = p.y, z = p.z, yaw = b.yaw });
+                }
+                savedBoats = l;
+            }
+            return savedBoats.ToArray();
+        }
+
+        void RestoreBoats()
+        {
+            if (world == null || world.dim != Dim.Overworld) return;
+            foreach (var d in savedBoats) Boat.Spawn(new Vector3(d.x, d.y, d.z), d.yaw);
+        }
+
         public readonly HashSet<int> persistentDead = new HashSet<int>();
+        int dynId = 0x40000000;
+        /// <summary>Identificador nuevo para criaturas que se vuelven persistentes (mascotas, caballos ensillados).</summary>
+        public int NewMobId() { return ++dynId; }
 
         public void RestoreMobs()
         {
@@ -101,9 +139,10 @@ namespace MundoBloques
                 for (int i = 0; i < Entity.All.Count; i++) { var m = Entity.All[i] as Mob; if (m != null && m.spawnId == d.id && !m.dead) { alive = true; break; } }
                 if (alive || persistentDead.Contains(d.id)) continue;
                 var def = MobDefs.Get(d.k); if (def == null) continue;
-                var mob = Mob.Create(def, new Vector3(d.hx, d.hy, d.hz));
+                var mob = Mob.Create(def, new Vector3(d.hx, d.hy, d.hz), (d.f & 8) != 0, d.f != 0 || d.c != 0 ? d.c : -1);
                 mob.transform.position = new Vector3(d.x, d.y, d.z);
                 mob.persistent = true; mob.spawnId = d.id; mob.home = new Vector3(d.hx, d.hy, d.hz);
+                mob.ApplyFlags(d.f, d.hp);
             }
         }
 
@@ -138,6 +177,11 @@ namespace MundoBloques
                         int n = 0;
                         while (tickAcc >= 0.05f && n++ < 3) { tickAcc -= 0.05f; world.Tick(pcx, pcz, 4); }
                         if (tickAcc > 0.2f) tickAcc = 0f;
+                        weather.Step(dt, player, world);
+                        sky.overcast = weather.Overcast; sky.flash = weather.flash;
+                        mapTimer -= dt;
+                        if (mapTimer <= 0f) { mapTimer = 0.5f; if (world.dim == Dim.Overworld) map.CaptureAround(world, pcx, pcz, 9, Time.time, 6); }
+                        Advancements.Tick(this, player, dt);
                         sky.Step(dt, player, world, viewDist);
                         MobSpawner.Tick(this, dt);
                         activateTimer -= dt;
@@ -149,6 +193,7 @@ namespace MundoBloques
                 else if (world != null) sky.Step(0f, player, world, viewDist);
             }
             ui.Tick(dt);
+            Music.Tick(this, dt);
             bool locked = state == GameState.Playing && !paused && !ui.IsOpen && player != null && !player.dead;
             Cursor.lockState = locked ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !locked;
@@ -230,6 +275,7 @@ namespace MundoBloques
         {
             if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this);
             state = GameState.Menu; paused = false;
+            weather.Clear(); sky.overcast = 0f; sky.flash = 0f;
             ClearWorld();
             if (player != null) { Destroy(player.gameObject); player = null; }
             if (menuCam == null) MakeMenuCamera();
@@ -249,6 +295,12 @@ namespace MundoBloques
             worldName = name; worldSeed = seed; creative = creativeMode;
             dragonDefeated = dto != null && dto.dragonDefeated; creditsShown = dto != null && dto.creditsShown;
             persistentIds.Clear(); persistentDead.Clear(); savedMobs = dto != null && dto.mobs != null ? new List<MobDto>(dto.mobs) : new List<MobDto>();
+            dynId = 0x40000000;
+            foreach (var sm in savedMobs) if (sm.id > dynId) dynId = sm.id;
+            savedBoats = dto != null && dto.boats != null ? new List<BoatDto>(dto.boats) : new List<BoatDto>();
+            advDone.Clear(); Advancements.ClearEvents();
+            if (dto != null && dto.adv != null) foreach (var a in dto.adv) advDone.Add(a);
+            map.Clear(); map.Load(SaveSystem.MapFile(name));
             playTime = dto != null ? dto.playTime : 0f;
             if (dto != null) viewDist = Mathf.Clamp(dto.viewDist, 3, 12);
             Dim dim = dto != null ? (Dim)dto.dim : Dim.Overworld;
@@ -258,6 +310,7 @@ namespace MundoBloques
             pgo.transform.SetParent(transform, false);
             player = pgo.AddComponent<Player>();
             player.Init();
+            player.lookSens = Settings.lookSens;
             if (menuCam != null) { Destroy(menuCam); menuCam = null; }
             Vector3 pos;
             if (dto != null)
@@ -280,7 +333,8 @@ namespace MundoBloques
             yield return StartCoroutine(WaitForArea(pos, "Generando el mundo..."));
             if (dto == null) pos = SafeSpawn(pos);
             player.transform.position = pos;
-            RestoreMobs();
+            RestoreMobs(); RestoreBoats();
+            if (dto != null) weather.SetState(dto.rain, dto.storm); else weather.Clear();
             player.vel = Vector3.zero;
             if (dto == null) SaveSystem.SaveLevel(this);
             state = GameState.Playing;
@@ -418,7 +472,11 @@ namespace MundoBloques
             ui.ShowDeath();
         }
 
-        public void OnMobKilled(Mob m) { }
+        public void OnMobKilled(Mob m)
+        {
+            Advancements.Event("kill:" + m.def.key);
+            if (m.def.hostile) Advancements.Event("kill:hostile");
+        }
 
         public void Respawn()
         {
@@ -437,6 +495,8 @@ namespace MundoBloques
             player.spawnPos = bed; player.spawnDim = world.dim; player.hasBed = true;
             ui.Flash(new Color(0, 0, 0, 1f));
             sky.SkipNight();
+            weather.Clear();
+            Advancements.Event("sleep");
             player.health = player.maxHealth;
             ui.Toast("Has dormido. Punto de reaparición guardado.");
         }
@@ -488,6 +548,8 @@ namespace MundoBloques
             if (world != null) world.UnloadAll();
             for (int i = Entity.All.Count - 1; i >= 0; i--) { var e = Entity.All[i]; if (e != null && !e.IsPlayer) Destroy(e.gameObject); }
             world = CreateWorld(target, seed);
+            if (target == Dim.Abismo) Advancements.Event("dim:abismo");
+            if (target == Dim.Final) Advancements.Event("dim:final");
             player.transform.position = dest;
             player.vel = Vector3.zero;
             yield return StartCoroutine(WaitForArea(dest, "Generando dimensión..."));
@@ -527,7 +589,7 @@ namespace MundoBloques
                 else { int gy = world.GroundY(x, z); pos = new Vector3(x + 0.5f, (gy >= 0 ? gy : 70) + 1.02f, z + 0.5f); }
             }
             player.transform.position = pos;
-            if (target == Dim.Overworld) RestoreMobs();
+            if (target == Dim.Overworld) { RestoreMobs(); RestoreBoats(); }
             player.vel = Vector3.zero; player.fallDistance = 0; player.portalTime = 0;
             if (respawn) { player.ResetStats(); }
             Sfx.Play(Clip.Portal, pos, 0.7f, target == Dim.Overworld ? 1.2f : 0.8f);

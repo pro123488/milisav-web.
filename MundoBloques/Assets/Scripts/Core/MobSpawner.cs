@@ -50,8 +50,11 @@ namespace MundoBloques
             string[] kinds;
             switch (biome)
             {
-                case BiomeId.Plains: case BiomeId.Forest: case BiomeId.BirchForest: case BiomeId.Savanna: kinds = new[] { "cow", "pig", "sheep", "chicken", "sheep", "cow" }; break;
-                case BiomeId.Taiga: case BiomeId.Mountains: case BiomeId.Tundra: kinds = new[] { "sheep", "rabbit", "cow", "pig" }; break;
+                case BiomeId.Plains: kinds = new[] { "cow", "pig", "sheep", "chicken", "sheep", "cow", "horse" }; break;
+                case BiomeId.Savanna: kinds = new[] { "cow", "pig", "sheep", "chicken", "horse", "horse" }; break;
+                case BiomeId.Forest: case BiomeId.BirchForest: kinds = new[] { "cow", "pig", "sheep", "chicken", "sheep", "cow", "wolf" }; break;
+                case BiomeId.Taiga: kinds = new[] { "sheep", "rabbit", "cow", "pig", "wolf", "wolf" }; break;
+                case BiomeId.Mountains: case BiomeId.Tundra: kinds = new[] { "sheep", "rabbit", "cow", "pig" }; break;
                 case BiomeId.Jungle: kinds = new[] { "chicken", "rabbit", "pig" }; break;
                 case BiomeId.Swamp: kinds = new[] { "pig", "chicken" }; break;
                 case BiomeId.Desert: case BiomeId.Mesa: kinds = new[] { "rabbit" }; break;
@@ -61,7 +64,7 @@ namespace MundoBloques
                 default: return;
             }
             string kind = rng.Pick(kinds);
-            int group = kind == "cod" || kind == "salmon" ? rng.Range(3, 6) : rng.Range(2, 5);
+            int group = kind == "cod" || kind == "salmon" ? rng.Range(3, 6) : (kind == "horse" ? rng.Range(1, 4) : rng.Range(2, 5));
             for (int i = 0; i < group; i++)
             {
                 int px = x + rng.Range(-3, 4), pz = z + rng.Range(-3, 4);

@@ -264,6 +264,9 @@ namespace MundoBloques
             if (w.rng.Chance(p)) w.SetMeta(x, y, z, age + 1);
         }
 
+        /// <summary>El juego instala aqui la comprobacion de lluvia (la mezcla con el clima).</summary>
+        public static System.Func<World, int, int, int, bool> RainHook;
+
         static void Moisture(World w, int x, int y, int z, Block b)
         {
             bool wet = false;
@@ -271,6 +274,7 @@ namespace MundoBloques
                 for (int dz = -4; dz <= 4 && !wet; dz++)
                     for (int dx = -4; dx <= 4 && !wet; dx++)
                         if (w.GetBlock(x + dx, y + dy, z + dz) == B.Water) wet = true;
+            if (!wet && RainHook != null && RainHook(w, x, y + 1, z)) wet = true;
             if (wet) { if (b != B.FarmlandWet) w.SetBlock(x, y, z, B.FarmlandWet); }
             else
             {

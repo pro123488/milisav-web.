@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MundoBloques
 {
-    public enum Clip { Hurt, Pop, Click, Explode, Bow, Eat, Splash, Door, Chest, Portal, Fizz, Drink, Hit, Break, Place, Level, Zombie, Moo, Oink, Bleat, Cluck, Hiss, Growl, Bell, Teleport, Roar, Whoosh }
+    public enum Clip { Hurt, Pop, Click, Explode, Bow, Eat, Splash, Door, Chest, Portal, Fizz, Drink, Hit, Break, Place, Level, Zombie, Moo, Oink, Bleat, Cluck, Hiss, Growl, Bell, Teleport, Roar, Whoosh, Bark, Neigh, Thunder, Cast }
 
     /// <summary>Efectos de sonido generados por codigo (no hace falta importar audios).</summary>
     public static class Sfx
@@ -93,6 +93,10 @@ namespace MundoBloques
                 case Names.Teleport: c = Make(key, 0.35f, 0.1f, 900, 200, 0.1f, 1.6f, 33); break;
                 case Names.Roar: c = Make(key, 1.2f, 0.1f, 70, 40, 0.5f, 0.9f, 34); break;
                 case Names.Whoosh: c = Make(key, 0.3f, 0.6f, 0, 0, 1f, 1f, 35); break;
+                case Names.Bark: c = Make(key, 0.22f, 0.25f, 380, 220, 0.35f, 2.2f, 36); break;
+                case Names.Neigh: c = Make(key, 0.8f, 0.12f, 520, 300, 0.2f, 1.4f, 37); break;
+                case Names.Thunder: c = Make(key, 2.8f, 0.035f, 45, 28, 0.97f, 0.9f, 38); break;
+                case Names.Cast: c = Make(key, 0.25f, 0.5f, 300, 900, 0.7f, 1.8f, 39); break;
                 default: c = Make(key, 0.1f, 0.3f, 0, 0, 1f, 2f, 99); break;
             }
             clips[key] = c;
@@ -103,7 +107,7 @@ namespace MundoBloques
         {
             public const string Hurt = "hurt", Pop = "pop", Click = "click", Explode = "explode", Bow = "bow", Eat = "eat", Splash = "splash", Door = "door", Chest = "chest",
                 Portal = "portal", Fizz = "fizz", Drink = "drink", Hit = "hit", Level = "level", Zombie = "zombie", Moo = "moo", Oink = "oink", Bleat = "bleat",
-                Cluck = "cluck", Hiss = "hiss", Growl = "growl", Bell = "bell", Teleport = "teleport", Roar = "roar", Whoosh = "whoosh";
+                Cluck = "cluck", Hiss = "hiss", Growl = "growl", Bell = "bell", Teleport = "teleport", Roar = "roar", Whoosh = "whoosh", Bark = "bark", Neigh = "neigh", Thunder = "thunder", Cast = "cast";
         }
 
         static string NameOf(Clip c)
@@ -116,7 +120,9 @@ namespace MundoBloques
                 case Clip.Hit: return Names.Hit; case Clip.Break: return "dig_stone"; case Clip.Place: return "dig_dirt"; case Clip.Level: return Names.Level;
                 case Clip.Zombie: return Names.Zombie; case Clip.Moo: return Names.Moo; case Clip.Oink: return Names.Oink; case Clip.Bleat: return Names.Bleat;
                 case Clip.Cluck: return Names.Cluck; case Clip.Hiss: return Names.Hiss; case Clip.Growl: return Names.Growl; case Clip.Bell: return Names.Bell;
-                case Clip.Teleport: return Names.Teleport; case Clip.Roar: return Names.Roar; default: return Names.Whoosh;
+                case Clip.Teleport: return Names.Teleport; case Clip.Roar: return Names.Roar;
+                case Clip.Bark: return Names.Bark; case Clip.Neigh: return Names.Neigh; case Clip.Thunder: return Names.Thunder; case Clip.Cast: return Names.Cast;
+                default: return Names.Whoosh;
             }
         }
 
@@ -132,6 +138,20 @@ namespace MundoBloques
         public static void Play(Clip c, Vector3 pos, float vol = 1f, float pitch = 1f)
         {
             PlayClip(Get(NameOf(c)), pos, vol, pitch * Random.Range(0.92f, 1.08f));
+        }
+
+        static AudioSource ui2d;
+
+        /// <summary>Sonido sin posicion (truenos lejanos, musica de eventos).</summary>
+        public static void Play2D(Clip c, float vol = 1f, float pitch = 1f)
+        {
+            if (root == null) return;
+            if (ui2d == null)
+            {
+                ui2d = new GameObject("src2d").AddComponent<AudioSource>();
+                ui2d.transform.SetParent(root, false); ui2d.playOnAwake = false; ui2d.spatialBlend = 0f;
+            }
+            ui2d.pitch = pitch; ui2d.PlayOneShot(Get(NameOf(c)), Mathf.Clamp01(vol * volume));
         }
 
         public static void Block(Snd kind, Vector3 pos, bool step = false, float vol = 1f)

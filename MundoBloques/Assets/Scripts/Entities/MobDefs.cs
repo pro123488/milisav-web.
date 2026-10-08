@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MundoBloques
 {
-    public enum AI { Passive, Hostile, Skeleton, Spider, Exploder, Slime, Wanderer, Blaze, Golem, Villager, Spirit, Fish }
+    public enum AI { Passive, Hostile, Skeleton, Spider, Exploder, Slime, Wanderer, Blaze, Golem, Villager, Spirit, Fish, Wolf, Horse }
 
     public struct Part
     {
@@ -40,6 +40,8 @@ namespace MundoBloques
     /// <summary>Catalogo de criaturas pacificas, hostiles y sobrenaturales con sus modelos de cubos.</summary>
     public static class MobDefs
     {
+        public static readonly uint[] HorseBody = { 0x8B5A2B, 0xA0522D, 0x2B2320, 0xE8E4DC, 0x9A9A98, 0xC9A24D };
+        public static readonly uint[] HorseMane = { 0x2B1B10, 0x4A2A14, 0x0E0A08, 0xC8C4BC, 0x555555, 0xE8D8A0 };
         public static readonly Dictionary<string, MobDef> All = new Dictionary<string, MobDef>();
         public static MobDef Get(string key) { MobDef d; return All.TryGetValue(key, out d) ? d : null; }
         static bool ready;
@@ -103,6 +105,31 @@ namespace MundoBloques
             rabbit.Add("head", 4, 4, 4, 0, 8, 3, 0, 2, 1, 0xA8886A, 'h');
             rabbit.Add("earL", 1, 5, 1, -1, 12, 3.5f, 0, 2, 0, 0x8A6A4A); rabbit.Add("earR", 1, 5, 1, 1, 12, 3.5f, 0, 2, 0, 0x8A6A4A);
             rabbit.Add("tail", 2, 2, 1, 0, 6, -4, 0, 0, 0, 0xF0F0F0);
+
+            var wolf = Def("wolf", "Lobo", AI.Wolf, 8, 3.6f, 0.6f, 0.85f, 1f); wolf.ambient = Clip.Bark; wolf.ambientChance = 0.0012f;
+            wolf.Add("legFL", 2.5f, 8, 2.5f, -2, 8, 4, 0, -4, 0, 0xC4C0B8, 'a'); wolf.Add("legFR", 2.5f, 8, 2.5f, 2, 8, 4, 0, -4, 0, 0xC4C0B8, 'b');
+            wolf.Add("legBL", 2.5f, 8, 2.5f, -2, 8, -4, 0, -4, 0, 0xC4C0B8, 'b'); wolf.Add("legBR", 2.5f, 8, 2.5f, 2, 8, -4, 0, -4, 0, 0xC4C0B8, 'a');
+            wolf.Add("body", 6, 6, 9, 0, 11, 0, 0, 0, 0, 0xD4D0C8);
+            wolf.Add("head", 6, 6, 4, 0, 13, 5, 0, 0, 2, 0xDCD8D0, 'h');
+            wolf.Add("snout", 3, 2.5f, 3, 0, 13, 5, 0, -1, 5.5f, 0xBDB8B0, 'h'); wolf.Add("nose", 1.6f, 1.2f, 0.5f, 0, 13, 5, 0, -0.3f, 7.2f, 0x151515, 'h');
+            wolf.Add("earL", 2, 2.5f, 1, 0, 13, 5, -2, 4.2f, 1, 0xB5B0A8, 'h'); wolf.Add("earR", 2, 2.5f, 1, 0, 13, 5, 2, 4.2f, 1, 0xB5B0A8, 'h');
+            wolf.Add("eyeL", 1, 1, 0.4f, 0, 13, 5, -1.8f, 0.8f, 4.05f, 0x202020, 'h'); wolf.Add("eyeR", 1, 1, 0.4f, 0, 13, 5, 1.8f, 0.8f, 4.05f, 0x202020, 'h');
+            wolf.Add("collar", 6.6f, 6.6f, 1.4f, 0, 13, 5, 0, 0, -0.1f, 0xC02020, 'h');
+            wolf.Add("tail", 2, 6, 2, 0, 12.5f, -5, 0, -1.5f, -1, 0xC4C0B8, 't');
+
+            var horse = Def("horse", "Caballo", AI.Horse, 22, 4f, 1.2f, 1.7f, 1f); horse.breedItem = "apple"; horse.ambient = Clip.Neigh; horse.ambientChance = 0.0012f;
+            horse.drops = new[] { new Drop2("leather", 0, 2) };
+            horse.Add("legFL", 3.5f, 12, 3.5f, -3, 12, 8, 0, -6, 0, 0x8B5A2B, 'a'); horse.Add("legFR", 3.5f, 12, 3.5f, 3, 12, 8, 0, -6, 0, 0x8B5A2B, 'b');
+            horse.Add("legBL", 3.5f, 12, 3.5f, -3, 12, -8, 0, -6, 0, 0x8B5A2B, 'b'); horse.Add("legBR", 3.5f, 12, 3.5f, 3, 12, -8, 0, -6, 0, 0x8B5A2B, 'a');
+            horse.Add("body", 9, 9, 20, 0, 16.5f, 0, 0, 0, 0, 0x8B5A2B);
+            horse.Add("neckA", 4.5f, 7, 5, 0, 22.5f, 8.5f, 0, 0, 0, 0x8B5A2B); horse.Add("neckB", 4.5f, 6, 5, 0, 28, 10.5f, 0, 0, 0, 0x8B5A2B);
+            horse.Add("head", 5, 5.5f, 11, 0, 29, 11, 0, 0, 4.5f, 0x8B5A2B, 'h');
+            horse.Add("muzzle", 4.4f, 4.6f, 3.5f, 0, 29, 11, 0, -0.5f, 10, 0x8B5A2B, 'h');
+            horse.Add("earL", 1.6f, 3, 1.5f, 0, 29, 11, -1.8f, 4, 1.5f, 0x8B5A2B, 'h'); horse.Add("earR", 1.6f, 3, 1.5f, 0, 29, 11, 1.8f, 4, 1.5f, 0x8B5A2B, 'h');
+            horse.Add("eyeL", 0.4f, 1, 1, 0, 29, 11, -2.55f, 1, 4, 0x151515, 'h'); horse.Add("eyeR", 0.4f, 1, 1, 0, 29, 11, 2.55f, 1, 4, 0x151515, 'h');
+            horse.Add("mane", 1.6f, 12, 3, 0, 25.5f, 6.5f, 0, 0, 0, 0x2B1B10);
+            horse.Add("tail", 2.5f, 11, 2.5f, 0, 19, -10, 0, -5, -1, 0x2B1B10, 't');
+            horse.Add("saddle", 10, 1.5f, 8, 0, 21.5f, -1, 0, 0, 0, 0x6B3A1E); horse.Add("saddleHorn", 4, 2, 2, 0, 23, 2.5f, 0, 0, 0, 0x4A2810);
 
             var cod = Def("cod", "Bacalao", AI.Fish, 3, 2f, 0.4f, 0.3f, 0.9f); cod.drops = new[] { new Drop2("cod", 1, 1) };
             FishBody(cod, 0xB89A78, 0xD8C8A8);

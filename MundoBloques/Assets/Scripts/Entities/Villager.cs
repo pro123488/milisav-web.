@@ -79,6 +79,7 @@ namespace MundoBloques
             var left = p.inv.Add(new ItemStack(it, t.countSell));
             if (!left.IsEmpty) GameRoot.I.SpawnItem(p.Eye, left, p.camT.forward * 2f);
             t.uses++;
+            Advancements.Event("trade");
             Sfx.Play(Clip.Bell, p.transform.position, 0.6f, 1.3f);
             return true;
         }

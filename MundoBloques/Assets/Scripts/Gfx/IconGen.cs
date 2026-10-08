@@ -285,6 +285,21 @@ namespace MundoBloques
                     p.Line(2, 14, 12, 4, Stick); p.Poly(new[] { 11, 1, 15, 5, 11, 5 }, Col.Hex(0x9A9A9A)); p.Line(2, 14, 1, 11, Col.Hex(0xF0F0F0)); p.Line(2, 14, 5, 15, Col.Hex(0xF0F0F0)); p.Line(3, 13, 2, 10, Col.Hex(0xE0E0E0)); p.Outline(OutlineC); break;
                 case "flint_steel":
                     p.Rect(2, 8, 9, 13, Col.Hex(0x9A9A9A)); p.Rect(3, 9, 8, 12, Col.Hex(0x707070)); p.Poly(new[] { 9, 3, 14, 6, 12, 11, 8, 8 }, Col.Hex(0x4A4A4E)); p.Outline(OutlineC); break;
+                case "fishing_rod":
+                    p.Line(2, 14, 12, 3, Stick); p.Line(3, 14, 13, 3, StickDark);
+                    p.Line(13, 3, 14, 10, Col.Hex(0xEEEEEE));
+                    p.Rect(13, 11, 14, 12, Col.Hex(0xD03030)); p.Set(13, 13, Col.Hex(0xF4F4F4)); p.Set(14, 13, Col.Hex(0xF4F4F4));
+                    p.Outline(OutlineC); break;
+                case "boat":
+                    p.Poly(new[] { 1, 7, 15, 7, 13, 12, 3, 12 }, Col.Hex(0x9C7A4A));
+                    p.HLine(1, 14, 7, Col.Hex(0xC09A60)); p.Rect(3, 8, 12, 9, Col.Hex(0x7A5C34)); p.HLine(3, 12, 12, Col.Hex(0x6B4F2A));
+                    p.Line(4, 3, 10, 9, Stick); p.Rect(3, 2, 5, 4, Col.Hex(0xB89060));
+                    p.Outline(OutlineC); break;
+                case "saddle":
+                    p.Poly(new[] { 2, 6, 14, 6, 15, 10, 1, 10 }, Col.Hex(0x7A4A28)); p.Poly(new[] { 4, 4, 12, 4, 13, 7, 3, 7 }, Col.Hex(0x9A6038));
+                    p.HLine(2, 13, 8, Col.Hex(0x4A2A14)); p.VLine(3, 10, 13, Col.Hex(0xC8C8C8)); p.VLine(12, 10, 13, Col.Hex(0xC8C8C8));
+                    p.Rect(2, 13, 4, 14, Col.Hex(0xC8C8C8)); p.Rect(11, 13, 13, 14, Col.Hex(0xC8C8C8));
+                    p.Outline(OutlineC); break;
                 default:
                     p.Fill(Col.Hex(0xFF00FF)); break;
             }

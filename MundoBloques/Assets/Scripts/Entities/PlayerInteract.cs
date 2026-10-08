@@ -202,6 +202,7 @@ namespace MundoBloques
             if (b.id == 0 || b.fluid) return;
             int meta = w.GetMeta(x, y, z);
             if (b.hardness < 0f && !G.creative) return;
+            if (b.shape == Shape.Crop && meta >= 7) Advancements.Event("harvest");
             var heldStack = inv.Held;
             var drops = new List<ItemStack>();
             if (!G.creative)
@@ -279,6 +280,8 @@ namespace MundoBloques
             {
                 var m = targetEntity as Mob;
                 if (m != null && m.Interact(this)) { held.Swing(); return; }
+                var bt = targetEntity as Boat;
+                if (bt != null && bt.Interact(this)) { held.Swing(); return; }
             }
             if (target.hit && target.block.interactive && !(sneaking && !h.IsEmpty))
             {
@@ -328,6 +331,8 @@ namespace MundoBloques
                 // un bloque encima impide abrir
                 if (w.GetBlock(x, y + 1, z).FullOpaque) return true;
                 var e = w.EnsureEntity(x, y, z) as ChestEntity;
+                var og = w.gen as OverworldGen;
+                if (og != null) { var kind = MoreStructures.KindAt(og, x, y, z); if (kind != null) Advancements.Event("chest:" + kind); }
                 if (e != null) { G.ui.OpenChest(e); Sfx.Play(Clip.Chest, transform.position, 0.7f); return true; }
                 return false;
             }
@@ -445,6 +450,24 @@ namespace MundoBloques
                 case "bonemeal":
                     if (target.hit) BoneMeal(target.x, target.y, target.z);
                     return;
+                case "boat":
+                    {
+                        var fh = Phys.Raycast(w, camT.position, camT.forward, Reach, true);
+                        if (!fh.hit) return;
+                        var pos = fh.point + new Vector3(Block.DX[fh.face], Block.DY[fh.face], Block.DZ[fh.face]) * 0.1f;
+                        if (fh.block.fluid) pos.y = fh.y + 0.7f;
+                        if (Phys.Overlaps(w, AABB.At(pos, 1.4f, 0.5f))) { pos.y += 0.6f; if (Phys.Overlaps(w, AABB.At(pos, 1.4f, 0.5f))) return; }
+                        Boat.Spawn(pos, yaw);
+                        ConsumeHeld(1); Sfx.Play(Clip.Splash, pos, 0.7f); held.Swing(); placeCooldown = 0.4f;
+                        return;
+                    }
+                case "rod":
+                    {
+                        if (bobber != null && bobber.Alive) { bobber.Reel(); held.Swing(); placeCooldown = 0.35f; return; }
+                        bobber = Bobber.Cast(this);
+                        Sfx.Play(Clip.Cast, transform.position, 0.8f); held.Swing(); placeCooldown = 0.35f;
+                        return;
+                    }
                 case "eye":
                     {
                         if (w.dim != Dim.Overworld) return;
