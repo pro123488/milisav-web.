@@ -98,17 +98,17 @@ namespace MundoBloques
         void BuildHud()
         {
             // hotbar
-            var hb = UIKit.Anchored(hudRoot, "hotbar", new Vector2(0.5f, 0f), 0, 8, 9 * 44 + 8, 52);
+            var hb = UIKit.Anchored(hudRoot, "hotbar", new Vector2(0.5f, 0f), 0, 8, 9 * 48 + 4, 52);
             var bg = hb.gameObject.AddComponent<Image>(); bg.color = new Color(0, 0, 0, 0.35f); bg.raycastTarget = false;
             hotbarSel = UIKit.Img(hb, "sel", 0, 0, 52, 52, new Color(1, 1, 1, 0.95f));
-            for (int i = 0; i < 9; i++) hotbar[i] = SlotView.Make(hb, 4 + i * 44, 4, 44f);
+            for (int i = 0; i < 9; i++) hotbar[i] = SlotView.Make(hb, 4 + i * 48, 4, 44f);
             // corazones, hambre, armadura, burbujas
             for (int i = 0; i < 10; i++)
             {
-                heartsR[i] = HudIcon(i * 19 - 194, 52, "ui_heart_full", 0);
-                foodR[i] = HudIcon(176 - i * 19, 52, "ui_food_full", 0);
-                armorR[i] = HudIcon(i * 19 - 194, 72, "ui_armor", 0);
-                bubblesR[i] = HudIcon(176 - i * 19, 72, "ui_bubble", 0);
+                heartsR[i] = HudIcon(i * 19 - 214, 52, "ui_heart_full", 0);
+                foodR[i] = HudIcon(196 - i * 19, 52, "ui_food_full", 0);
+                armorR[i] = HudIcon(i * 19 - 214, 72, "ui_armor", 0);
+                bubblesR[i] = HudIcon(196 - i * 19, 72, "ui_bubble", 0);
             }
             itemName = UIKit.Txt(UIKit.Anchored(hudRoot, "n", new Vector2(0.5f, 0f), 0, 102, 500, 30), "", 20, Color.white, TextAnchor.MiddleCenter, 0, 0, 500, 30);
             pickupText = UIKit.Txt(UIKit.Anchored(hudRoot, "p", new Vector2(1f, 0.5f), -10, -40, 380, 26), "", 17, new Color(0.8f, 1f, 0.8f), TextAnchor.MiddleRight, 0, 0, 380, 26);
@@ -215,7 +215,7 @@ namespace MundoBloques
             TickAdv(g, dt);
 
             // hotbar
-            hotbarSel.rectTransform.anchoredPosition = new Vector2(p.inv.selected * 44 + 0, 0);
+            hotbarSel.rectTransform.anchoredPosition = new Vector2(p.inv.selected * 48, 0);
             for (int i = 0; i < 9; i++) hotbar[i].Show(p.inv.slots[i]);
             // estadisticas
             bool surv = !g.creative;

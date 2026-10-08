@@ -142,6 +142,13 @@ namespace MundoBloques
             if (mount != null && !dead && G != null && G.state == GameState.Playing && MountValid()) transform.position = mount.SeatPosition;
         }
 
+        void OnDestroy()
+        {
+            if (highlight != null) Destroy(highlight);
+            if (crackGo != null) Destroy(crackGo);
+            if (crackMesh != null) Destroy(crackMesh);
+        }
+
         void Look()
         {
             yaw += Inp.Look.x * lookSens;

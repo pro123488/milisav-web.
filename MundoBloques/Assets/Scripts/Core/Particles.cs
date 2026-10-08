@@ -22,6 +22,7 @@ namespace MundoBloques
             main.maxParticles = 1500;
             main.playOnAwake = false;
             main.loop = true;
+            main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
             var em = ps.emission; em.enabled = false;
             var sh = ps.shape; sh.enabled = false;
             var col = ps.colorOverLifetime; col.enabled = true;

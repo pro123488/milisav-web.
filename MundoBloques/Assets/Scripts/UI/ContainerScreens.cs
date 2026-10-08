@@ -170,12 +170,12 @@ namespace MundoBloques
             var it = s.item;
             var sb = new StringBuilder();
             sb.Append("<b>" + it.name + "</b>");
-            if (it.tool != ToolKind.None && it.kind == ItemKind.Tool && it.tool != ToolKind.Shears) sb.Append("\n<color=#9AD>Daño " + it.damage.ToString("0.#") + " · Velocidad " + it.speed.ToString("0.#") + " · Nivel " + it.tier + "</color>");
-            if (it.durability > 0) sb.Append("\n<color=#BBB>Durabilidad " + (it.durability - s.damage) + "/" + it.durability + "</color>");
-            if (it.IsFood) sb.Append("\n<color=#FA8>Hambre +" + it.hunger + "</color>");
-            if (it.armorSlot >= 0) sb.Append("\n<color=#9AD>Defensa +" + it.defense + "</color>");
-            if (it.fuel > 0) sb.Append("\n<color=#FC6>Combustible: " + it.fuel.ToString("0") + " s</color>");
-            if (it.block != null && it.block.light > 0) sb.Append("\n<color=#FE8>Luz " + it.block.light + "</color>");
+            if (it.tool != ToolKind.None && it.kind == ItemKind.Tool && it.tool != ToolKind.Shears) sb.Append("\n<color=#99AADD>Daño " + it.damage.ToString("0.#") + " · Velocidad " + it.speed.ToString("0.#") + " · Nivel " + it.tier + "</color>");
+            if (it.durability > 0) sb.Append("\n<color=#BBBBBB>Durabilidad " + (it.durability - s.damage) + "/" + it.durability + "</color>");
+            if (it.IsFood) sb.Append("\n<color=#FFAA88>Hambre +" + it.hunger + "</color>");
+            if (it.armorSlot >= 0) sb.Append("\n<color=#99AADD>Defensa +" + it.defense + "</color>");
+            if (it.fuel > 0) sb.Append("\n<color=#FFCC66>Combustible: " + it.fuel.ToString("0") + " s</color>");
+            if (it.block != null && it.block.light > 0) sb.Append("\n<color=#FFEE88>Luz " + it.block.light + "</color>");
             return sb.ToString();
         }
 
@@ -285,13 +285,13 @@ namespace MundoBloques
             }
             foreach (var t in targets)
             {
-                if (t == s || !t.Accepts(st) || st.IsEmpty) continue;
+                if (t == s || st.IsEmpty || !t.Accepts(st)) continue;
                 var cur = t.Get();
                 if (!cur.IsEmpty && cur.SameKind(st) && cur.count < cur.Max) { var left = cur.Merge(st); t.Set(cur); st = left; t.changed?.Invoke(); }
             }
             foreach (var t in targets)
             {
-                if (t == s || !t.Accepts(st) || st.IsEmpty) continue;
+                if (t == s || st.IsEmpty || !t.Accepts(st)) continue;
                 if (t.Get().IsEmpty) { t.Set(st); st = ItemStack.Empty; t.changed?.Invoke(); }
             }
             s.Set(st);
@@ -350,7 +350,7 @@ namespace MundoBloques
                 for (int i = 0; i < 4; i++)
                 {
                     int slot = i;
-                    var s = AddSlot(p.inv.armor, i, 20, 40 + i * 48, st => st.item.armorSlot == slot, null, true);
+                    var s = AddSlot(p.inv.armor, i, 20, 40 + i * 48, st => !st.IsEmpty && st.item.armorSlot == slot, null, true);
                     s.player = false;
                 }
             }
@@ -452,7 +452,7 @@ namespace MundoBloques
             if (!bookOpen || hoverRecipe < 0 || hoverRecipe >= shown.Count) return null;
             var r = shown[hoverRecipe];
             var sb = new StringBuilder();
-            sb.Append("<b>" + r.output.name + "</b> ×" + r.outCount + (FitsGrid(r) ? "" : "  <color=#F88>(mesa de crafteo)</color>"));
+            sb.Append("<b>" + r.output.name + "</b> ×" + r.outCount + (FitsGrid(r) ? "" : "  <color=#FF8888>(mesa de crafteo)</color>"));
             var need = new Dictionary<string, int>();
             Action<string> add = ing =>
             {
@@ -553,8 +553,8 @@ namespace MundoBloques
 
         protected override void Build()
         {
-            AddSlot(f.slots, 0, 150, 56, st => Recipes.FindSmelt(st.item) != null);
-            AddSlot(f.slots, 1, 150, 150, st => st.item.fuel > 0);
+            AddSlot(f.slots, 0, 150, 56, st => !st.IsEmpty && Recipes.FindSmelt(st.item) != null);
+            AddSlot(f.slots, 1, 150, 150, st => !st.IsEmpty && st.item.fuel > 0);
             AddOutput(330, 100, () => f.slots[2], () => { if (!f.slots[2].IsEmpty) Advancements.Event("smelt:" + f.slots[2].item.key); f.slots[2].Clear(); });
             // el slot de salida debe permitir tomar todo el stack
             UIKit.Txt(root, "Ingrediente", 15, new Color(0.7f, 0.8f, 0.9f), TextAnchor.MiddleLeft, 200, 66, 120, 24);
@@ -626,7 +626,7 @@ namespace MundoBloques
 
         protected override void Build()
         {
-            AddSlot(input, 0, 30, 70, st => Recipes.CutsFor(st.item) != null, OnInput);
+            AddSlot(input, 0, 30, 70, st => !st.IsEmpty && Recipes.CutsFor(st.item) != null, OnInput);
             UIKit.Txt(root, "Material", 15, new Color(0.7f, 0.8f, 0.9f), TextAnchor.MiddleCenter, 14, 118, 76, 22);
             listRt = UIKit.Rect(root, "list", 100, 46, 340, 150);
             var bg = listRt.gameObject.AddComponent<Image>(); bg.color = new Color(0, 0, 0, 0.3f); bg.raycastTarget = false;
@@ -689,7 +689,7 @@ namespace MundoBloques
         readonly List<Image> rowBg = new List<Image>();
         string tip;
 
-        public TradeScreen(Mob m) { mob = m; v = m.villager; title = "Aldeano · " + v.profession; W = 560; H = 520; }
+        public TradeScreen(Mob m) { mob = m; v = m.villager; title = "Aldeano · " + v.profession; W = 560; H = 600; }
         public override bool CanCloseWithE { get { return true; } }
 
         protected override void Build()
@@ -724,7 +724,7 @@ namespace MundoBloques
                 rowBg[i].color = !t.Available ? new Color(0.25f, 0.1f, 0.1f, 1f) : (over ? new Color(0.28f, 0.34f, 0.46f, 1f) : (can ? new Color(0.17f, 0.28f, 0.2f, 1f) : new Color(0.16f, 0.18f, 0.24f, 1f)));
                 if (over)
                 {
-                    tip = !t.Available ? "<color=#F88>Agotado</color>" : (can ? "<color=#8F8>¡Clic para comerciar!</color>" : "<color=#F99>Te faltan materiales</color>");
+                    tip = !t.Available ? "<color=#FF8888>Agotado</color>" : (can ? "<color=#88FF88>¡Clic para comerciar!</color>" : "<color=#FF9999>Te faltan materiales</color>");
                     tip += "\nUsos: " + t.uses + "/" + t.maxUses;
                     if (left)
                     {

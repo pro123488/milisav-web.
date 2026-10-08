@@ -23,8 +23,8 @@ namespace MundoBloques
             v.Add(a); v.Add(b); v.Add(c); v.Add(d);
             uv.Add(new Vector2(u0, v0)); uv.Add(new Vector2(u0, v1)); uv.Add(new Vector2(u1, v1)); uv.Add(new Vector2(u1, v0));
             for (int k = 0; k < 4; k++) { uv2.Add(new Vector2(1, 1)); col.Add(color); }
-            t.Add(i); t.Add(i + 1); t.Add(i + 2); t.Add(i); t.Add(i + 2); t.Add(i + 3);
-            if (both) { t.Add(i + 2); t.Add(i + 1); t.Add(i); t.Add(i + 3); t.Add(i + 2); t.Add(i); }
+            t.Add(i); t.Add(i + 2); t.Add(i + 1); t.Add(i); t.Add(i + 3); t.Add(i + 2);
+            if (both) { t.Add(i); t.Add(i + 1); t.Add(i + 2); t.Add(i); t.Add(i + 2); t.Add(i + 3); }
         }
 
         public static Mesh Get(Item it)
@@ -60,8 +60,9 @@ namespace MundoBloques
                         c = new Color32((byte)(((tc >> 16) & 255) * s), (byte)(((tc >> 8) & 255) * s), (byte)((tc & 255) * s), 255);
                     }
                     var q = faces[f];
+                    bool side = f != 2 && f != 3;      // caras laterales: U invertida (Unity es zurdo)
                     Quad(v, uv, uv2, col, t, new Vector3(q[0], q[1], q[2]), new Vector3(q[3], q[4], q[5]), new Vector3(q[6], q[7], q[8]), new Vector3(q[9], q[10], q[11]),
-                        TileAtlas.U0[tile], TileAtlas.V0[tile] + (TileAtlas.V1[tile] - TileAtlas.V0[tile]) * (b.shape == Shape.Slab ? 0f : 0f), TileAtlas.U1[tile], TileAtlas.V1[tile], c, false);
+                        side ? TileAtlas.U1[tile] : TileAtlas.U0[tile], TileAtlas.V0[tile], side ? TileAtlas.U0[tile] : TileAtlas.U1[tile], TileAtlas.V1[tile], c, false);
                 }
             }
             else if (b != null)

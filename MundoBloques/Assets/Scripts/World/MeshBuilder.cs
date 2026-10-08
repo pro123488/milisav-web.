@@ -366,6 +366,8 @@ namespace MundoBloques
                     vy[0] = y0; vy[1] = y1; vy[2] = y1; vy[3] = y0;
                     fu[0] = 1 - x1; fu[1] = 1 - x1; fu[2] = 1 - x0; fu[3] = 1 - x0; fv[0] = y0; fv[1] = y1; fv[2] = y1; fv[3] = y0; break;
             }
+            // Unity usa coordenadas zurdas: las caras laterales se ven espejadas con estos vertices, asi que se invierte la U
+            if (f != 2 && f != 3) for (int k = 0; k < 4; k++) fu[k] = 1f - fu[k];
             float tu0 = TileAtlas.U0[tile], tu1 = TileAtlas.U1[tile], tv0 = TileAtlas.V0[tile], tv1 = TileAtlas.V1[tile];
 
             // luz y AO por vertice
@@ -402,10 +404,11 @@ namespace MundoBloques
                 md.colors.Add(new Color32(B8(tr * m), B8(tg * m), B8(tb * m), (byte)alpha));
             }
             var t = md.tris[sub];
+            // orden horario visto desde fuera (cara frontal en Unity)
             if (aoi[0] + aoi[2] >= aoi[1] + aoi[3])
-            { t.Add(baseIdx); t.Add(baseIdx + 1); t.Add(baseIdx + 2); t.Add(baseIdx); t.Add(baseIdx + 2); t.Add(baseIdx + 3); }
+            { t.Add(baseIdx); t.Add(baseIdx + 2); t.Add(baseIdx + 1); t.Add(baseIdx); t.Add(baseIdx + 3); t.Add(baseIdx + 2); }
             else
-            { t.Add(baseIdx + 1); t.Add(baseIdx + 2); t.Add(baseIdx + 3); t.Add(baseIdx + 1); t.Add(baseIdx + 3); t.Add(baseIdx); }
+            { t.Add(baseIdx + 1); t.Add(baseIdx + 3); t.Add(baseIdx + 2); t.Add(baseIdx + 1); t.Add(baseIdx); t.Add(baseIdx + 3); }
         }
 
         // ---------------- plantas ----------------
@@ -494,8 +497,8 @@ namespace MundoBloques
                 md.uvs.Add(new Vector2(tu0, tv0)); md.uvs.Add(new Vector2(tu0, tv0 + (tv1 - tv0) * vh)); md.uvs.Add(new Vector2(tu1, tv0 + (tv1 - tv0) * vh)); md.uvs.Add(new Vector2(tu1, tv0));
                 for (int k = 0; k < 4; k++) { md.uv2.Add(new Vector2(sk, bk)); md.colors.Add(col); }
                 var t = md.tris[sub];
-                t.Add(bi); t.Add(bi + 1); t.Add(bi + 2); t.Add(bi); t.Add(bi + 2); t.Add(bi + 3);
-                if (f == 2 && water) { t.Add(bi + 2); t.Add(bi + 1); t.Add(bi); t.Add(bi + 3); t.Add(bi + 2); t.Add(bi); }
+                t.Add(bi); t.Add(bi + 2); t.Add(bi + 1); t.Add(bi); t.Add(bi + 3); t.Add(bi + 2);
+                if (f == 2 && water) { t.Add(bi); t.Add(bi + 1); t.Add(bi + 2); t.Add(bi); t.Add(bi + 2); t.Add(bi + 3); }
             }
         }
     }

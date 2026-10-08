@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -57,12 +58,13 @@ namespace MundoBloques
             var tex = new Texture2D(N, N, TextureFormat.RGBA32, false);
             var n = new Noise(4242);
             var px = new Color32[N * N];
+            Func<float, float, float> F = (x, y) => n.Fbm(x * 0.09f, y * 0.09f, 3) + n.Perlin(x * 0.03f + 10f, y * 0.03f) * 0.5f;
             for (int y = 0; y < N; y++)
                 for (int x = 0; x < N; x++)
                 {
-                    float v = n.Fbm(x * 0.09f, y * 0.09f, 3) + n.Perlin(x * 0.03f + 10f, y * 0.03f) * 0.5f;
-                    // repetible: mezclar con la version desplazada
-                    px[y * N + x] = v > 0.07f ? new Color32(255, 255, 255, 235) : new Color32(255, 255, 255, 0);
+                    // mezcla de cuatro copias desplazadas para que la textura se repita sin costuras
+                    float v = (F(x, y) * (N - x) * (N - y) + F(x - N, y) * x * (N - y) + F(x, y - N) * (N - x) * y + F(x - N, y - N) * x * y) / (N * N);
+                    px[y * N + x] = v > 0.04f ? new Color32(255, 255, 255, 235) : new Color32(255, 255, 255, 0);
                 }
             tex.SetPixels32(px);
             tex.filterMode = FilterMode.Point;

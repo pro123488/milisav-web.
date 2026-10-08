@@ -295,16 +295,37 @@ namespace MundoBloques
             MeshData md;
         }
 
+        /// <summary>Ejecuta una corrutina de sesion; si falla, vuelve al menu en lugar de quedarse en la pantalla de carga.</summary>
+        Coroutine Safe(IEnumerator inner) { return StartCoroutine(SafeRoutine(inner)); }
+
+        IEnumerator SafeRoutine(IEnumerator inner)
+        {
+            while (true)
+            {
+                bool ok; object cur = null;
+                try { ok = inner.MoveNext(); if (ok) cur = inner.Current; }
+                catch (System.Exception e)
+                {
+                    Debug.LogError("Error al preparar el mundo: " + e);
+                    ok = false;
+                    traveling = false;
+                    try { ReturnToMenu(); } catch (System.Exception e2) { Debug.LogError(e2); }
+                }
+                if (!ok) yield break;
+                yield return cur;
+            }
+        }
+
         public void StartNewWorld(string name, int seed, bool creativeMode)
         {
             if (state == GameState.Loading) return;
-            StartCoroutine(BeginSession(name, seed, creativeMode, null));
+            Safe(BeginSession(name, seed, creativeMode, null));
         }
 
         public void LoadWorld(LevelDto dto)
         {
             if (state == GameState.Loading) return;
-            StartCoroutine(BeginSession(dto.name, dto.seed, dto.creative, dto));
+            Safe(BeginSession(dto.name, dto.seed, dto.creative, dto));
         }
 
         public void ReturnToMenu()
@@ -347,10 +368,10 @@ namespace MundoBloques
 
             var pgo = new GameObject("Player");
             pgo.transform.SetParent(transform, false);
+            if (menuCam != null) { menuCam.SetActive(false); Destroy(menuCam); menuCam = null; }
             player = pgo.AddComponent<Player>();
             player.Init();
             player.lookSens = Settings.lookSens;
-            if (menuCam != null) { Destroy(menuCam); menuCam = null; }
             Vector3 pos;
             if (dto != null)
             {
@@ -525,7 +546,7 @@ namespace MundoBloques
             Vector3 pos = player.spawnPos;
             Dim target = player.hasBed ? player.spawnDim : Dim.Overworld;
             if (!player.hasBed) { pos = FindSpawn(worldSeed); }
-            if (world.dim != target) { StartCoroutine(Travel(target, pos, 0, false, true)); return; }
+            if (world.dim != target) { Safe(Travel(target, pos, 0, false, true)); return; }
             player.Respawn(pos);
             var p = SafeSpawn(pos);
             player.transform.position = p;
@@ -552,17 +573,17 @@ namespace MundoBloques
                 if (world.dim == Dim.Overworld)
                 {
                     var p = player.transform.position;
-                    StartCoroutine(Travel(Dim.Abismo, new Vector3(p.x / 8f, p.y, p.z / 8f), 1, true, false));
+                    Safe(Travel(Dim.Abismo, new Vector3(p.x / 8f, p.y, p.z / 8f), 1, true, false));
                 }
                 else if (world.dim == Dim.Abismo)
                 {
                     var p = player.transform.position;
-                    StartCoroutine(Travel(Dim.Overworld, new Vector3(p.x * 8f, 70f, p.z * 8f), 1, true, false));
+                    Safe(Travel(Dim.Overworld, new Vector3(p.x * 8f, 70f, p.z * 8f), 1, true, false));
                 }
             }
             else
             {
-                if (world.dim == Dim.Overworld) StartCoroutine(Travel(Dim.Final, new Vector3(0.5f, 70f, 40.5f), 2, false, false));
+                if (world.dim == Dim.Overworld) Safe(Travel(Dim.Final, new Vector3(0.5f, 70f, 40.5f), 2, false, false));
                 else if (world.dim == Dim.Final)
                 {
                     if (dragonDefeated && !creditsShown) { creditsShown = true; ui.ShowVictory(); }
@@ -574,7 +595,7 @@ namespace MundoBloques
         public void ExitEnd()
         {
             var sp = player.hasBed && player.spawnDim == Dim.Overworld ? player.spawnPos : FindSpawn(worldSeed);
-            StartCoroutine(Travel(Dim.Overworld, sp, 0, false, true));
+            Safe(Travel(Dim.Overworld, sp, 0, false, true));
         }
 
         IEnumerator Travel(Dim target, Vector3 dest, int portalKind, bool findPortal, bool respawn)

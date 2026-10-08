@@ -133,8 +133,11 @@ namespace MundoBloques
             menuButtons.Add(UIButton.Make(parent, text, 0, row * 76, 360, 60, click, 26));
         }
 
+        bool clickUsed;     // el clic de este fotograma ya se ha usado (cambio de pagina)
+
         void ShowPage(RectTransform page)
         {
+            clickUsed = true;
             pageMain.gameObject.SetActive(page == pageMain); pageNew.gameObject.SetActive(page == pageNew);
             pageLoad.gameObject.SetActive(page == pageLoad); pageControls.gameObject.SetActive(page == pageControls);
             if (page == pageNew && string.IsNullOrEmpty(nameField.value)) nameField.value = UniqueName();
@@ -251,34 +254,35 @@ namespace MundoBloques
         // ================================================================== tick de los menus
         void TickMenus(float dt, Vector2 mouse, bool click)
         {
+            clickUsed = false;
             var g = GameRoot.I;
             if (menuVisible)
             {
-                if (pageMain.gameObject.activeSelf || pageControls.gameObject.activeSelf) foreach (var b in menuButtons) b.Tick(mouse, click);
+                if (pageMain.gameObject.activeSelf || pageControls.gameObject.activeSelf) foreach (var b in menuButtons) b.Tick(mouse, click && !clickUsed);
                 if (pageNew.gameObject.activeSelf)
                 {
-                    nameField.Tick(mouse, click); seedField.Tick(mouse, click);
-                    foreach (var b in newButtons) b.Tick(mouse, click);
+                    nameField.Tick(mouse, click && !clickUsed); seedField.Tick(mouse, click && !clickUsed);
+                    foreach (var b in newButtons) b.Tick(mouse, click && !clickUsed);
                 }
                 if (pageLoad.gameObject.activeSelf)
                 {
                     if (Mathf.Abs(Inp.Scroll) > 0.1f && worlds.Count > 5) { loadScroll = Mathf.Clamp(loadScroll - (int)Mathf.Sign(Inp.Scroll), 0, worlds.Count - 5); RebuildWorldList(); }
                     var copy = new List<UIButton>(loadButtons);
-                    foreach (var b in copy) b.Tick(mouse, click);
+                    foreach (var b in copy) b.Tick(mouse, click && !clickUsed);
                 }
             }
             if (pauseOpen)
             {
                 sViewDist.Tick(mouse); sSens.Tick(mouse); sVolume.Tick(mouse); sMusic.Tick(mouse);
-                foreach (var b in pauseButtons) b.Tick(mouse, click);
+                foreach (var b in pauseButtons) b.Tick(mouse, click && !clickUsed);
             }
-            if (deathOpen) foreach (var b in deathButtons) b.Tick(mouse, click);
+            if (deathOpen) foreach (var b in deathButtons) b.Tick(mouse, click && !clickUsed);
             if (victoryOpen)
             {
                 victoryScroll += dt * 40f;
                 var rt = victoryText.rectTransform;
                 rt.anchoredPosition = new Vector2(0, -1000f + victoryScroll * 1.2f);
-                foreach (var b in victoryButtons) b.Tick(mouse, click);
+                foreach (var b in victoryButtons) b.Tick(mouse, click && !clickUsed);
             }
         }
     }

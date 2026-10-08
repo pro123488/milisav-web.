@@ -453,6 +453,7 @@ namespace MundoBloques
             catch (Exception e)
             {
                 Debug.LogError("Error generando chunk " + c.cx + "," + c.cz + ": " + e);
+                c.RecomputeTop();
                 c.state = 2;
             }
             finally { Interlocked.Decrement(ref genRunning); }

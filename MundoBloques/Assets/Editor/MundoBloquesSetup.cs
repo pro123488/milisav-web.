@@ -45,6 +45,10 @@ namespace MundoBloques.EditorTools
             PlayerSettings.defaultScreenWidth = 1280;
             PlayerSettings.defaultScreenHeight = 720;
 
+            // no descartar una escena abierta con cambios sin guardar
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            // el juego esta pensado para espacio de color Gamma (los sombreados se multiplican directamente)
+            if (PlayerSettings.colorSpace != ColorSpace.Gamma) PlayerSettings.colorSpace = ColorSpace.Gamma;
             Directory.CreateDirectory("Assets/Scenes");
             // Escena vacia: el juego se crea solo al pulsar Play (GameRoot usa RuntimeInitializeOnLoadMethod)
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);

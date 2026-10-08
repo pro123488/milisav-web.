@@ -289,7 +289,7 @@ namespace MundoBloques
                     col.Add(new Color32((byte)(color.r * shade[f]), (byte)(color.g * shade[f]), (byte)(color.b * shade[f]), 255));
                     uv.Add(new Vector2(u, vv)); uv2.Add(Vector2.one);
                 }
-                t.Add(bi); t.Add(bi + 1); t.Add(bi + 2); t.Add(bi); t.Add(bi + 2); t.Add(bi + 3);
+                t.Add(bi); t.Add(bi + 2); t.Add(bi + 1); t.Add(bi); t.Add(bi + 3); t.Add(bi + 2);
             }
             m = new Mesh();
             m.SetVertices(v); m.SetColors(col); m.SetUVs(0, uv); m.SetUVs(1, uv2); m.SetTriangles(t, 0);

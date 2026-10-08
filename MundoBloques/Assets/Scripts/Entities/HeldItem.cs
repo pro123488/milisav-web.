@@ -25,7 +25,7 @@ namespace MundoBloques
 
         void LateUpdate()
         {
-            if (player == null || GameRoot.I == null) return;
+            if (player == null || GameRoot.I == null || GameRoot.I.world == null) return;
             var st = player.inv.Held;
             var it = st.IsEmpty ? null : st.item;
             if (it != shown)

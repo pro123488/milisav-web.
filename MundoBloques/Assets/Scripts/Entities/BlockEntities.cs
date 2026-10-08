@@ -28,7 +28,7 @@ namespace MundoBloques
         void Update()
         {
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
-            if (G == null || G.paused) return;
+            if (G == null || G.paused || G.world == null) return;
             age += dt;
             StepPhysics(dt);
             if (onGround || age > 10f)
@@ -72,7 +72,7 @@ namespace MundoBloques
         void Update()
         {
             float dt = Mathf.Min(Time.deltaTime, 0.05f);
-            if (G == null || G.paused) return;
+            if (G == null || G.paused || G.world == null) return;
             fuse -= dt;
             vel.x *= Mathf.Pow(0.05f, dt); vel.z *= Mathf.Pow(0.05f, dt);
             StepPhysics(dt);

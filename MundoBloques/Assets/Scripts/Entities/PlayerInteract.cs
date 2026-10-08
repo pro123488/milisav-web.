@@ -50,7 +50,7 @@ namespace MundoBloques
             {
                 int bi = cv.Count;
                 for (int k = 0; k < 4; k++) { cv.Add(new Vector3(f[k * 3], f[k * 3 + 1], f[k * 3 + 2])); cc.Add(new Color32(255, 255, 255, 255)); cuv2.Add(Vector2.one); }
-                ct.Add(bi); ct.Add(bi + 1); ct.Add(bi + 2); ct.Add(bi); ct.Add(bi + 2); ct.Add(bi + 3);
+                ct.Add(bi); ct.Add(bi + 2); ct.Add(bi + 1); ct.Add(bi); ct.Add(bi + 3); ct.Add(bi + 2);
             }
             crackMesh.SetVertices(cv); crackMesh.SetColors(cc); crackMesh.SetUVs(1, cuv2); crackMesh.SetTriangles(ct, 0);
             crackUv = new Vector2[10][];

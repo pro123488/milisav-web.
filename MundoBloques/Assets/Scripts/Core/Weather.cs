@@ -69,6 +69,7 @@ namespace MundoBloques
             main.startLifetime = 1f;
             main.maxParticles = streak ? 3500 : 2500;
             main.playOnAwake = false; main.loop = true;
+            main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
             var em = ps.emission; em.enabled = false;
             var sh = ps.shape; sh.enabled = false;
             var r = go.GetComponent<ParticleSystemRenderer>();
