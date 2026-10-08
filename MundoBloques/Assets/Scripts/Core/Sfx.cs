@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MundoBloques
 {
-    public enum Clip { Hurt, Pop, Click, Explode, Bow, Eat, Splash, Door, Chest, Portal, Fizz, Drink, Hit, Break, Place, Level, Zombie, Moo, Oink, Bleat, Cluck, Hiss, Growl, Bell, Teleport, Roar, Whoosh, Bark, Neigh, Thunder, Cast }
+    public enum Clip { Hurt, Pop, Click, Explode, Bow, Eat, Splash, Door, Chest, Portal, Fizz, Drink, Hit, Break, Place, Level, Zombie, Moo, Oink, Bleat, Cluck, Hiss, Growl, Bell, Teleport, Roar, Whoosh, Bark, Neigh, Thunder, Cast, Meow }
 
     /// <summary>Efectos de sonido generados por codigo (no hace falta importar audios).</summary>
     public static class Sfx
@@ -97,6 +97,7 @@ namespace MundoBloques
                 case Names.Neigh: c = Make(key, 0.8f, 0.12f, 520, 300, 0.2f, 1.4f, 37); break;
                 case Names.Thunder: c = Make(key, 2.8f, 0.035f, 45, 28, 0.97f, 0.9f, 38); break;
                 case Names.Cast: c = Make(key, 0.25f, 0.5f, 300, 900, 0.7f, 1.8f, 39); break;
+                case Names.Meow: c = Make(key, 0.45f, 0.2f, 720, 520, 0.12f, 1.6f, 40); break;
                 default: c = Make(key, 0.1f, 0.3f, 0, 0, 1f, 2f, 99); break;
             }
             clips[key] = c;
@@ -107,7 +108,7 @@ namespace MundoBloques
         {
             public const string Hurt = "hurt", Pop = "pop", Click = "click", Explode = "explode", Bow = "bow", Eat = "eat", Splash = "splash", Door = "door", Chest = "chest",
                 Portal = "portal", Fizz = "fizz", Drink = "drink", Hit = "hit", Level = "level", Zombie = "zombie", Moo = "moo", Oink = "oink", Bleat = "bleat",
-                Cluck = "cluck", Hiss = "hiss", Growl = "growl", Bell = "bell", Teleport = "teleport", Roar = "roar", Whoosh = "whoosh", Bark = "bark", Neigh = "neigh", Thunder = "thunder", Cast = "cast";
+                Cluck = "cluck", Hiss = "hiss", Growl = "growl", Bell = "bell", Teleport = "teleport", Roar = "roar", Whoosh = "whoosh", Bark = "bark", Neigh = "neigh", Thunder = "thunder", Cast = "cast", Meow = "meow";
         }
 
         static string NameOf(Clip c)
@@ -121,7 +122,7 @@ namespace MundoBloques
                 case Clip.Zombie: return Names.Zombie; case Clip.Moo: return Names.Moo; case Clip.Oink: return Names.Oink; case Clip.Bleat: return Names.Bleat;
                 case Clip.Cluck: return Names.Cluck; case Clip.Hiss: return Names.Hiss; case Clip.Growl: return Names.Growl; case Clip.Bell: return Names.Bell;
                 case Clip.Teleport: return Names.Teleport; case Clip.Roar: return Names.Roar;
-                case Clip.Bark: return Names.Bark; case Clip.Neigh: return Names.Neigh; case Clip.Thunder: return Names.Thunder; case Clip.Cast: return Names.Cast;
+                case Clip.Bark: return Names.Bark; case Clip.Neigh: return Names.Neigh; case Clip.Thunder: return Names.Thunder; case Clip.Cast: return Names.Cast; case Clip.Meow: return Names.Meow;
                 default: return Names.Whoosh;
             }
         }

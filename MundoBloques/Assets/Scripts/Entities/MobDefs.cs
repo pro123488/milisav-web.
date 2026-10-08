@@ -24,6 +24,7 @@ namespace MundoBloques
         public float health = 10, speed = 2f, width = 0.6f, height = 1f, damage = 2f, scale = 1f, sight = 22f;
         public bool burnsInDay, hostile, flies, baby;
         public string breedItem;
+        public string[] tameItems;
         public List<Part> parts = new List<Part>();
         public Drop2[] drops = new Drop2[0];
         public Clip ambient = Clip.Pop; public float ambientChance = 0.0f;
@@ -40,6 +41,7 @@ namespace MundoBloques
     /// <summary>Catalogo de criaturas pacificas, hostiles y sobrenaturales con sus modelos de cubos.</summary>
     public static class MobDefs
     {
+        public static readonly uint[] CatBody = { 0xD08A3A, 0x2C2C30, 0x9A9A9E, 0xEDEDED };
         public static readonly uint[] HorseBody = { 0x8B5A2B, 0xA0522D, 0x2B2320, 0xE8E4DC, 0x9A9A98, 0xC9A24D };
         public static readonly uint[] HorseMane = { 0x2B1B10, 0x4A2A14, 0x0E0A08, 0xC8C4BC, 0x555555, 0xE8D8A0 };
         public static readonly Dictionary<string, MobDef> All = new Dictionary<string, MobDef>();
@@ -106,7 +108,7 @@ namespace MundoBloques
             rabbit.Add("earL", 1, 5, 1, -1, 12, 3.5f, 0, 2, 0, 0x8A6A4A); rabbit.Add("earR", 1, 5, 1, 1, 12, 3.5f, 0, 2, 0, 0x8A6A4A);
             rabbit.Add("tail", 2, 2, 1, 0, 6, -4, 0, 0, 0, 0xF0F0F0);
 
-            var wolf = Def("wolf", "Lobo", AI.Wolf, 8, 3.6f, 0.6f, 0.85f, 1f); wolf.ambient = Clip.Bark; wolf.ambientChance = 0.0012f;
+            var wolf = Def("wolf", "Lobo", AI.Wolf, 8, 3.6f, 0.6f, 0.85f, 1f); wolf.ambient = Clip.Bark; wolf.ambientChance = 0.0012f; wolf.tameItems = new[] { "bone" };
             wolf.Add("legFL", 2.5f, 8, 2.5f, -2, 8, 4, 0, -4, 0, 0xC4C0B8, 'a'); wolf.Add("legFR", 2.5f, 8, 2.5f, 2, 8, 4, 0, -4, 0, 0xC4C0B8, 'b');
             wolf.Add("legBL", 2.5f, 8, 2.5f, -2, 8, -4, 0, -4, 0, 0xC4C0B8, 'b'); wolf.Add("legBR", 2.5f, 8, 2.5f, 2, 8, -4, 0, -4, 0, 0xC4C0B8, 'a');
             wolf.Add("body", 6, 6, 9, 0, 11, 0, 0, 0, 0, 0xD4D0C8);
@@ -116,6 +118,17 @@ namespace MundoBloques
             wolf.Add("eyeL", 1, 1, 0.4f, 0, 13, 5, -1.8f, 0.8f, 4.05f, 0x202020, 'h'); wolf.Add("eyeR", 1, 1, 0.4f, 0, 13, 5, 1.8f, 0.8f, 4.05f, 0x202020, 'h');
             wolf.Add("collar", 6.6f, 6.6f, 1.4f, 0, 13, 5, 0, 0, -0.1f, 0xC02020, 'h');
             wolf.Add("tail", 2, 6, 2, 0, 12.5f, -5, 0, -1.5f, -1, 0xC4C0B8, 't');
+
+            var cat = Def("cat", "Gato", AI.Wolf, 10, 3.2f, 0.45f, 0.55f, 1f); cat.ambient = Clip.Meow; cat.ambientChance = 0.0018f; cat.tameItems = new[] { "cod", "salmon" };
+            cat.Add("legFL", 2, 6, 2, -1.5f, 6, 3.5f, 0, -3, 0, 0xD08A3A, 'a'); cat.Add("legFR", 2, 6, 2, 1.5f, 6, 3.5f, 0, -3, 0, 0xD08A3A, 'b');
+            cat.Add("legBL", 2, 6, 2, -1.5f, 6, -3.5f, 0, -3, 0, 0xD08A3A, 'b'); cat.Add("legBR", 2, 6, 2, 1.5f, 6, -3.5f, 0, -3, 0, 0xD08A3A, 'a');
+            cat.Add("body", 5, 5, 11, 0, 8.5f, 0, 0, 0, 0, 0xD08A3A);
+            cat.Add("head", 5, 4.5f, 5, 0, 10, 5, 0, 0, 2, 0xD8964A, 'h');
+            cat.Add("earL", 1.6f, 1.6f, 1, 0, 10, 5, -1.8f, 3, 1.5f, 0xD08A3A, 'h'); cat.Add("earR", 1.6f, 1.6f, 1, 0, 10, 5, 1.8f, 3, 1.5f, 0xD08A3A, 'h');
+            cat.Add("snout", 2.5f, 1.8f, 1, 0, 10, 5, 0, -1, 4.6f, 0xEEC8B8, 'h');
+            cat.Add("eyeL", 1, 1, 0.4f, 0, 10, 5, -1.5f, 0.7f, 4.55f, 0x6AC840, 'h'); cat.Add("eyeR", 1, 1, 0.4f, 0, 10, 5, 1.5f, 0.7f, 4.55f, 0x6AC840, 'h');
+            cat.Add("collar", 5.6f, 5.1f, 1.2f, 0, 10, 5, 0, 0, -0.2f, 0xC02020, 'h');
+            cat.Add("tail", 1.5f, 1.5f, 9, 0, 10, -5, 0, -0.5f, -4, 0xC47A30, 't');
 
             var horse = Def("horse", "Caballo", AI.Horse, 22, 4f, 1.2f, 1.7f, 1f); horse.breedItem = "apple"; horse.ambient = Clip.Neigh; horse.ambientChance = 0.0012f;
             horse.drops = new[] { new Drop2("leather", 0, 2) };

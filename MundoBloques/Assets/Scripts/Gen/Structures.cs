@@ -408,6 +408,7 @@ namespace MundoBloques
             }
             int sx, sz; f.ToWorld(w / 2, 1, out sx, out sz);
             f.w.Spawn("villager", sx + 0.5f, f.b.floorY + 1f, sz + 0.5f);
+            if (MathX.Hash01(sx, f.b.floorY, sz, 31) < 0.3f) f.w.Spawn("cat", sx + 1.5f, f.b.floorY + 1f, sz + 0.5f);
         }
 
         static void Farm(Frame f, Pal p, Rng r)

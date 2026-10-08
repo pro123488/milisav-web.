@@ -278,6 +278,7 @@ namespace MundoBloques
             int l = w.LightPacked(x, y, z);
             sb.AppendLine("Luz cielo/bloque: " + (l >> 4) + "/" + (l & 15) + "   Hora: " + (g.sky.time * 24f).ToString("0.0"));
             if (p.target.hit) sb.AppendLine("Apuntando: " + p.target.block.name + " (" + p.target.x + "," + p.target.y + "," + p.target.z + ") meta " + w.GetMeta(p.target.x, p.target.y, p.target.z));
+            sb.AppendLine("Clima: " + (g.weather.Raining ? (g.weather.thunder ? "tormenta" : "lluvia") : "despejado") + " (" + g.weather.rain.ToString("0.00") + ")   Mapa: " + g.map.Count + " chunks   Logros: " + g.advDone.Count + "/" + Advancements.All.Count);
             sb.AppendLine("Semilla: " + g.worldSeed + "   Entidades: " + Entity.All.Count);
             debugText.text = sb.ToString();
         }

@@ -469,6 +469,8 @@ namespace MundoBloques
                     if (!inv.armor[i].IsEmpty) { SpawnItem(player.transform.position + Vector3.up, inv.armor[i], new Vector3(rand.Range(-3f, 3f), 4f, rand.Range(-3f, 3f))); inv.armor[i].Clear(); }
             }
             ui.CloseAll();
+            var dp = player.transform.position;
+            ui.Toast("Has muerto en X " + Mathf.FloorToInt(dp.x) + "  Y " + Mathf.FloorToInt(dp.y) + "  Z " + Mathf.FloorToInt(dp.z) + ": tus objetos están ahí.");
             ui.ShowDeath();
         }
 

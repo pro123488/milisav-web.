@@ -39,6 +39,7 @@ namespace MundoBloques
         int fuseFlash;
 
         public override bool Hostile { get { return def.hostile; } }
+        public override bool Attackable { get { return rider == null && !dead; } }
         public override float EyeHeight { get { return height * 0.85f; } }
 
         public static Mob Create(MobDef def, Vector3 pos, bool baby = false, int variant = -1)
@@ -54,6 +55,7 @@ namespace MundoBloques
             m.yawBody = Random.value * 360f;
             m.woolColor = def.key == "sheep" ? (Random.value < 0.8f ? 0 : GameRoot.I.rand.Int(16)) : 0;
             if (def.key == "horse") m.woolColor = variant >= 0 ? Mathf.Min(variant, MobDefs.HorseBody.Length - 1) : GameRoot.I.rand.Int(MobDefs.HorseBody.Length);
+            if (def.key == "cat") m.woolColor = variant >= 0 ? Mathf.Min(variant, MobDefs.CatBody.Length - 1) : GameRoot.I.rand.Int(MobDefs.CatBody.Length);
             m.eggTimer = Random.Range(120f, 400f);
             m.noGravity = def.flies;
             m.stepHeight = def.ai == AI.Fish ? 0f : 0.6f;
@@ -84,6 +86,7 @@ namespace MundoBloques
                 if (def.key == "sheep" && p.name == "body")
                     col = sheared ? Col.Hex(0xE8C8B0) : Col.Hex(Dyes.Colors[woolColor]);
                 else if (def.key == "horse") col = HorseColor(p.name, p.color);
+                else if (def.key == "cat") col = CatColor(p.name, p.color);
                 mesh.AddComponent<MeshFilter>().sharedMesh = MobDefs.BoxMesh(p.size, col);
                 var mr = mesh.AddComponent<MeshRenderer>();
                 mr.sharedMaterial = Mats.Mob;
@@ -103,6 +106,15 @@ namespace MundoBloques
             if (part == "body" || part.StartsWith("neck") || part == "head" || part.StartsWith("ear") || part.StartsWith("leg")) return Col.Hex(MobDefs.HorseBody[v]);
             if (part == "muzzle") return Col.Mul(Col.Hex(MobDefs.HorseBody[v]), 1.18f);
             if (part == "mane" || part == "tail") return Col.Hex(MobDefs.HorseMane[v]);
+            return fallback;
+        }
+
+        Color32 CatColor(string part, Color32 fallback)
+        {
+            var b = Col.Hex(MobDefs.CatBody[Mathf.Clamp(woolColor, 0, MobDefs.CatBody.Length - 1)]);
+            if (part == "body" || part.StartsWith("leg") || part.StartsWith("ear")) return b;
+            if (part == "head") return Col.Mul(b, 1.08f);
+            if (part == "tail") return Col.Mul(b, 0.88f);
             return fallback;
         }
 
@@ -360,6 +372,13 @@ namespace MundoBloques
         Vector3 panicFrom;
 
         // ---------------------------------------------------------------- lobos y caballos
+        bool IsTameItem(Item it)
+        {
+            if (def.tameItems == null) return false;
+            for (int i = 0; i < def.tameItems.Length; i++) if (def.tameItems[i] == it.key) return true;
+            return false;
+        }
+
         static bool IsMeat(Item it)
         {
             switch (it.key)
@@ -378,7 +397,7 @@ namespace MundoBloques
             {
                 if (sitting) return;
                 thinkTimer -= dt;
-                if (foe == null && thinkTimer <= 0f && pl != null)
+                if (foe == null && def.key != "cat" && thinkTimer <= 0f && pl != null)
                 {
                     thinkTimer = 0.6f;
                     var e = Entity.Closest(pl.transform.position, 12f, x => { var mm = x as Mob; return mm != null && !mm.dead && mm.def.hostile && mm.def.ai != AI.Exploder; });
@@ -396,6 +415,12 @@ namespace MundoBloques
                 return;
             }
             if (foe != null) { ChaseFoe(); return; }
+            if (def.key == "cat" && pl != null && pd < 5f)
+            {
+                var away = transform.position - pl.transform.position; away.y = 0f;
+                desired = away.normalized * def.speed * 1.3f; FaceDir(away);
+                return;
+            }
             Wander(dt, def.speed * 0.5f, 12f);
         }
 
@@ -433,8 +458,8 @@ namespace MundoBloques
             EnsureId(); UpdateParts();
             p.petsTamed++;
             Particles.Burst(transform.position + Vector3.up * height, new Color32(255, 80, 120, 255), 12, 1.5f, 0.12f, 0.9f);
-            Sfx.Play(Clip.Bark, transform.position, 0.8f, 1.2f);
-            G.ui.Hint("¡Has domesticado al lobo! Clic derecho: sentarse / seguir", 3f);
+            Sfx.Play(def.key == "cat" ? Clip.Meow : Clip.Bark, transform.position, 0.8f, 1.2f);
+            G.ui.Hint(def.key == "cat" ? "¡Has domesticado al gato! Clic derecho: sentarse / seguir" : "¡Has domesticado al lobo! Clic derecho: sentarse / seguir", 3f);
         }
 
         void ThinkVillager(float dt, Player pl, float pd)
@@ -759,7 +784,7 @@ namespace MundoBloques
             panicFrom = src != null ? src.transform.position : transform.position + Random.insideUnitSphere;
             if (src != null && src != this)
             {
-                if (def.ai == AI.Wolf) { sitting = false; if (!tamed || !src.IsPlayer) foe = src; }
+                if (def.ai == AI.Wolf) { sitting = false; if (def.key != "cat" && (!tamed || !src.IsPlayer)) foe = src; }
                 else if (def.hostile && !src.IsPlayer) foe = src;
             }
             if (def.ai == AI.Passive || def.ai == AI.Villager || def.ai == AI.Spirit || def.ai == AI.Fish) panicTimer = 4f;
@@ -812,7 +837,7 @@ namespace MundoBloques
             {
                 if (!tamed)
                 {
-                    if (!empty && h.item.key == "bone")
+                    if (!empty && IsTameItem(h.item))
                     {
                         p.ConsumeHeld(1); Sfx.Play(Clip.Eat, transform.position, 0.6f);
                         if (G.rand.Chance(0.34f)) Tame(p);
@@ -821,7 +846,7 @@ namespace MundoBloques
                     }
                     return false;
                 }
-                if (!empty && IsMeat(h.item) && health < maxHealth)
+                if (!empty && (def.key == "cat" ? IsTameItem(h.item) || h.item.key.StartsWith("cooked_cod") || h.item.key.StartsWith("cooked_salmon") : IsMeat(h.item)) && health < maxHealth)
                 {
                     Heal(Mathf.Max(2, h.item.hunger)); p.ConsumeHeld(1);
                     Particles.Burst(transform.position + Vector3.up * height, new Color32(255, 80, 120, 255), 6, 1f, 0.1f, 0.8f);
@@ -829,7 +854,8 @@ namespace MundoBloques
                     return true;
                 }
                 sitting = !sitting;
-                G.ui.Hint(sitting ? "El lobo se queda aquí" : "El lobo te sigue", 1.4f);
+                string who = def.key == "cat" ? "El gato" : "El lobo";
+                G.ui.Hint(sitting ? who + " se queda aquí" : who + " te sigue", 1.4f);
                 return true;
             }
             if (def.ai == AI.Horse && !isBaby)

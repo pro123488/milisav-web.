@@ -28,11 +28,11 @@ namespace MundoBloques
                 new[] { // granjero
                     new Trade("wheat", 20, "emerald", 1), new Trade("carrot", 22, "emerald", 1), new Trade("potato", 26, "emerald", 1), new Trade("beetroot", 15, "emerald", 1),
                     new Trade("tomato", 18, "emerald", 1), new Trade("pumpkin", 6, "emerald", 1), new Trade("emerald", 1, "bread", 6), new Trade("emerald", 1, "apple", 4),
-                    new Trade("emerald", 2, "cooked_pork", 6), new Trade("emerald", 1, "wheat_seeds", 16), new Trade("emerald", 3, "golden_carrot", 3), new Trade("emerald", 1, "cookie", 8) },
+                    new Trade("emerald", 2, "cooked_pork", 6), new Trade("emerald", 1, "wheat_seeds", 16), new Trade("emerald", 3, "golden_carrot", 3), new Trade("emerald", 1, "cookie", 8), new Trade("emerald", 3, "fishing_rod", 1) },
                 new[] { // herrero
                     new Trade("coal", 15, "emerald", 1), new Trade("iron_ingot", 4, "emerald", 1), new Trade("gold_ingot", 3, "emerald", 1), new Trade("copper_ingot", 8, "emerald", 1),
                     new Trade("emerald", 4, "iron_pickaxe", 1), new Trade("emerald", 3, "iron_axe", 1), new Trade("emerald", 5, "iron_sword", 1), new Trade("emerald", 8, "iron_chestplate", 1),
-                    new Trade("emerald", 3, "iron_helmet", 1), new Trade("emerald", 6, "copper_chestplate", 1), new Trade("emerald", 12, "diamond", 1), new Trade("emerald", 2, "bucket", 1), new Trade("emerald", 1, "arrow", 16) },
+                    new Trade("emerald", 3, "iron_helmet", 1), new Trade("emerald", 6, "copper_chestplate", 1), new Trade("emerald", 12, "diamond", 1), new Trade("emerald", 2, "bucket", 1), new Trade("emerald", 1, "arrow", 16), new Trade("emerald", 6, "saddle", 1) },
                 new[] { // bibliotecario / joyero
                     new Trade("paper", 24, "emerald", 1), new Trade("book", 4, "emerald", 1), new Trade("emerald", 3, "bookshelf", 1), new Trade("emerald", 1, "glass", 4),
                     new Trade("emerald", 5, "ruby", 1), new Trade("emerald", 5, "sapphire", 1), new Trade("emerald", 4, "amethyst_shard", 3), new Trade("emerald", 1, "torch", 12),

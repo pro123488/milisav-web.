@@ -33,6 +33,7 @@ namespace MundoBloques
             shader = Resources.Load<Shader>("Shaders/MundoBloquesVoxel");
             if (shader == null) shader = Shader.Find("MundoBloques/Voxel");
             if (shader == null) { Debug.LogError("No se encontro el shader MundoBloques/Voxel; usando Sprites/Default."); shader = Shader.Find("Sprites/Default"); }
+            else if (!shader.isSupported) { Debug.LogError("El shader MundoBloques/Voxel no es compatible con esta tarjeta grafica; usando Sprites/Default."); shader = Shader.Find("Sprites/Default"); }
             var atlas = TileAtlas.Texture;
             Opaque = Make("MB_Opaque", atlas, (int)CullMode.Back, (int)BlendMode.One, (int)BlendMode.Zero, 1, 0f, 2000);
             Cutout = Make("MB_Cutout", atlas, (int)CullMode.Off, (int)BlendMode.One, (int)BlendMode.Zero, 1, 0.5f, 2450);

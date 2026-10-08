@@ -67,12 +67,13 @@ namespace MundoBloques
             UIKit.Txt(pageControls,
                 "<b>Movimiento:</b> W A S D · Espacio saltar · Shift agacharse · Ctrl (o doble W) correr\n" +
                 "<b>Ratón:</b> clic izq. picar/atacar (mantén) · clic der. colocar/usar/comer · rueda o 1-9 cambia objeto\n" +
-                "<b>E</b> inventario y libro de recetas · <b>Q</b> tirar objeto · <b>F3</b> datos · <b>Esc</b> pausa\n" +
+                "<b>E</b> inventario y libro de recetas · <b>M</b> mapa · <b>L</b> logros · <b>Q</b> tirar · <b>F3</b> datos · <b>Esc</b> pausa\n" +
                 "<b>Creativo:</b> doble Espacio vuela · F también alterna el vuelo · E abre todos los bloques\n\n" +
                 "<b>Cómo progresar:</b> tala árboles → mesa de crafteo → pico de madera → piedra → horno → hierro.\n" +
                 "Mina gemas (diamante, esmeralda, rubí, zafiro, amatista) bajo tierra; construye con el <b>cortapiedras</b>.\n" +
                 "<b>Granja:</b> azada sobre tierra/hierba → siembra semillas (trigo, zanahoria, papa, remolacha, tomate, calabaza, sandía) cerca de agua.\n" +
                 "Cría vacas, ovejas, cerdos y gallinas dándoles su comida; comercia con aldeanos usando esmeraldas.\n" +
+                "<b>Vida:</b> pesca con la caña (clic der. al picar) · domestica lobos con huesos · monta caballos con montura y barcos (Mayús para bajar).\n" +
                 "<b>Dimensiones:</b> obsidiana + mechero = portal del Abismo. Perlas etéreas + polvo de llama = Ojos del Final;\n" +
                 "úsalos para hallar la fortaleza, rellena el marco del portal del Final y derrota al Dragón.\n" +
                 "Explora islas, océanos, montañas, aldeas, templos, mazmorras e islas celestiales flotantes.",
