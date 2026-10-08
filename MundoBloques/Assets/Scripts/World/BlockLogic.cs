@@ -21,6 +21,12 @@ namespace MundoBloques
             {
                 case Support.None: return true;
                 case Support.Solid:
+                    if (b == B.Ladder)
+                    {
+                        int ldx = meta == 0 ? -1 : (meta == 1 ? 1 : 0), ldz = meta == 2 ? -1 : (meta == 3 ? 1 : 0);
+                        var wall = w.GetBlock(x + ldx, y, z + ldz);
+                        return wall.Collides && wall.FullOpaque;
+                    }
                     if (b == B.Torch && meta >= 1 && meta <= 4)
                     {
                         int dx = meta == 1 ? -1 : (meta == 2 ? 1 : 0), dz = meta == 3 ? -1 : (meta == 4 ? 1 : 0);
@@ -47,12 +53,39 @@ namespace MundoBloques
             return below.id == 0 || below.replaceable || below.fluid || below.shape == Shape.Cross || below.shape == Shape.Torch || below.shape == Shape.Crop;
         }
 
+        /// <summary>Brazos de una valla o panel hacia sus vecinos (bits 0..3: +X, -X, +Z, -Z).</summary>
+        public static int ConnMeta(World w, int x, int y, int z, Block b)
+        {
+            int m = 0;
+            for (int k = 0; k < 4; k++)
+            {
+                var n = w.GetBlock(x + HX[k], y, z + HZ[k]);
+                if (n.id == 0) continue;
+                bool ok;
+                if (b.shape == Shape.Fence)
+                {
+                    if (n.shape == Shape.Fence) ok = true;
+                    else if (n.shape == Shape.Gate) ok = ((w.GetMeta(x + HX[k], y, z + HZ[k]) & 1) == 0) == (k < 2);
+                    else ok = n.Collides && n.FullOpaque;
+                }
+                else ok = n.shape == Shape.Pane || (n.Collides && n.FullOpaque) || n.key.StartsWith("glass");
+                if (ok) m |= 1 << k;
+            }
+            return m;
+        }
+
         public static void NeighborChanged(World w, int x, int y, int z)
         {
             var b = w.GetBlock(x, y, z);
             if (b.id == 0) return;
             int meta = w.GetMeta(x, y, z);
             if (b.support != Support.None && !Supported(w, x, y, z, b, meta)) { w.BreakNatural(x, y, z); return; }
+            if (b.shape == Shape.Fence || b.shape == Shape.Pane)
+            {
+                int nm = ConnMeta(w, x, y, z, b);
+                if (nm != meta) w.SetMeta(x, y, z, nm);
+                return;
+            }
             if (b.gravity) { TryFall(w, x, y, z, b); return; }
             if (b.fluid) { w.Schedule(x, y, z, b == B.Water ? 5 : 30); return; }
             if (B.IsFarmland(b))

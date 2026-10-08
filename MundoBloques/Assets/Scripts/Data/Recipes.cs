@@ -298,7 +298,13 @@ namespace MundoBloques
                 S(B.WoodStairs[i].key, 4, "P  |PP |PPP", 'P', k + "_planks");
                 S(B.WoodSlab[i].key, 6, "PPP", 'P', k + "_planks");
                 S(k + "_door", 3, "PP|PP|PP", 'P', k + "_planks");
+                S(k + "_fence", 3, "PSP|PSP", 'P', k + "_planks", 'S', "stick");
+                S(k + "_fence_gate", 1, "SPS|SPS", 'P', k + "_planks", 'S', "stick");
             }
+            S("ladder", 3, "S S|SSS|S S", 'S', "stick");
+            S("glass_pane", 16, "GGG|GGG", 'G', "glass");
+            S("iron_bars", 16, "III|III", 'I', "iron_ingot");
+            for (int i = 0; i < 16; i++) S("glass_pane_" + Dyes.Keys[i], 16, "GGG|GGG", 'G', "glass_" + Dyes.Keys[i]);
 
             // ---- escaleras y losas de piedra ----
             foreach (var b in Block.All)

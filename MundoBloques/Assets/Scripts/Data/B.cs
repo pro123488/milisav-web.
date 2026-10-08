@@ -27,6 +27,8 @@ namespace MundoBloques
         public static Block CraftingTable, Furnace, FurnaceOn, Chest, Stonecutter, Bookshelf, Bed, Torch, Tnt, Pumpkin,
             JackOLantern, Melon, Hay, Cactus, Glass, Spawner, Portal, EndPortal, EndFrame, DragonEgg;
         public static Block[] Crops = new Block[7];
+        public static Block[] Fence = new Block[Woods.All.Length], Gate = new Block[Woods.All.Length], StainedPane = new Block[16];
+        public static Block Ladder, GlassPane, IronBars;
         // --- Plantas ---
         public static Block TallGrass, Fern, DeadBush, SugarCane, Kelp, Seagrass, MushroomRed, MushroomBrown,
             MushroomStem, RedMushroomBlock, BrownMushroomBlock;
@@ -222,6 +224,10 @@ namespace MundoBloques
                 dr.tex[0] = TileAtlas.Index("door_" + w.key + "_bottom"); dr.tex[1] = TileAtlas.Index("door_" + w.key + "_top");
                 dr.opaque = false; dr.cutout = true;
                 Door[i] = dr;
+                var fe = Def(w.key + "_fence", "Valla de " + w.name).CopyTex(Planks[i]).Shaped(Shape.Fence).Hard(2f).Use(ToolKind.Axe).Sound(Snd.Wood);
+                fe.opaque = false; Fence[i] = fe;
+                var ga = Def(w.key + "_fence_gate", "Portillo de " + w.name).CopyTex(Planks[i]).Shaped(Shape.Gate).Hard(2f).Use(ToolKind.Axe).Sound(Snd.Wood).Interact();
+                ga.opaque = false; Gate[i] = ga;
             }
 
             // ====== Escaleras y losas de piedra ======
@@ -244,9 +250,17 @@ namespace MundoBloques
                 StainedGlass[i] = Def("glass_" + d, "Cristal " + n).Tex("glass_" + d).Hard(0.3f).Sound(Snd.Glass).Trans();
             }
             Rock("terracotta", "Terracota", "terracotta", 1.25f);
+            for (int i = 0; i < 16; i++)
+            {
+                var sp = Def("glass_pane_" + Dyes.Keys[i], "Panel de cristal " + Dyes.Names[i]).CopyTex(StainedGlass[i]).Shaped(Shape.Pane).Hard(0.3f).Sound(Snd.Glass).Trans();
+                StainedPane[i] = sp;
+            }
 
             // ====== Funcionales ======
             Glass = Def("glass", "Cristal").Tex("glass").Hard(0.3f).Sound(Snd.Glass).Cut(); Glass.drops = null;
+            GlassPane = Def("glass_pane", "Panel de cristal").Tex("glass").Shaped(Shape.Pane).Hard(0.3f).Sound(Snd.Glass).Cut(); GlassPane.drops = null;
+            IronBars = Def("iron_bars", "Barrotes de hierro").Tex("iron_bars").Shaped(Shape.Pane).Hard(5f).Use(ToolKind.Pickaxe).Sound(Snd.Metal).Cut();
+            Ladder = Def("ladder", "Escalera de mano").Tex("ladder").Shaped(Shape.Ladder).NoCollide().Cut().Hard(0.4f).Use(ToolKind.Axe).Sound(Snd.Wood).Needs(Support.Solid);
             CraftingTable = Def("crafting_table", "Mesa de crafteo").Tex("crafting_top", "crafting_side", "planks_oak").Front("crafting_front")
                 .Hard(2.5f).Use(ToolKind.Axe).Sound(Snd.Wood).Interact();
             CraftingTable.oriented = false;

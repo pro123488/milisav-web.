@@ -12,7 +12,7 @@ namespace MundoBloques
         public float width = 0.6f, height = 1.8f;
         public float health = 20f, maxHealth = 20f;
         public bool dead;
-        public bool onGround, inWater, headInWater, inLava, hitWall;
+        public bool onGround, inWater, headInWater, inLava, hitWall, onLadder;
         public float fallDistance;
         public float invuln, hurtFlash, burn;
         public bool noGravity;
@@ -44,6 +44,7 @@ namespace MundoBloques
             inWater = B.IsWaterlike(feet) || B.IsWaterlike(mid);
             headInWater = B.IsWaterlike(head);
             inLava = feet.isLava || mid.isLava;
+            onLadder = feet == B.Ladder || mid == B.Ladder;
         }
 
         /// <summary>Gravedad + colisiones. La velocidad horizontal la gestiona cada entidad.</summary>

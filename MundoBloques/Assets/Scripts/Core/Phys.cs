@@ -76,7 +76,7 @@ namespace MundoBloques
     /// <summary>Fisica de cajas contra bloques (sin colliders de Unity).</summary>
     public static class Phys
     {
-        static readonly Box[] tmp = new Box[4];
+        static readonly Box[] tmp = new Box[12];
         static readonly List<AABB> boxes = new List<AABB>(64);
         static readonly List<AABB> boxes2 = new List<AABB>(64);
 
@@ -90,14 +90,17 @@ namespace MundoBloques
                 for (int x = x0; x <= x1; x++)
                 {
                     if (!w.IsLoaded(x, z)) { into.Add(new AABB(x, -64, z, x + 1, 256, z + 1)); continue; }
-                    for (int y = y0; y <= y1; y++)
+                    for (int y = y0 - 1; y <= y1; y++)
                     {
+                        bool extra = y == y0 - 1;          // fila inferior: solo vallas y portillos (miden 1,5 de alto)
+                        if (extra && y < 0) continue;
                         if (y < 0) { into.Add(new AABB(x, y, z, x + 1, y + 1, z + 1)); continue; }
                         if (y >= 128) continue;
                         ushort id = w.Id(x, y, z);
                         if (id == 0) continue;
                         var b = Block.All[id];
                         if (!b.Collides) continue;
+                        if (extra && b.shape != Shape.Fence && b.shape != Shape.Gate) continue;
                         int n = Shapes.Collision(b, w.GetMeta(x, y, z), tmp);
                         for (int i = 0; i < n; i++)
                             into.Add(new AABB(x + tmp[i].x0, y + tmp[i].y0, z + tmp[i].z0, x + tmp[i].x1, y + tmp[i].y1, z + tmp[i].z1));

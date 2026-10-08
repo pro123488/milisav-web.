@@ -53,7 +53,24 @@ namespace MundoBloques
 
         static void PaintBlockIcon(Px p, Block b)
         {
-            if (b.shape == Shape.Cross || b.shape == Shape.Torch || b.shape == Shape.Crop || b.shape == Shape.Door)
+            if (b.shape == Shape.Fence || b.shape == Shape.Gate)
+            {
+                var wood = Sample(b.tex[0], 0.5f, 0.5f, Tint.None, false);
+                var dark = Col.Mul(wood, 0.72f); var lite = Col.Mul(wood, 1.15f);
+                if (b.shape == Shape.Fence)
+                {
+                    p.Rect(2, 2, 4, 14, wood); p.Rect(11, 2, 13, 14, wood); p.VLine(2, 2, 14, lite); p.VLine(4, 2, 14, dark); p.VLine(11, 2, 14, lite); p.VLine(13, 2, 14, dark);
+                    p.Rect(5, 4, 10, 5, wood); p.Rect(5, 9, 10, 10, wood); p.HLine(5, 10, 5, dark); p.HLine(5, 10, 10, dark);
+                }
+                else
+                {
+                    p.Rect(1, 3, 3, 14, wood); p.Rect(12, 3, 14, 14, wood); p.VLine(3, 3, 14, dark); p.VLine(14, 3, 14, dark);
+                    p.Rect(4, 5, 11, 6, wood); p.Rect(4, 10, 11, 11, wood); p.Rect(7, 6, 8, 9, wood); p.HLine(4, 11, 6, dark); p.HLine(4, 11, 11, dark);
+                }
+                p.Outline(OutlineC);
+                return;
+            }
+            if (b.shape == Shape.Cross || b.shape == Shape.Torch || b.shape == Shape.Crop || b.shape == Shape.Door || b.shape == Shape.Ladder || b.shape == Shape.Pane)
             {
                 int tile = b.shape == Shape.Crop ? b.tex[3] : b.tex[0];
                 bool tinted = b.tint != Tint.None;

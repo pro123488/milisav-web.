@@ -56,7 +56,7 @@ Notas:
 - **El Final**: islas flotantes de piedra del Final, cristales y **Dragón** jefe con barra de vida; al derrotarlo aparecen los créditos.
 
 **Minería y recursos**
-- 313 bloques y 486 objetos. Menas de carbón, cobre, hierro, oro, lapislázuli y cuarzo (con variantes profundas), y **gemas**: diamante, esmeralda, rubí, zafiro y amatista; abismita y oro del Abismo en la otra dimensión.
+- 346 bloques y 519 objetos. Menas de carbón, cobre, hierro, oro, lapislázuli y cuarzo (con variantes profundas), y **gemas**: diamante, esmeralda, rubí, zafiro y amatista; abismita y oro del Abismo en la otra dimensión.
 - Herramientas por niveles (madera, piedra, cobre, hierro, oro, diamante, rubí, zafiro, esmeralda, amatista, abismita) con dureza, durabilidad y velocidad de picado; grieta animada al romper bloques.
 
 **Agricultura, comida y vida**
@@ -68,7 +68,7 @@ Notas:
 - **Barcos** de madera que flotan y se conducen con `W A S D`.
 
 **Crafteo**
-- Mesa de crafteo y cuadrícula 2×2 con 336 recetas (con forma, sin forma y por etiquetas), 36 recetas de horno, 59 del **cortapiedras**.
+- Mesa de crafteo y cuadrícula 2×2 con 369 recetas (con forma, sin forma y por etiquetas), 36 recetas de horno, 59 del **cortapiedras**.
 - **Libro de recetas** con búsqueda, filtro "solo con mis materiales", tooltip de ingredientes y relleno automático de la cuadrícula.
 
 **Criaturas**
@@ -84,6 +84,7 @@ Notas:
 **Supervivencia y construcción**
 - Vida, hambre, aire bajo el agua, daño por caída, fuego, lava, cactus, armadura, muerte (con las coordenadas de tus objetos) y reaparición con cama.
 - Agua y lava con flujo, cubos, TNT y explosiones, arena que cae, antorchas, escaleras, losas, puertas, cofres, hornos, camas, cristal, lana de 16 colores, madera de 7 especies y muchos bloques decorativos.
+- **Construcción avanzada**: vallas y portillos de las 7 maderas (miden 1,5 de alto y se conectan solos, ideales para corrales), paneles de cristal (claros y de 16 colores), barrotes de hierro y escaleras de mano que se trepan (adelante o saltar para subir, Mayús para sujetarse).
 - Modo **creativo** con paleta de todos los bloques/objetos, vuelo y generador de criaturas.
 
 ## Estructura del proyecto

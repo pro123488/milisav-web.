@@ -187,7 +187,7 @@ namespace MundoBloques
     {
         const int PW = Snap.PW, OFF = Snap.OFF;
         readonly Snap s; readonly Chunk c; readonly MeshData md; readonly bool hasSky;
-        readonly Box[] boxes = new Box[4];
+        readonly Box[] boxes = new Box[12];
         readonly float[] vx = new float[4], vy = new float[4], vz = new float[4], fu = new float[4], fv = new float[4];
         readonly float[] lsky = new float[4], lblk = new float[4], aov = new float[4];
         readonly int[] aoi = new int[4];
@@ -284,7 +284,7 @@ namespace MundoBloques
             int n = Shapes.Boxes(b, meta, boxes);
             if (n == 0) return;
             int sub = BTab.Sub[b.id];
-            bool ao = b.shape != Shape.Torch && b.shape != Shape.Portal && b.shape != Shape.Door;
+            bool ao = b.shape != Shape.Torch && b.shape != Shape.Portal && b.shape != Shape.Door && b.shape != Shape.Fence && b.shape != Shape.Pane && b.shape != Shape.Gate && b.shape != Shape.Ladder;
             for (int bi = 0; bi < n; bi++)
             {
                 var bx = boxes[bi];

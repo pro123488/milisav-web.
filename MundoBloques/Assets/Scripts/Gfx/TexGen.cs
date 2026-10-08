@@ -522,6 +522,16 @@ namespace MundoBloques
                 case "cactus_side": p.Noise(0x1E7A2A, 0.08f, 1); p.VLine(0, 0, 15, Col.Hex(0x145A1E)); p.VLine(15, 0, 15, Col.Hex(0x145A1E)); for (int i = 0; i < 8; i++) p.Set(2 + (int)(p.R(i, 0, 4) * 12), (int)(p.R(i, 1, 4) * 16), Col.Hex(0xD8E8B0)); break;
                 case "cactus_top": p.Noise(0x1E7A2A, 0.06f, 1); p.Border(Col.Hex(0x145A1E)); p.Rect(5, 5, 10, 10, Col.Hex(0x2A8A38)); break;
                 case "glass": Glass(p, 0xCFE8F4, 255, true); break;
+                case "ladder":
+                    for (int i = 0; i < p.d.Length; i++) p.d[i] = Col.Clear;
+                    p.Rect(2, 0, 3, 15, Col.Hex(0x8B5E2B)); p.Rect(12, 0, 13, 15, Col.Hex(0x8B5E2B)); p.VLine(3, 0, 15, Col.Hex(0x6B4520)); p.VLine(13, 0, 15, Col.Hex(0x6B4520));
+                    for (int y = 1; y < 16; y += 4) { p.Rect(4, y, 11, y + 1, Col.Hex(0xA67C3A)); p.HLine(4, 11, y + 1, Col.Hex(0x7A5A28)); }
+                    break;
+                case "iron_bars":
+                    for (int i = 0; i < p.d.Length; i++) p.d[i] = Col.Clear;
+                    foreach (int bx in new[] { 1, 7, 13 }) { p.Rect(bx, 0, bx + 1, 15, Col.Hex(0x9AA0A8)); p.VLine(bx + 1, 0, 15, Col.Hex(0x5E626A)); }
+                    p.Rect(0, 7, 15, 8, Col.Hex(0x8A9098)); p.HLine(0, 15, 8, Col.Hex(0x5E626A));
+                    break;
                 case "spawner":
                     p.Fill(Col.Hex(0x0E1218)); p.Border(Col.Hex(0x6A7A8A)); p.HLine(0, 15, 8, Col.Hex(0x4A5A6A)); p.VLine(8, 0, 15, Col.Hex(0x4A5A6A));
                     for (int i = 0; i < 16; i++) { p.Set(i, i, Col.Hex(0x3A4A5A)); }

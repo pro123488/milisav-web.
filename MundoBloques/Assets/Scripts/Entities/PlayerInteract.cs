@@ -17,7 +17,7 @@ namespace MundoBloques
         Mesh crackMesh;
         Vector2[][] crackUv;
         public HeldItem held;
-        static readonly Box[] tmpBoxes = new Box[4];
+        static readonly Box[] tmpBoxes = new Box[12];
 
         public float Reach { get { return G.creative ? 6f : 4.8f; } }
 
@@ -348,6 +348,13 @@ namespace MundoBloques
                 Sfx.Play(Clip.Door, new Vector3(x + 0.5f, y + 0.5f, z + 0.5f), 0.7f, open ? 0.8f : 1.1f);
                 return true;
             }
+            if (b.shape == Shape.Gate)
+            {
+                int gm = w.GetMeta(x, y, z) ^ 4;
+                w.SetMeta(x, y, z, gm);
+                Sfx.Play(Clip.Door, new Vector3(x + 0.5f, y + 0.5f, z + 0.5f), 0.6f, (gm & 4) != 0 ? 1.1f : 0.85f);
+                return true;
+            }
             if (b == B.Bed)
             {
                 if (G.sky.IsNight && G.world.dim == Dim.Overworld) { G.SleepInBed(new Vector3(x + 0.5f, y + 1f, z + 0.5f)); }
@@ -589,6 +596,17 @@ namespace MundoBloques
                     nm = FacingIndex();
                     if (w.GetBlock(px, py + 1, pz).id != 0 && !w.GetBlock(px, py + 1, pz).replaceable) return;
                     if (!w.GetBlock(px, py - 1, pz).Collides) return;
+                    break;
+                case Shape.Ladder:
+                    if (face == 2 || face == 3) return;
+                    nm = face == 0 ? 0 : (face == 1 ? 1 : (face == 4 ? 2 : 3));
+                    break;
+                case Shape.Fence:
+                case Shape.Pane:
+                    nm = BlockLogic.ConnMeta(w, px, py, pz, blk);
+                    break;
+                case Shape.Gate:
+                    nm = FacingIndex() & 3;
                     break;
                 case Shape.Torch:
                     if (face == 3) return;

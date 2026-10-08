@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MundoBloques
 {
-    public enum Shape : byte { Cube, Box, Cross, Slab, Stairs, Fluid, Torch, Crop, Door, Portal }
+    public enum Shape : byte { Cube, Box, Cross, Slab, Stairs, Fluid, Torch, Crop, Door, Portal, Fence, Pane, Gate, Ladder }
     public enum ToolKind : byte { None, Pickaxe, Axe, Shovel, Hoe, Sword, Shears }
     public enum Tint : byte { None, Grass, Foliage, Water }
     public enum Snd : byte { Stone, Grass, Dirt, Sand, Wood, Glass, Cloth, Metal, Water, Gravel, Snow, Plant }
@@ -77,7 +77,7 @@ namespace MundoBloques
 
         public bool FullOpaque { get { return opaque && shape == Shape.Cube; } }
         public bool IsAir { get { return id == 0; } }
-        public bool Collides { get { return solid && shape != Shape.Cross && shape != Shape.Torch && shape != Shape.Crop && shape != Shape.Fluid && shape != Shape.Portal; } }
+        public bool Collides { get { return solid && shape != Shape.Cross && shape != Shape.Torch && shape != Shape.Crop && shape != Shape.Fluid && shape != Shape.Portal && shape != Shape.Ladder; } }
 
         public static Block ById(ushort id) { return All[id]; }
 

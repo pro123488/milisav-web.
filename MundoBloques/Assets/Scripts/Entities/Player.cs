@@ -233,6 +233,13 @@ namespace MundoBloques
                 onGround = false;
             }
 
+            // escaleras de mano: adelante o saltar sube, agacharse sujeta, si no se desliza despacio
+            if (onLadder && !flying && !inWater)
+            {
+                vel.y = (jumpHeld || input.y > 0.1f) ? 3.4f : (sneaking ? 0f : -2.8f);
+                fallDistance = 0f;
+            }
+
             // no caerse del borde al agacharse
             if (sneaking && onGround)
             {
