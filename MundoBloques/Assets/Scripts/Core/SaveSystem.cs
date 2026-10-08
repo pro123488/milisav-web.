@@ -29,7 +29,7 @@ namespace MundoBloques
     }
 
     /// <summary>Guardado en disco: nivel (JSON) y chunks modificados (binario comprimido).</summary>
-    public static class SaveSystem
+    public static partial class SaveSystem
     {
         public static string Root { get { return Path.Combine(Application.persistentDataPath, "MundoBloques"); } }
         public static string WorldDir(string name) { return Path.Combine(Root, Sanitize(name)); }
@@ -49,6 +49,8 @@ namespace MundoBloques
                 foreach (var d in Directory.GetDirectories(Root))
                 {
                     var f = Path.Combine(d, "level.json");
+                    // un cierre justo entre borrar y mover deja el temporal completo: se recupera
+                    if (!File.Exists(f) && File.Exists(f + ".tmp")) { try { File.Move(f + ".tmp", f); } catch { } }
                     if (!File.Exists(f)) continue;
                     try { list.Add(JsonUtility.FromJson<LevelDto>(File.ReadAllText(f))); } catch { }
                 }
@@ -64,7 +66,7 @@ namespace MundoBloques
 
         public static void Delete(string name)
         {
-            try { if (Directory.Exists(WorldDir(name))) Directory.Delete(WorldDir(name), true); } catch (Exception e) { Debug.LogWarning(e.Message); }
+            try { FlushChunks(); if (Directory.Exists(WorldDir(name))) Directory.Delete(WorldDir(name), true); } catch (Exception e) { Debug.LogWarning(e.Message); }
         }
 
         static StackDto[] ToDto(ItemStack[] arr)
@@ -108,10 +110,19 @@ namespace MundoBloques
                 dto.fish = p.fishCaught; dto.pets = p.petsTamed;
                 if (g.map.dirty) g.map.Save(MapFile(g.worldName), g.quitting);
                 Directory.CreateDirectory(WorldDir(g.worldName));
-                File.WriteAllText(Path.Combine(WorldDir(g.worldName), "level.json"), JsonUtility.ToJson(dto));
-                g.world.SaveAll();
+                WriteAtomic(Path.Combine(WorldDir(g.worldName), "level.json"), JsonUtility.ToJson(dto));
+                g.world.SaveAll(g.quitting);
             }
             catch (Exception e) { Debug.LogWarning("No se pudo guardar: " + e.Message); }
+        }
+
+        /// <summary>Escribe en un temporal y lo mueve al destino: un cierre brusco no deja el archivo a medias.</summary>
+        static void WriteAtomic(string path, string text)
+        {
+            string tmp = path + ".tmp";
+            File.WriteAllText(tmp, text);
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
         }
 
         public static void ApplyToPlayer(LevelDto dto, Player p)
@@ -120,84 +131,6 @@ namespace MundoBloques
             FromDto(dto.inv, p.inv.slots); FromDto(dto.armor, p.inv.armor); p.inv.selected = Mathf.Clamp(dto.sel, 0, 8);
             p.spawnPos = new Vector3(dto.sx, dto.sy, dto.sz); p.spawnDim = (Dim)dto.sdim; p.hasBed = dto.hasBed;
             p.yaw = dto.yaw; p.pitch = dto.pitch; p.totalKills = dto.kills; p.fishCaught = dto.fish; p.petsTamed = dto.pets;
-        }
-
-        public sealed class ChunkStore : IChunkStore
-        {
-            readonly string dir;
-            public ChunkStore(string worldName) { dir = WorldDir(worldName); }
-
-            string PathFor(Dim d, int cx, int cz) { return System.IO.Path.Combine(dir, d.ToString(), "c_" + cx + "_" + cz + ".bin"); }
-
-            public bool TryLoad(Dim dim, Chunk c)
-            {
-                var f = PathFor(dim, c.cx, c.cz);
-                if (!File.Exists(f)) return false;
-                try
-                {
-                    using (var fs = File.OpenRead(f))
-                    using (var gz = new GZipStream(fs, CompressionMode.Decompress))
-                    using (var r = new BinaryReader(gz))
-                    {
-                        int ver = r.ReadInt32();
-                        if (ver != 1) return false;
-                        int pc = r.ReadInt32();
-                        var map = new ushort[pc];
-                        for (int i = 0; i < pc; i++)
-                        {
-                            Block b;
-                            map[i] = Block.ByKey.TryGetValue(r.ReadString(), out b) ? b.id : (ushort)0;
-                        }
-                        for (int i = 0; i < Chunk.VOL; i++) { int pi = r.ReadUInt16(); c.blocks[i] = pi < pc ? map[pi] : (ushort)0; }
-                        var meta = r.ReadBytes(Chunk.VOL); Buffer.BlockCopy(meta, 0, c.meta, 0, Chunk.VOL);
-                        var bio = r.ReadBytes(256); Buffer.BlockCopy(bio, 0, c.biome, 0, 256);
-                        int ne = r.ReadInt32();
-                        for (int i = 0; i < ne; i++)
-                        {
-                            int idx = r.ReadInt32(); int type = r.ReadByte();
-                            BlockEntity e = type == 0 ? (BlockEntity)new ChestEntity() : new FurnaceEntity();
-                            e.x = (c.cx << 4) + (idx & 15); e.z = (c.cz << 4) + ((idx >> 4) & 15); e.y = idx >> 8;
-                            e.Read(r);
-                            c.entities[idx] = e;
-                        }
-                    }
-                    return true;
-                }
-                catch (Exception ex) { Debug.LogWarning("Chunk corrupto " + c.cx + "," + c.cz + ": " + ex.Message); return false; }
-            }
-
-            public void Save(Dim dim, Chunk c)
-            {
-                try
-                {
-                    var f = PathFor(dim, c.cx, c.cz);
-                    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(f));
-                    var used = new Dictionary<ushort, int>();
-                    var names = new List<string>();
-                    var pal = new ushort[Chunk.VOL];
-                    for (int i = 0; i < Chunk.VOL; i++)
-                    {
-                        ushort id = c.blocks[i]; int pi;
-                        if (!used.TryGetValue(id, out pi)) { pi = names.Count; used[id] = pi; names.Add(Block.All[id].key); }
-                        pal[i] = (ushort)pi;
-                    }
-                    using (var fs = File.Create(f))
-                    using (var gz = new GZipStream(fs, CompressionMode.Compress))
-                    using (var w = new BinaryWriter(gz))
-                    {
-                        w.Write(1);
-                        w.Write(names.Count);
-                        for (int i = 0; i < names.Count; i++) w.Write(names[i]);
-                        for (int i = 0; i < Chunk.VOL; i++) w.Write(pal[i]);
-                        w.Write(c.meta); w.Write(c.biome);
-                        var ents = new List<KeyValuePair<int, BlockEntity>>();
-                        foreach (var kv in c.entities) if (kv.Value is ChestEntity || kv.Value is FurnaceEntity) ents.Add(kv);
-                        w.Write(ents.Count);
-                        foreach (var kv in ents) { w.Write(kv.Key); w.Write((byte)(kv.Value is ChestEntity ? 0 : 1)); kv.Value.Write(w); }
-                    }
-                }
-                catch (Exception ex) { Debug.LogWarning("No se pudo guardar el chunk: " + ex.Message); }
-            }
         }
     }
 }

@@ -10,6 +10,7 @@ namespace MundoBloques
     {
         bool TryLoad(Dim dim, Chunk c);
         void Save(Dim dim, Chunk c);
+        void Flush();
     }
 
     public struct SchedTick
@@ -49,6 +50,7 @@ namespace MundoBloques
         readonly List<BlockEntity> tickEntities = new List<BlockEntity>();
         int frameCounter;
         Chunk lastChunk;
+        readonly List<Chunk> toRemove = new List<Chunk>();
 
         public World(Dim dim, int seed)
         {
@@ -171,8 +173,12 @@ namespace MundoBloques
                 while (ty > 0 && c.blocks[Chunk.Idx(lx, ty, lz)] == 0) ty--;
                 c.top[ci] = (short)ty;
             }
-            bool lightChange = ob.opaque != b.opaque || ob.light != b.light || ob.translucent != b.translucent;
-            Dirty(c, lx, y, lz, lightChange ? Math.Max(8, Math.Max(ob.light, b.light)) : 1);
+            // alcance del remallado en los chunks vecinos: la luz llega lejos (opacidad / emision); un cambio solo
+            // translucido (agua que fluye) apenas la altera, asi que basta con las caras y la oclusion del borde
+            int reach = 1;
+            if (ob.opaque != b.opaque || ob.light != b.light) reach = Math.Max(8, Math.Max(ob.light, b.light));
+            else if (ob.translucent != b.translucent) reach = 2;
+            Dirty(c, lx, y, lz, reach);
             if (notify)
             {
                 Notify(x, y, z);
@@ -374,7 +380,12 @@ namespace MundoBloques
                 if (!InCircle(dx, dz, load)) { if (dx * dx + dz * dz > (load + 2) * (load + 2)) break; continue; }
                 long key = MathX.ChunkKey(pcx + dx, pcz + dz);
                 Chunk c;
-                if (!chunks.TryGetValue(key, out c)) { c = new Chunk(pcx + dx, pcz + dz); chunks[key] = c; }
+                if (!chunks.TryGetValue(key, out c))
+                {
+                    // el objeto Chunk pesa ~160 KB: solo se crea cuando hay hueco para generarlo
+                    if (Volatile.Read(ref genRunning) >= maxGen) continue;
+                    c = new Chunk(pcx + dx, pcz + dz); chunks[key] = c;
+                }
                 if (c.state == 0 && Volatile.Read(ref genRunning) < maxGen)
                 {
                     c.state = 1;
@@ -398,18 +409,18 @@ namespace MundoBloques
                 QueueMesh(c);
             }
 
-            // descarga de chunks lejanos
-            if (frameCounter % 30 == 0)
+            // descarga de chunks lejanos (en circulo, como la carga; unos pocos por pasada para no provocar tirones)
+            if (frameCounter % 10 == 0)
             {
                 int unload = load + 2;
-                var toRemove = new List<Chunk>();
+                toRemove.Clear();
                 foreach (var kv in chunks)
                 {
                     var c = kv.Value;
-                    if (Math.Abs(c.cx - pcx) > unload || Math.Abs(c.cz - pcz) > unload)
-                        if (c.state != 1 && !c.meshQueued) toRemove.Add(c);
+                    if (!InCircle(c.cx - pcx, c.cz - pcz, unload) && c.state != 1 && !c.meshQueued) toRemove.Add(c);
                 }
-                for (int i = 0; i < toRemove.Count; i++) Unload(toRemove[i]);
+                int n = Math.Min(toRemove.Count, 12);
+                for (int i = 0; i < n; i++) Unload(toRemove[i]);
             }
         }
 
@@ -501,11 +512,12 @@ namespace MundoBloques
         }
 
         /// <summary>Guarda todos los chunks modificados (al salir o cambiar de dimension).</summary>
-        public void SaveAll()
+        public void SaveAll(bool wait = false)
         {
             if (store == null) return;
             foreach (var kv in chunks)
                 if (kv.Value.modified && kv.Value.state == 2) { store.Save(dim, kv.Value); kv.Value.modified = false; }
+            if (wait) store.Flush();
         }
 
         public void UnloadAll()

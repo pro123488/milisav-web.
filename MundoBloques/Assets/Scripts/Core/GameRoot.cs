@@ -458,8 +458,18 @@ namespace MundoBloques
             return new Vector3(0.5f, 70f, 0.5f);
         }
 
-        void OnApplicationQuit() { quitting = true; if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this); }
-        void OnApplicationPause(bool p) { if (p && world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this); }
+        void OnApplicationQuit()
+        {
+            quitting = true;
+            if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this);
+            SaveSystem.FlushChunks();
+        }
+        void OnApplicationPause(bool p)
+        {
+            if (!p) return;
+            if (world != null && player != null && state == GameState.Playing) SaveSystem.SaveLevel(this);
+            SaveSystem.FlushChunks();
+        }
 
         // ================================================================== utilidades de juego
         public ItemEntity SpawnItem(Vector3 pos, ItemStack s, Vector3 vel) { return ItemEntity.Spawn(pos, s, vel); }
