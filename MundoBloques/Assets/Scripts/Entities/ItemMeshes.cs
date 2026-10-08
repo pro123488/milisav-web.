@@ -51,7 +51,7 @@ namespace MundoBloques
                 for (int f = 0; f < 6; f++)
                 {
                     int tile = b.tex[f];
-                    if (b.oriented && f == 4) tile = b.tex[6];
+                    if (b.oriented && f == 5) tile = b.tex[6];
                     float s = shade[f];
                     Color32 c = new Color32((byte)(255 * s), (byte)(255 * s), (byte)(255 * s), 255);
                     if (b.tint != Tint.None && (b.tintMask & (1 << f)) != 0)
@@ -60,9 +60,10 @@ namespace MundoBloques
                         c = new Color32((byte)(((tc >> 16) & 255) * s), (byte)(((tc >> 8) & 255) * s), (byte)((tc & 255) * s), 255);
                     }
                     var q = faces[f];
-                    bool side = f != 2 && f != 3;      // caras laterales: U invertida (Unity es zurdo)
+                    bool flipU = f != 2;                 // laterales e inferior: U invertida (Unity es zurdo)
+                    bool flipV = f == 2;                 // superior: V crece hacia +Z
                     Quad(v, uv, uv2, col, t, new Vector3(q[0], q[1], q[2]), new Vector3(q[3], q[4], q[5]), new Vector3(q[6], q[7], q[8]), new Vector3(q[9], q[10], q[11]),
-                        side ? TileAtlas.U1[tile] : TileAtlas.U0[tile], TileAtlas.V0[tile], side ? TileAtlas.U0[tile] : TileAtlas.U1[tile], TileAtlas.V1[tile], c, false);
+                        flipU ? TileAtlas.U1[tile] : TileAtlas.U0[tile], flipV ? TileAtlas.V1[tile] : TileAtlas.V0[tile], flipU ? TileAtlas.U0[tile] : TileAtlas.U1[tile], flipV ? TileAtlas.V0[tile] : TileAtlas.V1[tile], c, false);
                 }
             }
             else if (b != null)

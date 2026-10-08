@@ -324,14 +324,21 @@ namespace MundoBloques
                     // desplazar la cara de las puertas abiertas/cerradas ligeramente no hace falta
                     float tr, tg, tb;
                     TintFor(b, f, x, z, out tr, out tg, out tb);
-                    EmitFace(f, x, y, z, bx, tile, sub, tr, tg, tb, 255, pi, ao);
+                    Box ub = bx;
+                    if (b.shape == Shape.Torch)
+                    {
+                        float tox, toy, toz; Shapes.TorchOffset(meta, out tox, out toy, out toz);
+                        ub = new Box(bx.x0 - tox, bx.y0 - toy, bx.z0 - toz, bx.x1 - tox, bx.y1 - toy, bx.z1 - toz);
+                    }
+                    EmitFace(f, x, y, z, bx, ub, tile, sub, tr, tg, tb, 255, pi, ao);
                 }
             }
         }
 
-        void EmitFace(int f, int x, int y, int z, Box bx, int tile, int sub, float tr, float tg, float tb, int alpha, int ownIdx, bool ao)
+        void EmitFace(int f, int x, int y, int z, Box bx, Box ub, int tile, int sub, float tr, float tg, float tb, int alpha, int ownIdx, bool ao)
         {
             float x0 = bx.x0, x1 = bx.x1, y0 = bx.y0, y1 = bx.y1, z0 = bx.z0, z1 = bx.z1;
+            float ux0 = ub.x0, ux1 = ub.x1, uy0 = ub.y0, uy1 = ub.y1, uz0 = ub.z0, uz1 = ub.z1;   // coordenadas para la textura
             // vertices BL, TL, TR, BR y uv locales
             switch (f)
             {
@@ -339,35 +346,35 @@ namespace MundoBloques
                     vx[0] = vx[1] = vx[2] = vx[3] = x1;
                     vy[0] = y0; vy[1] = y1; vy[2] = y1; vy[3] = y0;
                     vz[0] = z1; vz[1] = z1; vz[2] = z0; vz[3] = z0;
-                    fu[0] = 1 - z1; fu[1] = 1 - z1; fu[2] = 1 - z0; fu[3] = 1 - z0; fv[0] = y0; fv[1] = y1; fv[2] = y1; fv[3] = y0; break;
+                    fu[0] = 1 - uz1; fu[1] = 1 - uz1; fu[2] = 1 - uz0; fu[3] = 1 - uz0; fv[0] = uy0; fv[1] = uy1; fv[2] = uy1; fv[3] = uy0; break;
                 case 1: // -X
                     vx[0] = vx[1] = vx[2] = vx[3] = x0;
                     vy[0] = y0; vy[1] = y1; vy[2] = y1; vy[3] = y0;
                     vz[0] = z0; vz[1] = z0; vz[2] = z1; vz[3] = z1;
-                    fu[0] = z0; fu[1] = z0; fu[2] = z1; fu[3] = z1; fv[0] = y0; fv[1] = y1; fv[2] = y1; fv[3] = y0; break;
+                    fu[0] = uz0; fu[1] = uz0; fu[2] = uz1; fu[3] = uz1; fv[0] = uy0; fv[1] = uy1; fv[2] = uy1; fv[3] = uy0; break;
                 case 2: // +Y
                     vy[0] = vy[1] = vy[2] = vy[3] = y1;
                     vx[0] = x0; vx[1] = x0; vx[2] = x1; vx[3] = x1;
                     vz[0] = z1; vz[1] = z0; vz[2] = z0; vz[3] = z1;
-                    fu[0] = x0; fu[1] = x0; fu[2] = x1; fu[3] = x1; fv[0] = 1 - z1; fv[1] = 1 - z0; fv[2] = 1 - z0; fv[3] = 1 - z1; break;
+                    fu[0] = ux0; fu[1] = ux0; fu[2] = ux1; fu[3] = ux1; fv[0] = uz1; fv[1] = uz0; fv[2] = uz0; fv[3] = uz1; break;
                 case 3: // -Y
                     vy[0] = vy[1] = vy[2] = vy[3] = y0;
                     vx[0] = x0; vx[1] = x0; vx[2] = x1; vx[3] = x1;
                     vz[0] = z0; vz[1] = z1; vz[2] = z1; vz[3] = z0;
-                    fu[0] = x0; fu[1] = x0; fu[2] = x1; fu[3] = x1; fv[0] = z0; fv[1] = z1; fv[2] = z1; fv[3] = z0; break;
+                    fu[0] = ux0; fu[1] = ux0; fu[2] = ux1; fu[3] = ux1; fv[0] = uz0; fv[1] = uz1; fv[2] = uz1; fv[3] = uz0; break;
                 case 4: // +Z
                     vz[0] = vz[1] = vz[2] = vz[3] = z1;
                     vx[0] = x0; vx[1] = x0; vx[2] = x1; vx[3] = x1;
                     vy[0] = y0; vy[1] = y1; vy[2] = y1; vy[3] = y0;
-                    fu[0] = x0; fu[1] = x0; fu[2] = x1; fu[3] = x1; fv[0] = y0; fv[1] = y1; fv[2] = y1; fv[3] = y0; break;
+                    fu[0] = ux0; fu[1] = ux0; fu[2] = ux1; fu[3] = ux1; fv[0] = uy0; fv[1] = uy1; fv[2] = uy1; fv[3] = uy0; break;
                 default: // -Z
                     vz[0] = vz[1] = vz[2] = vz[3] = z0;
                     vx[0] = x1; vx[1] = x1; vx[2] = x0; vx[3] = x0;
                     vy[0] = y0; vy[1] = y1; vy[2] = y1; vy[3] = y0;
-                    fu[0] = 1 - x1; fu[1] = 1 - x1; fu[2] = 1 - x0; fu[3] = 1 - x0; fv[0] = y0; fv[1] = y1; fv[2] = y1; fv[3] = y0; break;
+                    fu[0] = 1 - ux1; fu[1] = 1 - ux1; fu[2] = 1 - ux0; fu[3] = 1 - ux0; fv[0] = uy0; fv[1] = uy1; fv[2] = uy1; fv[3] = uy0; break;
             }
-            // Unity usa coordenadas zurdas: las caras laterales se ven espejadas con estos vertices, asi que se invierte la U
-            if (f != 2 && f != 3) for (int k = 0; k < 4; k++) fu[k] = 1f - fu[k];
+            // Unity usa coordenadas zurdas: con estos vertices las caras laterales y la inferior saldrian espejadas, se invierte la U
+            if (f != 2) for (int k = 0; k < 4; k++) fu[k] = 1f - fu[k];
             float tu0 = TileAtlas.U0[tile], tu1 = TileAtlas.U1[tile], tv0 = TileAtlas.V0[tile], tv1 = TileAtlas.V1[tile];
 
             // luz y AO por vertice

@@ -82,6 +82,17 @@ namespace MundoBloques
             return e;
         }
 
+        /// <summary>Antorcha sobre un poste de valla que llega hasta el suelo (para que no flote ni se caiga).</summary>
+        public void Lamp(int x, int y, int z)
+        {
+            if (!In(x, y, z)) return;
+            int yy = y - 1, n = 0;
+            while (yy > 0 && n < 8 && !Get(x, yy, z).Collides) { n++; yy--; }
+            if (n >= 8) return;
+            for (int k = yy + 1; k < y; k++) Set(x, k, z, B.Fence[0]);
+            Set(x, y, z, B.Torch, 0);
+        }
+
         public void Spawn(string mob, float wx, float wy, float wz)
         {
             if (In((int)Math.Floor(wx), (int)Math.Floor(wy), (int)Math.Floor(wz))) c.pendingSpawns.Add(new SpawnReq(mob, wx, wy, wz));

@@ -158,6 +158,19 @@ namespace MundoBloques
             }
         }
 
+        /// <summary>Desplazamiento de la antorcha segun su soporte (meta 1..4 = pared).</summary>
+        public static void TorchOffset(int meta, out float ox, out float oy, out float oz)
+        {
+            ox = oy = oz = 0f;
+            switch (meta)
+            {
+                case 1: ox = -0.375f; oy = 0.2f; break;
+                case 2: ox = 0.375f; oy = 0.2f; break;
+                case 3: oz = -0.375f; oy = 0.2f; break;
+                case 4: oz = 0.375f; oy = 0.2f; break;
+            }
+        }
+
         /// <summary>Cajas de render (o[] debe tener al menos 12 posiciones).</summary>
         public static int Boxes(Block b, int meta, Box[] o)
         {
@@ -180,14 +193,8 @@ namespace MundoBloques
                 case Shape.Torch:
                     {
                         float c = 0.5f, h = 0.4375f, w = 0.0625f;
-                        float ox = 0, oz = 0, oy = 0;
-                        switch (meta)
-                        {
-                            case 1: ox = -0.3f; oy = 0.2f; break;
-                            case 2: ox = 0.3f; oy = 0.2f; break;
-                            case 3: oz = -0.3f; oy = 0.2f; break;
-                            case 4: oz = 0.3f; oy = 0.2f; break;
-                        }
+                        float ox, oy, oz;
+                        TorchOffset(meta, out ox, out oy, out oz);
                         o[0] = new Box(c - w + ox, oy, c - w + oz, c + w + ox, oy + h * 2f, c + w + oz);
                         return 1;
                     }

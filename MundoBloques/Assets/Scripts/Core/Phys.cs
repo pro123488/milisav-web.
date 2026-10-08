@@ -51,6 +51,31 @@ namespace MundoBloques
             return dz;
         }
 
+        /// <summary>Como Ray pero ademas devuelve la cara de la caja que se golpea (0:+X 1:-X 2:+Y 3:-Y 4:+Z 5:-Z; -1 si el origen esta dentro).</summary>
+        public float RayFace(Vector3 o, Vector3 d, float max, out int face)
+        {
+            face = -1;
+            float tmin = 0, tmax = max; int axis = -1;
+            for (int i = 0; i < 3; i++)
+            {
+                float oi = i == 0 ? o.x : (i == 1 ? o.y : o.z), di = i == 0 ? d.x : (i == 1 ? d.y : d.z);
+                float lo = i == 0 ? x0 : (i == 1 ? y0 : z0), hi = i == 0 ? x1 : (i == 1 ? y1 : z1);
+                if (Mathf.Abs(di) < 1e-8f) { if (oi < lo || oi > hi) return -1f; }
+                else
+                {
+                    float t1 = (lo - oi) / di, t2 = (hi - oi) / di;
+                    if (t1 > t2) { float t = t1; t1 = t2; t2 = t; }
+                    if (t1 > tmin) { tmin = t1; axis = i; }
+                    if (t2 < tmax) tmax = t2;
+                    if (tmin > tmax) return -1f;
+                }
+            }
+            if (axis == 0) face = d.x > 0 ? 1 : 0;
+            else if (axis == 1) face = d.y > 0 ? 3 : 2;
+            else if (axis == 2) face = d.z > 0 ? 5 : 4;
+            return tmin;
+        }
+
         /// <summary>Interseccion rayo-caja; devuelve la distancia t o -1.</summary>
         public float Ray(Vector3 o, Vector3 d, float max)
         {
@@ -194,12 +219,12 @@ namespace MundoBloques
                     var b = w.GetBlock(x, y, z);
                     if (b.id != 0 && (!b.fluid || includeFluids) && (b.shape != Shape.Portal || false))
                     {
-                        float tt = RayBlock(w, b, x, y, z, o, dir, max);
+                        int bf;
+                        float tt = RayBlock(w, b, x, y, z, o, dir, max, out bf);
                         if (tt >= 0 && tt <= max)
                         {
                             h.hit = true; h.x = x; h.y = y; h.z = z; h.block = b; h.dist = tt; h.point = o + dir * tt;
-                            h.face = face >= 0 ? face : FaceFromPoint(h.point, x, y, z);
-                            if (tt > 0 && face < 0) h.face = FaceFromPoint(h.point, x, y, z);
+                            h.face = bf >= 0 ? bf : (face >= 0 ? face : FaceFromPoint(h.point, x, y, z));
                             return h;
                         }
                     }
@@ -219,22 +244,24 @@ namespace MundoBloques
             if (m == dx1) return 0; if (m == dx0) return 1; if (m == dy1) return 2; if (m == dy0) return 3; if (m == dz1) return 4; return 5;
         }
 
-        static float RayBlock(World w, Block b, int x, int y, int z, Vector3 o, Vector3 d, float max)
+        static float RayBlock(World w, Block b, int x, int y, int z, Vector3 o, Vector3 d, float max, out int boxFace)
         {
             int n;
+            boxFace = -1;
             if (b.shape == Shape.Cross || b.shape == Shape.Crop || b.fluid)
             {
                 var bb = b.fluid ? new AABB(x, y, z, x + 1, y + 1, z + 1) : new AABB(x + 0.12f, y, z + 0.12f, x + 0.88f, y + 0.8f, z + 0.88f);
-                return bb.Ray(o, d, max);
+                return bb.RayFace(o, d, max, out boxFace);
             }
             n = Shapes.Boxes(b, w.GetMeta(x, y, z), tmp);
-            if (n == 0) { return new AABB(x, y, z, x + 1, y + 1, z + 1).Ray(o, d, max); }
+            if (n == 0) { return new AABB(x, y, z, x + 1, y + 1, z + 1).RayFace(o, d, max, out boxFace); }
             float best = -1f;
             for (int i = 0; i < n; i++)
             {
                 var bb = new AABB(x + tmp[i].x0, y + tmp[i].y0, z + tmp[i].z0, x + tmp[i].x1, y + tmp[i].y1, z + tmp[i].z1);
-                float t = bb.Ray(o, d, max);
-                if (t >= 0 && (best < 0 || t < best)) best = t;
+                int fc;
+                float t = bb.RayFace(o, d, max, out fc);
+                if (t >= 0 && (best < 0 || t < best)) { best = t; boxFace = fc; }
             }
             return best;
         }

@@ -155,7 +155,7 @@ namespace MundoBloques
                 var cp = cam.transform.position;
                 clouds.position = new Vector3(cp.x, 138f, cp.z);
                 float wind = Time.time * 1.2f;
-                cloudMat.mainTextureOffset = new Vector2((cp.x + wind) / 768f * 1f, cp.z / 768f);
+                cloudMat.mainTextureOffset = new Vector2((cp.x + wind) / 916.67f, cp.z / 916.67f);
                 float cb = Mathf.Lerp(0.18f, 1f, skyBrightness) * (1f - overcast * 0.35f);
                 cloudMpb.SetColor("_Tint", new Color(cb, cb, Mathf.Min(1f, cb * 1.05f), 0.9f)); cloudR.SetPropertyBlock(cloudMpb);
             }

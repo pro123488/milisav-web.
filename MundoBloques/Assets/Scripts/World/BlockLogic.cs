@@ -34,7 +34,7 @@ namespace MundoBloques
                         return n.Collides && n.FullOpaque;
                     }
                     if (b == B.SnowLayer) return below.id != 0 && (below.FullOpaque || below.shape == Shape.Box) && below != B.SnowLayer;
-                    return below.Collides && (below.FullOpaque || below.shape == Shape.Slab || below.shape == Shape.Stairs || below.shape == Shape.Box);
+                    return below.Collides && (below.FullOpaque || below.shape == Shape.Slab || below.shape == Shape.Stairs || below.shape == Shape.Box || below.shape == Shape.Fence);
                 case Support.Soil:
                     if (b.shape == Shape.Crop) return B.IsFarmland(below);
                     if (b == B.SugarCane) return below == B.SugarCane || below == B.Sand || below == B.RedSand || B.IsSoil(below);

@@ -53,6 +53,12 @@ namespace MundoBloques
             w.Set(wx, b.floorY + y, wz, blk, meta);
         }
 
+        public void Lamp(int lx, int y, int lz)
+        {
+            int wx, wz; ToWorld(lx, lz, out wx, out wz);
+            w.Lamp(wx, b.floorY + y, wz);
+        }
+
         public void SetF(int lx, int y, int lz, Block blk, int facingLocal, int extra = 0)
         {
             Set(lx, y, lz, blk, Facing(facingLocal) | extra);
@@ -186,7 +192,7 @@ namespace MundoBloques
                         }
                         else
                         {
-                            bd.rot = side < 0 ? 3 : 1;
+                            bd.rot = side < 0 ? 1 : 3;
                             bd.z0 = z + along - bd.FD / 2;
                             bd.x0 = side < 0 ? x - off - bd.FW + 1 : x + off;
                         }
@@ -395,9 +401,9 @@ namespace MundoBloques
             f.Set(w / 2, 2, d - 1, pal.glass); f.Set(0, 2, d / 2, pal.glass); f.Set(w - 1, 2, d / 2, pal.glass);
             if (w >= 7) { f.Set(2, 2, d - 1, pal.glass); f.Set(w - 3, 2, d - 1, pal.glass); }
             Door(f, pal, w / 2);
-            f.Set(w / 2 + 1, 2, -1, B.Torch, 0);
+            f.Lamp(w / 2 + 1, 2, -1);
             Roof(f, pal, w, d, 4);
-            f.Set(1, 2, 1, B.Torch);
+            f.Lamp(1, 2, 1);
             f.Set(w - 2, 1, d - 2, B.Bed);
             f.Set(w - 2, 1, 1, B.CraftingTable);
             if (r.Chance(0.5f)) f.Set(1, 1, d - 2, B.Furnace, f.Facing(2));
@@ -459,7 +465,7 @@ namespace MundoBloques
             f.Set(1, 1, 1, B.Lava); f.Set(2, 1, 1, B.Cobble); f.Set(1, 1, 2, B.Cobble);
             f.Set(5, 1, 5, B.Furnace, f.Facing(2)); f.Set(4, 1, 5, B.Furnace, f.Facing(2));
             f.Set(5, 1, 1, B.CraftingTable);
-            f.Set(1, 3, 5, B.Torch); f.Set(5, 3, 3, B.Torch);
+            f.Lamp(1, 3, 5); f.Lamp(5, 3, 3);
             int wx, wz; f.ToWorld(1, 5, out wx, out wz);
             f.w.Chest(wx, f.b.floorY + 1, wz, f.Facing(2), "smithy", r);
             int sx, sz; f.ToWorld(3, 3, out sx, out sz);
@@ -476,7 +482,7 @@ namespace MundoBloques
             for (int z = 2; z < d - 1; z += 2) { f.Set(0, 3, z, B.Glass); f.Set(w - 1, 3, z, B.Glass); }
             Roof(f, p, w, d, 5);
             for (int z = 2; z < d - 1; z++) { f.Set(1, 1, z, B.Bookshelf); f.Set(1, 2, z, B.Bookshelf); f.Set(w - 2, 1, z, B.Bookshelf); f.Set(w - 2, 2, z, B.Bookshelf); }
-            f.Set(3, 1, d - 2, B.CraftingTable); f.Set(3, 3, 1, B.Torch);
+            f.Set(3, 1, d - 2, B.CraftingTable); f.Lamp(3, 3, 1);
             int wx, wz; f.ToWorld(3, d - 3, out wx, out wz);
             f.w.Chest(wx, f.b.floorY + 1, wz, f.Facing(2), "village", r);
             int sx, sz; f.ToWorld(3, 3, out sx, out sz);
@@ -528,7 +534,7 @@ namespace MundoBloques
             w.Chest(px, by + 1, pz + 5, 2, "temple", rng); w.Chest(px, by + 1, pz - 5, 0, "temple", rng);
             w.Fill(px - 1, by + 1, pz - 10, px + 1, by + 3, pz - 6, B.Air);
             for (int z = pz - 10; z <= pz - 7; z++) { w.Set(px - 2, by + 1, z, B.Sandstone); w.Set(px + 2, by + 1, z, B.Sandstone); }
-            w.Set(px - 5, by + 3, pz - 5, B.Torch); w.Set(px + 5, by + 3, pz - 5, B.Torch);
+            w.Lamp(px - 5, by + 3, pz - 5); w.Lamp(px + 5, by + 3, pz - 5);
             w.Spawn("mummy", px + 0.5f, by + 1f, pz + 3.5f);
         }
 
@@ -552,7 +558,7 @@ namespace MundoBloques
             w.Set(x0, ry, z0, B.Spawner, rng.Int(3));
             w.Chest(x0 - 3, ry, z0 + rng.Range(-2, 3), 1, "dungeon", rng);
             if (rng.Chance(0.6f)) w.Chest(x0 + 3, ry, z0 + rng.Range(-2, 3), 3, "dungeon", rng);
-            w.Set(x0 + 2, ry + 2, z0 + 3, B.Torch, 0);
+            w.Lamp(x0 + 2, ry + 2, z0 + 3);
         }
 
         // ---------------------------------------------------------------- ruinas celestes
@@ -631,7 +637,7 @@ namespace MundoBloques
                     for (int y = fy + 1; y < fyF; y++) w.Set(px + p[0], y, pz + p[1], B.StoneBricks);
             }
             for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) { w.Set(px + dx, fy, pz + dz, B.Lava); w.Set(px + dx, fy + 1, pz + dz, B.Lava); w.Set(px + dx, fyF, pz + dz, B.Air); }
-            foreach (var s in new[] { new[] { -6, -6 }, new[] { 6, -6 }, new[] { -6, 6 }, new[] { 6, 6 } }) w.Set(px + s[0], fy + 2, pz + s[1], B.Torch);
+            foreach (var s in new[] { new[] { -6, -6 }, new[] { 6, -6 }, new[] { -6, 6 }, new[] { 6, 6 } }) w.Lamp(px + s[0], fy + 2, pz + s[1]);
             int[][] dirs = { new[] { 1, 0 }, new[] { -1, 0 }, new[] { 0, 1 }, new[] { 0, -1 } };
             for (int k = 0; k < 4; k++)
             {
@@ -646,18 +652,18 @@ namespace MundoBloques
                             if (inner) w.Set(x, y, z, B.Air);
                             else w.Set(x, y, z, MathX.Hash01(x, y, z, seed) < 0.25f ? B.MossyStoneBricks : B.StoneBricks);
                         }
-                for (int t = 11; t < 8 + len; t += 6) w.Set(px + dx * t + (dz != 0 ? 1 : 0), fy + 2, pz + dz * t + (dx != 0 ? 1 : 0), B.Torch);
+                for (int t = 11; t < 8 + len; t += 6) w.Lamp(px + dx * t + (dz != 0 ? 1 : 0), fy + 2, pz + dz * t + (dx != 0 ? 1 : 0));
                 int ex = px + dx * (8 + len + 3), ez = pz + dz * (8 + len + 3);
                 w.Fill(ex - 4, fy - 1, ez - 4, ex + 4, fy + 5, ez + 4, B.StoneBricks);
                 w.Fill(ex - 3, fy, ez - 3, ex + 3, fy + 4, ez + 3, B.Air);
                 if (k == 0)
                 {
                     for (int z = -2; z <= 2; z++) { w.Set(ex - 3, fy, ez + z, B.Bookshelf); w.Set(ex - 3, fy + 1, ez + z, B.Bookshelf); w.Set(ex + 3, fy, ez + z, B.Bookshelf); w.Set(ex + 3, fy + 1, ez + z, B.Bookshelf); }
-                    w.Chest(ex, fy, ez, 1, "stronghold", rng);
+                    w.Chest(ex, fy, ez, 3, "stronghold", rng);
                 }
                 else if (k == 1) { w.Chest(ex, fy, ez, 3, "stronghold", rng); w.Set(ex + 1, fy, ez, B.CraftingTable); }
                 else if (k == 2) w.Set(ex, fy, ez, B.Spawner, 1);
-                w.Set(ex + 2, fy + 2, ez + 2, B.Torch);
+                w.Lamp(ex + 2, fy + 2, ez + 2);
             }
         }
 

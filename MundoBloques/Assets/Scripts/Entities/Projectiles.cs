@@ -48,6 +48,16 @@ namespace MundoBloques
             mf.sharedMesh = ItemMeshes.Get(it);
             mr.sharedMaterial = Mats.Item;
             v.transform.localScale = Vector3.one * (kind == ProjKind.Arrow ? 0.7f : 0.35f);
+            if (kind == ProjKind.Arrow)
+            {
+                // segunda lamina girada 90 grados sobre el eje de la flecha: se ve desde cualquier lado
+                var v2 = new GameObject("vis2");
+                v2.transform.SetParent(v.transform, false);
+                v2.transform.localRotation = Quaternion.AngleAxis(90f, new Vector3(1f, 1f, 0f).normalized);
+                v2.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
+                var mr2 = v2.AddComponent<MeshRenderer>(); mr2.sharedMaterial = Mats.Item;
+                var mpb2 = new MaterialPropertyBlock(); mpb2.SetFloat("_ObjLight", 1f); mr2.SetPropertyBlock(mpb2);
+            }
             var mpb = new MaterialPropertyBlock(); mpb.SetFloat("_ObjLight", 1f); mr.SetPropertyBlock(mpb);
         }
 
@@ -86,7 +96,7 @@ namespace MundoBloques
             transform.position = from + step;
             if (visual != null && vel.sqrMagnitude > 0.01f)
             {
-                visual.rotation = kind == ProjKind.Arrow ? Quaternion.LookRotation(vel.normalized) * Quaternion.Euler(0, 90, -45) : Quaternion.Euler(0, life * 360f, 0);
+                visual.rotation = kind == ProjKind.Arrow ? Quaternion.LookRotation(vel.normalized) * Quaternion.Euler(0, -90, -45) : Quaternion.Euler(0, life * 360f, 0);
             }
             if (kind == ProjKind.Fireball && Random.value < dt * 30f) Particles.Burst(transform.position, new Color32(255, 150, 30, 255), 1, 0.5f, 0.12f, 0.3f);
             if (kind == ProjKind.Pearl && Random.value < dt * 30f) Particles.Burst(transform.position, new Color32(120, 40, 220, 255), 1, 0.5f, 0.1f, 0.4f);
