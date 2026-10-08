@@ -74,7 +74,7 @@ namespace MundoBloques
                 mesh.transform.localPosition = p.off * (s / 16f);
                 mesh.transform.localScale = Vector3.one * s;
                 var col = p.color;
-                if (def.key == "sheep" && (p.name == "body" || p.name == "legFL" && false))
+                if (def.key == "sheep" && p.name == "body")
                     col = sheared ? Col.Hex(0xE8C8B0) : Col.Hex(Dyes.Colors[woolColor]);
                 mesh.AddComponent<MeshFilter>().sharedMesh = MobDefs.BoxMesh(p.size, col);
                 var mr = mesh.AddComponent<MeshRenderer>();
@@ -425,6 +425,7 @@ namespace MundoBloques
                 case AI.Slime:
                     {
                         if (onGround && hopCd <= 0f) { hopCd = Random.Range(0.6f, 1.1f); vel = flat.normalized * def.speed * 1.4f + Vector3.up * 7.5f; onGround = false; }
+                        if (!onGround) desired = flat.normalized * def.speed * 1.4f;
                         MeleeCheck(pl, fd, to);
                         break;
                     }

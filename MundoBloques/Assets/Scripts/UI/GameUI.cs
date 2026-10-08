@@ -103,12 +103,12 @@ namespace MundoBloques
             // corazones, hambre, armadura, burbujas
             for (int i = 0; i < 10; i++)
             {
-                heartsR[i] = HudIcon(i * 19 - 4 * 44 - 22 + 4, 70, "ui_heart_full", 0);
-                foodR[i] = HudIcon(4 * 44 + 22 - 4 - i * 19, 70, "ui_food_full", 0);
-                armorR[i] = HudIcon(i * 19 - 4 * 44 - 22 + 4, 90, "ui_armor", 0);
-                bubblesR[i] = HudIcon(4 * 44 + 22 - 4 - i * 19, 90, "ui_bubble", 0);
+                heartsR[i] = HudIcon(i * 19 - 194, 52, "ui_heart_full", 0);
+                foodR[i] = HudIcon(176 - i * 19, 52, "ui_food_full", 0);
+                armorR[i] = HudIcon(i * 19 - 194, 72, "ui_armor", 0);
+                bubblesR[i] = HudIcon(176 - i * 19, 72, "ui_bubble", 0);
             }
-            itemName = UIKit.Txt(UIKit.Anchored(hudRoot, "n", new Vector2(0.5f, 0f), 0, 118, 500, 30), "", 20, Color.white, TextAnchor.MiddleCenter, 0, 0, 500, 30);
+            itemName = UIKit.Txt(UIKit.Anchored(hudRoot, "n", new Vector2(0.5f, 0f), 0, 102, 500, 30), "", 20, Color.white, TextAnchor.MiddleCenter, 0, 0, 500, 30);
             pickupText = UIKit.Txt(UIKit.Anchored(hudRoot, "p", new Vector2(1f, 0.5f), -10, -40, 380, 26), "", 17, new Color(0.8f, 1f, 0.8f), TextAnchor.MiddleRight, 0, 0, 380, 26);
             // mira
             var ch = UIKit.Centered(hudRoot, "cross", 20, 20);
@@ -174,7 +174,7 @@ namespace MundoBloques
             bool click = Inp.MouseDown(0);
             TickMenus(dt, mouse, click);
             if (g.state != GameState.Playing || g.player == null) { hudRoot.gameObject.SetActive(false); return; }
-            hudRoot.gameObject.SetActive(!(container != null && false));
+            hudRoot.gameObject.SetActive(true);
             var p = g.player;
 
             // teclas globales

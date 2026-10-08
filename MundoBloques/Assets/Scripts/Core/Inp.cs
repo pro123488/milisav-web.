@@ -144,7 +144,7 @@ namespace MundoBloques
                 mHeld[1] = m.rightButton.isPressed; mDown[1] = m.rightButton.wasPressedThisFrame; mUp[1] = m.rightButton.wasReleasedThisFrame;
                 mHeld[2] = m.middleButton.isPressed; mDown[2] = m.middleButton.wasPressedThisFrame; mUp[2] = m.middleButton.wasReleasedThisFrame;
                 MousePos = m.position.ReadValue();
-                Look = m.delta.ReadValue() * 0.05f;
+                Look = m.delta.ReadValue() * 0.1f;
                 Scroll = m.scroll.ReadValue().y / 120f;
             }
             Typed = typedBuf.ToString();

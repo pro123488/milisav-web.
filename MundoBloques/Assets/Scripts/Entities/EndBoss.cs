@@ -89,7 +89,7 @@ namespace MundoBloques
             return d;
         }
 
-        Transform Box(Transform parent, string name, Vector3 sizePx, Vector3 posPx, uint color, float scale)
+        Transform Cube(Transform parent, string name, Vector3 sizePx, Vector3 posPx, uint color, float scale)
         {
             var g = new GameObject(name);
             g.transform.SetParent(parent, false);
@@ -107,25 +107,25 @@ namespace MundoBloques
             modelRoot = new GameObject("model").transform;
             modelRoot.SetParent(transform, false);
             modelRoot.localPosition = new Vector3(0, 1.5f, 0);
-            Box(modelRoot, "body", new Vector3(12, 10, 26), Vector3.zero, 0x1A1A24, s);
-            Box(modelRoot, "back", new Vector3(8, 2, 20), new Vector3(0, 6, -1), 0x2A2A3A, s);
-            var neck = Box(modelRoot, "neck", new Vector3(8, 8, 10), new Vector3(0, 2, 16), 0x20202C, s);
-            var head = Box(modelRoot, "head", new Vector3(10, 9, 12), new Vector3(0, 3, 26), 0x181820, s);
-            Box(modelRoot, "jaw", new Vector3(8, 3, 10), new Vector3(0, -3, 28), 0x101018, s);
-            Box(modelRoot, "eyeL", new Vector3(2, 2, 1), new Vector3(-3.5f, 6, 32.2f), 0xE060FF, s);
-            Box(modelRoot, "eyeR", new Vector3(2, 2, 1), new Vector3(3.5f, 6, 32.2f), 0xE060FF, s);
-            Box(modelRoot, "hornL", new Vector3(2, 4, 2), new Vector3(-4, 9, 24), 0x8A8A9A, s);
-            Box(modelRoot, "hornR", new Vector3(2, 4, 2), new Vector3(4, 9, 24), 0x8A8A9A, s);
+            Cube(modelRoot, "body", new Vector3(12, 10, 26), Vector3.zero, 0x1A1A24, s);
+            Cube(modelRoot, "back", new Vector3(8, 2, 20), new Vector3(0, 6, -1), 0x2A2A3A, s);
+            var neck = Cube(modelRoot, "neck", new Vector3(8, 8, 10), new Vector3(0, 2, 16), 0x20202C, s);
+            var head = Cube(modelRoot, "head", new Vector3(10, 9, 12), new Vector3(0, 3, 26), 0x181820, s);
+            Cube(modelRoot, "jaw", new Vector3(8, 3, 10), new Vector3(0, -3, 28), 0x101018, s);
+            Cube(modelRoot, "eyeL", new Vector3(2, 2, 1), new Vector3(-3.5f, 6, 32.2f), 0xE060FF, s);
+            Cube(modelRoot, "eyeR", new Vector3(2, 2, 1), new Vector3(3.5f, 6, 32.2f), 0xE060FF, s);
+            Cube(modelRoot, "hornL", new Vector3(2, 4, 2), new Vector3(-4, 9, 24), 0x8A8A9A, s);
+            Cube(modelRoot, "hornR", new Vector3(2, 4, 2), new Vector3(4, 9, 24), 0x8A8A9A, s);
             wingL = new GameObject("wingL").transform; wingL.SetParent(modelRoot, false); wingL.localPosition = new Vector3(-5, 4, 6) * (s / 16f);
             wingR = new GameObject("wingR").transform; wingR.SetParent(modelRoot, false); wingR.localPosition = new Vector3(5, 4, 6) * (s / 16f);
-            Box(wingL, "wl", new Vector3(30, 2, 14), new Vector3(-15, 0, 0), 0x2E2E40, s);
-            Box(wingL, "wl2", new Vector3(26, 1, 10), new Vector3(-14, 0, -11), 0x1A1A28, s);
-            Box(wingR, "wr", new Vector3(30, 2, 14), new Vector3(15, 0, 0), 0x2E2E40, s);
-            Box(wingR, "wr2", new Vector3(26, 1, 10), new Vector3(14, 0, -11), 0x1A1A28, s);
+            Cube(wingL, "wl", new Vector3(30, 2, 14), new Vector3(-15, 0, 0), 0x2E2E40, s);
+            Cube(wingL, "wl2", new Vector3(26, 1, 10), new Vector3(-14, 0, -11), 0x1A1A28, s);
+            Cube(wingR, "wr", new Vector3(30, 2, 14), new Vector3(15, 0, 0), 0x2E2E40, s);
+            Cube(wingR, "wr2", new Vector3(26, 1, 10), new Vector3(14, 0, -11), 0x1A1A28, s);
             for (int i = 0; i < 7; i++)
             {
                 float sz = 8 - i * 0.8f;
-                var tr = Box(modelRoot, "tail" + i, new Vector3(sz, sz * 0.9f, 8), new Vector3(0, 0, -16 - i * 8), 0x1A1A24 + (uint)(i * 0x010103), s);
+                var tr = Cube(modelRoot, "tail" + i, new Vector3(sz, sz * 0.9f, 8), new Vector3(0, 0, -16 - i * 8), 0x1A1A24 + (uint)(i * 0x010103), s);
                 tail.Add(tr); tailPos.Add(tr.localPosition);
             }
             mpb = new MaterialPropertyBlock(); mpb.SetFloat("_ObjLight", 0.85f);

@@ -111,7 +111,7 @@ namespace MundoBloques
                 GameRoot.I.SpawnItem(p.Eye + fwd * 0.4f, d, fwd * 5f + Vector3.up);
             }
             // intercambio con la barra rapida (1-9)
-            if (hover != null && hover.kind == SlotKind.Normal)
+            if (hover != null && hover.kind == SlotKind.Normal && CanCloseWithE)
                 for (int i = 0; i < 9; i++)
                     if (Inp.Pressed(Act.Hotbar1 + i))
                     {
