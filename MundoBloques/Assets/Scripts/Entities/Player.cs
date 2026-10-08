@@ -348,8 +348,9 @@ namespace MundoBloques
             if (portalLock) { portalTime = 0; return; }
             portalKind = kind;
             portalTime += dt;
-            G.ui.SetPortalOverlay(Mathf.Clamp01(portalTime / (kind == 1 ? 3f : 1.2f)));
-            if (portalTime >= (kind == 1 || G.creative ? (G.creative ? 0.5f : 3f) : 1.2f))
+            float need = kind == 1 ? (G.creative ? 0.5f : 3f) : 0.2f;
+            G.ui.SetPortalOverlay(Mathf.Clamp01(portalTime / need));
+            if (portalTime >= need)
             {
                 portalTime = 0;
                 G.UsePortal(kind);

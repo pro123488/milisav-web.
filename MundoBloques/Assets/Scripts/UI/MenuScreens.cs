@@ -76,7 +76,6 @@ namespace MundoBloques
                 "úsalos para hallar la fortaleza, rellena el marco del portal del Final y derrota al Dragón.\n" +
                 "Explora islas, océanos, montañas, aldeas, templos, mazmorras e islas celestiales flotantes.",
                 18, Color.white, TextAnchor.UpperLeft, 20, 60, 820, 430);
-            UIButton.Make(pageControls, "Atrás", 330, 505, 200, 44, () => ShowPage(pageMain));
             menuButtons.Add(UIButton.Make(pageControls, "Atrás", 330, 505, 200, 44, () => ShowPage(pageMain)));
 
             // --- pausa ---
@@ -270,7 +269,7 @@ namespace MundoBloques
             {
                 victoryScroll += dt * 40f;
                 var rt = victoryText.rectTransform;
-                rt.anchoredPosition = new Vector2(0, -900 + victoryScroll * 1.2f - 0f + 700f);
+                rt.anchoredPosition = new Vector2(0, -1000f + victoryScroll * 1.2f);
                 foreach (var b in victoryButtons) b.Tick(mouse, click);
             }
         }

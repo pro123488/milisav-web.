@@ -177,6 +177,7 @@ namespace MundoBloques
             {
                 Notify(x, y, z);
                 if (b.fluid || ob.fluid) Schedule(x, y, z, b == B.Water ? 5 : 30);
+                if (b.gravity) Schedule(x, y, z, 2);
             }
             return true;
         }

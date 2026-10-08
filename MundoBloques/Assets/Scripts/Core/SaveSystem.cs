@@ -8,9 +8,12 @@ namespace MundoBloques
 {
     [Serializable] public sealed class StackDto { public string k; public int n; public int d; }
 
+    [Serializable] public sealed class MobDto { public string k; public float x, y, z, hx, hy, hz; public int id; }
+
     [Serializable]
     public sealed class LevelDto
     {
+        public MobDto[] mobs;
         public string name; public int seed; public bool creative; public float dayTime;
         public float px, py, pz, yaw, pitch; public int dim;
         public float health = 20, hunger = 20, saturation = 5;
@@ -91,6 +94,7 @@ namespace MundoBloques
                     dragonDefeated = g.dragonDefeated, creditsShown = g.creditsShown, savedAt = DateTime.UtcNow.Ticks, playTime = g.playTime, kills = p.totalKills,
                     viewDist = g.world.viewDist
                 };
+                dto.mobs = g.CollectPersistentMobs();
                 Directory.CreateDirectory(WorldDir(g.worldName));
                 File.WriteAllText(Path.Combine(WorldDir(g.worldName), "level.json"), JsonUtility.ToJson(dto));
                 g.world.SaveAll();

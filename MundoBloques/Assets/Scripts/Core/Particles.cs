@@ -13,6 +13,7 @@ namespace MundoBloques
             var go = new GameObject("Particles");
             go.transform.SetParent(parent, false);
             ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = ps.main;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.gravityModifier = 1.6f;

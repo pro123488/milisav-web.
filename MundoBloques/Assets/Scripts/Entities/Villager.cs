@@ -43,7 +43,7 @@ namespace MundoBloques
         public Villager(Mob m)
         {
             mob = m;
-            var p = m.transform.position;
+            var p = m.home;
             uint h = MathX.Hash(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z), 4242);
             int prof = (int)(h % 3);
             profession = prof == 0 ? "Granjero" : (prof == 1 ? "Herrero" : "Bibliotecario");

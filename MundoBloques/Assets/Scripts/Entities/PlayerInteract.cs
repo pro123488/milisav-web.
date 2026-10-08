@@ -245,7 +245,8 @@ namespace MundoBloques
             // comida y arco se usan manteniendo
             if (!h.IsEmpty && heldDown)
             {
-                if (h.item.IsFood && h.item.action != "milk" && (hunger < 20f || h.item.alwaysEdible || G.creative) && !(target.hit && target.block.interactive && !sneaking))
+                if (h.item.IsFood && h.item.action != "milk" && (hunger < 20f || h.item.alwaysEdible || G.creative) && !(target.hit && target.block.interactive && !sneaking)
+                    && !(h.item.crop != null && target.hit && target.face == 2 && B.IsFarmland(target.block)))
                 {
                     useTime += dt;
                     if (Mathf.FloorToInt(useTime * 4f) != Mathf.FloorToInt((useTime - dt) * 4f)) { Sfx.Play(Clip.Eat, transform.position, 0.4f); Particles.Burst(Eye + camT.forward * 0.6f - Vector3.up * 0.2f, TileAtlas.Average(TileAtlas.White), 2, 1.5f, 0.06f, 0.3f); }
@@ -271,8 +272,9 @@ namespace MundoBloques
                 if (!h.IsEmpty && h.item.action == "bow" && useTime > 0.15f) FireBow(Mathf.Clamp01(useTime / 1f));
                 useTime = 0;
             }
-            if (!down || placeCooldown > 0f) return;
-            placeCooldown = 0.12f;
+            bool trigger = down || (heldDown && placeCooldown <= 0f && !h.IsEmpty && h.item.block != null && h.item.block.shape != Shape.Door);
+            if (!trigger || placeCooldown > 0f) return;
+            placeCooldown = 0.2f;
             if (targetEntity != null)
             {
                 var m = targetEntity as Mob;

@@ -4,8 +4,12 @@ namespace MundoBloques
 {
     public struct SpawnReq
     {
-        public string mob; public float x, y, z;
-        public SpawnReq(string mob, float x, float y, float z) { this.mob = mob; this.x = x; this.y = y; this.z = z; }
+        public string mob; public float x, y, z; public int id;
+        public SpawnReq(string mob, float x, float y, float z)
+        {
+            this.mob = mob; this.x = x; this.y = y; this.z = z;
+            id = (int)MathX.Hash((int)System.Math.Floor(x), (int)System.Math.Floor(y), (int)System.Math.Floor(z), 90210);
+        }
     }
 
     /// <summary>Columna de 16x16 bloques de alto fijo. Datos puros (sin objetos de Unity).</summary>

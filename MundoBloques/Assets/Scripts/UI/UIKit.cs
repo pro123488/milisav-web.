@@ -69,7 +69,7 @@ namespace MundoBloques
 
         public static void Stretch(RectTransform rt)
         {
-            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one; rt.pivot = new Vector2(0.5f, 0.5f); rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
         }
 
         public static Text Txt(Transform parent, string text, int size, Color c, TextAnchor anchor, float x, float y, float w, float h, bool shadow = true)
@@ -165,8 +165,7 @@ namespace MundoBloques
     public sealed class UISlider
     {
         public RectTransform rt; public Image track, fill; public Text label;
-        public float min, max, value; public Action<float> onChange; public string format; bool drag;
-        readonly Func<float, string> fmt;
+        public float min, max, value; public Action<float> onChange; bool drag;
 
         public static UISlider Make(Transform parent, string name, float x, float y, float w, float min, float max, float value, Func<float, string> fmt, Action<float> change)
         {
@@ -175,14 +174,13 @@ namespace MundoBloques
             s.track = s.rt.gameObject.AddComponent<Image>(); s.track.color = new Color(0.05f, 0.05f, 0.07f, 1f); s.track.raycastTarget = false;
             s.fill = UIKit.Img(s.rt, "fill", 0, 0, 10, 30, new Color(0.35f, 0.55f, 0.9f, 1f));
             s.label = UIKit.Txt(s.rt, name, 17, Color.white, TextAnchor.MiddleCenter, 0, 0, w, 30);
-            var fm = fmt;
-            s.Update(name, fm);
+            s.baseName = name; s.fm2 = fmt;
+            s.Refresh();
             return s;
         }
 
         string baseName;
         Func<float, string> fm2;
-        void Update(string name, Func<float, string> f) { baseName = name; fm2 = f; Refresh(); }
 
         void Refresh()
         {

@@ -31,10 +31,13 @@ namespace MundoBloques
                 if (s.mob == "end_crystal") { if (!g.dragonDefeated) EndCrystal.Create(pos); continue; }
                 var def = MobDefs.Get(s.mob);
                 if (def == null) continue;
+                bool keep = def.ai == AI.Villager || def.ai == AI.Spirit;
+                if (keep && g.persistentIds.Contains(s.id)) continue;
                 if (def.ai == AI.Villager && VillagerNear(pos)) continue;
                 var m = Mob.Create(def, pos);
-                m.persistent = def.ai == AI.Villager || def.ai == AI.Spirit;
+                m.persistent = keep;
                 m.home = pos;
+                if (keep) { m.spawnId = s.id; g.persistentIds.Add(s.id); }
             }
             c.pendingSpawns.Clear();
             if (w.dim != Dim.Overworld) return;

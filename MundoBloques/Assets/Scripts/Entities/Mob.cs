@@ -12,6 +12,7 @@ namespace MundoBloques
         public int woolColor; public bool sheared;
         public Vector3 home;
         public Villager villager;
+        public int spawnId;
 
         // IA
         float thinkTimer, panicTimer, attackCd, shootCd, fuse, teleportCd, hopCd, lookTimer;
@@ -134,7 +135,8 @@ namespace MundoBloques
             // movimiento horizontal hacia la velocidad deseada
             float accel = onGround ? 12f : (def.flies ? 5f : 4f);
             float k = 1f - Mathf.Exp(-accel * dt);
-            if (!(def.ai == AI.Exploder && fuse > 0f))
+            if (invuln > 0.2f && def.ai != AI.Fish) { }
+            else if (!(def.ai == AI.Exploder && fuse > 0f))
             {
                 vel.x = Mathf.Lerp(vel.x, desired.x, k);
                 vel.z = Mathf.Lerp(vel.z, desired.z, k);
@@ -619,6 +621,7 @@ namespace MundoBloques
         {
             if (dead) return;
             dead = true;
+            if (spawnId != 0) G.persistentDead.Add(spawnId);
             var drops = new List<ItemStack>();
             if (!isBaby)
             {

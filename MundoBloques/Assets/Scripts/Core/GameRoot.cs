@@ -26,6 +26,8 @@ namespace MundoBloques
         public int viewDist = 6;
         public float skyBrightness { get { return sky != null ? (world != null && world.dim == Dim.Overworld ? sky.skyBrightness : 0f) : 1f; } }
 
+        public readonly HashSet<int> persistentIds = new HashSet<int>();
+        public List<MobDto> savedMobs = new List<MobDto>();
         GameObject menuCam;
         float tickAcc, autosave, activateTimer;
         bool traveling;
@@ -66,6 +68,43 @@ namespace MundoBloques
             ui.Build();
             MakeMenuCamera();
             ui.ShowMainMenu();
+        }
+
+        public MobDto[] CollectPersistentMobs()
+        {
+            if (world != null && world.dim == Dim.Overworld)
+            {
+                var l = new List<MobDto>();
+                for (int i = 0; i < Entity.All.Count; i++)
+                {
+                    var m = Entity.All[i] as Mob;
+                    if (m == null || m.dead || !m.persistent || m.spawnId == 0) continue;
+                    var p = m.transform.position;
+                    l.Add(new MobDto { k = m.def.key, x = p.x, y = p.y, z = p.z, hx = m.home.x, hy = m.home.y, hz = m.home.z, id = m.spawnId });
+                }
+                // conservar los que aun no estan cargados como entidades
+                foreach (var d in savedMobs) { bool dup = false; foreach (var e in l) if (e.id == d.id) { dup = true; break; } if (!dup && !persistentDead.Contains(d.id)) l.Add(d); }
+                savedMobs = l;
+            }
+            return savedMobs.ToArray();
+        }
+
+        public readonly HashSet<int> persistentDead = new HashSet<int>();
+
+        public void RestoreMobs()
+        {
+            if (world == null || world.dim != Dim.Overworld) return;
+            foreach (var d in savedMobs)
+            {
+                persistentIds.Add(d.id);
+                bool alive = false;
+                for (int i = 0; i < Entity.All.Count; i++) { var m = Entity.All[i] as Mob; if (m != null && m.spawnId == d.id && !m.dead) { alive = true; break; } }
+                if (alive || persistentDead.Contains(d.id)) continue;
+                var def = MobDefs.Get(d.k); if (def == null) continue;
+                var mob = Mob.Create(def, new Vector3(d.hx, d.hy, d.hz));
+                mob.transform.position = new Vector3(d.x, d.y, d.z);
+                mob.persistent = true; mob.spawnId = d.id; mob.home = new Vector3(d.hx, d.hy, d.hz);
+            }
         }
 
         void MakeMenuCamera()
@@ -209,6 +248,7 @@ namespace MundoBloques
             if (player != null) { Destroy(player.gameObject); player = null; yield return null; }
             worldName = name; worldSeed = seed; creative = creativeMode;
             dragonDefeated = dto != null && dto.dragonDefeated; creditsShown = dto != null && dto.creditsShown;
+            persistentIds.Clear(); persistentDead.Clear(); savedMobs = dto != null && dto.mobs != null ? new List<MobDto>(dto.mobs) : new List<MobDto>();
             playTime = dto != null ? dto.playTime : 0f;
             if (dto != null) viewDist = Mathf.Clamp(dto.viewDist, 3, 12);
             Dim dim = dto != null ? (Dim)dto.dim : Dim.Overworld;
@@ -240,6 +280,7 @@ namespace MundoBloques
             yield return StartCoroutine(WaitForArea(pos, "Generando el mundo..."));
             if (dto == null) pos = SafeSpawn(pos);
             player.transform.position = pos;
+            RestoreMobs();
             player.vel = Vector3.zero;
             if (dto == null) SaveSystem.SaveLevel(this);
             state = GameState.Playing;
@@ -486,6 +527,7 @@ namespace MundoBloques
                 else { int gy = world.GroundY(x, z); pos = new Vector3(x + 0.5f, (gy >= 0 ? gy : 70) + 1.02f, z + 0.5f); }
             }
             player.transform.position = pos;
+            if (target == Dim.Overworld) RestoreMobs();
             player.vel = Vector3.zero; player.fallDistance = 0; player.portalTime = 0;
             if (respawn) { player.ResetStats(); }
             Sfx.Play(Clip.Portal, pos, 0.7f, target == Dim.Overworld ? 1.2f : 0.8f);

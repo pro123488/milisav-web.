@@ -116,8 +116,8 @@ namespace MundoBloques
             }
             bool sky = w.dim == Dim.Overworld;
             if (w.dim == Dim.Overworld) { skyC = SkyColor(elev); }
-            else if (w.dim == Dim.Abismo) { skyC = new Color(0.32f, 0.07f, 0.04f); skyBrightness = 0f; ambient = 0.22f; fogStart = 8f; fogEnd = Mathf.Min(fogEnd, 70f); }
-            else { skyC = new Color(0.06f, 0.03f, 0.09f); skyBrightness = 0f; ambient = 0.2f; fogStart = fogEnd * 0.7f; fogEnd *= 1.15f; }
+            else if (w.dim == Dim.Abismo) { skyC = new Color(0.32f, 0.07f, 0.04f); skyBrightness = 0f; ambient = 0.3f; fogStart = 8f; fogEnd = Mathf.Min(fogEnd, 70f); }
+            else { skyC = new Color(0.06f, 0.03f, 0.09f); skyBrightness = 0f; ambient = 0.42f; fogStart = fogEnd * 0.7f; fogEnd *= 1.15f; }
             fog = skyC;
             if (underwater) { var wc = new Color(0.1f, 0.28f, 0.55f) * Mathf.Lerp(0.3f, 1f, skyBrightness); fog = wc; skyC = wc; fogStart = 0f; fogEnd = 22f; }
             if (lava) { fog = new Color(0.8f, 0.25f, 0.02f); skyC = fog; fogStart = 0f; fogEnd = 3.5f; }
