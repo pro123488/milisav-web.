@@ -91,7 +91,7 @@ await sleep(300);
 await page.reload(); await page.waitForFunction(() => window.__game && !document.getElementById('boot'), null, { timeout: 15000 });
 await sleep(1200);
 ok('tras recargar, el título ofrece "Continuar"', await G(() => [...document.querySelectorAll('.mi')].some((n) => n.textContent.includes('Continuar') && !n.classList.contains('off'))));
-await key(page, 'ArrowDown', 1, 150); await key(page, 'Enter', 1, 2500); await advance(page, { max: 20, quiet: 800 });
+await key(page, 'Enter', 1, 2500); await advance(page, { max: 20, quiet: 800 });
 await fastText(page);
 const after = await S();
 ok('la carga restaura la partida (equipo, niveles y experiencia)', JSON.stringify(after.party) === JSON.stringify(snap.party), JSON.stringify(after.party));

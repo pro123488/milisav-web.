@@ -25,7 +25,7 @@ const HANDLE = { w: 'w', e: 'e', n: 'n', s: 's' };
 
 function applyConn(m, conn) {
   const gaps = [];
-  for (const [side, c] of Object.entries(conn || {})) { gaps.push(SIDE_GAP[side](c, m)); if (c.map) m.connect(side, c.map, { offset: c.off || 0 }); }
+  for (const [side, c] of Object.entries(conn || {})) { gaps.push(SIDE_GAP[side](c, m)); if (c.map) m.connect(side, c.map, { offset: c.off || 0, rng: c.rows || c.cols || null }); }
   return gaps;
 }
 
@@ -90,7 +90,7 @@ export function routeTrainer(mapId, idx, spec, zoneSpec) {
 export function defineRoute(id, cfg) {
   const st = STYLE[cfg.style || 'pradera'];
   const w = cfg.w, h = cfg.h;
-  defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: st.fill, music: cfg.music || 'route', zone: cfg.zone, tags: ['ruta', ...(cfg.tags || [])], climate: cfg.climate || 'templado', region: cfg.region || 'valle', encounters: cfg.enc, cave: !!cfg.cave, dark: !!cfg.dark, noFly: !!cfg.noFly, level: cfg.level }, (m) => {
+  defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: st.fill, music: cfg.music || 'route', zone: cfg.zone, tags: ['ruta', ...(cfg.tags || [])], climate: cfg.climate || 'templado', region: cfg.region || 'valle', encounters: cfg.enc, cave: !!cfg.cave, dark: !!cfg.dark, noFly: !!cfg.noFly, level: cfg.level, forceWeather: cfg.forceWeather || null, fly: cfg.fly || null }, (m) => {
     const rng = m.rng;
     const waterBlobs = cfg.water || [];
     // zonas de encuentro (sobre el terreno base)
@@ -103,9 +103,11 @@ export function defineRoute(id, cfg) {
     m.frame(st.tree || (cfg.style === 'desierto' ? 'oak' : 'oak'), 2, gaps);
     if (st.tree && st.dens > 0) m.forest(2, 2, w - 4, h - 4, st.tree, cfg.density ?? st.dens, { on: [st.fill] });
     if (st.objs) for (const o of st.objs) m.scatter(o, Math.round((w * h) / (o === 'cactus' ? 90 : 160)), { rect: [2, 2, w - 4, h - 4], on: [st.fill], layer: 'obj' });
-    for (const [x, y, text] of cfg.signs || []) m.sign(x, y, text);
-    for (const [x, y, item, n] of cfg.items || []) m.item(x, y, item, { n: n || 1 });
-    for (const [x, y, item] of cfg.hidden || []) m.hidden(x, y, item);
+    for (const [x, y, text] of cfg.signs || []) { clearSpot(m, x, y); m.sign(x, y, text); }
+    for (const [x, y, item, n] of cfg.items || []) { clearSpot(m, x, y); m.item(x, y, item, { n: n || 1 }); }
+    for (const [x, y, item] of cfg.hidden || []) { clearSpot(m, x, y); m.hidden(x, y, item); }
+    for (const t of cfg.trainers || []) clearSpot(m, t.x, t.y);
+    for (const n of cfg.npcs || []) clearSpot(m, n.x, n.y);
     (cfg.trainers || []).forEach((t, i) => m.entities.push(routeTrainer(id, i, { ai: cfg.ai, ...t }, cfg.enc?.[st.enc] || cfg.enc?.hierba || { zone: cfg.zone, lv: [5, 10] })));
     for (const npc of cfg.npcs || []) m.npc({ move: 'static', ...npc, look: typeof npc.look === 'string' ? look(npc.look) : npc.look });
     for (const [name, [x, y, dir]] of Object.entries(cfg.spawns || {})) m.spawn(name, x, y, dir || 'down');
@@ -113,6 +115,13 @@ export function defineRoute(id, cfg) {
     // asegura caminos limpios en conexiones: despeja la franja de entrada
     for (const [side, c] of Object.entries(cfg.conn || {})) clearEntrance(m, side, c, st);
   });
+}
+/** Quita árboles/rocas bajo una casilla (y la otra mitad de un árbol de 2 casillas) para colocar una entidad. */
+export function clearSpot(m, x, y) {
+  const k = m.getObj(x, y);
+  m.clear(x, y);
+  if (k.endsWith('_b')) { if (m.getObj(x, y - 1).endsWith('_t')) m.clear(x, y - 1); }
+  else if (k.endsWith('_t')) { if (m.getObj(x, y + 1).endsWith('_b')) m.clear(x, y + 1); }
 }
 function autoPatches(rng, w, h, wp, n) {
   const out = [];
@@ -125,6 +134,11 @@ function autoPatches(rng, w, h, wp, n) {
 }
 function clearEntrance(m, side, c, st) {
   const f = st.path;
+  if (c.sea) {   // conexión marítima: el borde es agua profunda (se cruza con la barca)
+    if (side === 'w' || side === 'e') { for (let y = c.rows[0]; y <= c.rows[1]; y++) for (let k = 0; k < 4; k++) { const x = side === 'w' ? k : m.w - 1 - k; m.clear(x, y); m.clear(x, y - 1); m.set(x, y, 'deepwater'); } }
+    else for (let x = c.cols[0]; x <= c.cols[1]; x++) for (let k = 0; k < 4; k++) { const y = side === 'n' ? k : m.h - 1 - k; m.clear(x, y); m.clear(x, y - 1); m.set(x, y, 'deepwater'); }
+    return;
+  }
   if (side === 'w' || side === 'e') { for (let y = c.rows[0]; y <= c.rows[1]; y++) for (let k = 0; k < 4; k++) { const x = side === 'w' ? k : m.w - 1 - k; m.clear(x, y); m.clear(x, y - 1); m.set(x, y, f); } }
   else for (let x = c.cols[0]; x <= c.cols[1]; x++) for (let k = 0; k < 4; k++) { const y = side === 'n' ? k : m.h - 1 - k; m.clear(x, y); m.clear(x, y - 1); m.set(x, y, f); }
 }
@@ -159,10 +173,65 @@ export function defineCity(id, cfg) {
       const bw = b.w || 6, bh = b.h || (b.kind === 'gym' ? 6 : 4);
       const doorY = row === 'U' ? UP_DOOR : LOW_DOOR;
       const x = (cfg.slotX || SLOT_X)[n] + (b.dx || 0);
-      m.building(x, doorY - (bh - 1), bw, bh, { kind: b.kind, roof: b.roof, wall: b.wall, to: b.to, tx: 'door', key: b.key, name: b.name, doorX: b.doorX });
+      m.building(x, doorY - (bh - 1), bw, bh, { kind: b.kind, roof: b.roof, wall: b.wall, to: b.to, tx: 'door', key: b.key, name: b.name, doorX: b.doorX, req: b.req, reqText: b.reqText });
     }
     if (cfg.decor) cfg.decor(m, { w, h });
+    if (cfg.extra) cfg.extra(m, { w, h });
     for (const npc of cfg.npcs || []) m.npc({ move: 'wander', range: 2, ...npc, look: typeof npc.look === 'string' ? look(npc.look) : npc.look });
     m.spawn('fly', Math.floor(w / 2), 10, 'down');
+  });
+}
+
+// ---------------------------------------------------------------------------------
+// Bloqueos de camino, bocas de cueva y cuevas
+// ---------------------------------------------------------------------------------
+/** Bloquea casillas con una verja visible hasta que cond(g) sea verdadero. Al interactuar muestra `text`. */
+export function roadBlock(m, cells, cond, text, { tile = 'gate', name = 'Barrera' } = {}) {
+  for (const [x, y] of cells) { clearSpot(m, x, y); m.gate(x, y, tile, { name, show: (g) => !cond(g), text }); }
+  return m;
+}
+/** Entrada de cueva en un mapa exterior: arco de roca con la casilla (x,y) como pasillo hacia la cueva. */
+export function caveMouth(m, x, y, to, spawn, { key = null, sfx = 'door' } = {}) {
+  for (let j = -1; j <= 0; j++) for (const i of [-1, 1]) { clearSpot(m, x + i, y + j); m.put(x + i, y + j, 'rockwall'); }
+  clearSpot(m, x, y - 1); m.put(x, y - 1, 'rockwall');
+  clearSpot(m, x, y); clearSpot(m, x, y + 1); m.set(x, y, 'cavefloor');
+  m.warp(x, y, to, spawn, 0, 'up', { sfx });
+  m.spawn('cueva_' + (key || to), x, y + 1, 'down');
+  return m;
+}
+/**
+ * Cuevas: toda la superficie es roca; se excavan salas y pasillos. cfg: {name,title,w,h,rooms:[[cx,cy,rx,ry]], passages:[[[x,y],...],...], width,
+ * exits:[{x,y,to,spawn,key}], lv:[a,b], enc, dark, music, trainers, items, hidden, npcs, signs, objs:{stalagmite:n,crystal:n,mushroom:n}, extra(m)}
+ */
+export function defineCave(id, cfg) {
+  const w = cfg.w, h = cfg.h;
+  const enc = cfg.enc || { cueva: { zone: 'cueva', lv: cfg.lv || [10, 14], maxRarity: 'R' } };
+  defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: 'cavefloor', music: cfg.music || 'cave', zone: 'cueva', tags: ['cueva', ...(cfg.tags || [])], cave: true, dark: !!cfg.dark, weather: false, noFly: true, region: cfg.region || 'valle', encounters: enc, level: cfg.level }, (m) => {
+    m.putRect(0, 0, w, h, 'cavewall');
+    const carve = (cx, cy, rx, ry) => { for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) { if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue; if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.02) m.clear(x, y); } };
+    for (const [cx, cy, rx, ry] of cfg.rooms || []) carve(cx, cy, rx, ry);
+    const wd = cfg.width || 3;
+    for (const pts of cfg.passages || []) for (let i = 0; i < pts.length - 1; i++) {
+      let [x, y] = pts[i]; const [tx, ty] = pts[i + 1];
+      const stamp = (px, py) => { for (let a = 0; a < wd; a++) for (let b = 0; b < wd; b++) { const X = px + a - Math.floor(wd / 2), Y = py + b - Math.floor(wd / 2); if (X >= 1 && Y >= 1 && X < w - 1 && Y < h - 1) m.clear(X, Y); } };
+      while (x !== tx || y !== ty) { stamp(x, y); if (x !== tx) x += Math.sign(tx - x); else y += Math.sign(ty - y); }
+      stamp(tx, ty);
+    }
+    for (const [k, n] of Object.entries(cfg.objs || { stalagmite: Math.round(w * h / 90), crystal: Math.round(w * h / 160), mushroom: Math.round(w * h / 220) })) m.scatter(k, n, { rect: [2, 2, w - 4, h - 4], on: ['cavefloor'], layer: 'obj' });
+    for (const ex of cfg.exits || []) {
+      const up = ex.dir === 'up';      // 'up': la alfombrilla está en el borde superior y se entra hacia el sur
+      for (let j = 0; j <= 2; j++) for (let i = -1; i <= 1; i++) m.clear(ex.x + i, up ? ex.y + j : ex.y - j);
+      m.set(ex.x, ex.y, 'mat'); m.warp(ex.x, ex.y, ex.to, ex.spawn, 0, up ? 'up' : 'down', { sfx: 'door' });
+      const sy = up ? ex.y + 1 : ex.y - 1; m.spawn('entrada_' + (ex.key || ex.to), ex.x, sy, up ? 'down' : 'up');
+      if (!m.spawns.door) m.spawn('door', ex.x, sy, up ? 'down' : 'up');
+    }
+    for (const [x, y, text] of cfg.signs || []) { clearSpot(m, x, y); m.sign(x, y, text); }
+    for (const [x, y, item, n] of cfg.items || []) { clearSpot(m, x, y); m.item(x, y, item, { n: n || 1 }); }
+    for (const [x, y, item] of cfg.hidden || []) { clearSpot(m, x, y); m.hidden(x, y, item); }
+    for (const t of cfg.trainers || []) clearSpot(m, t.x, t.y);
+    for (const n of cfg.npcs || []) clearSpot(m, n.x, n.y);
+    (cfg.trainers || []).forEach((t, i) => m.entities.push(routeTrainer(id, i, { ai: cfg.ai, ...t }, enc.cueva || Object.values(enc)[0])));
+    for (const npc of cfg.npcs || []) m.npc({ move: 'static', ...npc, look: typeof npc.look === 'string' ? look(npc.look) : npc.look });
+    if (cfg.extra) cfg.extra(m, { w, h });
   });
 }

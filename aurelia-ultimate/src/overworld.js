@@ -145,13 +145,16 @@ export class Overworld {
   async interact() {
     const p = this.player, [dx, dy] = dirVec[p.dir]; const tx = p.x + dx, ty = p.y + dy;
     const g = this.g;
-    const e = this.ents.find((q) => q.x === tx && q.y === ty && q.kind !== 'item' && q !== p) || this.ents.find((q) => q.kind === 'item' && q.hidden && q.x === tx && q.y === ty);
+    let e = this.ents.find((q) => q.x === tx && q.y === ty && q.kind !== 'item' && q !== p) || this.ents.find((q) => q.kind === 'item' && q.hidden && q.x === tx && q.y === ty);
+    // a través de un mostrador se puede hablar con quien está detrás
+    if (!e && (objProps(this.map, tx, ty).counter || groundProps(this.map, tx, ty).counter)) e = this.ents.find((q) => q.x === tx + dx && q.y === ty + dy && q.kind === 'npc');
     if (e) {
       await this.run(async () => {
         if (e.kind === 'item') { await this.pickItem(e); return; }
         if (e.kind !== 'sign') { const was = e.dir; this.faceToward(e, p.x, p.y); e._was = was; }
         g.audio.sfx('select');
         if (e.def.talk) await e.def.talk(g, e, this);
+        else if (e.kind === 'trainer' && e.def.trainer) await this.talkTrainer(e);
         else if (e.def.text) await g.say(e.def.text, { speaker: e.kind === 'sign' ? null : e.def.name });
         if (e.kind === 'npc' && e.def.move === 'static' && e._was) { /* mantiene la nueva orientación */ }
         g.emit('talk', { id: e.id, map: this.map.id });
@@ -261,7 +264,8 @@ export class Overworld {
   updateWeather(force = false) {
     const g = this.g, map = this.map; if (!map) return;
     let w = null;
-    if (map.weather && !map.indoor) w = weatherAt(this.state.seed, map.climate, this.state.clock.minutes);
+    if (map.forceWeather) w = map.forceWeather;
+    else if (map.weather && !map.indoor) w = weatherAt(this.state.seed, map.climate, this.state.clock.minutes);
     this.weatherId = w;
     this.fx.set(w === 'soleado' ? null : w);
     if (force) this.lastWeatherCheck = Math.floor(this.state.clock.minutes / 30);
@@ -358,7 +362,13 @@ export class Overworld {
   // ---------- warps y transiciones ----------
   async useWarp(w) {
     const g = this.g;
+    if (w.req && !w.req(g)) { g.audio.sfx('bump'); await g.say(w.reqText || 'La puerta está cerrada.'); return; }
     if (w.sfx) g.audio.sfx(w.sfx); else g.audio.sfx('warp');
+    if (w.to === this.map.id && typeof w.tx === 'number') {      // plataforma de teletransporte dentro del mismo mapa
+      this.busy = true; await g.ui.fade(true, 160);
+      const p = this.player; p.x = w.tx; p.y = w.ty; p.dir = w.dir || p.dir; p.move = null; p.px = p.x * TILE; p.py = p.y * TILE; this.state.player.x = p.x; this.state.player.y = p.y;
+      this.updateCamera(true); await g.ui.fade(false, 160); this.busy = false; return;
+    }
     if (!mapExists(w.to)) { await g.say('(Este lugar aún no está disponible.)'); return; }
     const was = this.busy; this.busy = true;
     await g.ui.fade(true, 250);

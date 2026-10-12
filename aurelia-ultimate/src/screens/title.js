@@ -54,7 +54,7 @@ export class TitleScene {
         { label: 'Seleccionar partida', value: 'select' },
         { label: 'Opciones', value: 'options' }, { label: 'Controles', value: 'controls' }, { label: 'Créditos', value: 'credits' },
       ];
-      const pick = await g.ui.menu(items, { parent: this.root, panel: true, cancel: undefined, style: { position: 'absolute', left: '350px', top: '215px', width: '260px', background: 'linear-gradient(180deg,rgba(38,37,82,.92),rgba(27,26,56,.92))' } });
+      const pick = await g.ui.menu(items, { parent: this.root, panel: true, cancel: undefined, index: latest ? 1 : 0, style: { position: 'absolute', left: '350px', top: '215px', width: '260px', background: 'linear-gradient(180deg,rgba(38,37,82,.92),rgba(27,26,56,.92))' } });
       if (pick === 'new') { const slot = await this.pickSlot('Nueva partida: elige una ranura', { mode: 'new' }); if (slot) return { type: 'new', slot }; }
       else if (pick === 'continue') { const r = g.loadSlot(latest.slot); if (r.ok) return { type: 'load', slot: latest.slot, recovered: r.recovered }; await g.say(r.error); }
       else if (pick === 'load') { const slot = await this.pickSlot('Cargar partida', { mode: 'load' }); if (slot) { const r = g.loadSlot(slot); if (r.ok) return { type: 'load', slot, recovered: r.recovered }; await g.ui.say(r.error); } }

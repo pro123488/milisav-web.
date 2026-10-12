@@ -9,6 +9,32 @@
       __defProp(target, name, { get: all[name], enumerable: true });
   };
 
+  // src/config.js
+  var GAME, TILE, SCALE, VIEW_W, VIEW_H, MAX_LEVEL, PARTY_MAX, BOX_COUNT, BOX_SIZE, MAX_MOVES, MONEY_MAX;
+  var init_config = __esm({
+    "src/config.js"() {
+      GAME = {
+        name: "Aurelia Ultimate",
+        subtitle: "Aventura de Criaturas",
+        region: "Aurelia",
+        version: "0.1.0",
+        saveVersion: 1,
+        slots: 3,
+        storagePrefix: "aurelia-ultimate"
+      };
+      TILE = 16;
+      SCALE = 3;
+      VIEW_W = 960;
+      VIEW_H = 540;
+      MAX_LEVEL = 100;
+      PARTY_MAX = 6;
+      BOX_COUNT = 12;
+      BOX_SIZE = 30;
+      MAX_MOVES = 4;
+      MONEY_MAX = 999999;
+    }
+  });
+
   // src/rng.js
   function hashStr(str) {
     let h = 2166136261;
@@ -138,7 +164,7 @@
   }
   function tileCanvas(key, frame = 0) {
     const k = key + "#" + frame;
-    let c = cache.get(k);
+    let c = cache2.get(k);
     if (!c) {
       const [name, v] = key.split(":");
       const d = defs[name];
@@ -146,7 +172,7 @@
       c = mk();
       const g = c.getContext("2d");
       d.draw(g, new RNG(hashStr(key) + frame * 977), v || "", frame);
-      cache.set(k, c);
+      cache2.set(k, c);
     }
     return c;
   }
@@ -289,14 +315,14 @@
       rect(g, 3, 12, 1, 2, "#8a5a30");
     }
   }
-  var T16, defs, cache, mk, px, rect, fillBase, speck, GR, ROOFS, WALLS;
+  var T16, defs, cache2, mk, px, rect, fillBase, speck, GR, ROOFS, WALLS;
   var init_tiles = __esm({
     "src/gfx/tiles.js"() {
       init_rng();
       init_color();
       T16 = 16;
       defs = {};
-      cache = /* @__PURE__ */ new Map();
+      cache2 = /* @__PURE__ */ new Map();
       mk = () => {
         const c = document.createElement("canvas");
         c.width = c.height = T16;
@@ -803,7 +829,7 @@
         rect(g, 2, 8, 12, 6, "#6a82e0");
         rect(g, 2, 8, 12, 1, "#a8b8f8");
       });
-      T("counter", { solid: true }, (g) => {
+      T("counter", { solid: true, counter: true }, (g) => {
         rect(g, 0, 3, 16, 12, "#c8935a");
         rect(g, 0, 3, 16, 3, "#e8b878");
         rect(g, 0, 14, 16, 1, "#8a5e2c");
@@ -816,7 +842,7 @@
         rect(g, 6, 11, 4, 2, "#4a4a60");
         rect(g, 2, 13, 12, 2, "#6a6a80");
       });
-      T("healer", { solid: true, kind: "healer", anim: 2 }, (g, r, v, f) => {
+      T("healer", { solid: true, counter: true, kind: "healer", anim: 2 }, (g, r, v, f) => {
         rect(g, 1, 4, 14, 11, "#e8ecf4");
         rect(g, 1, 4, 14, 2, "#fff");
         rect(g, 3, 6, 10, 5, "#4a4a60");
@@ -1126,7 +1152,7 @@
   function reachable(m, sx, sy, abilities = {}) {
     const seen = /* @__PURE__ */ new Set([sx + "," + sy]);
     const q2 = [[sx, sy]];
-    const blockedByEntity = new Set(m.entities.filter((e) => e.solid && !e.free && e.kind !== "item").map((e) => e.x + "," + e.y));
+    const blockedByEntity = new Set(m.entities.filter((e) => e.solid && !e.free && e.kind !== "item" && !(abilities.gates && e.kind === "gate")).map((e) => e.x + "," + e.y));
     while (q2.length) {
       const [x, y] = q2.shift();
       for (const [dx, dy] of Object.values(dirVec)) {
@@ -1140,6 +1166,16 @@
         if (solid || blockedByEntity.has(k)) continue;
         seen.add(k);
         if (!m.warps.has(k)) q2.push([nx, ny]);
+        else if (abilities.warps) {
+          const w = m.warps.get(k);
+          if (w.to === m.id && typeof w.tx === "number") {
+            const k2 = w.tx + "," + w.ty;
+            if (!seen.has(k2)) {
+              seen.add(k2);
+              q2.push([w.tx, w.ty]);
+            }
+          }
+        }
       }
     }
     return seen;
@@ -1343,7 +1379,7 @@
           if (this.inb(doorX, doorY + 1) && !this.getObj(doorX, doorY + 1)) {
             if (!/^(path|cobble|sand|beach|dune|snow|ruinfloor)/.test(this.get(doorX, doorY + 1))) this.set(doorX, doorY + 1, o.step || "path");
           }
-          if (o.to) this.warp(doorX, doorY, o.to, o.tx ?? 0, o.ty ?? 0, "up", { door: true, sfx: "door" });
+          if (o.to) this.warp(doorX, doorY, o.to, o.tx ?? 0, o.ty ?? 0, "up", { door: true, sfx: "door", req: o.req || null, reqText: o.reqText || null });
           if (o.key) this.spawn("door_" + o.key, doorX, doorY + 1, "down");
           this.buildings.push({ x, y, w, h, doorX, doorY, kind, name: o.name || null });
           return { doorX, doorY };
@@ -1405,9 +1441,111 @@
           this.enc = spec;
           return this;
         }
+        /**
+         * Garantiza que entradas, puertas, personajes y objetos sean alcanzables a pie. Donde un bosque o un grupo de rocas aísle una zona,
+         * abre el pasillo más corto (solo quita árboles/rocas; nunca atraviesa agua, edificios ni paredes).
+         */
+        connectAll() {
+          const REMOVABLE = /^(tree|pine|snowpine|palm|dead|swamptree|autumn|rock|boulder|cactus|lavarock|stalagmite|crystal|mushroom)/;
+          const key = (x, y) => x + "," + y;
+          const entries = [];
+          for (const [side] of Object.entries(this.connections)) {
+            const len = side === "w" || side === "e" ? this.h : this.w;
+            for (let i = 0; i < len; i++) {
+              const [x, y] = side === "w" ? [0, i] : side === "e" ? [this.w - 1, i] : side === "n" ? [i, 0] : [i, this.h - 1];
+              if (!terrainSolid(this, x, y) && !groundProps(this, x, y).water) {
+                entries.push([x, y]);
+                break;
+              }
+            }
+          }
+          for (const sp of Object.values(this.spawns)) entries.push([sp.x, sp.y]);
+          if (!entries.length) return this;
+          const targets = [...entries.slice(1)];
+          const exact = new Set(targets.map((t) => key(t[0], t[1])));
+          for (const k of this.warps.keys()) {
+            targets.push(k.split(",").map(Number));
+            exact.add(k);
+          }
+          for (const e of this.entities) if (e.kind !== "gate") {
+            targets.push([e.x, e.y]);
+            if (e.kind === "item" && !e.hidden) exact.add(key(e.x, e.y));
+          }
+          const solidAt = (x, y) => terrainSolid(this, x, y);
+          const removable = (x, y) => {
+            const k = tkey(this.obj[this.idx(x, y)]);
+            return REMOVABLE.test(k);
+          };
+          const regionOf = () => {
+            const r = reachable(this, entries[0][0], entries[0][1], { cut: true });
+            return r;
+          };
+          for (let guard = 0; guard < 400; guard++) {
+            const reach = regionOf();
+            const adj = (x, y) => [[0, 1], [0, -1], [1, 0], [-1, 0]].some(([dx, dy]) => reach.has(key(x + dx, y + dy)));
+            const miss = targets.find(([x, y]) => !reach.has(key(x, y)) && (exact.has(key(x, y)) || !adj(x, y)));
+            if (!miss) break;
+            const dist = /* @__PURE__ */ new Map([[key(miss[0], miss[1]), 0]]);
+            const from = /* @__PURE__ */ new Map();
+            const buckets = [[miss]];
+            let found = null;
+            for (let d = 0; d < buckets.length && !found; d++) {
+              for (const [x, y] of buckets[d] || []) {
+                if (dist.get(key(x, y)) !== d) continue;
+                if (reach.has(key(x, y))) {
+                  found = [x, y];
+                  break;
+                }
+                for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+                  const nx = x + dx, ny = y + dy;
+                  if (!this.inb(nx, ny)) continue;
+                  const gp = groundProps(this, nx, ny);
+                  if (gp.solid || gp.water || gp.climb) continue;
+                  const ob = this.obj[this.idx(nx, ny)];
+                  let c = 1;
+                  if (ob && tprops(ob).solid) {
+                    if (!removable(nx, ny)) continue;
+                    c = 3;
+                  }
+                  if (this.warps.has(key(nx, ny)) || this.entities.some((e) => e.x === nx && e.y === ny && e.solid && e.kind !== "item")) {
+                    if (!reach.has(key(nx, ny))) continue;
+                  }
+                  const nd = d + c;
+                  const k = key(nx, ny);
+                  if (dist.has(k) && dist.get(k) <= nd) continue;
+                  dist.set(k, nd);
+                  from.set(k, [x, y]);
+                  (buckets[nd] || (buckets[nd] = [])).push([nx, ny]);
+                }
+              }
+            }
+            if (!found) {
+              this._unreachable = (this._unreachable || []).concat([miss]);
+              targets.splice(targets.findIndex((t) => t === miss), 1);
+              continue;
+            }
+            let cur = found;
+            while (cur) {
+              const [x, y] = cur;
+              const ob = this.obj[this.idx(x, y)];
+              if (ob && tprops(ob).solid && removable(x, y)) {
+                const k = tkey(ob);
+                this.clear(x, y);
+                if (k.endsWith("_b")) {
+                  if (tkey(this.obj[this.idx(x, y - 1)]).endsWith("_t")) this.clear(x, y - 1);
+                } else if (k.endsWith("_t")) {
+                  if (tkey(this.obj[this.idx(x, y + 1)]).endsWith("_b")) this.clear(x, y + 1);
+                }
+              }
+              cur = from.get(key(x, y));
+            }
+          }
+          return this;
+        }
         // ---------- final ----------
         finish() {
           const o = this.opts;
+          if (!o.indoor && o.autoConnect !== false) this.connectAll();
           const map = {
             id: this.id,
             name: o.name || this.id,
@@ -1435,6 +1573,8 @@
             fly: o.fly || null,
             title: o.title || o.name || this.id,
             level: o.level || null,
+            forceWeather: o.forceWeather || null,
+            noFly: !!o.noFly,
             ownerHooks: o.hooks || null,
             onEnter: o.onEnter || null,
             bg: o.bg || null
@@ -1446,32 +1586,6 @@
       inBounds = (m, x, y) => x >= 0 && y >= 0 && x < m.w && y < m.h;
       isWaterTile = (m, x, y) => !!groundProps(m, x, y).water && !m.obj[mapIdx(m, x, y)];
       dirVec = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-    }
-  });
-
-  // src/config.js
-  var GAME, TILE, SCALE, VIEW_W, VIEW_H, MAX_LEVEL, PARTY_MAX, BOX_COUNT, BOX_SIZE, MAX_MOVES, MONEY_MAX;
-  var init_config = __esm({
-    "src/config.js"() {
-      GAME = {
-        name: "Aurelia Ultimate",
-        subtitle: "Aventura de Criaturas",
-        region: "Aurelia",
-        version: "0.1.0",
-        saveVersion: 1,
-        slots: 3,
-        storagePrefix: "aurelia-ultimate"
-      };
-      TILE = 16;
-      SCALE = 3;
-      VIEW_W = 960;
-      VIEW_H = 540;
-      MAX_LEVEL = 100;
-      PARTY_MAX = 6;
-      BOX_COUNT = 12;
-      BOX_SIZE = 30;
-      MAX_MOVES = 4;
-      MONEY_MAX = 999999;
     }
   });
 
@@ -1607,58 +1721,1717 @@
     }
   });
 
-  // src/maps/alba.js
-  init_world();
+  // src/creatures.js
+  var creatures_exports = {};
+  __export(creatures_exports, {
+    EV_CAP: () => EV_CAP,
+    EV_TOTAL: () => EV_TOTAL,
+    NATURES: () => NATURES,
+    NATURE_IDS: () => NATURE_IDS,
+    STATUS: () => STATUS,
+    addEv: () => addEv,
+    battleXp: () => battleXp,
+    calcStat: () => calcStat,
+    canFight: () => canFight,
+    changeFriendship: () => changeFriendship,
+    createCreature: () => createCreature,
+    displayName: () => displayName,
+    evYield: () => evYield,
+    gainXp: () => gainXp,
+    healCreature: () => healCreature,
+    healParty: () => healParty,
+    hpRatio: () => hpRatio,
+    isFainted: () => isFainted,
+    learnMove: () => learnMove,
+    levelUpOnce: () => levelUpOnce,
+    makeMove: () => makeMove,
+    natureMod: () => natureMod,
+    recalcStats: () => recalcStats,
+    setStatus: () => setStatus,
+    speciesOf: () => speciesOf,
+    validateCreature: () => validateCreature,
+    xpProgress: () => xpProgress,
+    xpToNext: () => xpToNext
+  });
+  init_config();
 
-  // src/maps/looks.js
-  var L = (o) => ({ skin: 1, hair: "short", hairColor: 1, outfit: "tshirt", top: 0, bottom: 0, shoes: "#3a2a22", hat: "none", hatColor: 0, glasses: false, scarf: null, bag: null, ...o });
-  var LOOKS = {
-    tia: L({ skin: 1, hair: "bun", hairColor: 2, outfit: "dress", top: 4, bottom: 5 }),
-    sauce: L({ skin: 2, hair: "short", hairColor: 4, outfit: "coat", top: 7, bottom: 1, glasses: true }),
-    ayudante: L({ skin: 0, hair: "ponytail", hairColor: 3, outfit: "jacket", top: 6, bottom: 1 }),
-    kai: L({ skin: 3, hair: "spiky", hairColor: 0, outfit: "hoodie", top: 3, bottom: 1, hat: "goggles", hatColor: 7, bag: 1 }),
-    nino: L({ skin: 1, hair: "short", hairColor: 3, outfit: "tshirt", top: 1, bottom: 2, hat: "cap", hatColor: 0 }),
-    nina: L({ skin: 0, hair: "ponytail", hairColor: 5, outfit: "overalls", top: 3, bottom: 6, hat: "ribbon", hatColor: 9 }),
-    abuelo: L({ skin: 2, hair: "bald", hairColor: 4, outfit: "coat", top: 8, bottom: 7, glasses: true }),
-    abuela: L({ skin: 1, hair: "bun", hairColor: 4, outfit: "dress", top: 9, bottom: 5, scarf: 8 }),
-    tendero: L({ skin: 4, hair: "short", hairColor: 0, outfit: "overalls", top: 7, bottom: 3, hat: "cap", hatColor: 1 }),
-    enfermera: L({ skin: 0, hair: "bob", hairColor: 5, outfit: "dress", top: 9, bottom: 5, hat: "headband", hatColor: 9 }),
-    excursionista: L({ skin: 2, hair: "short", hairColor: 1, outfit: "jacket", top: 5, bottom: 2, hat: "hat", hatColor: 3, bag: 3 }),
-    marinero: L({ skin: 3, hair: "short", hairColor: 0, outfit: "tshirt", top: 7, bottom: 0, hat: "cap", hatColor: 1, scarf: 1 }),
-    pescador: L({ skin: 2, hair: "curly", hairColor: 4, outfit: "overalls", top: 6, bottom: 2, hat: "hat", hatColor: 3 }),
-    cientifico: L({ skin: 1, hair: "spiky", hairColor: 8, outfit: "coat", top: 7, bottom: 1, glasses: true }),
-    nadador: L({ skin: 3, hair: "short", hairColor: 0, outfit: "tshirt", top: 1, bottom: 0 }),
-    karateka: L({ skin: 2, hair: "mohawk", hairColor: 0, outfit: "jacket", top: 7, bottom: 7, hat: "headband", hatColor: 0 }),
-    minero: L({ skin: 4, hair: "short", hairColor: 0, outfit: "overalls", top: 3, bottom: 2, hat: "hat", hatColor: 3 }),
-    bruja: L({ skin: 0, hair: "long", hairColor: 9, outfit: "dress", top: 4, bottom: 8, hat: "hat", hatColor: 4 }),
-    esquiador: L({ skin: 0, hair: "short", hairColor: 3, outfit: "hoodie", top: 1, bottom: 0, hat: "beanie", hatColor: 0, scarf: 0 }),
-    domador: L({ skin: 5, hair: "curly", hairColor: 0, outfit: "jacket", top: 1, bottom: 2, hat: "goggles", hatColor: 6 }),
-    jugador_extra: L({ skin: 2, hair: "bob", hairColor: 8, outfit: "tshirt", top: 5, bottom: 0 }),
-    // Orden del Eclipse
-    recluta: L({ skin: 1, hair: "short", hairColor: 8, outfit: "uniform", top: 8, bottom: 8, hat: "beanie", hatColor: 4, shoes: "#1a1226" }),
-    recluta2: L({ skin: 2, hair: "ponytail", hairColor: 8, outfit: "uniform", top: 8, bottom: 8, hat: "beanie", hatColor: 4, shoes: "#1a1226" }),
-    teniente: L({ skin: 0, hair: "long", hairColor: 5, outfit: "coat", top: 8, bottom: 8, hat: "none", shoes: "#1a1226", scarf: 4 }),
-    teniente2: L({ skin: 4, hair: "mohawk", hairColor: 0, outfit: "coat", top: 8, bottom: 8, hat: "none", shoes: "#1a1226", scarf: 0 }),
-    vesper: L({ skin: 1, hair: "long", hairColor: 4, outfit: "coat", top: 8, bottom: 8, hat: "none", shoes: "#1a1226", scarf: 4, glasses: true }),
-    // líderes y élite
-    fresia: L({ skin: 0, hair: "long", hairColor: 8, outfit: "dress", top: 2, bottom: 5, hat: "ribbon", hatColor: 3 }),
-    marlo: L({ skin: 3, hair: "short", hairColor: 0, outfit: "tshirt", top: 1, bottom: 0, hat: "cap", hatColor: 1, scarf: 7 }),
-    volta: L({ skin: 4, hair: "spiky", hairColor: 3, outfit: "jacket", top: 3, bottom: 1, hat: "goggles", hatColor: 3 }),
-    petra: L({ skin: 2, hair: "bob", hairColor: 1, outfit: "overalls", top: 5, bottom: 2, hat: "hat", hatColor: 3 }),
-    ignacio: L({ skin: 2, hair: "spiky", hairColor: 5, outfit: "jacket", top: 0, bottom: 1, scarf: 5 }),
-    morgana: L({ skin: 0, hair: "long", hairColor: 9, outfit: "dress", top: 4, bottom: 8, hat: "hat", hatColor: 4 }),
-    boreal: L({ skin: 0, hair: "curly", hairColor: 4, outfit: "coat", top: 7, bottom: 0, scarf: 1 }),
-    draconia: L({ skin: 1, hair: "ponytail", hairColor: 6, outfit: "coat", top: 4, bottom: 8, hat: "none", glasses: false }),
-    elite1: L({ skin: 5, hair: "mohawk", hairColor: 0, outfit: "hoodie", top: 8, bottom: 8, scarf: 0 }),
-    elite2: L({ skin: 2, hair: "short", hairColor: 3, outfit: "jacket", top: 8, bottom: 7 }),
-    elite3: L({ skin: 0, hair: "bob", hairColor: 9, outfit: "dress", top: 9, bottom: 8, hat: "ribbon", hatColor: 9 }),
-    elite4: L({ skin: 3, hair: "spiky", hairColor: 8, outfit: "tshirt", top: 4, bottom: 3, hat: "headband", hatColor: 3 }),
-    campeon: L({ skin: 2, hair: "long", hairColor: 3, outfit: "coat", top: 3, bottom: 8, hat: "crown", scarf: 0 })
-  };
-  var look = (name, over = {}) => ({ ...LOOKS[name] || LOOKS.nino, ...over });
+  // src/data/species.js
+  var species_exports = {};
+  __export(species_exports, {
+    BEHAVIORS: () => BEHAVIORS,
+    EGG_GROUPS: () => EGG_GROUPS,
+    RARITY: () => RARITY,
+    RARITY_ORDER: () => RARITY_ORDER,
+    SPECIES: () => SPECIES,
+    SPECIES_BY_NAME: () => SPECIES_BY_NAME,
+    SPECIES_LIST: () => SPECIES_LIST,
+    STAT_KEYS: () => STAT_KEYS,
+    STAT_NAMES: () => STAT_NAMES,
+    TYPE_COUNT: () => TYPE_COUNT,
+    XP_GROUPS: () => XP_GROUPS,
+    canLearnTM: () => canLearnTM,
+    evolutionFamily: () => evolutionFamily,
+    getSpecies: () => getSpecies,
+    learnsAtLevel: () => learnsAtLevel,
+    movesAtLevel: () => movesAtLevel,
+    speciesByHabitat: () => speciesByHabitat,
+    speciesByName: () => speciesByName,
+    xpForLevel: () => xpForLevel
+  });
 
-  // src/maps/helpers.js
-  init_world();
+  // src/data/species_data.js
+  var RAW = [];
+  var S = (id, name, types, st, rar, o = {}) => RAW.push({ id, name, types: types.split("/"), st, rar, ...o });
+  S(1, "Brot\xEDn", "planta", [45, 50, 52, 62, 55, 40], "R", {
+    cr: 45,
+    h: 0.5,
+    w: 6.5,
+    xp: 64,
+    g: "parab",
+    ab: ["espesura", "aura_sanadora"],
+    hab: [],
+    egg: ["planta", "campo"],
+    bh: "curioso",
+    look: "blob ear:leaf tail:tuft eye:big mouth:smile pat:belly ex:sprout sz:.72",
+    desc: "Un brote \xE1gil que vive pegado a su compa\xF1ero. La hoja de su cabeza se estira hacia el sol como una antena.",
+    evo: [[2, 16]]
+  });
+  S(2, "Frondeo", "planta", [60, 65, 68, 80, 70, 52], "R", {
+    cr: 45,
+    h: 1,
+    w: 28,
+    xp: 142,
+    g: "parab",
+    ab: ["espesura", "aura_sanadora"],
+    hab: [],
+    egg: ["planta", "campo"],
+    bh: "curioso",
+    look: "quad ear:leaf tail:leaf eye:big pat:belly ex:vines sz:.88",
+    desc: "Las enredaderas de su lomo se agitan cuando huele peligro. Prefiere esquivar antes que golpear.",
+    evo: [[3, 34]]
+  });
+  S(3, "Selvar\xF3n", "planta/lucha", [80, 102, 90, 90, 84, 66], "R", {
+    cr: 45,
+    h: 1.9,
+    w: 112,
+    xp: 236,
+    g: "parab",
+    ab: ["espesura", "fuerza_pura"],
+    hab: [],
+    egg: ["planta", "monstruo"],
+    bh: "terco",
+    look: "bip ear:leaf arm:big tail:leaf eye:angry pat:band ex:mane sz:1.0",
+    desc: "Guardi\xE1n de la espesura. Su corteza endurecida detiene hachas y colmillos; defiende a su entrenador con pu\xF1os de ra\xEDz."
+  });
+  S(4, "Chisp\xEDn", "fuego", [39, 52, 43, 60, 50, 65], "R", {
+    cr: 45,
+    h: 0.5,
+    w: 8.5,
+    xp: 62,
+    g: "parab",
+    ab: ["llama_interior", "cuerpo_ardiente"],
+    hab: [],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "quad ear:point tail:flame eye:big pat:belly sz:.72",
+    desc: "Una cr\xEDa traviesa cuya cola nunca se apaga. Si se enfada, salta chispas por todas partes.",
+    evo: [[5, 16]]
+  });
+  S(5, "Piroc\xE1n", "fuego", [58, 64, 58, 80, 65, 80], "R", {
+    cr: 45,
+    h: 1.1,
+    w: 30,
+    xp: 142,
+    g: "parab",
+    ab: ["llama_interior", "cuerpo_ardiente"],
+    hab: [],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "quad ear:point tail:flame ex:mane eye:angry pat:belly sz:.9",
+    desc: "Corre tan r\xE1pido que deja un rastro de brasas. Su melena arde con m\xE1s fuerza cuanto m\xE1s feliz est\xE1.",
+    evo: [[6, 36]]
+  });
+  S(6, "Infernox", "fuego/dragon", [78, 84, 78, 109, 85, 100], "R", {
+    cr: 45,
+    h: 1.8,
+    w: 90,
+    xp: 240,
+    g: "parab",
+    ab: ["corazon_volcan", "llama_interior"],
+    hab: [],
+    egg: ["dragon", "monstruo"],
+    bh: "agresivo",
+    look: "quad horn:big wing:small tail:flame ex:mane eye:angry pat:band c1:#a8283a c2:#f0b868 c4:#f6b040 sz:1.0",
+    desc: "Un drag\xF3n joven que domina las llamas con su aliento. Las leyendas dicen que su cola puede encender un volc\xE1n dormido."
+  });
+  S(7, "Burb\xEDn", "agua", [44, 48, 65, 50, 64, 43], "R", {
+    cr: 45,
+    h: 0.5,
+    w: 9,
+    xp: 63,
+    g: "parab",
+    ab: ["marea_viva", "absorbe_agua"],
+    hab: [],
+    egg: ["agua", "campo"],
+    bh: "sociable",
+    look: "blob ear:fin tail:fin eye:big mouth:smile pat:belly ex:bubbles sz:.72",
+    desc: "Siempre rodeado de burbujas. Las usa para jugar, esconderse y, si hace falta, para atontar a un rival.",
+    evo: [[8, 16]]
+  });
+  S(8, "Marejo", "agua", [59, 63, 80, 65, 80, 58], "R", {
+    cr: 45,
+    h: 1.1,
+    w: 32,
+    xp: 142,
+    g: "parab",
+    ab: ["marea_viva", "absorbe_agua"],
+    hab: [],
+    egg: ["agua", "campo"],
+    bh: "sociable",
+    look: "quad ear:fin tail:fin eye:big pat:belly ex:bubbles sz:.9",
+    desc: "Nada y camina con la misma elegancia. Su piel resbaladiza desv\xEDa los golpes m\xE1s duros.",
+    evo: [[9, 36]]
+  });
+  S(9, "Abisal\xF3n", "agua/hielo", [79, 83, 100, 85, 105, 78], "R", {
+    cr: 45,
+    h: 2,
+    w: 195,
+    xp: 238,
+    g: "parab",
+    ab: ["marea_viva", "alma_glaciar"],
+    hab: [],
+    egg: ["agua", "monstruo"],
+    bh: "terco",
+    look: "bip horn:big arm:fin tail:fin ex:crystal eye:angry sz:1.02",
+    desc: "Habita los mares helados del norte. Las cristalizaciones de su espalda reflejan la aurora y confunden a los rivales."
+  });
+  S(10, "Pelus\xEDn", "aire", [40, 45, 40, 35, 35, 56], "C", {
+    cr: 255,
+    h: 0.3,
+    w: 1.8,
+    xp: 50,
+    g: "medio",
+    ab: ["ojo_critico", "insomnio"],
+    hab: ["pradera", "playa"],
+    egg: ["volador"],
+    bh: "timido",
+    look: "bird wing:small eye:big mouth:beak pat:belly sz:.62",
+    desc: "Un polluelo esponjoso que nunca se aleja del nido. P\xEDa tan fuerte que se le oye desde la otra punta del prado.",
+    evo: [[11, 14]]
+  });
+  S(11, "Plumeo", "aire", [63, 60, 55, 50, 50, 71], "U", {
+    cr: 120,
+    h: 0.9,
+    w: 15,
+    xp: 112,
+    g: "medio",
+    ab: ["ojo_critico", "insomnio"],
+    hab: ["pradera", "playa", "montana"],
+    egg: ["volador"],
+    bh: "curioso",
+    look: "bird wing:feather tail:tuft eye:dot mouth:beak pat:belly ex:crest sz:.82",
+    desc: "Sus alas ya levantan polvareda al despegar. Patrulla su territorio trazando c\xEDrculos cada vez m\xE1s amplios.",
+    evo: [[12, 32]]
+  });
+  S(12, "Alcar\xE1n", "aire/lucha", [83, 80, 75, 70, 70, 91], "R", {
+    cr: 45,
+    h: 1.5,
+    w: 38,
+    xp: 180,
+    g: "medio",
+    ab: ["ojo_critico", "intimidar"],
+    hab: ["montana"],
+    egg: ["volador"],
+    bh: "agresivo",
+    look: "bird wing:big tail:long eye:angry mouth:beak arm:claw pat:band ex:crest sz:1.0",
+    desc: "Un halc\xF3n de monta\xF1a que se lanza en picado a gran velocidad. Su mirada fija intimida hasta a los dragones j\xF3venes."
+  });
+  S(13, "Roed\xEDn", "tierra", [35, 46, 34, 35, 35, 60], "C", {
+    cr: 255,
+    h: 0.3,
+    w: 3.5,
+    xp: 48,
+    g: "medio",
+    ab: ["pies_arena", "robustez"],
+    hab: ["pradera", "desierto"],
+    egg: ["campo"],
+    bh: "timido",
+    look: "quad ear:round tail:tuft eye:big mouth:snout pat:belly sz:.6",
+    desc: "Cava t\xFAneles diminutos bajo la hierba alta. Si lo asustas, desaparece en un abrir y cerrar de ojos.",
+    evo: [[14, 20]]
+  });
+  S(14, "Zapador", "tierra", [65, 90, 65, 45, 55, 100], "U", {
+    cr: 90,
+    h: 0.8,
+    w: 28,
+    xp: 130,
+    g: "medio",
+    ab: ["pies_arena", "fuerza_pura"],
+    hab: ["pradera", "cueva", "desierto"],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "quad ear:point arm:claw tail:club eye:angry mouth:fang pat:band sz:.85",
+    desc: "Excava galer\xEDas enteras en una noche. Las garras de sus patas delanteras parten la roca como si fuera mantequilla."
+  });
+  S(15, "Gusan\xEDn", "insecto", [45, 30, 35, 20, 20, 45], "C", {
+    cr: 255,
+    h: 0.3,
+    w: 3,
+    xp: 39,
+    g: "medio",
+    ab: ["plaga", "mente_clara"],
+    hab: ["pradera", "bosque"],
+    egg: ["bicho"],
+    bh: "timido",
+    look: "bug eye:big mouth:smile sz:.55",
+    desc: "Devora hojas sin parar. Cuando est\xE1 lleno, se enrolla bajo un tronco y echa una cabezadita.",
+    evo: [[16, 5]]
+  });
+  S(16, "Capull\xEDn", "insecto", [50, 20, 55, 25, 25, 30], "C", {
+    cr: 120,
+    h: 0.7,
+    w: 10,
+    xp: 72,
+    g: "medio",
+    ab: ["piel_dura"],
+    hab: ["bosque"],
+    egg: ["bicho"],
+    bh: "dormilon",
+    look: "bug eye:sleepy ex:cocoon sz:.7",
+    desc: "Se mantiene inm\xF3vil mientras su cuerpo cambia por dentro. Solo se mueve para esquivar el viento.",
+    evo: [[17, 10]]
+  });
+  S(17, "Lum\xEDnea", "insecto/luz", [60, 45, 50, 90, 80, 70], "U", {
+    cr: 45,
+    h: 1.1,
+    w: 32,
+    xp: 178,
+    g: "medio",
+    ab: ["ojo_compuesto", "aura_luz"],
+    hab: ["bosque", "pradera"],
+    egg: ["bicho"],
+    bh: "curioso",
+    look: "bug wing:moth ex:antenna eye:big pat:spots sz:.88",
+    desc: "Sus alas esparcen un polvo luminoso que cura peque\xF1as heridas. De noche brillan como linternas."
+  });
+  S(18, "Hormigu\xEDn", "insecto", [30, 56, 50, 25, 25, 50], "C", {
+    cr: 230,
+    h: 0.3,
+    w: 2.5,
+    xp: 45,
+    g: "medio",
+    ab: ["fuerza_pura", "robustez"],
+    hab: ["pradera", "bosque"],
+    egg: ["bicho"],
+    bh: "sociable",
+    look: "bug ex:antenna arm:claw eye:angry mouth:fang sz:.58",
+    desc: "Vive en colonias disciplinadas. Una sola hormiga levanta cien veces su peso, y nunca va sola.",
+    evo: [[19, 24]]
+  });
+  S(19, "Soldad\xF3n", "insecto/lucha", [60, 100, 85, 40, 60, 75], "U", {
+    cr: 75,
+    h: 1.2,
+    w: 40,
+    xp: 148,
+    g: "medio",
+    ab: ["fuerza_pura", "intimidar"],
+    hab: ["bosque"],
+    egg: ["bicho"],
+    bh: "agresivo",
+    look: "bug ex:antenna arm:blade horn:small eye:angry mouth:fang pat:band sz:.95",
+    desc: "Capit\xE1n de la colonia. Sus mand\xEDbulas blindadas crujen como espadas al chocar."
+  });
+  S(20, "Sap\xEDn", "agua", [40, 45, 40, 50, 40, 55], "C", {
+    cr: 230,
+    h: 0.4,
+    w: 5,
+    xp: 52,
+    g: "medio",
+    ab: ["nado_veloz", "absorbe_agua"],
+    hab: ["lago", "pantano"],
+    egg: ["agua", "campo"],
+    bh: "curioso",
+    look: "blob eye:big mouth:smile ear:fin pat:spots sz:.62",
+    desc: "Croa al ritmo de la lluvia. Su lengua pegajosa atrapa insectos antes de que lo noten.",
+    evo: [[21, 22]]
+  });
+  S(21, "Ranazo", "agua/lucha", [75, 92, 72, 68, 62, 76], "U", {
+    cr: 75,
+    h: 1.3,
+    w: 60,
+    xp: 150,
+    g: "medio",
+    ab: ["nado_veloz", "impulso"],
+    hab: ["lago", "pantano"],
+    egg: ["agua", "campo"],
+    bh: "terco",
+    look: "bip eye:angry mouth:smile arm:big pat:spots ear:fin sz:.95",
+    desc: "Campe\xF3n de los estanques. Lanza pu\xF1etazos tan r\xE1pidos que levantan olas."
+  });
+  S(22, "Volt\xEDn", "electrico", [35, 35, 30, 55, 40, 70], "C", {
+    cr: 200,
+    h: 0.4,
+    w: 5,
+    xp: 55,
+    g: "medio",
+    ab: ["estatica", "pararrayos"],
+    hab: ["pradera", "bosque"],
+    egg: ["campo"],
+    bh: "curioso",
+    look: "blob ear:round tail:bolt eye:big mouth:smile ex:sparks c1:#46b8e8 c2:#d8f4ff c3:#ffe24a sz:.62",
+    desc: "Acumula electricidad en las mejillas. Un abrazo suyo en invierno da calambre.",
+    evo: [[23, 18]]
+  });
+  S(23, "Fulm\xEDn", "electrico", [55, 50, 45, 80, 60, 90], "U", {
+    cr: 100,
+    h: 0.8,
+    w: 18,
+    xp: 122,
+    g: "medio",
+    ab: ["estatica", "pararrayos"],
+    hab: ["pradera", "montana"],
+    egg: ["campo"],
+    bh: "curioso",
+    look: "quad ear:round tail:bolt eye:big mouth:snout ex:mane,sparks c1:#3aa6e0 c2:#e8f8ff c3:#ffe24a pat:belly sz:.82",
+    desc: "Corre entre las nubes de tormenta absorbiendo rayos. Cuando se carga, su pelaje se eriza.",
+    evo: [[24, 0, "item:gema_chispa"]]
+  });
+  S(24, "Fulgur\xF3n", "electrico", [70, 65, 60, 110, 80, 105], "R", {
+    cr: 45,
+    h: 1.4,
+    w: 42,
+    xp: 215,
+    g: "medio",
+    ab: ["chispa_viva", "pararrayos"],
+    hab: [],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "quad horn:big ear:round tail:bolt eye:angry ex:mane,sparks pat:band c1:#2f86d8 c2:#dff4ff c3:#ffe24a sz:1.0",
+    desc: "Un rel\xE1mpago con patas. Dicen que sus rugidos pueden verse antes de o\xEDrse."
+  });
+  S(25, "Espor\xEDn", "planta", [50, 40, 55, 50, 50, 30], "C", {
+    cr: 200,
+    h: 0.3,
+    w: 2.5,
+    xp: 58,
+    g: "medio",
+    ab: ["espesura", "aura_sanadora"],
+    hab: ["bosque", "pantano"],
+    egg: ["planta"],
+    bh: "timido",
+    look: "plant eye:sleepy mouth:smile pat:spots sz:.6",
+    desc: "Una seta peque\xF1a que suelta esporas inofensivas cuando duerme. Brilla un poco en la humedad.",
+    evo: [[26, 28]]
+  });
+  S(26, "Hongarr\xF3n", "planta/veneno", [85, 70, 90, 85, 85, 45], "U", {
+    cr: 75,
+    h: 1.1,
+    w: 48,
+    xp: 158,
+    g: "medio",
+    ab: ["puas_toxicas", "aura_sanadora"],
+    hab: ["bosque", "pantano"],
+    egg: ["planta"],
+    bh: "terco",
+    look: "plant eye:angry mouth:fang pat:spots arm:big ex:spores sz:.95",
+    desc: "Sombrero enorme, esporas dulces y veneno terrible. Los viajeros prudentes dan un rodeo."
+  });
+  S(27, "Murcil\xEDn", "aire/sombra", [40, 45, 35, 30, 40, 55], "C", {
+    cr: 255,
+    h: 0.4,
+    w: 2.2,
+    xp: 49,
+    g: "medio",
+    ab: ["ojo_compuesto", "insomnio"],
+    hab: ["cueva"],
+    egg: ["volador"],
+    bh: "timido",
+    tm: "n",
+    look: "bird wing:bat ear:big eye:big mouth:fang sz:.6 hue:20",
+    desc: "Se orienta en las cuevas con chillidos que ning\xFAn o\xEDdo humano percibe. Teme la luz del d\xEDa.",
+    evo: [[28, 28]]
+  });
+  S(28, "Murciel\xF3n", "aire/sombra", [75, 80, 70, 65, 75, 100], "U", {
+    cr: 60,
+    h: 1.6,
+    w: 55,
+    xp: 165,
+    g: "medio",
+    ab: ["ojo_compuesto", "aura_sombra"],
+    hab: ["cueva", "ruinas"],
+    egg: ["volador"],
+    bh: "agresivo",
+    look: "bird wing:bat ear:big eye:angry mouth:fang tail:spike sz:1.0 hue:20",
+    desc: "Cuelga del techo de las cuevas m\xE1s hondas. Sus alas membranosas cortan el aire con un silbido."
+  });
+  S(29, "Guijarro", "roca", [40, 60, 80, 30, 30, 20], "C", {
+    cr: 230,
+    h: 0.4,
+    w: 25,
+    xp: 55,
+    g: "medio",
+    ab: ["robustez", "piel_petrea"],
+    hab: ["cueva", "montana"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "golem eye:dot sz:.6",
+    desc: "Parece una piedra m\xE1s hasta que te mira. Rueda cuesta abajo cuando se asusta.",
+    evo: [[30, 25]]
+  });
+  S(30, "Pe\xF1asco", "roca", [60, 85, 105, 40, 50, 30], "U", {
+    cr: 120,
+    h: 1,
+    w: 105,
+    xp: 130,
+    g: "medio",
+    ab: ["robustez", "piel_petrea"],
+    hab: ["cueva", "montana"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "golem arm:big eye:angry pat:band sz:.82",
+    desc: "Un bloque de roca con brazos. Levanta bloques enormes para construir su guarida.",
+    evo: [[31, 40]]
+  });
+  S(31, "Monta\xF1\xF3n", "roca/tierra", [85, 115, 130, 55, 65, 40], "R", {
+    cr: 45,
+    h: 2.4,
+    w: 300,
+    xp: 210,
+    g: "lento",
+    ab: ["robustez", "coraza_antigua"],
+    hab: ["montana"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "golem arm:big eye:angry pat:band ex:crystal horn:small sz:1.05",
+    desc: "Del tama\xF1o de una casa. Cuando duerme, los p\xE1jaros anidan en sus hombros y los l\xEDquenes cubren su espalda."
+  });
+  S(32, "Arenito", "tierra", [40, 55, 50, 30, 40, 45], "C", {
+    cr: 230,
+    h: 0.4,
+    w: 6,
+    xp: 50,
+    g: "medio",
+    ab: ["pies_arena", "remolino_arena"],
+    hab: ["desierto", "playa"],
+    egg: ["campo", "mineral"],
+    bh: "timido",
+    look: "blob eye:dot mouth:smile ear:point tail:tuft sz:.62 c1:#d8b070",
+    desc: "Se esconde bajo la arena con solo los ojos fuera. Los exploradores lo confunden con un montoncito de dunas.",
+    evo: [[33, 26]]
+  });
+  S(33, "Escorpiar", "tierra/veneno", [70, 95, 80, 50, 70, 70], "U", {
+    cr: 75,
+    h: 1,
+    w: 42,
+    xp: 150,
+    g: "medio",
+    ab: ["pies_arena", "puas_toxicas"],
+    hab: ["desierto"],
+    egg: ["bicho", "campo"],
+    bh: "agresivo",
+    look: "bug arm:claw tail:scorp eye:angry sz:.92 c1:#c89a50",
+    desc: "La cola en forma de arp\xF3n inyecta un veneno que aletarga. Acecha entre las rocas calientes del desierto."
+  });
+  S(34, "Cact\xEDn", "planta", [45, 45, 60, 50, 50, 35], "C", {
+    cr: 200,
+    h: 0.5,
+    w: 7,
+    xp: 56,
+    g: "medio",
+    ab: ["espinas", "absorbe_agua"],
+    hab: ["desierto"],
+    egg: ["planta"],
+    bh: "timido",
+    look: "plant eye:sleepy mouth:smile ear:none ex:flowerhead sz:.62 hue:-10",
+    desc: "Guarda agua en su cuerpo durante meses. Las flores de su cabeza se abren solo tras la lluvia.",
+    evo: [[35, 30]]
+  });
+  S(35, "Cactarr\xF3n", "planta/tierra", [75, 85, 95, 70, 80, 45], "U", {
+    cr: 75,
+    h: 1.5,
+    w: 90,
+    xp: 160,
+    g: "medio",
+    ab: ["espinas", "piel_dura"],
+    hab: ["desierto"],
+    egg: ["planta"],
+    bh: "terco",
+    look: "plant eye:angry mouth:fang arm:big ex:flowerhead pat:spots sz:.98 hue:-10",
+    desc: "Sus p\xFAas disparan al aire si lo molestan. Tras una tormenta, florece con colores imposibles."
+  });
+  S(36, "Pecec\xEDn", "agua", [35, 45, 40, 35, 35, 65], "C", {
+    cr: 255,
+    h: 0.3,
+    w: 2,
+    xp: 44,
+    g: "medio",
+    ab: ["nado_veloz", "absorbe_agua"],
+    hab: ["lago", "playa", "mar"],
+    egg: ["agua"],
+    bh: "timido",
+    look: "fish eye:big mouth:smile tail:fin sz:.58",
+    desc: "Viaja en bancos de cientos. Cada uno brilla un poco distinto, como escamas de arco\xEDris.",
+    evo: [[37, 26]]
+  });
+  S(37, "Tiburox", "agua/sombra", [75, 115, 70, 60, 60, 85], "U", {
+    cr: 60,
+    h: 2,
+    w: 110,
+    xp: 165,
+    g: "medio",
+    ab: ["intimidar", "nado_veloz"],
+    hab: ["mar", "isla"],
+    egg: ["agua"],
+    bh: "agresivo",
+    look: "fish eye:angry mouth:fang tail:fin pat:belly c1:#5b78a8 c2:#e8eef6 c4:#33507e sz:1.0",
+    desc: "Un cazador veloz de aguas profundas. Se dice que huele una gota de sangre a tres leguas."
+  });
+  S(38, "Pinz\xF3n", "agua", [45, 65, 70, 35, 40, 35], "C", {
+    cr: 220,
+    h: 0.4,
+    w: 7,
+    xp: 54,
+    g: "medio",
+    ab: ["piel_dura", "absorbe_agua"],
+    hab: ["playa", "mar", "lago"],
+    egg: ["agua", "bicho"],
+    bh: "terco",
+    look: "shell arm:claw eye:big sz:.62 hue:-15",
+    desc: "Un cangrejo que no suelta lo que atrapa. Camina de lado y pellizca de frente.",
+    evo: [[39, 28]]
+  });
+  S(39, "Coral\xF3n", "agua/roca", [70, 100, 110, 65, 70, 50], "U", {
+    cr: 75,
+    h: 1.2,
+    w: 90,
+    xp: 155,
+    g: "medio",
+    ab: ["piel_dura", "piel_petrea"],
+    hab: ["mar", "isla"],
+    egg: ["agua", "mineral"],
+    bh: "terco",
+    look: "shell arm:claw eye:angry ex:crystal pat:spots sz:.95 hue:-15",
+    desc: "Su caparaz\xF3n est\xE1 cubierto de coral vivo. Las peque\xF1as criaturas marinas viven en \xE9l como en un arrecife."
+  });
+  S(40, "Medus\xEDn", "agua", [40, 25, 35, 65, 65, 50], "C", {
+    cr: 190,
+    h: 0.5,
+    w: 4,
+    xp: 60,
+    g: "medio",
+    ab: ["absorbe_agua", "pararrayos"],
+    hab: ["lago", "playa", "mar"],
+    egg: ["agua", "amorfo"],
+    bh: "curioso",
+    look: "float eye:big mouth:smile ex:tentacles sz:.65",
+    desc: "Flota como una campana transl\xFAcida. Sus tent\xE1culos pican lo justo para que se aparten.",
+    evo: [[41, 30]]
+  });
+  S(41, "Medus\xF3n", "agua/espiritu", [80, 40, 70, 100, 95, 65], "R", {
+    cr: 60,
+    h: 1.8,
+    w: 46,
+    xp: 170,
+    g: "medio",
+    ab: ["absorbe_agua", "lamento_espiritual"],
+    hab: ["mar", "isla", "pantano"],
+    egg: ["agua", "amorfo"],
+    bh: "sociable",
+    look: "float eye:wide ex:tentacles pat:spots sz:1.0 hue:60",
+    desc: "Un fantasma del mar que brilla en la noche. Los marineros juran que canta, aunque nadie ha o\xEDdo su voz."
+  });
+  S(42, "Magm\xEDn", "fuego", [40, 50, 60, 50, 40, 25], "C", {
+    cr: 200,
+    h: 0.4,
+    w: 22,
+    xp: 55,
+    g: "medio",
+    ab: ["cuerpo_ardiente", "robustez"],
+    hab: ["volcan", "cueva"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "shell eye:big mouth:smile ex:flame pat:spots sz:.62 hue:-10",
+    desc: "Un caracol de lava que deja un rastro humeante. Su caparaz\xF3n es tan caliente que cuece huevos.",
+    evo: [[43, 30]]
+  });
+  S(43, "Volcar\xF3n", "fuego/roca", [70, 80, 110, 90, 70, 35], "U", {
+    cr: 75,
+    h: 1.4,
+    w: 160,
+    xp: 165,
+    g: "medio",
+    ab: ["cuerpo_ardiente", "corazon_volcan"],
+    hab: ["volcan"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "shell eye:angry ex:flame horn:big pat:spots sz:1.0 hue:-10",
+    desc: "Un volc\xE1n ambulante. Cuando se enfada, el cono de su espalda lanza ceniza ardiente."
+  });
+  S(44, "Pavesa", "fuego", [38, 35, 40, 55, 50, 45], "U", {
+    cr: 150,
+    h: 0.3,
+    w: 1,
+    xp: 60,
+    g: "medio",
+    ab: ["llama_interior", "aura_sanadora"],
+    hab: ["volcan", "ruinas"],
+    egg: ["amorfo", "fantasia"],
+    bh: "curioso",
+    tm: "n",
+    look: "float eye:big ex:flame sz:.58 hue:25",
+    desc: "Una llamita a la deriva que busca calor en cuevas y ruinas. Se apaga si la dejan sola demasiado tiempo.",
+    evo: [[45, 20]]
+  });
+  S(45, "Cirio", "fuego/espiritu", [60, 50, 60, 85, 75, 60], "R", {
+    cr: 75,
+    h: 0.9,
+    w: 5,
+    xp: 140,
+    g: "medio",
+    ab: ["llama_interior", "lamento_espiritual"],
+    hab: ["volcan", "ruinas"],
+    egg: ["amorfo", "fantasia"],
+    bh: "curioso",
+    look: "float eye:wide ex:flame tail:long sz:.82 hue:25",
+    desc: "Un esp\xEDritu de cera derretida con una llama azulada. Gu\xEDa a los perdidos o los desorienta, seg\xFAn su humor.",
+    evo: [[46, 0, "item:gema_ocaso"]]
+  });
+  S(46, "Candel\xF3n", "fuego/espiritu", [78, 62, 82, 115, 95, 78], "V", {
+    cr: 45,
+    h: 1.6,
+    w: 12,
+    xp: 220,
+    g: "medio",
+    ab: ["corazon_volcan", "lamento_espiritual"],
+    hab: [],
+    egg: ["amorfo", "fantasia"],
+    bh: "sociable",
+    look: "float eye:wide ex:flame tail:long arm:fin pat:gems sz:1.0 hue:25",
+    desc: "Un candelabro vivo que alumbra los pasillos de las ruinas. Su llama no calienta: hiela."
+  });
+  S(47, "Cop\xEDn", "hielo", [40, 35, 35, 55, 50, 45], "C", {
+    cr: 220,
+    h: 0.3,
+    w: 1.5,
+    xp: 52,
+    g: "medio",
+    ab: ["alma_glaciar", "patinaje"],
+    hab: ["nieve"],
+    egg: ["amorfo"],
+    bh: "curioso",
+    look: "blob eye:big mouth:smile ex:snow sz:.58",
+    desc: "Un copo de nieve con vida propia. Se disuelve en tu mano, pero nunca del todo.",
+    evo: [[48, 20]]
+  });
+  S(48, "Nevisca", "hielo", [62, 50, 55, 80, 70, 65], "U", {
+    cr: 100,
+    h: 0.9,
+    w: 12,
+    xp: 120,
+    g: "medio",
+    ab: ["alma_glaciar", "patinaje"],
+    hab: ["nieve"],
+    egg: ["amorfo"],
+    bh: "curioso",
+    look: "float eye:big mouth:smile ex:snow tail:long sz:.82",
+    desc: "Danza en las tormentas de nieve. All\xED donde pasa, la escarcha florece en los cristales.",
+    evo: [[49, 0, "item:gema_escarcha"]]
+  });
+  S(49, "Ventisquero", "hielo/aire", [80, 65, 75, 110, 95, 90], "V", {
+    cr: 45,
+    h: 1.6,
+    w: 25,
+    xp: 210,
+    g: "medio",
+    ab: ["alma_glaciar", "patinaje"],
+    hab: [],
+    egg: ["amorfo"],
+    bh: "sociable",
+    look: "float wing:feather eye:wide ex:snow tail:long sz:1.0",
+    desc: "Un remolino de nieve con alas. Cuando agita su cola desciende la temperatura de toda la monta\xF1a."
+  });
+  S(50, "Polar\xEDn", "hielo", [55, 60, 55, 35, 40, 35], "C", {
+    cr: 200,
+    h: 0.6,
+    w: 30,
+    xp: 56,
+    g: "medio",
+    ab: ["pelaje_grueso", "alma_glaciar"],
+    hab: ["nieve"],
+    egg: ["campo"],
+    bh: "sociable",
+    look: "quad ear:round tail:tuft eye:big mouth:snout pat:belly sz:.68",
+    desc: "Un osezno que se desliza panza abajo por las laderas. Duerme abrazado a su hermano.",
+    evo: [[51, 32]]
+  });
+  S(51, "Polaron", "hielo/lucha", [90, 110, 85, 50, 70, 60], "U", {
+    cr: 60,
+    h: 2,
+    w: 240,
+    xp: 170,
+    g: "medio",
+    ab: ["pelaje_grueso", "fuerza_pura"],
+    hab: ["nieve"],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "bip ear:round arm:claw eye:angry mouth:fang pat:band sz:1.05",
+    desc: "Rompe el hielo con un pu\xF1etazo. Un solo rugido provoca avalanchas en las cumbres."
+  });
+  S(52, "Pu\xF1\xEDn", "lucha", [45, 60, 40, 30, 35, 45], "C", {
+    cr: 220,
+    h: 0.5,
+    w: 11,
+    xp: 50,
+    g: "medio",
+    ab: ["fuerza_pura", "robustez"],
+    hab: ["montana", "pradera"],
+    egg: ["monstruo"],
+    bh: "agresivo",
+    look: "bip arm:big eye:angry mouth:smile sz:.65",
+    desc: "Entrena golpeando troncos desde que sale el sol. A\xFAn no sabe encajar un golpe, pero nunca se rinde.",
+    evo: [[53, 22]]
+  });
+  S(53, "Pu\xF1et\xF3n", "lucha", [70, 90, 65, 45, 55, 60], "U", {
+    cr: 100,
+    h: 1.2,
+    w: 55,
+    xp: 120,
+    g: "medio",
+    ab: ["fuerza_pura", "impulso"],
+    hab: ["montana"],
+    egg: ["monstruo"],
+    bh: "agresivo",
+    look: "bip arm:big eye:angry mouth:fang pat:band sz:.85",
+    desc: "Tiene los nudillos como piedras. Busca rivales fuertes para medirse, no para vencerlos.",
+    evo: [[54, 36]]
+  });
+  S(54, "Titanox", "lucha", [90, 125, 90, 55, 70, 70], "R", {
+    cr: 45,
+    h: 2,
+    w: 130,
+    xp: 210,
+    g: "lento",
+    ab: ["fuerza_pura", "intimidar"],
+    hab: [],
+    egg: ["monstruo"],
+    bh: "terco",
+    look: "bip arm:big eye:angry mouth:fang pat:band ex:mane horn:small sz:1.05",
+    desc: "Un coloso de m\xFAsculos como cuerdas. Respeta a quien le planta cara, aunque pierda."
+  });
+  S(55, "Macaqu\xEDn", "lucha", [50, 55, 45, 45, 45, 70], "C", {
+    cr: 200,
+    h: 0.6,
+    w: 12,
+    xp: 54,
+    g: "medio",
+    ab: ["impulso", "ojo_critico"],
+    hab: ["bosque"],
+    egg: ["campo"],
+    bh: "curioso",
+    look: "bip ear:round tail:long eye:big mouth:smile pat:belly sz:.68",
+    desc: "Salta de rama en rama imitando todo lo que ve. Es capaz de copiar un golpe tras verlo una vez.",
+    evo: [[56, 28]]
+  });
+  S(56, "Macaquirr\xF3n", "lucha/planta", [76, 88, 72, 62, 68, 94], "U", {
+    cr: 60,
+    h: 1.4,
+    w: 50,
+    xp: 155,
+    g: "medio",
+    ab: ["impulso", "espesura"],
+    hab: ["bosque"],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "bip ear:round tail:leaf arm:big eye:angry mouth:fang pat:belly ex:vines sz:.95",
+    desc: "L\xEDder de su tropa. Combina golpes de artes marciales con trucos de la selva que nadie le ense\xF1\xF3."
+  });
+  S(57, "Serp\xEDn", "veneno", [40, 50, 45, 40, 40, 55], "C", {
+    cr: 230,
+    h: 0.8,
+    w: 3,
+    xp: 50,
+    g: "medio",
+    ab: ["puas_toxicas", "mente_clara"],
+    hab: ["pantano", "pradera"],
+    egg: ["campo", "dragon"],
+    bh: "timido",
+    look: "snake eye:slit mouth:fang sz:.62",
+    desc: "Mordisquea por defensa y sisea sin parar. Se camufla perfectamente entre la maleza h\xFAmeda.",
+    evo: [[58, 22]]
+  });
+  S(58, "V\xEDbora", "veneno", [60, 80, 65, 60, 60, 75], "U", {
+    cr: 100,
+    h: 1.8,
+    w: 18,
+    xp: 130,
+    g: "medio",
+    ab: ["puas_toxicas", "intimidar"],
+    hab: ["pantano"],
+    egg: ["campo", "dragon"],
+    bh: "agresivo",
+    look: "snake eye:slit mouth:fang horn:small pat:band sz:.82",
+    desc: "Hipnotiza a sus presas balanceando la cabeza. Su mordedura paraliza antes que envenena.",
+    evo: [[59, 38]]
+  });
+  S(59, "Basilisco", "veneno/dragon", [80, 105, 90, 80, 80, 85], "R", {
+    cr: 45,
+    h: 3.2,
+    w: 75,
+    xp: 215,
+    g: "medio",
+    ab: ["puas_toxicas", "aura_eclipse"],
+    hab: [],
+    egg: ["campo", "dragon"],
+    bh: "agresivo",
+    look: "snake eye:slit mouth:fang horn:big ex:crest pat:band sz:1.05",
+    desc: "Antiguas cr\xF3nicas lo describen como un drag\xF3n sin alas. Su mirada es tan hipn\xF3tica como su veneno."
+  });
+  S(60, "Mist\xEDn", "mental", [42, 35, 40, 60, 55, 60], "U", {
+    cr: 150,
+    h: 0.5,
+    w: 7,
+    xp: 62,
+    g: "medio",
+    ab: ["aura_sanadora", "ojo_compuesto"],
+    hab: ["pradera", "bosque"],
+    egg: ["campo", "fantasia"],
+    bh: "curioso",
+    look: "quad ear:point tail:fluff eye:big ex:gem pat:belly sz:.65",
+    desc: "Un zorrito con una gema en la frente. Si te mira fijamente, sientes que sabe lo que piensas.",
+    evo: [[61, 24]]
+  });
+  S(61, "Ilusor", "mental", [62, 50, 55, 85, 75, 80], "R", {
+    cr: 75,
+    h: 1.1,
+    w: 22,
+    xp: 140,
+    g: "medio",
+    ab: ["aura_sanadora", "ojo_compuesto"],
+    hab: ["bosque"],
+    egg: ["campo", "fantasia"],
+    bh: "curioso",
+    look: "quad ear:point tail:fluff eye:wide ex:gem pat:belly sz:.88",
+    desc: "Crea ilusiones de s\xED mismo para desorientar a los depredadores. Nadie sabe cu\xE1l de sus colas es la real.",
+    evo: [[62, 0, "item:gema_solar"]]
+  });
+  S(62, "Or\xE1culo", "mental/luz", [75, 58, 72, 118, 100, 92], "V", {
+    cr: 45,
+    h: 1.5,
+    w: 35,
+    xp: 218,
+    g: "medio",
+    ab: ["aura_luz", "aura_sanadora"],
+    hab: [],
+    egg: ["campo", "fantasia"],
+    bh: "sociable",
+    look: "quad ear:point tail:fluff eye:wide ex:halo pat:gems sz:1.0",
+    desc: "Se dice que predice el futuro con sus nueve colas de luz. Rara vez muestra su rostro a la gente."
+  });
+  S(63, "Lechuz", "mental/aire", [50, 40, 45, 60, 55, 50], "C", {
+    cr: 180,
+    h: 0.5,
+    w: 2.5,
+    xp: 58,
+    g: "medio",
+    ab: ["insomnio", "ojo_compuesto"],
+    hab: ["bosque"],
+    egg: ["volador"],
+    bh: "curioso",
+    tm: "n",
+    look: "bird wing:small ear:point eye:big mouth:beak pat:belly sz:.65",
+    desc: "Gira la cabeza casi del todo y no hace ruido al volar. Es la vigilante m\xE1s callada del bosque.",
+    evo: [[64, 34]]
+  });
+  S(64, "Sabiolo", "mental/aire", [78, 58, 72, 98, 92, 68], "U", {
+    cr: 60,
+    h: 1.3,
+    w: 34,
+    xp: 170,
+    g: "medio",
+    ab: ["insomnio", "ojo_compuesto"],
+    hab: ["bosque", "ruinas"],
+    egg: ["volador"],
+    bh: "sociable",
+    tm: "n",
+    look: "bird wing:big ear:point eye:wide mouth:beak pat:belly ex:crest sz:.92",
+    desc: "Un viejo b\xFAho que acumula historias. Los m\xE1s ancianos de los pueblos a\xFAn le piden consejo."
+  });
+  S(65, "So\xF1ol\xEDn", "mental", [70, 45, 45, 45, 60, 25], "C", {
+    cr: 190,
+    h: 0.8,
+    w: 45,
+    xp: 62,
+    g: "lento",
+    ab: ["insomnio", "aura_sanadora"],
+    hab: ["cueva", "pradera"],
+    egg: ["campo"],
+    bh: "dormilon",
+    look: "blob ear:round eye:sleepy mouth:smile pat:belly sz:.8",
+    desc: "Se pasa quince horas al d\xEDa dormido. Cuando sue\xF1a, sus sue\xF1os flotan sobre \xE9l como pompas.",
+    evo: [[66, 30, "time:noche"]]
+  });
+  S(66, "On\xEDrico", "mental/espiritu", [100, 60, 70, 95, 105, 40], "U", {
+    cr: 60,
+    h: 1.8,
+    w: 150,
+    xp: 175,
+    g: "lento",
+    ab: ["aura_sanadora", "lamento_espiritual"],
+    hab: [],
+    egg: ["campo"],
+    bh: "dormilon",
+    look: "blob ear:round eye:sleepy ex:cloud pat:belly arm:fin sz:1.05 hue:15",
+    desc: "Se alimenta de sue\xF1os ajenos. Si te encuentras con \xE9l, tendr\xE1s una noche extra\xF1a pero tranquila."
+  });
+  S(67, "Noctur\xEDn", "sombra", [40, 52, 40, 45, 40, 63], "C", {
+    cr: 200,
+    h: 0.4,
+    w: 5,
+    xp: 52,
+    g: "medio",
+    ab: ["aura_sombra", "ojo_compuesto"],
+    hab: ["bosque", "pradera"],
+    egg: ["campo"],
+    bh: "curioso",
+    tm: "n",
+    look: "quad ear:point tail:long eye:slit mouth:smile sz:.62",
+    desc: "Un gatito negro de ojos violeta. Solo sale al anochecer y desaparece si lo miras demasiado.",
+    evo: [[68, 28, "time:noche"]]
+  });
+  S(68, "Panter\xF3n", "sombra", [68, 98, 66, 70, 66, 100], "R", {
+    cr: 50,
+    h: 1.5,
+    w: 60,
+    xp: 178,
+    g: "medio",
+    ab: ["aura_sombra", "impulso"],
+    hab: ["bosque"],
+    egg: ["campo"],
+    bh: "agresivo",
+    tm: "n",
+    look: "quad ear:point tail:long eye:slit mouth:fang pat:band sz:1.0",
+    desc: "Una pantera hecha de sombra. Se lanza desde la oscuridad con una precisi\xF3n escalofriante."
+  });
+  S(69, "Cuerv\xEDn", "sombra/aire", [45, 55, 40, 45, 40, 60], "C", {
+    cr: 200,
+    h: 0.5,
+    w: 3.5,
+    xp: 54,
+    g: "medio",
+    ab: ["ojo_critico", "insomnio"],
+    hab: ["cueva", "nieve", "ruinas"],
+    egg: ["volador"],
+    bh: "curioso",
+    look: "bird wing:small eye:slit mouth:beak sz:.65 hue:-20",
+    desc: "Roba objetos brillantes y los esconde en grietas. Algunos exploradores recuperan as\xED tesoros perdidos.",
+    evo: [[70, 30, "time:noche"]]
+  });
+  S(70, "Corvux", "sombra/aire", [78, 95, 62, 70, 62, 88], "U", {
+    cr: 75,
+    h: 1.3,
+    w: 28,
+    xp: 160,
+    g: "medio",
+    ab: ["ojo_critico", "aura_sombra"],
+    hab: ["ruinas"],
+    egg: ["volador"],
+    bh: "agresivo",
+    tm: "n",
+    look: "bird wing:big tail:long eye:slit mouth:beak ex:crest sz:.95 hue:-20",
+    desc: "L\xEDder de bandadas de cuervos. Dicen que sabe d\xF3nde guarda cada ladr\xF3n su bot\xEDn."
+  });
+  S(71, "Hal\xEDn", "luz", [45, 35, 45, 60, 60, 50], "U", {
+    cr: 130,
+    h: 0.4,
+    w: 3,
+    xp: 62,
+    g: "medio",
+    ab: ["aura_luz", "aura_sanadora"],
+    hab: ["pradera", "montana"],
+    egg: ["fantasia", "volador"],
+    bh: "sociable",
+    look: "float wing:small ex:halo eye:big mouth:smile sz:.6",
+    desc: "Un angelito redondo que flota sobre los prados. Su halo es c\xE1lido al tacto.",
+    evo: [[72, 0, "friend"]]
+  });
+  S(72, "Aureolo", "luz", [65, 50, 65, 85, 85, 70], "R", {
+    cr: 75,
+    h: 0.9,
+    w: 8,
+    xp: 140,
+    g: "medio",
+    ab: ["aura_luz", "aura_sanadora"],
+    hab: [],
+    egg: ["fantasia", "volador"],
+    bh: "sociable",
+    look: "float wing:feather ex:halo eye:big arm:fin sz:.82",
+    desc: "Aparece cuando un entrenador cuida a su compa\xF1ero con cari\xF1o. Su aureola crece con la amistad.",
+    evo: [[73, 0, "item:gema_solar"]]
+  });
+  S(73, "Seraf\xEDn", "luz/aire", [82, 62, 78, 112, 100, 90], "V", {
+    cr: 40,
+    h: 1.7,
+    w: 30,
+    xp: 225,
+    g: "medio",
+    ab: ["aura_alba", "aura_sanadora"],
+    hab: [],
+    egg: ["fantasia", "volador"],
+    bh: "sociable",
+    look: "float wing:big ex:halo eye:wide arm:fin pat:gems sz:1.0",
+    desc: "Un mensajero del amanecer. Donde extiende sus seis alas, la lluvia amaina y brota el trigo."
+  });
+  S(74, "Cervatillo", "planta", [55, 48, 52, 50, 52, 55], "C", {
+    cr: 190,
+    h: 0.8,
+    w: 20,
+    xp: 58,
+    g: "medio",
+    ab: ["espesura", "aura_sanadora"],
+    hab: ["bosque", "pradera"],
+    egg: ["campo"],
+    bh: "timido",
+    look: "quad ear:leaf horn:small eye:big mouth:snout pat:spots sz:.7",
+    desc: "Un cervatillo moteado de hojas. Se queda quieto como una estatua para pasar desapercibido.",
+    evo: [[75, 28, "friend"]]
+  });
+  S(75, "Albaciervo", "planta/luz", [88, 82, 84, 76, 88, 78], "R", {
+    cr: 60,
+    h: 1.9,
+    w: 110,
+    xp: 180,
+    g: "medio",
+    ab: ["aura_luz", "espesura"],
+    hab: [],
+    egg: ["campo"],
+    bh: "sociable",
+    look: "quad ear:leaf horn:antler eye:wide mouth:snout pat:spots ex:halo sz:1.0",
+    desc: "Sus astas florecen con la primavera. Los habitantes del bosque lo consideran un protector."
+  });
+  S(76, "Tornill\xEDn", "metal", [40, 55, 70, 30, 35, 35], "C", {
+    cr: 220,
+    h: 0.3,
+    w: 12,
+    xp: 52,
+    g: "medio",
+    ab: ["piel_dura", "robustez"],
+    hab: ["cueva", "ruinas"],
+    egg: ["mineral"],
+    bh: "curioso",
+    look: "golem eye:big ex:gear sz:.58",
+    desc: "Un peque\xF1o aut\xF3mata de tuercas. Nadie recuerda qui\xE9n lo fabric\xF3, pero sigue funcionando.",
+    evo: [[77, 25, "place:cueva"]]
+  });
+  S(77, "Engran\xF3n", "metal", [60, 85, 95, 45, 55, 50], "U", {
+    cr: 100,
+    h: 1,
+    w: 85,
+    xp: 125,
+    g: "medio",
+    ab: ["piel_dura", "robustez"],
+    hab: ["cueva", "ruinas"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "golem arm:big eye:angry ex:gear pat:band sz:.82",
+    desc: "Sus engranajes giran al comp\xE1s de su respiraci\xF3n. Si tose, sale vapor.",
+    evo: [[78, 42]]
+  });
+  S(78, "Coloso F\xE9rreo", "metal/roca", [85, 120, 130, 50, 70, 45], "R", {
+    cr: 40,
+    h: 2.5,
+    w: 420,
+    xp: 222,
+    g: "lento",
+    ab: ["coraza_antigua", "robustez"],
+    hab: [],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "golem arm:big eye:angry ex:gear horn:small pat:band sz:1.06",
+    desc: "Una m\xE1quina viva forjada hace milenios. Aplasta rocas con un movimiento de brazo."
+  });
+  S(79, "Espad\xEDn", "metal/espiritu", [40, 55, 65, 35, 45, 45], "U", {
+    cr: 120,
+    h: 0.5,
+    w: 3,
+    xp: 62,
+    g: "medio",
+    ab: ["piel_dura", "lamento_espiritual"],
+    hab: ["ruinas"],
+    egg: ["mineral", "fantasia"],
+    bh: "curioso",
+    look: "float eye:wide ex:blade sz:.6",
+    desc: "Una espada vac\xEDa que se mueve sola. Se dice que guarda el esp\xEDritu de un caballero olvidado.",
+    evo: [[80, 30]]
+  });
+  S(80, "Hojad\xF3n", "metal/espiritu", [65, 100, 115, 50, 75, 65], "R", {
+    cr: 60,
+    h: 1.4,
+    w: 25,
+    xp: 175,
+    g: "medio",
+    ab: ["coraza_antigua", "lamento_espiritual"],
+    hab: [],
+    egg: ["mineral", "fantasia"],
+    bh: "terco",
+    look: "float arm:blade eye:wide ex:blade pat:band sz:1.0",
+    desc: "Un guerrero fantasma con un escudo y una espada que fueron de otra era. No ataca sin ser desafiado."
+  });
+  S(81, "Drac\xEDn", "dragon", [45, 64, 45, 50, 50, 50], "R", {
+    cr: 45,
+    h: 0.9,
+    w: 3.3,
+    xp: 60,
+    g: "lento",
+    ab: ["intimidar", "plaga"],
+    hab: ["montana"],
+    egg: ["dragon", "agua"],
+    bh: "curioso",
+    look: "snake eye:big mouth:smile horn:small ear:fin sz:.65",
+    desc: "Una peque\xF1a serpiente de aire que vive en cascadas de altura. Es esquiva y muy t\xEDmida.",
+    evo: [[82, 30]]
+  });
+  S(82, "Dragonar", "dragon", [65, 84, 65, 70, 70, 70], "R", {
+    cr: 45,
+    h: 2.1,
+    w: 16,
+    xp: 140,
+    g: "lento",
+    ab: ["intimidar", "nube_lluvia"],
+    hab: ["montana"],
+    egg: ["dragon", "agua"],
+    bh: "terco",
+    look: "drag wing:small eye:big horn:small tail:long sz:.9",
+    desc: "Un joven drag\xF3n que ya vuela. Sus alas diminutas lo sostienen gracias a su magia natural.",
+    evo: [[83, 50]]
+  });
+  S(83, "Drakonor", "dragon/aire", [91, 134, 95, 100, 100, 80], "E", {
+    cr: 25,
+    h: 2.2,
+    w: 210,
+    xp: 300,
+    g: "lento",
+    ab: ["intimidar", "robustez"],
+    hab: [],
+    egg: ["dragon"],
+    bh: "terco",
+    look: "drag wing:big horn:big eye:angry tail:long arm:claw pat:belly sz:1.05",
+    desc: "Un drag\xF3n majestuoso que cruza el oc\xE9ano en un d\xEDa. Rescata a n\xE1ufragos aunque no sea su costumbre."
+  });
+  S(84, "Cant\xEDn", "sonido/aire", [45, 40, 40, 60, 45, 60], "C", {
+    cr: 220,
+    h: 0.3,
+    w: 1.6,
+    xp: 53,
+    g: "medio",
+    ab: ["voz_potente", "ojo_critico"],
+    hab: ["pradera", "bosque", "montana"],
+    egg: ["volador"],
+    bh: "sociable",
+    look: "bird wing:small eye:big mouth:beak ex:notes sz:.6",
+    desc: "Un pajarito cantor. Cada macho tiene una melod\xEDa propia que ense\xF1a a sus cr\xEDas.",
+    evo: [[85, 26]]
+  });
+  S(85, "Cantor", "sonido/aire", [70, 55, 60, 100, 70, 95], "U", {
+    cr: 90,
+    h: 0.9,
+    w: 9,
+    xp: 140,
+    g: "medio",
+    ab: ["voz_potente", "ojo_critico"],
+    hab: ["bosque", "montana"],
+    egg: ["volador"],
+    bh: "sociable",
+    look: "bird wing:feather tail:long eye:big mouth:beak ex:notes pat:belly sz:.82",
+    desc: "Su canto cambia el clima de \xE1nimo del bosque entero. Los animales dejan de pelear cuando lo oyen."
+  });
+  S(86, "Campan\xEDn", "sonido", [50, 45, 60, 55, 50, 35], "C", {
+    cr: 200,
+    h: 0.4,
+    w: 6,
+    xp: 55,
+    g: "medio",
+    ab: ["voz_potente", "piel_dura"],
+    hab: ["ruinas", "montana", "cueva"],
+    egg: ["mineral"],
+    bh: "timido",
+    look: "bell eye:big mouth:smile c1:#c99a3c c2:#f2dc8a sz:.6",
+    desc: "Una campana peque\xF1a que suena con el viento. Los antiguos pueblos las colgaban en las puertas.",
+    evo: [[87, 32]]
+  });
+  S(87, "Campan\xF3n", "sonido/metal", [85, 65, 95, 90, 80, 45], "U", {
+    cr: 75,
+    h: 1.4,
+    w: 130,
+    xp: 160,
+    g: "medio",
+    ab: ["voz_potente", "coraza_antigua"],
+    hab: ["ruinas"],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "bell eye:angry arm:big pat:band c1:#c99a3c c2:#f2dc8a sz:1.0",
+    desc: "Su repique atraviesa las rocas. Los mineros lo oyen avisar cuando se acerca un derrumbe."
+  });
+  S(88, "Tambor\xEDn", "sonido", [55, 60, 50, 45, 45, 45], "C", {
+    cr: 200,
+    h: 0.5,
+    w: 8,
+    xp: 54,
+    g: "medio",
+    ab: ["voz_potente", "fuerza_pura"],
+    hab: ["bosque", "montana"],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "bip arm:big eye:big mouth:smile ex:drum sz:.65",
+    desc: "Lleva un tambor en la barriga y lo toca cuando est\xE1 contento. Es muy ruidoso, pero buena compa\xF1\xEDa.",
+    evo: [[89, 34]]
+  });
+  S(89, "Tronador", "sonido/lucha", [90, 98, 72, 66, 68, 58], "U", {
+    cr: 60,
+    h: 1.7,
+    w: 95,
+    xp: 165,
+    g: "medio",
+    ab: ["voz_potente", "intimidar"],
+    hab: ["montana"],
+    egg: ["campo"],
+    bh: "agresivo",
+    look: "bip arm:big eye:angry mouth:fang ex:drum pat:band sz:1.0",
+    desc: "Con cada golpe de tambor hace temblar el suelo. Su ritmo marca el comp\xE1s de las batallas."
+  });
+  S(90, "Brum\xEDn", "espiritu", [35, 30, 35, 55, 45, 50], "C", {
+    cr: 200,
+    h: 0.4,
+    w: 0.5,
+    xp: 52,
+    g: "medio",
+    ab: ["levitar", "lamento_espiritual"],
+    hab: ["pantano", "ruinas"],
+    egg: ["amorfo"],
+    bh: "timido",
+    tm: "n",
+    look: "float eye:big mouth:smile tail:long sz:.58",
+    desc: "Una brizna de niebla con ojos curiosos. Se queda en los rincones sin que lo vea nadie.",
+    evo: [[91, 22]]
+  });
+  S(91, "Nebl\xEDn", "espiritu", [55, 45, 50, 80, 65, 70], "U", {
+    cr: 100,
+    h: 1,
+    w: 1.2,
+    xp: 120,
+    g: "medio",
+    ab: ["levitar", "lamento_espiritual"],
+    hab: ["pantano", "ruinas"],
+    egg: ["amorfo"],
+    bh: "curioso",
+    tm: "n",
+    look: "float eye:wide mouth:fang arm:fin tail:long sz:.82",
+    desc: "Aparece en las noches de niebla gimiendo suavemente. Quien lo oye cree escuchar a un viejo conocido.",
+    evo: [[92, 38]]
+  });
+  S(92, "Aparecido", "espiritu", [70, 60, 70, 115, 90, 85], "R", {
+    cr: 45,
+    h: 1.6,
+    w: 2.5,
+    xp: 205,
+    g: "medio",
+    ab: ["levitar", "aura_sombra"],
+    hab: [],
+    egg: ["amorfo"],
+    bh: "agresivo",
+    look: "float eye:wide mouth:fang arm:fin tail:long ex:crown sz:1.0",
+    desc: "El esp\xEDritu de un antiguo se\xF1or del pantano. Observa los viajes desde lejos y a veces los gu\xEDa."
+  });
+  S(93, "Antifaz", "espiritu", [50, 55, 60, 50, 50, 45], "C", {
+    cr: 190,
+    h: 0.5,
+    w: 2,
+    xp: 58,
+    g: "medio",
+    ab: ["levitar", "insomnio"],
+    hab: ["ruinas", "cueva"],
+    egg: ["fantasia"],
+    bh: "curioso",
+    look: "float eye:wide ex:mask sz:.62",
+    desc: "Una m\xE1scara de piedra que flota en las ruinas. Cambia de expresi\xF3n seg\xFAn el humor del que la mira.",
+    evo: [[94, 0, "item:gema_ocaso"]]
+  });
+  S(94, "Mascar\xF3n", "espiritu/sombra", [78, 90, 90, 66, 78, 66], "R", {
+    cr: 60,
+    h: 1.4,
+    w: 22,
+    xp: 178,
+    g: "medio",
+    ab: ["levitar", "aura_sombra"],
+    hab: [],
+    egg: ["fantasia"],
+    bh: "agresivo",
+    look: "float eye:wide ex:mask arm:blade pat:band tail:long sz:1.0",
+    desc: "Una m\xE1scara ceremonial con capa de sombras. Los arque\xF3logos dicen que se vigilaba a s\xED misma."
+  });
+  S(95, "Ara\xF1\xEDn", "insecto", [40, 50, 45, 45, 40, 55], "C", {
+    cr: 220,
+    h: 0.3,
+    w: 3,
+    xp: 50,
+    g: "medio",
+    ab: ["plaga", "puas_toxicas"],
+    hab: ["bosque", "cueva"],
+    egg: ["bicho"],
+    bh: "timido",
+    look: "bug arm:claw eye:three mouth:fang pat:spots sz:.58",
+    desc: "Teje telara\xF1as tan finas que solo se ven al amanecer. Atrapa insectos y gotas de roc\xEDo.",
+    evo: [[96, 28]]
+  });
+  S(96, "Tejedora", "insecto/veneno", [70, 80, 70, 85, 70, 85], "U", {
+    cr: 75,
+    h: 1.4,
+    w: 38,
+    xp: 158,
+    g: "medio",
+    ab: ["plaga", "puas_toxicas"],
+    hab: ["bosque", "pantano"],
+    egg: ["bicho"],
+    bh: "agresivo",
+    look: "bug arm:blade eye:three mouth:fang pat:spots tail:spike sz:.95",
+    desc: "Su seda se usa para bordar trajes de gala. No es tan generosa si te acercas a su nido."
+  });
+  S(97, "Mant\xEDn", "insecto", [45, 60, 45, 40, 45, 65], "U", {
+    cr: 130,
+    h: 0.5,
+    w: 4,
+    xp: 60,
+    g: "medio",
+    ab: ["plaga", "ojo_critico"],
+    hab: ["bosque", "pradera"],
+    egg: ["bicho"],
+    bh: "agresivo",
+    look: "bug arm:blade eye:angry mouth:smile sz:.65",
+    desc: "Una peque\xF1a mantis que se camufla en las hojas. Sus guada\xF1as todav\xEDa est\xE1n afil\xE1ndose.",
+    evo: [[98, 33]]
+  });
+  S(98, "Guada\xF1\xF3n", "insecto/aire", [72, 105, 72, 50, 68, 98], "R", {
+    cr: 50,
+    h: 1.7,
+    w: 30,
+    xp: 178,
+    g: "medio",
+    ab: ["plaga", "ojo_critico"],
+    hab: ["bosque"],
+    egg: ["bicho"],
+    bh: "agresivo",
+    look: "bug wing:big arm:blade eye:angry mouth:fang sz:1.0",
+    desc: "Sus guada\xF1as cortan hojas de acero. Antes de atacar cierra los ojos para concentrarse."
+  });
+  S(99, "Escarab\xEDn", "insecto", [45, 55, 70, 30, 35, 30], "C", {
+    cr: 200,
+    h: 0.4,
+    w: 12,
+    xp: 52,
+    g: "medio",
+    ab: ["piel_dura", "plaga"],
+    hab: ["bosque", "cueva"],
+    egg: ["bicho"],
+    bh: "terco",
+    look: "bug horn:single eye:big sz:.62 hue:-30",
+    desc: "Rueda bolitas de tierra m\xE1s grandes que \xE9l. Su caparaz\xF3n brilla bajo la luz de la luna.",
+    evo: [[100, 34]]
+  });
+  S(100, "Titan\xE1baro", "insecto/roca", [80, 115, 125, 40, 65, 45], "R", {
+    cr: 45,
+    h: 1.8,
+    w: 240,
+    xp: 190,
+    g: "lento",
+    ab: ["piel_dura", "piel_petrea"],
+    hab: [],
+    egg: ["bicho"],
+    bh: "terco",
+    look: "bug horn:big arm:claw eye:angry pat:band sz:1.04 hue:-30",
+    desc: "Su cuerno parte troncos como si fueran ramitas. Es el campe\xF3n de los torneos de escarabajos de Roble."
+  });
+  S(101, "Armad\xEDn", "tierra", [45, 55, 75, 30, 35, 30], "C", {
+    cr: 200,
+    h: 0.5,
+    w: 14,
+    xp: 52,
+    g: "medio",
+    ab: ["piel_dura", "robustez"],
+    hab: ["desierto", "cueva", "pradera"],
+    egg: ["campo"],
+    bh: "timido",
+    look: "shell ear:round eye:big tail:tuft sz:.65 hue:15",
+    desc: "Se enrolla en una bola impenetrable si lo asustan. Rueda cuesta abajo para escapar.",
+    evo: [[102, 30]]
+  });
+  S(102, "Blindarr\xF3n", "tierra/metal", [75, 95, 125, 45, 65, 35], "U", {
+    cr: 60,
+    h: 1.5,
+    w: 130,
+    xp: 170,
+    g: "medio",
+    ab: ["piel_dura", "coraza_antigua"],
+    hab: ["desierto", "cueva"],
+    egg: ["campo", "mineral"],
+    bh: "terco",
+    look: "shell arm:claw eye:angry ex:spikes pat:band sz:1.0 hue:15",
+    desc: "Su armadura met\xE1lica resiste la lava y el hielo. Es un tanque vivo que apenas se mueve."
+  });
+  S(103, "Fosil\xEDn", "roca", [45, 60, 80, 55, 50, 25], "R", {
+    cr: 70,
+    h: 0.7,
+    w: 9,
+    xp: 88,
+    g: "medio",
+    ab: ["robustez", "piel_petrea"],
+    hab: ["cueva", "ruinas"],
+    egg: ["mineral", "agua"],
+    bh: "timido",
+    look: "shell eye:big ex:spiral pat:spots sz:.7 hue:40",
+    desc: "Un f\xF3sil que cobr\xF3 vida al tocar el agua. A\xFAn recuerda el mar antiguo y huye de la tierra seca.",
+    evo: [[104, 36]]
+  });
+  S(104, "Amonit\xF3n", "roca/planta", [78, 86, 110, 95, 68, 48], "V", {
+    cr: 40,
+    h: 1.6,
+    w: 90,
+    xp: 195,
+    g: "medio",
+    ab: ["piel_petrea", "espesura"],
+    hab: [],
+    egg: ["mineral", "agua"],
+    bh: "terco",
+    look: "shell eye:angry ex:spiral tail:leaf arm:claw pat:band sz:1.0 hue:40",
+    desc: "Una criatura prehist\xF3rica con zarcillos de hojas. Las algas crecen en su caparaz\xF3n enroscado."
+  });
+  S(105, "Bateruela", "electrico/metal", [45, 40, 60, 60, 50, 35], "U", {
+    cr: 150,
+    h: 0.4,
+    w: 7,
+    xp: 62,
+    g: "medio",
+    ab: ["pararrayos", "robustez"],
+    hab: ["cueva", "ruinas"],
+    egg: ["mineral"],
+    bh: "curioso",
+    look: "golem eye:big mouth:smile ex:sparks arm:fin sz:.62",
+    desc: "Una pila viviente. Guarda energ\xEDa para a\xF1os y se la ofrece a quien le cae bien.",
+    evo: [[106, 33]]
+  });
+  S(106, "Dinam\xF3n", "electrico/metal", [80, 65, 95, 105, 85, 50], "R", {
+    cr: 60,
+    h: 1.5,
+    w: 110,
+    xp: 190,
+    g: "medio",
+    ab: ["pararrayos", "piel_dura"],
+    hab: [],
+    egg: ["mineral"],
+    bh: "terco",
+    look: "golem arm:big eye:angry ex:sparks horn:small pat:band sz:1.0",
+    desc: "Un generador con patas. Su zumbido tranquiliza a los t\xE9cnicos de las centrales el\xE9ctricas."
+  });
+  S(107, "Lucecita", "insecto/electrico", [40, 35, 40, 60, 45, 55], "C", {
+    cr: 200,
+    h: 0.3,
+    w: 0.8,
+    xp: 52,
+    g: "medio",
+    ab: ["chispa_viva", "plaga"],
+    hab: ["bosque", "pantano"],
+    egg: ["bicho"],
+    bh: "curioso",
+    tm: "n",
+    look: "bug wing:small ex:glowtail eye:big mouth:smile sz:.58",
+    desc: "Una luci\xE9rnaga que parpadea en c\xF3digo. Se comunica con las dem\xE1s con destellos de colores.",
+    evo: [[108, 26]]
+  });
+  S(108, "Fulgor", "insecto/electrico", [70, 60, 65, 105, 80, 90], "U", {
+    cr: 75,
+    h: 1.1,
+    w: 12,
+    xp: 150,
+    g: "medio",
+    ab: ["chispa_viva", "plaga"],
+    hab: ["bosque", "pantano"],
+    egg: ["bicho"],
+    bh: "sociable",
+    tm: "n",
+    look: "bug wing:moth ex:glowtail eye:big pat:spots sz:.9",
+    desc: "Ilumina enjambres de noche como una constelaci\xF3n en movimiento. Su luz hipnotiza."
+  });
+  S(109, "Flor\xEDn", "planta", [45, 40, 50, 65, 60, 40], "C", {
+    cr: 190,
+    h: 0.4,
+    w: 3,
+    xp: 56,
+    g: "medio",
+    ab: ["espesura", "aura_sanadora"],
+    hab: ["pradera", "bosque"],
+    egg: ["planta"],
+    bh: "sociable",
+    look: "plant eye:big mouth:smile ex:flowerhead sz:.6 hue:70",
+    desc: "Una florecilla que sigue al sol dando saltitos. Su perfume calma a quien lo huele.",
+    evo: [[110, 0, "item:gema_solar"]]
+  });
+  S(110, "Floralia", "planta/luz", [78, 58, 78, 108, 98, 58], "R", {
+    cr: 45,
+    h: 1.3,
+    w: 14,
+    xp: 195,
+    g: "medio",
+    ab: ["aura_luz", "aura_sanadora"],
+    hab: [],
+    egg: ["planta", "fantasia"],
+    bh: "sociable",
+    look: "plant eye:wide mouth:smile ex:flowerhead arm:fin ear:leaf pat:gems sz:.95 hue:70",
+    desc: "Su corola irradia luz propia. Dicen que florece solo ante personas de buen coraz\xF3n."
+  });
+  S(111, "Anguil\xEDn", "agua", [45, 45, 40, 55, 40, 60], "C", {
+    cr: 190,
+    h: 0.7,
+    w: 4,
+    xp: 55,
+    g: "medio",
+    ab: ["nado_veloz", "pararrayos"],
+    hab: ["lago", "pantano", "mar"],
+    egg: ["agua"],
+    bh: "timido",
+    look: "snake eye:big mouth:smile tail:fin sz:.62 hue:-40",
+    desc: "Una peque\xF1a anguila que lanza chispitas al ser sorprendida. Prefiere el agua dulce y fresca.",
+    evo: [[112, 34]]
+  });
+  S(112, "Voltanguila", "agua/electrico", [82, 85, 68, 98, 68, 82], "R", {
+    cr: 60,
+    h: 2.4,
+    w: 55,
+    xp: 180,
+    g: "medio",
+    ab: ["pararrayos", "nado_veloz"],
+    hab: ["lago", "mar"],
+    egg: ["agua"],
+    bh: "agresivo",
+    look: "snake eye:angry mouth:fang tail:fin ex:sparks pat:band sz:1.0 hue:-40",
+    desc: "Una anguila gigante que ilumina la profundidad con descargas. Los pescadores la temen y la respetan."
+  });
+  S(113, "Tempestra", "aire/electrico", [90, 90, 85, 125, 90, 110], "L", {
+    cr: 15,
+    h: 2.4,
+    w: 68,
+    xp: 330,
+    g: "lento",
+    ab: ["tormenta_viva", "pararrayos"],
+    hab: ["isla"],
+    egg: ["sin"],
+    bh: "agresivo",
+    look: "bird wing:big tail:bolt eye:angry mouth:beak ex:sparks crest pat:band sz:1.08",
+    lore: "Guardiana de las tormentas. Cuando bate sus alas, el cielo se parte en rayos. Su nido est\xE1 en lo m\xE1s alto de la Isla Tormenta.",
+    desc: "La Guardiana de las Tormentas. Cada vez que bate sus alas, el cielo de Aurelia se llena de truenos."
+  });
+  S(114, "Magmaron", "fuego/tierra", [100, 125, 100, 100, 85, 70], "L", {
+    cr: 15,
+    h: 3.6,
+    w: 620,
+    xp: 330,
+    g: "lento",
+    ab: ["corazon_volcan", "robustez"],
+    hab: ["volcan"],
+    egg: ["sin"],
+    bh: "terco",
+    look: "quad horn:big arm:claw eye:angry mouth:fang ex:flame pat:spots sz:1.08",
+    desc: "El Guardi\xE1n del Cr\xE1ter. Duerme dentro del volc\xE1n y sus sue\xF1os provocan temblores y fumarolas."
+  });
+  S(115, "Glaciaris", "hielo/agua", [95, 85, 115, 125, 105, 60], "L", {
+    cr: 15,
+    h: 3,
+    w: 310,
+    xp: 330,
+    g: "lento",
+    ab: ["alma_glaciar", "marea_viva"],
+    hab: ["nieve"],
+    egg: ["sin"],
+    bh: "terco",
+    look: "drag wing:feather horn:antler tail:long eye:wide ex:crystal pat:belly sz:1.08",
+    desc: "El Guardi\xE1n del Hielo Eterno. Cada paso suyo cubre de escarcha el sendero que pisa."
+  });
+  S(116, "Arkanion", "metal/espiritu", [90, 110, 130, 80, 115, 55], "L", {
+    cr: 15,
+    h: 3.8,
+    w: 850,
+    xp: 330,
+    g: "lento",
+    ab: ["coraza_antigua", "lamento_espiritual"],
+    hab: ["ruinas"],
+    egg: ["sin"],
+    bh: "terco",
+    look: "golem arm:big horn:crown eye:wide ex:gems pat:band sz:1.1",
+    desc: "El Centinela de las Ruinas. Hecho de metal y de recuerdos, vigila el sello desde antes de que Aurelia tuviera nombre."
+  });
+  S(117, "Aurelion", "luz/dragon", [105, 100, 100, 130, 110, 95], "L", {
+    cr: 10,
+    h: 4,
+    w: 380,
+    xp: 350,
+    g: "lento",
+    ab: ["aura_alba", "aura_luz"],
+    hab: ["final"],
+    egg: ["sin"],
+    bh: "sociable",
+    look: "drag wing:big horn:crown tail:long eye:wide ex:halo pat:gems sz:1.12",
+    desc: "El Drag\xF3n del Alba. Se dice que cada amanecer es su primer aliento. Sin \xE9l, el d\xEDa no llegar\xEDa a Aurelia."
+  });
+  S(118, "Umbraxis", "sombra/dragon", [105, 130, 100, 110, 100, 95], "L", {
+    cr: 10,
+    h: 4.2,
+    w: 410,
+    xp: 350,
+    g: "lento",
+    ab: ["aura_eclipse", "intimidar"],
+    hab: ["final"],
+    egg: ["sin"],
+    bh: "agresivo",
+    look: "drag wing:bat horn:big tail:spike eye:angry mouth:fang ex:crystal pat:band sz:1.12",
+    desc: "El Drag\xF3n del Ocaso, gemelo de Aurelion. Su hambre de oscuridad es solo el reflejo del miedo de quienes lo despertaron."
+  });
+  S(119, "Lunaria", "mental/espiritu", [95, 70, 95, 120, 125, 95], "L", {
+    cr: 12,
+    h: 2,
+    w: 90,
+    xp: 320,
+    g: "lento",
+    ab: ["lamento_espiritual", "aura_sanadora"],
+    hab: ["ruinas"],
+    egg: ["sin"],
+    bh: "timido",
+    tm: "n",
+    look: "float wing:feather tail:long eye:wide ex:halo arm:fin pat:gems sz:1.05 c1:#a9bcf0 c2:#f0f4ff c3:#ffe58a c4:#7f8fe0",
+    desc: "La Dama de la Luna. Solo aparece en noches claras sobre las ruinas, y desaparece si siente que la persiguen."
+  });
+  S(120, "Eterna", "planta/espiritu", [110, 80, 105, 95, 115, 95], "M", {
+    cr: 8,
+    h: 1.6,
+    w: 35,
+    xp: 340,
+    g: "lento",
+    ab: ["aura_sanadora", "espesura"],
+    hab: [],
+    egg: ["sin"],
+    bh: "timido",
+    look: "plant ear:leaf eye:wide mouth:smile ex:flowerhead arm:fin pat:gems wing:leaf sz:1.0 c1:#78dca4 c2:#eafff0 c3:#ff9ad0 c4:#4fb88a",
+    desc: "La Semilla Eterna. Brota una vez cada mil a\xF1os en un rinc\xF3n secreto. Quien la cuida recibe su bendici\xF3n."
+  });
+  S(121, "Quimera", "sonido/mental", [90, 110, 85, 125, 90, 100], "M", {
+    cr: 8,
+    h: 1.9,
+    w: 120,
+    xp: 340,
+    g: "lento",
+    ab: ["voz_potente", "mente_clara"],
+    hab: [],
+    egg: ["sin"],
+    bh: "curioso",
+    look: "float wing:moth horn:antler eye:three mouth:fang ex:notes pat:gems tail:long sz:.9",
+    desc: "Un ser cambiante que adopta la forma de lo que oye. Solo se manifiesta ante quien completa el desaf\xEDo del Eco."
+  });
 
   // src/data/moves.js
   var MOVES = {};
@@ -1669,7 +3442,7 @@
     (MOVES_BY_TYPE[type] || (MOVES_BY_TYPE[type] = [])).push(m);
     return m;
   }
-  var S = (who, stat, n, p = 100) => [who, stat, n, p];
+  var S2 = (who, stat, n, p = 100) => [who, stat, n, p];
   M("ascua", "Ascua", "fuego", "esp", 40, 100, 25, { st: ["quemado", 10] }, 0, "Una peque\xF1a lluvia de brasas.");
   M("aliento_igneo", "Aliento \xCDgneo", "fuego", "esp", 60, 100, 20, { st: ["quemado", 10] }, 0, "Exhala un aire abrasador.");
   M("colmillo_brasa", "Colmillo Brasa", "fuego", "fis", 65, 95, 15, { st: ["quemado", 10], flinch: 10 }, 0, "Muerde con colmillos al rojo vivo.");
@@ -1677,29 +3450,29 @@
   M("puno_magma", "Pu\xF1o Magma", "fuego", "fis", 85, 90, 10, { st: ["quemado", 20] }, 0, "Un golpe de roca fundida.");
   M("ola_calor", "Ola de Calor", "fuego", "esp", 90, 90, 10, { st: ["quemado", 10] }, 0, "Una ola de aire ardiente.");
   M("torbellino_igneo", "Torbellino \xCDgneo", "fuego", "esp", 110, 85, 5, { st: ["quemado", 30] }, 0, "Un remolino de fuego devastador.");
-  M("nova_ardiente", "Nova Ardiente", "fuego", "esp", 120, 90, 5, { stat: [S("self", "spa", -2)] }, 0, "Libera toda su energ\xEDa; baja su Ataque Esp.");
-  M("danza_llama", "Danza de Llamas", "fuego", "est", 0, 0, 20, { stat: [S("self", "atk", 1), S("self", "spa", 1)] }, 0, "Sube Ataque y Ataque Esp.");
+  M("nova_ardiente", "Nova Ardiente", "fuego", "esp", 120, 90, 5, { stat: [S2("self", "spa", -2)] }, 0, "Libera toda su energ\xEDa; baja su Ataque Esp.");
+  M("danza_llama", "Danza de Llamas", "fuego", "est", 0, 0, 20, { stat: [S2("self", "atk", 1), S2("self", "spa", 1)] }, 0, "Sube Ataque y Ataque Esp.");
   M("sol_abrasador", "Sol Abrasador", "fuego", "est", 0, 0, 5, { weather: "soleado" }, 0, "Intensifica el sol durante 5 turnos.");
   M("chorro_menor", "Chorro Menor", "agua", "esp", 40, 100, 25, {}, 0, "Un chorro de agua a presi\xF3n.");
-  M("burbujeo", "Burbujeo", "agua", "esp", 45, 100, 25, { stat: [S("foe", "spe", -1, 10)] }, 0, "Burbujas que pueden frenar al rival.");
-  M("remolino_marino", "Remolino Marino", "agua", "esp", 60, 90, 15, { stat: [S("foe", "spe", -1, 100)] }, 0, "Atrapa al rival en una corriente.");
+  M("burbujeo", "Burbujeo", "agua", "esp", 45, 100, 25, { stat: [S2("foe", "spe", -1, 10)] }, 0, "Burbujas que pueden frenar al rival.");
+  M("remolino_marino", "Remolino Marino", "agua", "esp", 60, 90, 15, { stat: [S2("foe", "spe", -1, 100)] }, 0, "Atrapa al rival en una corriente.");
   M("cascada", "Cascada", "agua", "fis", 80, 100, 15, { flinch: 20 }, 0, "Se abalanza como una catarata.");
   M("cola_acuatica", "Cola Acu\xE1tica", "agua", "fis", 90, 90, 10, {}, 0, "Azota con una cola empapada.");
   M("torrente", "Torrente", "agua", "esp", 90, 100, 15, {}, 0, "Un torrente irresistible.");
   M("ola_marina", "Ola Marina", "agua", "esp", 95, 100, 10, {}, 0, "Invoca una gran ola.");
   M("hidrocanon", "Hidroca\xF1\xF3n", "agua", "esp", 110, 80, 5, {}, 0, "Disparo de agua descomunal.");
   M("danza_lluvia", "Danza de Lluvia", "agua", "est", 0, 0, 5, { weather: "lluvia" }, 0, "Hace llover durante 5 turnos.");
-  M("coraza_acuosa", "Coraza Acuosa", "agua", "est", 0, 0, 20, { stat: [S("self", "def", 1), S("self", "spd", 1)] }, 0, "Sube Defensa y Defensa Esp.");
+  M("coraza_acuosa", "Coraza Acuosa", "agua", "est", 0, 0, 20, { stat: [S2("self", "def", 1), S2("self", "spd", 1)] }, 0, "Sube Defensa y Defensa Esp.");
   M("latigo_cepa", "L\xE1tigo Cepa", "planta", "fis", 45, 100, 25, {}, 0, "Azota con lianas.");
   M("hoja_afilada", "Hoja Afilada", "planta", "fis", 55, 95, 25, { crit: 1 }, 0, "Hojas cortantes; golpe cr\xEDtico frecuente.");
-  M("zarzas", "Zarzas", "planta", "fis", 70, 100, 15, { stat: [S("foe", "spe", -1, 20)] }, 0, "Zarzas que enredan al rival.");
+  M("zarzas", "Zarzas", "planta", "fis", 70, 100, 15, { stat: [S2("foe", "spe", -1, 20)] }, 0, "Zarzas que enredan al rival.");
   M("drenaje", "Drenaje", "planta", "esp", 75, 100, 10, { drain: 0.5 }, 0, "Absorbe la mitad del da\xF1o como salud.");
   M("bomba_semillas", "Bomba de Semillas", "planta", "fis", 80, 100, 15, {}, 0, "Lanza semillas explosivas.");
   M("tormenta_petalos", "Tormenta de P\xE9talos", "planta", "esp", 100, 95, 10, {}, 0, "Un hurac\xE1n de p\xE9talos.");
   M("rayo_clorofila", "Rayo de Clorofila", "planta", "esp", 120, 100, 5, { charge: true }, 0, "Carga un turno y dispara (sin carga con sol).");
   M("esporas_sueno", "Esporas Sue\xF1o", "planta", "est", 0, 75, 15, { st: ["dormido", 100] }, 0, "Duerme al rival.");
   M("semilla_parasita", "Semilla Par\xE1sita", "planta", "est", 0, 90, 10, { leech: true }, 0, "Drena PS del rival cada turno.");
-  M("brote_vital", "Brote Vital", "planta", "est", 0, 0, 20, { stat: [S("self", "atk", 1), S("self", "spa", 1)] }, 0, "Sube Ataque y Ataque Esp.");
+  M("brote_vital", "Brote Vital", "planta", "est", 0, 0, 20, { stat: [S2("self", "atk", 1), S2("self", "spa", 1)] }, 0, "Sube Ataque y Ataque Esp.");
   M("fotosintesis", "Fotos\xEDntesis", "planta", "est", 0, 0, 10, { heal: 0.5 }, 0, "Recupera PS (m\xE1s con sol, menos con lluvia).");
   M("chispa", "Chispa", "electrico", "esp", 40, 100, 30, { st: ["paralizado", 10] }, 0, "Una descarga leve.");
   M("descarga", "Descarga", "electrico", "esp", 55, 100, 20, { st: ["paralizado", 20] }, 0, "Una descarga que puede paralizar.");
@@ -1709,68 +3482,68 @@
   M("voltio_cruzado", "Voltio Cruzado", "electrico", "fis", 100, 100, 5, { recoil: 0.25 }, 0, "Se lanza como un rayo; sufre retroceso.");
   M("trueno_fuerte", "Trueno Fuerte", "electrico", "esp", 110, 70, 10, { st: ["paralizado", 30] }, 0, "Un trueno imprevisible.");
   M("onda_electrica", "Onda El\xE9ctrica", "electrico", "est", 0, 90, 20, { st: ["paralizado", 100] }, 0, "Paraliza al rival.");
-  M("carga_voltio", "Carga Voltio", "electrico", "est", 0, 0, 20, { stat: [S("self", "spa", 1), S("self", "spd", 1)] }, 0, "Sube Ataque Esp y Defensa Esp.");
-  M("barro_rapido", "Barro R\xE1pido", "tierra", "esp", 40, 100, 25, { stat: [S("foe", "acc", -1, 100)] }, 0, "Barro a los ojos: baja la precisi\xF3n.");
+  M("carga_voltio", "Carga Voltio", "electrico", "est", 0, 0, 20, { stat: [S2("self", "spa", 1), S2("self", "spd", 1)] }, 0, "Sube Ataque Esp y Defensa Esp.");
+  M("barro_rapido", "Barro R\xE1pido", "tierra", "esp", 40, 100, 25, { stat: [S2("foe", "acc", -1, 100)] }, 0, "Barro a los ojos: baja la precisi\xF3n.");
   M("zarpazo_tierra", "Zarpazo Tierra", "tierra", "fis", 60, 100, 20, {}, 0, "Una garra cargada de tierra.");
-  M("temblor", "Temblor", "tierra", "fis", 60, 100, 20, { stat: [S("foe", "spe", -1, 100)] }, 0, "Sacude el suelo y frena al rival.");
+  M("temblor", "Temblor", "tierra", "fis", 60, 100, 20, { stat: [S2("foe", "spe", -1, 100)] }, 0, "Sacude el suelo y frena al rival.");
   M("lluvia_huesos", "Lluvia de Huesos", "tierra", "fis", 25, 90, 10, { multi: [2, 5] }, 0, "Golpea de 2 a 5 veces.");
   M("derrumbe_barro", "Derrumbe de Barro", "tierra", "esp", 90, 100, 10, {}, 0, "Una avalancha de lodo.");
   M("sismo", "Sismo", "tierra", "fis", 100, 100, 10, {}, 0, "Un terremoto devastador.");
   M("aplastamiento", "Aplastamiento", "tierra", "fis", 120, 80, 5, { recoil: 0.25 }, 0, "Se deja caer con todo su peso.");
   M("tormenta_arena", "Tormenta de Arena", "tierra", "est", 0, 0, 10, { weather: "arena" }, 0, "Levanta una tormenta de arena 5 turnos.");
-  M("ataque_arena", "Ataque Arena", "tierra", "est", 0, 100, 15, { stat: [S("foe", "acc", -1, 100)] }, 0, "Baja la precisi\xF3n del rival.");
+  M("ataque_arena", "Ataque Arena", "tierra", "est", 0, 100, 15, { stat: [S2("foe", "acc", -1, 100)] }, 0, "Baja la precisi\xF3n del rival.");
   M("piedra_lanzada", "Piedra Lanzada", "roca", "fis", 50, 90, 20, {}, 0, "Arroja una roca.");
-  M("pulverizar", "Pulverizar", "roca", "fis", 65, 100, 15, { stat: [S("foe", "def", -1, 50)] }, 0, "Machaca la defensa rival.");
-  M("poder_gema", "Poder Gema", "roca", "esp", 80, 100, 20, { stat: [S("self", "spa", 1, 10)] }, 0, "Energ\xEDa de gemas antiguas.");
+  M("pulverizar", "Pulverizar", "roca", "fis", 65, 100, 15, { stat: [S2("foe", "def", -1, 50)] }, 0, "Machaca la defensa rival.");
+  M("poder_gema", "Poder Gema", "roca", "esp", 80, 100, 20, { stat: [S2("self", "spa", 1, 10)] }, 0, "Energ\xEDa de gemas antiguas.");
   M("avalancha", "Avalancha", "roca", "fis", 75, 90, 10, { flinch: 30 }, 0, "Lluvia de rocas que puede amedrentar.");
   M("derrumbe_mayor", "Derrumbe Mayor", "roca", "fis", 90, 85, 10, {}, 0, "Un alud de piedras.");
   M("roca_afilada", "Roca Afilada", "roca", "fis", 100, 80, 5, { crit: 1 }, 0, "Una roca cortante; cr\xEDtico frecuente.");
-  M("muro_piedra", "Muro de Piedra", "roca", "est", 0, 0, 15, { stat: [S("self", "def", 2)] }, 0, "Sube mucho la Defensa.");
-  M("coraza_roca", "Coraza Roca", "roca", "est", 0, 0, 20, { stat: [S("self", "def", 1), S("self", "spd", 1)] }, 0, "Sube Defensa y Defensa Esp.");
+  M("muro_piedra", "Muro de Piedra", "roca", "est", 0, 0, 15, { stat: [S2("self", "def", 2)] }, 0, "Sube mucho la Defensa.");
+  M("coraza_roca", "Coraza Roca", "roca", "est", 0, 0, 20, { stat: [S2("self", "def", 1), S2("self", "spd", 1)] }, 0, "Sube Defensa y Defensa Esp.");
   M("picotazo", "Picotazo", "aire", "fis", 35, 100, 35, {}, 0, "Un picotazo r\xE1pido.");
   M("rafaga", "R\xE1faga", "aire", "esp", 40, 100, 25, {}, 0, "Una r\xE1faga de viento.");
   M("ala_cortante", "Ala Cortante", "aire", "fis", 60, 100, 35, {}, 0, "Golpea con las alas.");
   M("aire_cortante", "Aire Cortante", "aire", "esp", 75, 95, 15, { crit: 1 }, 0, "Cuchillas de viento; cr\xEDtico frecuente.");
   M("pico_taladro", "Pico Taladro", "aire", "fis", 80, 100, 20, { crit: 1 }, 0, "Un pico giratorio.");
-  M("vendaval", "Vendaval", "aire", "esp", 90, 90, 10, { stat: [S("foe", "spe", -1, 10)] }, 0, "Un vendaval furioso.");
+  M("vendaval", "Vendaval", "aire", "esp", 90, 90, 10, { stat: [S2("foe", "spe", -1, 10)] }, 0, "Un vendaval furioso.");
   M("cae_halcon", "Cae Halc\xF3n", "aire", "fis", 100, 95, 10, { recoil: 0.25 }, 0, "Se precipita en picado; sufre retroceso.");
   M("embate_celeste", "Embate Celeste", "aire", "fis", 120, 90, 5, { recharge: true }, 0, "Golpe brutal; descansa el turno siguiente.");
-  M("pluma_veloz", "Pluma Veloz", "aire", "est", 0, 0, 20, { stat: [S("self", "spe", 2)] }, 0, "Sube mucho la Velocidad.");
-  M("rafaga_cegadora", "R\xE1faga Cegadora", "aire", "est", 0, 100, 15, { stat: [S("foe", "acc", -1, 100)] }, 0, "Baja la precisi\xF3n del rival.");
+  M("pluma_veloz", "Pluma Veloz", "aire", "est", 0, 0, 20, { stat: [S2("self", "spe", 2)] }, 0, "Sube mucho la Velocidad.");
+  M("rafaga_cegadora", "R\xE1faga Cegadora", "aire", "est", 0, 100, 15, { stat: [S2("foe", "acc", -1, 100)] }, 0, "Baja la precisi\xF3n del rival.");
   M("aliento_helado", "Aliento Helado", "hielo", "esp", 40, 100, 25, { st: ["congelado", 10] }, 0, "Un soplo g\xE9lido.");
-  M("copos_cortantes", "Copos Cortantes", "hielo", "esp", 55, 95, 20, { stat: [S("foe", "spe", -1, 10)] }, 0, "Copos afilados como cuchillas.");
+  M("copos_cortantes", "Copos Cortantes", "hielo", "esp", 55, 95, 20, { stat: [S2("foe", "spe", -1, 10)] }, 0, "Copos afilados como cuchillas.");
   M("carambano", "Car\xE1mbano", "hielo", "fis", 25, 95, 15, { multi: [2, 5] }, 0, "Lanza de 2 a 5 car\xE1mbanos.");
   M("colmillo_hielo", "Colmillo Hielo", "hielo", "fis", 65, 95, 15, { st: ["congelado", 10], flinch: 10 }, 0, "Muerde con colmillos helados.");
   M("puno_hielo", "Pu\xF1o Hielo", "hielo", "fis", 75, 100, 15, { st: ["congelado", 10] }, 0, "Un pu\xF1etazo helado.");
   M("rayo_hielo", "Rayo Hielo", "hielo", "esp", 90, 100, 10, { st: ["congelado", 10] }, 0, "Un rayo de hielo.");
   M("ventisca", "Ventisca", "hielo", "esp", 110, 70, 5, { st: ["congelado", 10] }, 0, "Ventisca (precisi\xF3n perfecta con granizo).");
   M("granizo", "Granizo", "hielo", "est", 0, 0, 10, { weather: "granizo" }, 0, "Provoca granizo durante 5 turnos.");
-  M("piel_cristal", "Piel de Cristal", "hielo", "est", 0, 0, 15, { stat: [S("self", "def", 2)] }, 0, "Endurece la piel con hielo.");
+  M("piel_cristal", "Piel de Cristal", "hielo", "est", 0, 0, 15, { stat: [S2("self", "def", 2)] }, 0, "Endurece la piel con hielo.");
   M("golpe_corto", "Golpe Corto", "lucha", "fis", 40, 100, 30, {}, 1, "Siempre golpea primero.");
   M("karate_tajo", "Karate-Tajo", "lucha", "fis", 50, 100, 25, { crit: 1 }, 0, "Un tajo con cr\xEDtico frecuente.");
-  M("barrido", "Barrido", "lucha", "fis", 60, 100, 20, { stat: [S("foe", "def", -1, 20)] }, 0, "Un barrido que debilita.");
+  M("barrido", "Barrido", "lucha", "fis", 60, 100, 20, { stat: [S2("foe", "def", -1, 20)] }, 0, "Un barrido que debilita.");
   M("rafaga_punos", "R\xE1faga de Pu\xF1os", "lucha", "fis", 25, 90, 15, { multi: [2, 5] }, 0, "De 2 a 5 pu\xF1etazos.");
   M("golpe_certero", "Golpe Certero", "lucha", "fis", 80, 100, 15, {}, 0, "Un golpe limpio y fuerte.");
   M("puno_titan", "Pu\xF1o Tit\xE1n", "lucha", "fis", 100, 60, 5, { confuse: 100 }, 0, "Muy potente; deja confuso al rival.");
-  M("fuerza_bruta", "Fuerza Bruta", "lucha", "fis", 120, 100, 5, { stat: [S("self", "def", -1), S("self", "spd", -1)] }, 0, "Potencia bruta; baja sus defensas.");
-  M("respiracion_zen", "Respiraci\xF3n Zen", "lucha", "est", 0, 0, 20, { stat: [S("self", "atk", 1), S("self", "def", 1)] }, 0, "Sube Ataque y Defensa.");
-  M("contragolpe", "Contragolpe", "lucha", "fis", 70, 100, 15, { stat: [S("self", "spe", 1, 30)] }, 0, "Un golpe que puede acelerarlo.");
+  M("fuerza_bruta", "Fuerza Bruta", "lucha", "fis", 120, 100, 5, { stat: [S2("self", "def", -1), S2("self", "spd", -1)] }, 0, "Potencia bruta; baja sus defensas.");
+  M("respiracion_zen", "Respiraci\xF3n Zen", "lucha", "est", 0, 0, 20, { stat: [S2("self", "atk", 1), S2("self", "def", 1)] }, 0, "Sube Ataque y Defensa.");
+  M("contragolpe", "Contragolpe", "lucha", "fis", 70, 100, 15, { stat: [S2("self", "spe", 1, 30)] }, 0, "Un golpe que puede acelerarlo.");
   M("picadura_toxica", "Picadura T\xF3xica", "veneno", "fis", 35, 100, 35, { st: ["envenenado", 30] }, 0, "Un aguij\xF3n envenenado.");
-  M("acido", "\xC1cido", "veneno", "esp", 40, 100, 30, { stat: [S("foe", "spd", -1, 10)] }, 0, "Un \xE1cido corrosivo.");
+  M("acido", "\xC1cido", "veneno", "esp", 40, 100, 30, { stat: [S2("foe", "spd", -1, 10)] }, 0, "Un \xE1cido corrosivo.");
   M("colmillo_veneno", "Colmillo Veneno", "veneno", "fis", 50, 100, 15, { st: ["envenenado", 50] }, 0, "Colmillos venenosos.");
   M("residuos", "Residuos", "veneno", "fis", 65, 100, 20, { st: ["envenenado", 30] }, 0, "Lanza desechos t\xF3xicos.");
   M("bomba_lodo", "Bomba de Lodo", "veneno", "esp", 90, 100, 10, { st: ["envenenado", 30] }, 0, "Lodo venenoso.");
   M("canon_residual", "Ca\xF1\xF3n Residual", "veneno", "fis", 120, 80, 5, { st: ["envenenado", 30] }, 0, "Un disparo de residuos.");
   M("niebla_toxica", "Niebla T\xF3xica", "veneno", "est", 0, 90, 15, { st: ["envenenado", 100] }, 0, "Envenena al rival.");
-  M("corrosion", "Corrosi\xF3n", "veneno", "est", 0, 100, 20, { stat: [S("foe", "def", -2)] }, 0, "Baja mucho la Defensa del rival.");
+  M("corrosion", "Corrosi\xF3n", "veneno", "est", 0, 100, 20, { stat: [S2("foe", "def", -2)] }, 0, "Baja mucho la Defensa del rival.");
   M("confusion", "Confusi\xF3n", "mental", "esp", 50, 100, 25, { confuse: 10 }, 0, "Una onda mental.");
   M("psicorrayo", "Psicorrayo", "mental", "esp", 65, 100, 20, { confuse: 10 }, 0, "Un rayo extra\xF1o.");
   M("cabezazo_zen", "Cabezazo Zen", "mental", "fis", 80, 90, 15, { flinch: 20 }, 0, "Un cabezazo concentrado.");
-  M("impacto_mental", "Impacto Mental", "mental", "esp", 80, 100, 15, { stat: [S("foe", "spd", -1, 10)] }, 0, "Un impacto ps\xEDquico.");
-  M("psiquico_fuerte", "Ps\xEDquico Fuerte", "mental", "esp", 90, 100, 10, { stat: [S("foe", "spd", -1, 10)] }, 0, "Poder mental en estado puro.");
+  M("impacto_mental", "Impacto Mental", "mental", "esp", 80, 100, 15, { stat: [S2("foe", "spd", -1, 10)] }, 0, "Un impacto ps\xEDquico.");
+  M("psiquico_fuerte", "Ps\xEDquico Fuerte", "mental", "esp", 90, 100, 10, { stat: [S2("foe", "spd", -1, 10)] }, 0, "Poder mental en estado puro.");
   M("telequinesis", "Telequinesis", "mental", "esp", 100, 90, 5, {}, 0, "Lanza al rival con la mente.");
   M("hipnosis", "Hipnosis", "mental", "est", 0, 60, 20, { st: ["dormido", 100] }, 0, "Duerme al rival.");
-  M("meditacion", "Meditaci\xF3n", "mental", "est", 0, 0, 20, { stat: [S("self", "spa", 1), S("self", "spd", 1)] }, 0, "Sube Ataque Esp y Defensa Esp.");
+  M("meditacion", "Meditaci\xF3n", "mental", "est", 0, 0, 20, { stat: [S2("self", "spa", 1), S2("self", "spd", 1)] }, 0, "Sube Ataque Esp y Defensa Esp.");
   M("reflejo", "Reflejo", "mental", "est", 0, 0, 20, { barrier: "fis" }, 0, "Reduce el da\xF1o f\xEDsico 5 turnos.");
   M("muro_psiquico", "Muro Ps\xEDquico", "mental", "est", 0, 0, 20, { barrier: "esp" }, 0, "Reduce el da\xF1o especial 5 turnos.");
   M("sanacion_mental", "Sanaci\xF3n Mental", "mental", "est", 0, 0, 10, { heal: 0.5 }, 0, "Recupera la mitad de los PS.");
@@ -1782,72 +3555,72 @@
   M("pulso_umbrio", "Pulso Umbr\xEDo", "sombra", "esp", 80, 100, 15, { flinch: 20 }, 0, "Un pulso de oscuridad.");
   M("golpe_traicionero", "Golpe Traicionero", "sombra", "fis", 85, 100, 10, {}, 0, "Un golpe a traici\xF3n.");
   M("abismo", "Abismo", "sombra", "esp", 110, 85, 5, {}, 0, "Abre un abismo bajo el rival.");
-  M("mal_de_ojo", "Mal de Ojo", "sombra", "est", 0, 100, 15, { stat: [S("foe", "atk", -1), S("foe", "spa", -1)] }, 0, "Baja Ataque y Ataque Esp del rival.");
-  M("noche_cerrada", "Noche Cerrada", "sombra", "est", 0, 100, 15, { stat: [S("foe", "acc", -2)] }, 0, "Oscurece el campo: baja mucho la precisi\xF3n.");
-  M("destello", "Destello", "luz", "esp", 40, 100, 30, { stat: [S("foe", "acc", -1, 10)] }, 0, "Un destello cegador.");
+  M("mal_de_ojo", "Mal de Ojo", "sombra", "est", 0, 100, 15, { stat: [S2("foe", "atk", -1), S2("foe", "spa", -1)] }, 0, "Baja Ataque y Ataque Esp del rival.");
+  M("noche_cerrada", "Noche Cerrada", "sombra", "est", 0, 100, 15, { stat: [S2("foe", "acc", -2)] }, 0, "Oscurece el campo: baja mucho la precisi\xF3n.");
+  M("destello", "Destello", "luz", "esp", 40, 100, 30, { stat: [S2("foe", "acc", -1, 10)] }, 0, "Un destello cegador.");
   M("rayo_luz", "Rayo de Luz", "luz", "esp", 65, 100, 20, {}, 0, "Un rayo luminoso.");
   M("halo_purificador", "Halo Purificador", "luz", "esp", 65, 100, 15, { cure: true }, 0, "Da\xF1a y cura su propio estado.");
   M("lanza_solar", "Lanza Solar", "luz", "fis", 85, 100, 10, {}, 0, "Una lanza de luz s\xF3lida.");
-  M("resplandor", "Resplandor", "luz", "esp", 90, 100, 10, { stat: [S("foe", "spd", -1, 10)] }, 0, "Luz que quema las defensas.");
+  M("resplandor", "Resplandor", "luz", "esp", 90, 100, 10, { stat: [S2("foe", "spd", -1, 10)] }, 0, "Luz que quema las defensas.");
   M("rayo_prisma", "Rayo Prisma", "luz", "esp", 110, 85, 5, {}, 0, "Luz concentrada en un prisma.");
   M("luz_curativa", "Luz Curativa", "luz", "est", 0, 0, 10, { heal: 0.5 }, 0, "Recupera la mitad de los PS.");
   M("velo_luz", "Velo de Luz", "luz", "est", 0, 0, 15, { barrier: "ambos" }, 0, "Reduce todo el da\xF1o durante 5 turnos.");
-  M("mirada_cegadora", "Mirada Cegadora", "luz", "est", 0, 100, 15, { stat: [S("foe", "acc", -2)] }, 0, "Baja mucho la precisi\xF3n.");
+  M("mirada_cegadora", "Mirada Cegadora", "luz", "est", 0, 100, 15, { stat: [S2("foe", "acc", -2)] }, 0, "Baja mucho la precisi\xF3n.");
   M("aura_protectora", "Aura Protectora", "luz", "est", 0, 0, 10, { protect: true }, 4, "Evita todo da\xF1o este turno.");
-  M("garra_metal", "Garra Metal", "metal", "fis", 50, 95, 35, { stat: [S("self", "atk", 1, 10)] }, 0, "Garras de acero.");
+  M("garra_metal", "Garra Metal", "metal", "fis", 50, 95, 35, { stat: [S2("self", "atk", 1, 10)] }, 0, "Garras de acero.");
   M("golpe_acero", "Golpe Acero", "metal", "fis", 70, 90, 25, {}, 0, "Un golpe de acero.");
   M("cabezazo_hierro", "Cabezazo Hierro", "metal", "fis", 80, 100, 15, { flinch: 30 }, 0, "Cabeza de hierro.");
-  M("canon_plata", "Ca\xF1\xF3n Plata", "metal", "esp", 80, 100, 10, { stat: [S("foe", "spd", -1, 10)] }, 0, "Un ca\xF1\xF3n de plata.");
+  M("canon_plata", "Ca\xF1\xF3n Plata", "metal", "esp", 80, 100, 10, { stat: [S2("foe", "spd", -1, 10)] }, 0, "Un ca\xF1\xF3n de plata.");
   M("bomba_hierro", "Bomba de Hierro", "metal", "fis", 90, 85, 10, {}, 0, "Una bola de acero pesada.");
   M("meteoro_acero", "Meteoro Acero", "metal", "fis", 100, 95, 5, {}, 0, "Cae como un meteoro met\xE1lico.");
-  M("coraza_ferrea", "Coraza F\xE9rrea", "metal", "est", 0, 0, 15, { stat: [S("self", "def", 2)] }, 0, "Sube mucho la Defensa.");
-  M("pulido", "Pulido", "metal", "est", 0, 0, 20, { stat: [S("self", "spe", 2)] }, 0, "Sube mucho la Velocidad.");
+  M("coraza_ferrea", "Coraza F\xE9rrea", "metal", "est", 0, 0, 15, { stat: [S2("self", "def", 2)] }, 0, "Sube mucho la Defensa.");
+  M("pulido", "Pulido", "metal", "est", 0, 0, 20, { stat: [S2("self", "spe", 2)] }, 0, "Sube mucho la Velocidad.");
   M("picadura", "Picadura", "insecto", "fis", 40, 100, 30, {}, 0, "Una picadura.");
-  M("zumbido", "Zumbido", "insecto", "esp", 60, 100, 20, { stat: [S("foe", "spd", -1, 10)] }, 0, "Un zumbido molesto.");
+  M("zumbido", "Zumbido", "insecto", "esp", 60, 100, 20, { stat: [S2("foe", "spd", -1, 10)] }, 0, "Un zumbido molesto.");
   M("alas_cortantes", "Alas Cortantes", "insecto", "fis", 70, 95, 15, { crit: 1 }, 0, "Alas afiladas.");
   M("tijera_doble", "Tijera Doble", "insecto", "fis", 80, 100, 15, {}, 0, "Dos tijeretazos.");
   M("chupa_vida", "Chupa Vida", "insecto", "fis", 80, 100, 10, { drain: 0.5 }, 0, "Absorbe la mitad del da\xF1o.");
-  M("rafaga_insecto", "R\xE1faga Insecto", "insecto", "esp", 90, 100, 10, { stat: [S("foe", "spa", -1, 10)] }, 0, "Una nube de insectos.");
-  M("hilo_pegajoso", "Hilo Pegajoso", "insecto", "est", 0, 95, 40, { stat: [S("foe", "spe", -2)] }, 0, "Baja mucho la Velocidad.");
-  M("enjambre", "Enjambre", "insecto", "est", 0, 0, 20, { stat: [S("self", "atk", 1), S("self", "spe", 1)] }, 0, "Sube Ataque y Velocidad.");
+  M("rafaga_insecto", "R\xE1faga Insecto", "insecto", "esp", 90, 100, 10, { stat: [S2("foe", "spa", -1, 10)] }, 0, "Una nube de insectos.");
+  M("hilo_pegajoso", "Hilo Pegajoso", "insecto", "est", 0, 95, 40, { stat: [S2("foe", "spe", -2)] }, 0, "Baja mucho la Velocidad.");
+  M("enjambre", "Enjambre", "insecto", "est", 0, 0, 20, { stat: [S2("self", "atk", 1), S2("self", "spe", 1)] }, 0, "Sube Ataque y Velocidad.");
   M("aliento_dragon", "Aliento Drag\xF3n", "dragon", "esp", 60, 100, 20, { st: ["paralizado", 30] }, 0, "Un aliento ancestral.");
   M("cola_dragon", "Cola Drag\xF3n", "dragon", "fis", 60, 90, 10, {}, 0, "Azota con la cola.");
   M("garra_dragon", "Garra Drag\xF3n", "dragon", "fis", 80, 100, 15, {}, 0, "Garras de drag\xF3n.");
   M("pulso_dragon", "Pulso Drag\xF3n", "dragon", "esp", 85, 100, 10, {}, 0, "Una onda drac\xF3nica.");
-  M("colera_draconica", "C\xF3lera Drac\xF3nica", "dragon", "fis", 120, 100, 5, { stat: [S("self", "atk", -1)] }, 0, "Furia brutal; baja su Ataque.");
-  M("rugido_ancestral", "Rugido Ancestral", "dragon", "esp", 110, 85, 5, { stat: [S("self", "spa", -1)] }, 0, "Un rugido atronador.");
-  M("meteoro_dragon", "Meteoro Drag\xF3n", "dragon", "esp", 130, 90, 5, { stat: [S("self", "spa", -2)] }, 0, "Poder extremo; baja mucho su Atq. Esp.");
-  M("danza_dragon", "Danza Drag\xF3n", "dragon", "est", 0, 0, 20, { stat: [S("self", "atk", 1), S("self", "spe", 1)] }, 0, "Sube Ataque y Velocidad.");
+  M("colera_draconica", "C\xF3lera Drac\xF3nica", "dragon", "fis", 120, 100, 5, { stat: [S2("self", "atk", -1)] }, 0, "Furia brutal; baja su Ataque.");
+  M("rugido_ancestral", "Rugido Ancestral", "dragon", "esp", 110, 85, 5, { stat: [S2("self", "spa", -1)] }, 0, "Un rugido atronador.");
+  M("meteoro_dragon", "Meteoro Drag\xF3n", "dragon", "esp", 130, 90, 5, { stat: [S2("self", "spa", -2)] }, 0, "Poder extremo; baja mucho su Atq. Esp.");
+  M("danza_dragon", "Danza Drag\xF3n", "dragon", "est", 0, 0, 20, { stat: [S2("self", "atk", 1), S2("self", "spe", 1)] }, 0, "Sube Ataque y Velocidad.");
   M("eco", "Eco", "sonido", "esp", 40, 100, 25, {}, 0, "Un eco que retumba.");
   M("onda_sonica", "Onda S\xF3nica", "sonido", "esp", 55, 100, 20, {}, 0, "Ondas de sonido.");
   M("retumbo", "Retumbo", "sonido", "fis", 80, 100, 15, { flinch: 20 }, 0, "Un golpe sonoro.");
-  M("voz_cristal", "Voz de Cristal", "sonido", "esp", 80, 100, 15, { stat: [S("foe", "spd", -1, 20)] }, 0, "Un agudo que quiebra defensas.");
+  M("voz_cristal", "Voz de Cristal", "sonido", "esp", 80, 100, 15, { stat: [S2("foe", "spd", -1, 20)] }, 0, "Un agudo que quiebra defensas.");
   M("alboroto", "Alboroto", "sonido", "esp", 90, 100, 10, { flinch: 20 }, 0, "Un estruendo aturdidor.");
   M("estruendo", "Estruendo", "sonido", "esp", 110, 85, 5, {}, 0, "Un estruendo ensordecedor.");
-  M("alarido", "Alarido", "sonido", "est", 0, 85, 40, { stat: [S("foe", "def", -2)] }, 0, "Baja mucho la Defensa.");
+  M("alarido", "Alarido", "sonido", "est", 0, 85, 40, { stat: [S2("foe", "def", -2)] }, 0, "Baja mucho la Defensa.");
   M("cancion_cuna", "Canci\xF3n de Cuna", "sonido", "est", 0, 60, 15, { st: ["dormido", 100] }, 0, "Duerme al rival.");
-  M("melodia_calmante", "Melod\xEDa Calmante", "sonido", "est", 0, 100, 20, { stat: [S("foe", "atk", -1), S("foe", "spa", -1)] }, 0, "Baja Ataque y Ataque Esp del rival.");
-  M("himno_valeroso", "Himno Valeroso", "sonido", "est", 0, 0, 20, { stat: [S("self", "atk", 1), S("self", "spa", 1)] }, 0, "Sube Ataque y Ataque Esp.");
+  M("melodia_calmante", "Melod\xEDa Calmante", "sonido", "est", 0, 100, 20, { stat: [S2("foe", "atk", -1), S2("foe", "spa", -1)] }, 0, "Baja Ataque y Ataque Esp del rival.");
+  M("himno_valeroso", "Himno Valeroso", "sonido", "est", 0, 0, 20, { stat: [S2("self", "atk", 1), S2("self", "spa", 1)] }, 0, "Sube Ataque y Ataque Esp.");
   M("lenguetazo", "Leng\xFCetazo", "espiritu", "fis", 30, 100, 30, { st: ["paralizado", 30] }, 0, "Un leng\xFCetazo helado.");
   M("toque_fantasma", "Toque Fantasma", "espiritu", "fis", 40, 100, 30, {}, 1, "Siempre golpea primero.");
   M("aullido_espectral", "Aullido Espectral", "espiritu", "esp", 65, 100, 20, {}, 0, "Un aullido de ultratumba.");
-  M("bola_espectral", "Bola Espectral", "espiritu", "esp", 80, 100, 15, { stat: [S("foe", "spd", -1, 20)] }, 0, "Una esfera fantasmal.");
+  M("bola_espectral", "Bola Espectral", "espiritu", "esp", 80, 100, 15, { stat: [S2("foe", "spd", -1, 20)] }, 0, "Una esfera fantasmal.");
   M("posesion", "Posesi\xF3n", "espiritu", "fis", 90, 100, 10, {}, 0, "Se apodera por un instante del rival.");
-  M("niebla_espectral", "Niebla Espectral", "espiritu", "esp", 100, 90, 5, { stat: [S("foe", "spa", -1, 30)] }, 0, "Una niebla que apaga las fuerzas.");
+  M("niebla_espectral", "Niebla Espectral", "espiritu", "esp", 100, 90, 5, { stat: [S2("foe", "spa", -1, 30)] }, 0, "Una niebla que apaga las fuerzas.");
   M("fuego_fatuo", "Fuego Fatuo", "espiritu", "est", 0, 85, 15, { st: ["quemado", 100] }, 0, "Quema al rival con llamas azules.");
-  M("susurro_gelido", "Susurro G\xE9lido", "espiritu", "est", 0, 100, 20, { stat: [S("foe", "spa", -1), S("foe", "spd", -1)] }, 0, "Baja Atq. Esp. y Def. Esp. del rival.");
+  M("susurro_gelido", "Susurro G\xE9lido", "espiritu", "est", 0, 100, 20, { stat: [S2("foe", "spa", -1), S2("foe", "spd", -1)] }, 0, "Baja Atq. Esp. y Def. Esp. del rival.");
   M("reposo_astral", "Reposo Astral", "espiritu", "est", 0, 0, 10, { heal: 0.5 }, 0, "Recupera la mitad de los PS.");
-  M("lluvia_estelar", "Lluvia Estelar", "luz", "esp", 100, 100, 10, { stat: [S("foe", "spd", -1, 30)] }, 0, "Estrellas caen sobre el rival.");
-  M("juicio_alba", "Juicio del Alba", "luz", "esp", 130, 90, 5, { stat: [S("self", "spa", -1)] }, 0, "El poder del primer amanecer.");
-  M("eclipse_total", "Eclipse Total", "sombra", "esp", 130, 90, 5, { stat: [S("self", "spa", -1)] }, 0, "Apaga el sol y la esperanza.");
+  M("lluvia_estelar", "Lluvia Estelar", "luz", "esp", 100, 100, 10, { stat: [S2("foe", "spd", -1, 30)] }, 0, "Estrellas caen sobre el rival.");
+  M("juicio_alba", "Juicio del Alba", "luz", "esp", 130, 90, 5, { stat: [S2("self", "spa", -1)] }, 0, "El poder del primer amanecer.");
+  M("eclipse_total", "Eclipse Total", "sombra", "esp", 130, 90, 5, { stat: [S2("self", "spa", -1)] }, 0, "Apaga el sol y la esperanza.");
   M("tormenta_primordial", "Tormenta Primordial", "electrico", "esp", 120, 85, 5, { st: ["paralizado", 30] }, 0, "Una tormenta ancestral.");
   M("erupcion_ancestral", "Erupci\xF3n Ancestral", "fuego", "esp", 120, 90, 5, { st: ["quemado", 30] }, 0, "Despierta el volc\xE1n.");
   M("glaciar_eterno", "Glaciar Eterno", "hielo", "esp", 120, 90, 5, { st: ["congelado", 20] }, 0, "Hielo de eras pasadas.");
-  M("colosal_golpe", "Golpe Colosal", "metal", "fis", 120, 90, 5, { stat: [S("self", "spe", -1)] }, 0, "Un pu\xF1etazo de monta\xF1a.");
-  M("lamento_eterno", "Lamento Eterno", "espiritu", "esp", 110, 95, 5, { stat: [S("foe", "spd", -1, 50)] }, 0, "El lamento de eras olvidadas.");
-  M("sinfonia_final", "Sinfon\xEDa Final", "sonido", "esp", 130, 90, 5, { stat: [S("self", "spa", -1)] }, 0, "La melod\xEDa que cierra el mundo.");
+  M("colosal_golpe", "Golpe Colosal", "metal", "fis", 120, 90, 5, { stat: [S2("self", "spe", -1)] }, 0, "Un pu\xF1etazo de monta\xF1a.");
+  M("lamento_eterno", "Lamento Eterno", "espiritu", "esp", 110, 95, 5, { stat: [S2("foe", "spd", -1, 50)] }, 0, "El lamento de eras olvidadas.");
+  M("sinfonia_final", "Sinfon\xEDa Final", "sonido", "esp", 130, 90, 5, { stat: [S2("self", "spa", -1)] }, 0, "La melod\xEDa que cierra el mundo.");
   M("vida_primigenia", "Vida Primigenia", "planta", "esp", 100, 100, 5, { drain: 0.5 }, 0, "La esencia de todas las plantas.");
-  M("forma_quimerica", "Forma Quim\xE9rica", "mental", "est", 0, 0, 5, { stat: [S("self", "atk", 1), S("self", "def", 1), S("self", "spa", 1), S("self", "spd", 1), S("self", "spe", 1)] }, 0, "Sube todas sus estad\xEDsticas.");
+  M("forma_quimerica", "Forma Quim\xE9rica", "mental", "est", 0, 0, 5, { stat: [S2("self", "atk", 1), S2("self", "def", 1), S2("self", "spa", 1), S2("self", "spd", 1), S2("self", "spe", 1)] }, 0, "Sube todas sus estad\xEDsticas.");
   M("escudo_vital", "Escudo Vital", "luz", "est", 0, 0, 10, { shield: 0.3 }, 0, "Crea un escudo con el 30% de sus PS m\xE1ximos.");
   M("escudo_hielo", "Escudo de Hielo", "hielo", "est", 0, 0, 10, { shield: 0.25 }, 0, "Crea un escudo con el 25% de sus PS m\xE1ximos.");
   M("escudo_roca", "Escudo de Roca", "roca", "est", 0, 0, 10, { shield: 0.25 }, 0, "Crea un escudo con el 25% de sus PS m\xE1ximos.");
@@ -1876,1931 +3649,6 @@
     const p = m.pow;
     return p < 50 ? 0 : p < 70 ? 1 : p < 90 ? 2 : p < 110 ? 3 : 4;
   }
-
-  // src/data/items.js
-  var ITEMS = {};
-  var POCKETS = {
-    medicina: "Medicinas",
-    capturas: "C\xE1psulas",
-    evolucion: "Evoluci\xF3n",
-    discos: "Discos T\xE9cnicos",
-    exploracion: "Exploraci\xF3n",
-    mision: "Misi\xF3n",
-    tesoros: "Tesoros",
-    viaje: "Viaje"
-  };
-  var POCKET_ORDER = ["medicina", "capturas", "evolucion", "discos", "exploracion", "viaje", "mision", "tesoros"];
-  function I(id, name, pocket, price, desc, fx = {}, o = {}) {
-    ITEMS[id] = { id, name, pocket, price, desc, fx, use: o.use || "field", sell: o.sell ?? (price > 0 && pocket !== "mision" && pocket !== "exploracion" && !fx.key), ...o };
-  }
-  I("pocion", "Poci\xF3n", "medicina", 200, "Restaura 20 PS.", { heal: 20 }, { use: "both" });
-  I("super_pocion", "S\xFAper Poci\xF3n", "medicina", 600, "Restaura 60 PS.", { heal: 60 }, { use: "both" });
-  I("hiper_pocion", "Hiper Poci\xF3n", "medicina", 1400, "Restaura 120 PS.", { heal: 120 }, { use: "both" });
-  I("pocion_maxima", "Poci\xF3n M\xE1xima", "medicina", 2600, "Restaura todos los PS.", { healFull: true }, { use: "both" });
-  I("cura_total", "Cura Total", "medicina", 1800, "Restaura todos los PS y cura cualquier estado.", { healFull: true, cure: "all" }, { use: "both" });
-  I("antidoto", "Ant\xEDdoto", "medicina", 100, "Cura el envenenamiento.", { cure: "envenenado" }, { use: "both" });
-  I("antiquemar", "Antiquemar", "medicina", 150, "Cura las quemaduras.", { cure: "quemado" }, { use: "both" });
-  I("antiparalizador", "Antiparalizador", "medicina", 150, "Cura la par\xE1lisis.", { cure: "paralizado" }, { use: "both" });
-  I("despertar", "Despertar", "medicina", 150, "Despierta a una criatura dormida.", { cure: "dormido" }, { use: "both" });
-  I("antihielo", "Antihielo", "medicina", 150, "Descongela a una criatura.", { cure: "congelado" }, { use: "both" });
-  I("cura_estados", "Cura Estados", "medicina", 300, "Cura cualquier estado alterado.", { cure: "all" }, { use: "both" });
-  I("revivir", "Revivir", "medicina", 1500, "Revive a una criatura con la mitad de sus PS.", { revive: 0.5 }, { use: "both" });
-  I("revivir_max", "Revivir M\xE1x.", "medicina", 3500, "Revive con todos los PS.", { revive: 1 }, { use: "both" });
-  I("eter", "\xC9ter", "medicina", 1200, "Restaura 10 PP de un movimiento.", { pp: 10 }, { use: "field" });
-  I("eter_max", "\xC9ter M\xE1x.", "medicina", 2500, "Restaura todos los PP de un movimiento.", { pp: 99 }, { use: "field" });
-  I("elixir", "Elixir", "medicina", 3e3, "Restaura 10 PP de todos los movimientos.", { ppAll: 10 }, { use: "field" });
-  I("caramelo_exp_s", "Caramelo Exp. S", "medicina", 300, "Otorga 100 puntos de experiencia.", { xp: 100 }, { use: "field" });
-  I("caramelo_exp_m", "Caramelo Exp. M", "medicina", 1500, "Otorga 800 puntos de experiencia.", { xp: 800 }, { use: "field" });
-  I("caramelo_exp_l", "Caramelo Exp. L", "medicina", 5e3, "Otorga 3000 puntos de experiencia.", { xp: 3e3 }, { use: "field" });
-  I("caramelo_raro", "Caramelo Raro", "medicina", 0, "Sube 1 nivel (respeta el l\xEDmite de nivel por medallas).", { lvUp: 1 }, { use: "field", sell: false });
-  I("proteina", "Prote\xEDna", "medicina", 4e3, "Entrena el Ataque (+10 esfuerzo).", { ev: { stat: "atk", n: 10 } }, { use: "field" });
-  I("hierro", "Hierro", "medicina", 4e3, "Entrena la Defensa (+10 esfuerzo).", { ev: { stat: "def", n: 10 } }, { use: "field" });
-  I("calcio", "Calcio", "medicina", 4e3, "Entrena el Ataque Esp. (+10 esfuerzo).", { ev: { stat: "spa", n: 10 } }, { use: "field" });
-  I("zinc", "Zinc", "medicina", 4e3, "Entrena la Defensa Esp. (+10 esfuerzo).", { ev: { stat: "spd", n: 10 } }, { use: "field" });
-  I("carbono", "Carbono", "medicina", 4e3, "Entrena la Velocidad (+10 esfuerzo).", { ev: { stat: "spe", n: 10 } }, { use: "field" });
-  I("vigor", "Vigor", "medicina", 4e3, "Entrena los PS (+10 esfuerzo).", { ev: { stat: "hp", n: 10 } }, { use: "field" });
-  I("baya_amistad", "Baya Amistad", "medicina", 500, "Aumenta la amistad de una criatura.", { friend: 12 }, { use: "field" });
-  I("capsula", "C\xE1psula", "capturas", 200, "Dispositivo b\xE1sico de captura.", { ball: { mult: 1 } }, { use: "battle" });
-  I("super_capsula", "S\xFAper C\xE1psula", "capturas", 600, "Mejor que la c\xE1psula b\xE1sica (x1,5).", { ball: { mult: 1.5 } }, { use: "battle" });
-  I("ultra_capsula", "Ultra C\xE1psula", "capturas", 1200, "Alto rendimiento (x2).", { ball: { mult: 2 } }, { use: "battle" });
-  I("capsula_red", "C\xE1psula Red", "capturas", 1e3, "x3,5 contra criaturas de Agua e Insecto.", { ball: { mult: 1, cond: "red" } }, { use: "battle" });
-  I("capsula_noche", "C\xE1psula Noche", "capturas", 1e3, "x3 de noche o en cuevas.", { ball: { mult: 1, cond: "noche" } }, { use: "battle" });
-  I("capsula_veloz", "C\xE1psula Veloz", "capturas", 1e3, "x4 si se lanza en el primer turno.", { ball: { mult: 1, cond: "veloz" } }, { use: "battle" });
-  I("capsula_atlas", "C\xE1psula Atlas", "capturas", 1e3, "x3,5 contra especies que a\xFAn no tienes registradas.", { ball: { mult: 1, cond: "atlas" } }, { use: "battle" });
-  I("capsula_maestra", "C\xE1psula Maestra", "capturas", 0, "Captura sin fallo. Solo hay una.", { ball: { mult: 255, master: true } }, { use: "battle", sell: false });
-  I("gema_ignea", "Gema \xCDgnea", "evolucion", 2100, "Una gema ardiente que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_marina", "Gema Marina", "evolucion", 2100, "Una gema h\xFAmeda que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_silvestre", "Gema Silvestre", "evolucion", 2100, "Una gema verde que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_chispa", "Gema Chispa", "evolucion", 2100, "Una gema cargada que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_lunar", "Gema Lunar", "evolucion", 2100, "Una gema p\xE1lida que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_solar", "Gema Solar", "evolucion", 2400, "Una gema luminosa que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_escarcha", "Gema Escarcha", "evolucion", 2400, "Una gema helada que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("gema_ocaso", "Gema Ocaso", "evolucion", 2400, "Una gema oscura que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
-  I("repelente", "Repelente", "exploracion", 350, "Evita encuentros salvajes durante 100 pasos.", { repel: 100 }, { use: "field", sell: true });
-  I("super_repelente", "S\xFAper Repelente", "exploracion", 500, "Evita encuentros durante 200 pasos.", { repel: 200 }, { use: "field", sell: true });
-  I("cuerda_fuga", "Cuerda de Fuga", "exploracion", 550, "Te saca al instante de una cueva.", { escape: true }, { use: "field", sell: true });
-  I("lupa", "Lupa de Aurelia", "exploracion", 0, "Muestra destellos de objetos ocultos cercanos.", { key: "lupa" }, { use: "none", sell: false });
-  I("bicicleta", "Bicicleta", "exploracion", 0, "Doble de velocidad. Act\xEDvala desde la mochila.", { key: "bicicleta" }, { use: "field", sell: false });
-  I("barca", "Barca Plegable", "exploracion", 0, "Permite navegar por el agua.", { key: "barca" }, { use: "none", sell: false });
-  I("piolet", "Piolet", "exploracion", 0, "Permite escalar paredes de roca agrietada.", { key: "piolet" }, { use: "none", sell: false });
-  I("machete", "Machete", "exploracion", 0, "Corta la maleza espesa que bloquea el camino.", { key: "machete" }, { use: "none", sell: false });
-  I("linterna", "Linterna", "exploracion", 0, "Ilumina las cuevas oscuras.", { key: "linterna" }, { use: "none", sell: false });
-  I("repartir_exp", "Repartir Exp.", "exploracion", 0, "Reparte parte de la experiencia con todo el equipo.", { key: "repartir_exp" }, { use: "none", sell: false });
-  I("pase_viaje", "Pase de Viaje", "viaje", 0, "Permite viajar a las ciudades que ya visitaste.", { key: "pase_viaje" }, { use: "none", sell: false });
-  I("mapa", "Mapa de Aurelia", "viaje", 0, "Un mapa de toda la regi\xF3n.", { key: "mapa" }, { use: "none", sell: false });
-  I("billete_ferry", "Billete de Ferry", "viaje", 0, "Te permite embarcar en el puerto.", { key: "billete" }, { use: "none", sell: false });
-  I("amuleto_exp", "Amuleto Exp.", "exploracion", 0, "Aumenta un 20% la experiencia ganada.", { key: "amuleto_exp" }, { use: "none", sell: false });
-  I("paquete_sauce", "Paquete del Prof. Sauce", "mision", 0, "Un paquete fr\xE1gil para el Museo de Ciudad Roble.", {}, { use: "none", sell: false });
-  I("carta_roble", "Carta de Fresia", "mision", 0, "Una carta sellada con la hoja del Gimnasio Roble.", {}, { use: "none", sell: false });
-  I("prisma_ambar", "Prisma \xC1mbar", "mision", 0, "Un fragmento del sello antiguo, c\xE1lido al tacto.", {}, { use: "none", sell: false });
-  I("prisma_zafiro", "Prisma Zafiro", "mision", 0, "Un fragmento del sello antiguo, fr\xEDo como el mar.", {}, { use: "none", sell: false });
-  I("prisma_esmeralda", "Prisma Esmeralda", "mision", 0, "Un fragmento del sello antiguo, vivo como el bosque.", {}, { use: "none", sell: false });
-  I("prisma_nacar", "Prisma N\xE1car", "mision", 0, "Un fragmento del sello antiguo, p\xE1lido como la nieve.", {}, { use: "none", sell: false });
-  I("fusible", "Fusible D\xEDnamo", "mision", 0, "Un fusible grande de la central el\xE9ctrica.", {}, { use: "none", sell: false });
-  I("mineral_estrella", "Mineral Estrella", "mision", 0, "Un mineral raro que centellea.", {}, { use: "none", sell: false });
-  I("amuleto_pantano", "Amuleto del Pantano", "mision", 0, "Un talism\xE1n de las brujas de la niebla.", {}, { use: "none", sell: false });
-  I("diario_perdido", "Diario Perdido", "mision", 0, "El diario de un explorador desaparecido.", {}, { use: "none", sell: false });
-  I("llave_ruinas", "Llave de las Ruinas", "mision", 0, "Abre la puerta sellada de las ruinas.", {}, { use: "none", sell: false });
-  I("pase_liga", "Pase de la Liga", "mision", 0, "Acredita tus ocho medallas.", {}, { use: "none", sell: false });
-  I("huevo_misterioso", "Huevo Misterioso", "mision", 0, "Un huevo c\xE1lido que alguien dej\xF3 en el camino.", {}, { use: "none", sell: false });
-  I("baston_perdido", "Bast\xF3n Perdido", "mision", 0, "El bast\xF3n de un anciano de Villa Alba.", {}, { use: "none", sell: false });
-  I("medalla_foto", "Fotograf\xEDa Rara", "mision", 0, "Una foto borrosa de una criatura esquiva.", {}, { use: "none", sell: false });
-  I("pepita", "Pepita", "tesoros", 1e3, "Una pepita de oro. Se vende bien.", {}, { use: "none", sell: true });
-  I("perla", "Perla", "tesoros", 700, "Una perla brillante.", {}, { use: "none", sell: true });
-  I("perla_grande", "Perla Grande", "tesoros", 3e3, "Una perla enorme.", {}, { use: "none", sell: true });
-  I("fragmento_estrella", "Fragmento Estelar", "tesoros", 1500, "Un fragmento de meteorito.", {}, { use: "none", sell: true });
-  I("hueso_antiguo", "Hueso Antiguo", "tesoros", 1e3, "Un hueso fosilizado.", {}, { use: "none", sell: true });
-  I("concha_rara", "Concha Rara", "tesoros", 500, "Una concha nacarada.", {}, { use: "none", sell: true });
-  I("polvo_cristal", "Polvo de Cristal", "tesoros", 400, "Polvo brillante de cuevas.", {}, { use: "none", sell: true });
-  var TM_LIST = [
-    "garra_dragon",
-    "rayo_corto",
-    "rayo_hielo",
-    "psiquico_fuerte",
-    "bomba_lodo",
-    "sismo",
-    "derrumbe_mayor",
-    "torrente",
-    "ola_calor",
-    "drenaje",
-    "pulso_umbrio",
-    "rayo_luz",
-    "golpe_acero",
-    "vendaval",
-    "chupa_vida",
-    "bola_espectral",
-    "alboroto",
-    "golpe_certero",
-    "puno_trueno",
-    "puno_hielo",
-    "hoja_afilada",
-    "colmillo_brasa",
-    "cabezazo_zen",
-    "esporas_sueno",
-    "reflejo",
-    "muro_psiquico",
-    "velo_luz",
-    "pulido",
-    "tormenta_arena",
-    "sol_abrasador",
-    "danza_lluvia",
-    "granizo",
-    "aura_protectora",
-    "descanso",
-    "semilla_parasita",
-    "coraza_ferrea",
-    "danza_dragon",
-    "sombra_fugaz",
-    "golpe_corto",
-    "escudo_vital"
-  ];
-  TM_LIST.forEach((mid, i) => {
-    const m = MOVES[mid];
-    const n = String(i + 1).padStart(2, "0");
-    I("dt" + n, `DT${n} ${m.name}`, "discos", 1500 + Math.min(4, Math.max(m.pow, 40) / 30 | 0) * 600, `Ense\xF1a ${m.name} (${m.type}). Reutilizable.`, { tm: mid }, { use: "field", sell: true });
-  });
-  function getItem(id) {
-    const it = ITEMS[id];
-    if (!it) throw new Error("Objeto desconocido: " + id);
-    return it;
-  }
-
-  // src/data/shops.js
-  var SHOPS = {
-    alba: { name: "Tienda de Villa Alba", stock: [["pocion", 0], ["capsula", 0], ["antidoto", 0], ["despertar", 0], ["antiparalizador", 0], ["repelente", 1]] },
-    general: { name: "Tienda", stock: [["pocion", 0], ["super_pocion", 1], ["hiper_pocion", 4], ["antidoto", 0], ["antiquemar", 0], ["antiparalizador", 0], ["despertar", 0], ["antihielo", 0], ["cura_estados", 2], ["revivir", 3], ["capsula", 0], ["super_capsula", 2], ["ultra_capsula", 5], ["repelente", 0], ["super_repelente", 3], ["cuerda_fuga", 2], ["eter", 3], ["caramelo_exp_s", 1]] },
-    puerto: { name: "Tienda del Puerto", stock: [["pocion", 0], ["super_pocion", 0], ["capsula", 0], ["super_capsula", 0], ["capsula_red", 0], ["antidoto", 0], ["concha_rara", 99]] },
-    grandes: { name: "Grandes Almacenes D\xEDnamo", stock: [["super_pocion", 0], ["hiper_pocion", 2], ["revivir", 2], ["cura_estados", 0], ["super_capsula", 0], ["ultra_capsula", 3], ["capsula_veloz", 2], ["capsula_noche", 2], ["super_repelente", 0], ["eter", 0], ["elixir", 5], ["caramelo_exp_s", 0], ["caramelo_exp_m", 4], ["proteina", 4], ["hierro", 4], ["calcio", 4], ["zinc", 4], ["carbono", 4], ["vigor", 4]] },
-    discos: { name: "Tienda de Discos T\xE9cnicos", stock: TM_LIST.map((m, i) => ["dt" + String(i + 1).padStart(2, "0"), 2 + Math.floor(i / 6)]) },
-    gemas: { name: "Joyer\xEDa Evolutiva", stock: [["gema_ignea", 3], ["gema_marina", 3], ["gema_silvestre", 3], ["gema_chispa", 3], ["gema_lunar", 4], ["gema_solar", 5], ["gema_escarcha", 5], ["gema_ocaso", 5]] },
-    atlas: { name: "Emporio de Arcana", stock: [["hiper_pocion", 0], ["pocion_maxima", 6], ["cura_total", 6], ["revivir_max", 7], ["ultra_capsula", 0], ["capsula_atlas", 0], ["capsula_veloz", 0], ["capsula_noche", 0], ["caramelo_exp_l", 6], ["elixir", 0]] }
-  };
-  function shopStock(id, badges) {
-    const s = SHOPS[id] || SHOPS.general;
-    return s.stock.filter(([, b]) => b <= badges && b < 99).map(([it]) => it);
-  }
-
-  // src/maps/helpers.js
-  function interior(id, w, h, opts, fn) {
-    const cx = opts.exitX ?? Math.floor(w / 2);
-    defineMap(id, w, h, { indoor: true, music: "indoor", weather: false, fill: opts.floor || "wood", ...opts }, (m) => {
-      for (let x = 0; x < w; x++) {
-        m.put(x, 0, opts.wall || "wallint");
-        m.put(x, 1, opts.wall || "wallint");
-      }
-      m.set(cx, h - 1, "mat");
-      if (opts.exit) m.warp(cx, h - 1, opts.exit.to, opts.exit.spawn, 0, "down", { sfx: "door" });
-      m.spawn("door", cx, h - 2, "up");
-      fn(m, { cx, w, h });
-    });
-    return id;
-  }
-  function setRespawn(g, cityId, spawn) {
-    const sp = getMap(cityId).spawns[spawn];
-    if (sp) g.state.lastHeal = { map: cityId, x: sp.x, y: sp.y };
-  }
-  function defineShopInterior(cityId, shopId, { name = null, clerk = "tendero", roofLook = null } = {}) {
-    const id = `int_${cityId}_tienda`;
-    interior(id, 10, 8, { name: SHOPS[shopId]?.name || "Tienda", title: name || SHOPS[shopId]?.name || "Tienda", floor: "wood", exit: { to: cityId, spawn: "door_tienda" } }, (m, { cx }) => {
-      for (let x = 1; x <= 6; x++) m.put(x, 3, "counter");
-      m.put(8, 2, "shelf");
-      m.put(9, 2, "shelf");
-      m.put(1, 2, "shelf");
-      m.put(2, 2, "shelf");
-      m.put(7, 5, "crate");
-      m.put(8, 5, "crate");
-      m.put(1, 6, "plant");
-      m.npc({ id: "tendero", x: 3, y: 2, dir: "down", look: look(clerk), name: "Dependiente", move: "static", talk: async (g) => {
-        await g.say("\xA1Bienvenido! \xBFEn qu\xE9 puedo ayudarte?", { speaker: "Dependiente" });
-        await g.openShop(shopId);
-        await g.say("\xA1Gracias por tu visita!", { speaker: "Dependiente" });
-      } });
-      m.npc({ id: "cliente", x: 6, y: 5, dir: "up", look: look("nina"), name: "Cliente", text: "Las c\xE1psulas son lo m\xE1s importante del viaje. \xA1Lleva siempre unas cuantas!", move: "static" });
-    });
-    return id;
-  }
-  function defineHouse(cityId, key, { name = "Casa", w = 9, h = 7, npcs = [], decor = null, floor = "wood", title = null } = {}) {
-    const id = `int_${cityId}_${key}`;
-    interior(id, w, h, { name, title: title || name, floor, exit: { to: cityId, spawn: "door_" + key } }, (m, { cx }) => {
-      m.put(1, 2, "bed");
-      m.put(w - 2, 2, "bookcase");
-      m.put(w - 3, 2, "shelf");
-      m.put(3, 1, "window_int");
-      m.put(2, 4, "table");
-      m.put(w - 2, h - 2, "plant");
-      m.rect(cx - 1, 3, 3, 2, "rug");
-      for (const n of npcs) m.npc({ move: "static", ...n, look: typeof n.look === "string" ? look(n.look) : n.look });
-      if (decor) decor(m);
-    });
-    return id;
-  }
-
-  // src/util.js
-  var clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-  var fmtMoney = (n) => "\u20B3" + Math.floor(n).toLocaleString("es-ES");
-  function fmtTime(sec) {
-    sec = Math.floor(sec);
-    const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
-    return `${h}:${String(m).padStart(2, "0")}`;
-  }
-  var uid = /* @__PURE__ */ (() => {
-    let n = 0;
-    return () => "u" + Date.now().toString(36) + (n++).toString(36) + Math.floor(Math.random() * 1e4).toString(36);
-  })();
-  function el(tag, props = {}, kids = []) {
-    const n = document.createElement(tag);
-    for (const [k, v] of Object.entries(props || {})) {
-      if (v == null || v === false) continue;
-      if (k === "class") n.className = v;
-      else if (k === "style" && typeof v === "object") Object.assign(n.style, v);
-      else if (k === "html") n.innerHTML = v;
-      else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
-      else n.setAttribute(k, v === true ? "" : v);
-    }
-    for (const c of [].concat(kids)) {
-      if (c == null || c === false) continue;
-      n.append(c.nodeType ? c : document.createTextNode(String(c)));
-    }
-    return n;
-  }
-
-  // src/data/species.js
-  var species_exports = {};
-  __export(species_exports, {
-    BEHAVIORS: () => BEHAVIORS,
-    EGG_GROUPS: () => EGG_GROUPS,
-    RARITY: () => RARITY,
-    RARITY_ORDER: () => RARITY_ORDER,
-    SPECIES: () => SPECIES,
-    SPECIES_BY_NAME: () => SPECIES_BY_NAME,
-    SPECIES_LIST: () => SPECIES_LIST,
-    STAT_KEYS: () => STAT_KEYS,
-    STAT_NAMES: () => STAT_NAMES,
-    TYPE_COUNT: () => TYPE_COUNT,
-    XP_GROUPS: () => XP_GROUPS,
-    canLearnTM: () => canLearnTM,
-    evolutionFamily: () => evolutionFamily,
-    getSpecies: () => getSpecies,
-    learnsAtLevel: () => learnsAtLevel,
-    movesAtLevel: () => movesAtLevel,
-    speciesByHabitat: () => speciesByHabitat,
-    speciesByName: () => speciesByName,
-    xpForLevel: () => xpForLevel
-  });
-
-  // src/data/species_data.js
-  var RAW = [];
-  var S2 = (id, name, types, st, rar, o = {}) => RAW.push({ id, name, types: types.split("/"), st, rar, ...o });
-  S2(1, "Brot\xEDn", "planta", [45, 50, 52, 62, 55, 40], "R", {
-    cr: 45,
-    h: 0.5,
-    w: 6.5,
-    xp: 64,
-    g: "parab",
-    ab: ["espesura", "aura_sanadora"],
-    hab: [],
-    egg: ["planta", "campo"],
-    bh: "curioso",
-    look: "blob ear:leaf tail:tuft eye:big mouth:smile pat:belly ex:sprout sz:.72",
-    desc: "Un brote \xE1gil que vive pegado a su compa\xF1ero. La hoja de su cabeza se estira hacia el sol como una antena.",
-    evo: [[2, 16]]
-  });
-  S2(2, "Frondeo", "planta", [60, 65, 68, 80, 70, 52], "R", {
-    cr: 45,
-    h: 1,
-    w: 28,
-    xp: 142,
-    g: "parab",
-    ab: ["espesura", "aura_sanadora"],
-    hab: [],
-    egg: ["planta", "campo"],
-    bh: "curioso",
-    look: "quad ear:leaf tail:leaf eye:big pat:belly ex:vines sz:.88",
-    desc: "Las enredaderas de su lomo se agitan cuando huele peligro. Prefiere esquivar antes que golpear.",
-    evo: [[3, 34]]
-  });
-  S2(3, "Selvar\xF3n", "planta/lucha", [80, 102, 90, 90, 84, 66], "R", {
-    cr: 45,
-    h: 1.9,
-    w: 112,
-    xp: 236,
-    g: "parab",
-    ab: ["espesura", "fuerza_pura"],
-    hab: [],
-    egg: ["planta", "monstruo"],
-    bh: "terco",
-    look: "bip ear:leaf arm:big tail:leaf eye:angry pat:band ex:mane sz:1.0",
-    desc: "Guardi\xE1n de la espesura. Su corteza endurecida detiene hachas y colmillos; defiende a su entrenador con pu\xF1os de ra\xEDz."
-  });
-  S2(4, "Chisp\xEDn", "fuego", [39, 52, 43, 60, 50, 65], "R", {
-    cr: 45,
-    h: 0.5,
-    w: 8.5,
-    xp: 62,
-    g: "parab",
-    ab: ["llama_interior", "cuerpo_ardiente"],
-    hab: [],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "quad ear:point tail:flame eye:big pat:belly sz:.72",
-    desc: "Una cr\xEDa traviesa cuya cola nunca se apaga. Si se enfada, salta chispas por todas partes.",
-    evo: [[5, 16]]
-  });
-  S2(5, "Piroc\xE1n", "fuego", [58, 64, 58, 80, 65, 80], "R", {
-    cr: 45,
-    h: 1.1,
-    w: 30,
-    xp: 142,
-    g: "parab",
-    ab: ["llama_interior", "cuerpo_ardiente"],
-    hab: [],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "quad ear:point tail:flame ex:mane eye:angry pat:belly sz:.9",
-    desc: "Corre tan r\xE1pido que deja un rastro de brasas. Su melena arde con m\xE1s fuerza cuanto m\xE1s feliz est\xE1.",
-    evo: [[6, 36]]
-  });
-  S2(6, "Infernox", "fuego/dragon", [78, 84, 78, 109, 85, 100], "R", {
-    cr: 45,
-    h: 1.8,
-    w: 90,
-    xp: 240,
-    g: "parab",
-    ab: ["corazon_volcan", "llama_interior"],
-    hab: [],
-    egg: ["dragon", "monstruo"],
-    bh: "agresivo",
-    look: "quad horn:big wing:small tail:flame ex:mane eye:angry pat:band c1:#a8283a c2:#f0b868 c4:#f6b040 sz:1.0",
-    desc: "Un drag\xF3n joven que domina las llamas con su aliento. Las leyendas dicen que su cola puede encender un volc\xE1n dormido."
-  });
-  S2(7, "Burb\xEDn", "agua", [44, 48, 65, 50, 64, 43], "R", {
-    cr: 45,
-    h: 0.5,
-    w: 9,
-    xp: 63,
-    g: "parab",
-    ab: ["marea_viva", "absorbe_agua"],
-    hab: [],
-    egg: ["agua", "campo"],
-    bh: "sociable",
-    look: "blob ear:fin tail:fin eye:big mouth:smile pat:belly ex:bubbles sz:.72",
-    desc: "Siempre rodeado de burbujas. Las usa para jugar, esconderse y, si hace falta, para atontar a un rival.",
-    evo: [[8, 16]]
-  });
-  S2(8, "Marejo", "agua", [59, 63, 80, 65, 80, 58], "R", {
-    cr: 45,
-    h: 1.1,
-    w: 32,
-    xp: 142,
-    g: "parab",
-    ab: ["marea_viva", "absorbe_agua"],
-    hab: [],
-    egg: ["agua", "campo"],
-    bh: "sociable",
-    look: "quad ear:fin tail:fin eye:big pat:belly ex:bubbles sz:.9",
-    desc: "Nada y camina con la misma elegancia. Su piel resbaladiza desv\xEDa los golpes m\xE1s duros.",
-    evo: [[9, 36]]
-  });
-  S2(9, "Abisal\xF3n", "agua/hielo", [79, 83, 100, 85, 105, 78], "R", {
-    cr: 45,
-    h: 2,
-    w: 195,
-    xp: 238,
-    g: "parab",
-    ab: ["marea_viva", "alma_glaciar"],
-    hab: [],
-    egg: ["agua", "monstruo"],
-    bh: "terco",
-    look: "bip horn:big arm:fin tail:fin ex:crystal eye:angry sz:1.02",
-    desc: "Habita los mares helados del norte. Las cristalizaciones de su espalda reflejan la aurora y confunden a los rivales."
-  });
-  S2(10, "Pelus\xEDn", "aire", [40, 45, 40, 35, 35, 56], "C", {
-    cr: 255,
-    h: 0.3,
-    w: 1.8,
-    xp: 50,
-    g: "medio",
-    ab: ["ojo_critico", "insomnio"],
-    hab: ["pradera", "playa"],
-    egg: ["volador"],
-    bh: "timido",
-    look: "bird wing:small eye:big mouth:beak pat:belly sz:.62",
-    desc: "Un polluelo esponjoso que nunca se aleja del nido. P\xEDa tan fuerte que se le oye desde la otra punta del prado.",
-    evo: [[11, 14]]
-  });
-  S2(11, "Plumeo", "aire", [63, 60, 55, 50, 50, 71], "U", {
-    cr: 120,
-    h: 0.9,
-    w: 15,
-    xp: 112,
-    g: "medio",
-    ab: ["ojo_critico", "insomnio"],
-    hab: ["pradera", "playa", "montana"],
-    egg: ["volador"],
-    bh: "curioso",
-    look: "bird wing:feather tail:tuft eye:dot mouth:beak pat:belly ex:crest sz:.82",
-    desc: "Sus alas ya levantan polvareda al despegar. Patrulla su territorio trazando c\xEDrculos cada vez m\xE1s amplios.",
-    evo: [[12, 32]]
-  });
-  S2(12, "Alcar\xE1n", "aire/lucha", [83, 80, 75, 70, 70, 91], "R", {
-    cr: 45,
-    h: 1.5,
-    w: 38,
-    xp: 180,
-    g: "medio",
-    ab: ["ojo_critico", "intimidar"],
-    hab: ["montana"],
-    egg: ["volador"],
-    bh: "agresivo",
-    look: "bird wing:big tail:long eye:angry mouth:beak arm:claw pat:band ex:crest sz:1.0",
-    desc: "Un halc\xF3n de monta\xF1a que se lanza en picado a gran velocidad. Su mirada fija intimida hasta a los dragones j\xF3venes."
-  });
-  S2(13, "Roed\xEDn", "tierra", [35, 46, 34, 35, 35, 60], "C", {
-    cr: 255,
-    h: 0.3,
-    w: 3.5,
-    xp: 48,
-    g: "medio",
-    ab: ["pies_arena", "robustez"],
-    hab: ["pradera", "desierto"],
-    egg: ["campo"],
-    bh: "timido",
-    look: "quad ear:round tail:tuft eye:big mouth:snout pat:belly sz:.6",
-    desc: "Cava t\xFAneles diminutos bajo la hierba alta. Si lo asustas, desaparece en un abrir y cerrar de ojos.",
-    evo: [[14, 20]]
-  });
-  S2(14, "Zapador", "tierra", [65, 90, 65, 45, 55, 100], "U", {
-    cr: 90,
-    h: 0.8,
-    w: 28,
-    xp: 130,
-    g: "medio",
-    ab: ["pies_arena", "fuerza_pura"],
-    hab: ["pradera", "cueva", "desierto"],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "quad ear:point arm:claw tail:club eye:angry mouth:fang pat:band sz:.85",
-    desc: "Excava galer\xEDas enteras en una noche. Las garras de sus patas delanteras parten la roca como si fuera mantequilla."
-  });
-  S2(15, "Gusan\xEDn", "insecto", [45, 30, 35, 20, 20, 45], "C", {
-    cr: 255,
-    h: 0.3,
-    w: 3,
-    xp: 39,
-    g: "medio",
-    ab: ["plaga", "mente_clara"],
-    hab: ["pradera", "bosque"],
-    egg: ["bicho"],
-    bh: "timido",
-    look: "bug eye:big mouth:smile sz:.55",
-    desc: "Devora hojas sin parar. Cuando est\xE1 lleno, se enrolla bajo un tronco y echa una cabezadita.",
-    evo: [[16, 5]]
-  });
-  S2(16, "Capull\xEDn", "insecto", [50, 20, 55, 25, 25, 30], "C", {
-    cr: 120,
-    h: 0.7,
-    w: 10,
-    xp: 72,
-    g: "medio",
-    ab: ["piel_dura"],
-    hab: ["bosque"],
-    egg: ["bicho"],
-    bh: "dormilon",
-    look: "bug eye:sleepy ex:cocoon sz:.7",
-    desc: "Se mantiene inm\xF3vil mientras su cuerpo cambia por dentro. Solo se mueve para esquivar el viento.",
-    evo: [[17, 10]]
-  });
-  S2(17, "Lum\xEDnea", "insecto/luz", [60, 45, 50, 90, 80, 70], "U", {
-    cr: 45,
-    h: 1.1,
-    w: 32,
-    xp: 178,
-    g: "medio",
-    ab: ["ojo_compuesto", "aura_luz"],
-    hab: ["bosque", "pradera"],
-    egg: ["bicho"],
-    bh: "curioso",
-    look: "bug wing:moth ex:antenna eye:big pat:spots sz:.88",
-    desc: "Sus alas esparcen un polvo luminoso que cura peque\xF1as heridas. De noche brillan como linternas."
-  });
-  S2(18, "Hormigu\xEDn", "insecto", [30, 56, 50, 25, 25, 50], "C", {
-    cr: 230,
-    h: 0.3,
-    w: 2.5,
-    xp: 45,
-    g: "medio",
-    ab: ["fuerza_pura", "robustez"],
-    hab: ["pradera", "bosque"],
-    egg: ["bicho"],
-    bh: "sociable",
-    look: "bug ex:antenna arm:claw eye:angry mouth:fang sz:.58",
-    desc: "Vive en colonias disciplinadas. Una sola hormiga levanta cien veces su peso, y nunca va sola.",
-    evo: [[19, 24]]
-  });
-  S2(19, "Soldad\xF3n", "insecto/lucha", [60, 100, 85, 40, 60, 75], "U", {
-    cr: 75,
-    h: 1.2,
-    w: 40,
-    xp: 148,
-    g: "medio",
-    ab: ["fuerza_pura", "intimidar"],
-    hab: ["bosque"],
-    egg: ["bicho"],
-    bh: "agresivo",
-    look: "bug ex:antenna arm:blade horn:small eye:angry mouth:fang pat:band sz:.95",
-    desc: "Capit\xE1n de la colonia. Sus mand\xEDbulas blindadas crujen como espadas al chocar."
-  });
-  S2(20, "Sap\xEDn", "agua", [40, 45, 40, 50, 40, 55], "C", {
-    cr: 230,
-    h: 0.4,
-    w: 5,
-    xp: 52,
-    g: "medio",
-    ab: ["nado_veloz", "absorbe_agua"],
-    hab: ["lago", "pantano"],
-    egg: ["agua", "campo"],
-    bh: "curioso",
-    look: "blob eye:big mouth:smile ear:fin pat:spots sz:.62",
-    desc: "Croa al ritmo de la lluvia. Su lengua pegajosa atrapa insectos antes de que lo noten.",
-    evo: [[21, 22]]
-  });
-  S2(21, "Ranazo", "agua/lucha", [75, 92, 72, 68, 62, 76], "U", {
-    cr: 75,
-    h: 1.3,
-    w: 60,
-    xp: 150,
-    g: "medio",
-    ab: ["nado_veloz", "impulso"],
-    hab: ["lago", "pantano"],
-    egg: ["agua", "campo"],
-    bh: "terco",
-    look: "bip eye:angry mouth:smile arm:big pat:spots ear:fin sz:.95",
-    desc: "Campe\xF3n de los estanques. Lanza pu\xF1etazos tan r\xE1pidos que levantan olas."
-  });
-  S2(22, "Volt\xEDn", "electrico", [35, 35, 30, 55, 40, 70], "C", {
-    cr: 200,
-    h: 0.4,
-    w: 5,
-    xp: 55,
-    g: "medio",
-    ab: ["estatica", "pararrayos"],
-    hab: ["pradera", "bosque"],
-    egg: ["campo"],
-    bh: "curioso",
-    look: "blob ear:round tail:bolt eye:big mouth:smile ex:sparks c1:#46b8e8 c2:#d8f4ff c3:#ffe24a sz:.62",
-    desc: "Acumula electricidad en las mejillas. Un abrazo suyo en invierno da calambre.",
-    evo: [[23, 18]]
-  });
-  S2(23, "Fulm\xEDn", "electrico", [55, 50, 45, 80, 60, 90], "U", {
-    cr: 100,
-    h: 0.8,
-    w: 18,
-    xp: 122,
-    g: "medio",
-    ab: ["estatica", "pararrayos"],
-    hab: ["pradera", "montana"],
-    egg: ["campo"],
-    bh: "curioso",
-    look: "quad ear:round tail:bolt eye:big mouth:snout ex:mane,sparks c1:#3aa6e0 c2:#e8f8ff c3:#ffe24a pat:belly sz:.82",
-    desc: "Corre entre las nubes de tormenta absorbiendo rayos. Cuando se carga, su pelaje se eriza.",
-    evo: [[24, 0, "item:gema_chispa"]]
-  });
-  S2(24, "Fulgur\xF3n", "electrico", [70, 65, 60, 110, 80, 105], "R", {
-    cr: 45,
-    h: 1.4,
-    w: 42,
-    xp: 215,
-    g: "medio",
-    ab: ["chispa_viva", "pararrayos"],
-    hab: [],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "quad horn:big ear:round tail:bolt eye:angry ex:mane,sparks pat:band c1:#2f86d8 c2:#dff4ff c3:#ffe24a sz:1.0",
-    desc: "Un rel\xE1mpago con patas. Dicen que sus rugidos pueden verse antes de o\xEDrse."
-  });
-  S2(25, "Espor\xEDn", "planta", [50, 40, 55, 50, 50, 30], "C", {
-    cr: 200,
-    h: 0.3,
-    w: 2.5,
-    xp: 58,
-    g: "medio",
-    ab: ["espesura", "aura_sanadora"],
-    hab: ["bosque", "pantano"],
-    egg: ["planta"],
-    bh: "timido",
-    look: "plant eye:sleepy mouth:smile pat:spots sz:.6",
-    desc: "Una seta peque\xF1a que suelta esporas inofensivas cuando duerme. Brilla un poco en la humedad.",
-    evo: [[26, 28]]
-  });
-  S2(26, "Hongarr\xF3n", "planta/veneno", [85, 70, 90, 85, 85, 45], "U", {
-    cr: 75,
-    h: 1.1,
-    w: 48,
-    xp: 158,
-    g: "medio",
-    ab: ["puas_toxicas", "aura_sanadora"],
-    hab: ["bosque", "pantano"],
-    egg: ["planta"],
-    bh: "terco",
-    look: "plant eye:angry mouth:fang pat:spots arm:big ex:spores sz:.95",
-    desc: "Sombrero enorme, esporas dulces y veneno terrible. Los viajeros prudentes dan un rodeo."
-  });
-  S2(27, "Murcil\xEDn", "aire/sombra", [40, 45, 35, 30, 40, 55], "C", {
-    cr: 255,
-    h: 0.4,
-    w: 2.2,
-    xp: 49,
-    g: "medio",
-    ab: ["ojo_compuesto", "insomnio"],
-    hab: ["cueva"],
-    egg: ["volador"],
-    bh: "timido",
-    tm: "n",
-    look: "bird wing:bat ear:big eye:big mouth:fang sz:.6 hue:20",
-    desc: "Se orienta en las cuevas con chillidos que ning\xFAn o\xEDdo humano percibe. Teme la luz del d\xEDa.",
-    evo: [[28, 28]]
-  });
-  S2(28, "Murciel\xF3n", "aire/sombra", [75, 80, 70, 65, 75, 100], "U", {
-    cr: 60,
-    h: 1.6,
-    w: 55,
-    xp: 165,
-    g: "medio",
-    ab: ["ojo_compuesto", "aura_sombra"],
-    hab: ["cueva", "ruinas"],
-    egg: ["volador"],
-    bh: "agresivo",
-    look: "bird wing:bat ear:big eye:angry mouth:fang tail:spike sz:1.0 hue:20",
-    desc: "Cuelga del techo de las cuevas m\xE1s hondas. Sus alas membranosas cortan el aire con un silbido."
-  });
-  S2(29, "Guijarro", "roca", [40, 60, 80, 30, 30, 20], "C", {
-    cr: 230,
-    h: 0.4,
-    w: 25,
-    xp: 55,
-    g: "medio",
-    ab: ["robustez", "piel_petrea"],
-    hab: ["cueva", "montana"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "golem eye:dot sz:.6",
-    desc: "Parece una piedra m\xE1s hasta que te mira. Rueda cuesta abajo cuando se asusta.",
-    evo: [[30, 25]]
-  });
-  S2(30, "Pe\xF1asco", "roca", [60, 85, 105, 40, 50, 30], "U", {
-    cr: 120,
-    h: 1,
-    w: 105,
-    xp: 130,
-    g: "medio",
-    ab: ["robustez", "piel_petrea"],
-    hab: ["cueva", "montana"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "golem arm:big eye:angry pat:band sz:.82",
-    desc: "Un bloque de roca con brazos. Levanta bloques enormes para construir su guarida.",
-    evo: [[31, 40]]
-  });
-  S2(31, "Monta\xF1\xF3n", "roca/tierra", [85, 115, 130, 55, 65, 40], "R", {
-    cr: 45,
-    h: 2.4,
-    w: 300,
-    xp: 210,
-    g: "lento",
-    ab: ["robustez", "coraza_antigua"],
-    hab: ["montana"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "golem arm:big eye:angry pat:band ex:crystal horn:small sz:1.05",
-    desc: "Del tama\xF1o de una casa. Cuando duerme, los p\xE1jaros anidan en sus hombros y los l\xEDquenes cubren su espalda."
-  });
-  S2(32, "Arenito", "tierra", [40, 55, 50, 30, 40, 45], "C", {
-    cr: 230,
-    h: 0.4,
-    w: 6,
-    xp: 50,
-    g: "medio",
-    ab: ["pies_arena", "remolino_arena"],
-    hab: ["desierto", "playa"],
-    egg: ["campo", "mineral"],
-    bh: "timido",
-    look: "blob eye:dot mouth:smile ear:point tail:tuft sz:.62 c1:#d8b070",
-    desc: "Se esconde bajo la arena con solo los ojos fuera. Los exploradores lo confunden con un montoncito de dunas.",
-    evo: [[33, 26]]
-  });
-  S2(33, "Escorpiar", "tierra/veneno", [70, 95, 80, 50, 70, 70], "U", {
-    cr: 75,
-    h: 1,
-    w: 42,
-    xp: 150,
-    g: "medio",
-    ab: ["pies_arena", "puas_toxicas"],
-    hab: ["desierto"],
-    egg: ["bicho", "campo"],
-    bh: "agresivo",
-    look: "bug arm:claw tail:scorp eye:angry sz:.92 c1:#c89a50",
-    desc: "La cola en forma de arp\xF3n inyecta un veneno que aletarga. Acecha entre las rocas calientes del desierto."
-  });
-  S2(34, "Cact\xEDn", "planta", [45, 45, 60, 50, 50, 35], "C", {
-    cr: 200,
-    h: 0.5,
-    w: 7,
-    xp: 56,
-    g: "medio",
-    ab: ["espinas", "absorbe_agua"],
-    hab: ["desierto"],
-    egg: ["planta"],
-    bh: "timido",
-    look: "plant eye:sleepy mouth:smile ear:none ex:flowerhead sz:.62 hue:-10",
-    desc: "Guarda agua en su cuerpo durante meses. Las flores de su cabeza se abren solo tras la lluvia.",
-    evo: [[35, 30]]
-  });
-  S2(35, "Cactarr\xF3n", "planta/tierra", [75, 85, 95, 70, 80, 45], "U", {
-    cr: 75,
-    h: 1.5,
-    w: 90,
-    xp: 160,
-    g: "medio",
-    ab: ["espinas", "piel_dura"],
-    hab: ["desierto"],
-    egg: ["planta"],
-    bh: "terco",
-    look: "plant eye:angry mouth:fang arm:big ex:flowerhead pat:spots sz:.98 hue:-10",
-    desc: "Sus p\xFAas disparan al aire si lo molestan. Tras una tormenta, florece con colores imposibles."
-  });
-  S2(36, "Pecec\xEDn", "agua", [35, 45, 40, 35, 35, 65], "C", {
-    cr: 255,
-    h: 0.3,
-    w: 2,
-    xp: 44,
-    g: "medio",
-    ab: ["nado_veloz", "absorbe_agua"],
-    hab: ["lago", "playa", "mar"],
-    egg: ["agua"],
-    bh: "timido",
-    look: "fish eye:big mouth:smile tail:fin sz:.58",
-    desc: "Viaja en bancos de cientos. Cada uno brilla un poco distinto, como escamas de arco\xEDris.",
-    evo: [[37, 26]]
-  });
-  S2(37, "Tiburox", "agua/sombra", [75, 115, 70, 60, 60, 85], "U", {
-    cr: 60,
-    h: 2,
-    w: 110,
-    xp: 165,
-    g: "medio",
-    ab: ["intimidar", "nado_veloz"],
-    hab: ["mar", "isla"],
-    egg: ["agua"],
-    bh: "agresivo",
-    look: "fish eye:angry mouth:fang tail:fin pat:belly c1:#5b78a8 c2:#e8eef6 c4:#33507e sz:1.0",
-    desc: "Un cazador veloz de aguas profundas. Se dice que huele una gota de sangre a tres leguas."
-  });
-  S2(38, "Pinz\xF3n", "agua", [45, 65, 70, 35, 40, 35], "C", {
-    cr: 220,
-    h: 0.4,
-    w: 7,
-    xp: 54,
-    g: "medio",
-    ab: ["piel_dura", "absorbe_agua"],
-    hab: ["playa", "mar", "lago"],
-    egg: ["agua", "bicho"],
-    bh: "terco",
-    look: "shell arm:claw eye:big sz:.62 hue:-15",
-    desc: "Un cangrejo que no suelta lo que atrapa. Camina de lado y pellizca de frente.",
-    evo: [[39, 28]]
-  });
-  S2(39, "Coral\xF3n", "agua/roca", [70, 100, 110, 65, 70, 50], "U", {
-    cr: 75,
-    h: 1.2,
-    w: 90,
-    xp: 155,
-    g: "medio",
-    ab: ["piel_dura", "piel_petrea"],
-    hab: ["mar", "isla"],
-    egg: ["agua", "mineral"],
-    bh: "terco",
-    look: "shell arm:claw eye:angry ex:crystal pat:spots sz:.95 hue:-15",
-    desc: "Su caparaz\xF3n est\xE1 cubierto de coral vivo. Las peque\xF1as criaturas marinas viven en \xE9l como en un arrecife."
-  });
-  S2(40, "Medus\xEDn", "agua", [40, 25, 35, 65, 65, 50], "C", {
-    cr: 190,
-    h: 0.5,
-    w: 4,
-    xp: 60,
-    g: "medio",
-    ab: ["absorbe_agua", "pararrayos"],
-    hab: ["lago", "playa", "mar"],
-    egg: ["agua", "amorfo"],
-    bh: "curioso",
-    look: "float eye:big mouth:smile ex:tentacles sz:.65",
-    desc: "Flota como una campana transl\xFAcida. Sus tent\xE1culos pican lo justo para que se aparten.",
-    evo: [[41, 30]]
-  });
-  S2(41, "Medus\xF3n", "agua/espiritu", [80, 40, 70, 100, 95, 65], "R", {
-    cr: 60,
-    h: 1.8,
-    w: 46,
-    xp: 170,
-    g: "medio",
-    ab: ["absorbe_agua", "lamento_espiritual"],
-    hab: ["mar", "isla", "pantano"],
-    egg: ["agua", "amorfo"],
-    bh: "sociable",
-    look: "float eye:wide ex:tentacles pat:spots sz:1.0 hue:60",
-    desc: "Un fantasma del mar que brilla en la noche. Los marineros juran que canta, aunque nadie ha o\xEDdo su voz."
-  });
-  S2(42, "Magm\xEDn", "fuego", [40, 50, 60, 50, 40, 25], "C", {
-    cr: 200,
-    h: 0.4,
-    w: 22,
-    xp: 55,
-    g: "medio",
-    ab: ["cuerpo_ardiente", "robustez"],
-    hab: ["volcan", "cueva"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "shell eye:big mouth:smile ex:flame pat:spots sz:.62 hue:-10",
-    desc: "Un caracol de lava que deja un rastro humeante. Su caparaz\xF3n es tan caliente que cuece huevos.",
-    evo: [[43, 30]]
-  });
-  S2(43, "Volcar\xF3n", "fuego/roca", [70, 80, 110, 90, 70, 35], "U", {
-    cr: 75,
-    h: 1.4,
-    w: 160,
-    xp: 165,
-    g: "medio",
-    ab: ["cuerpo_ardiente", "corazon_volcan"],
-    hab: ["volcan"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "shell eye:angry ex:flame horn:big pat:spots sz:1.0 hue:-10",
-    desc: "Un volc\xE1n ambulante. Cuando se enfada, el cono de su espalda lanza ceniza ardiente."
-  });
-  S2(44, "Pavesa", "fuego", [38, 35, 40, 55, 50, 45], "U", {
-    cr: 150,
-    h: 0.3,
-    w: 1,
-    xp: 60,
-    g: "medio",
-    ab: ["llama_interior", "aura_sanadora"],
-    hab: ["volcan", "ruinas"],
-    egg: ["amorfo", "fantasia"],
-    bh: "curioso",
-    tm: "n",
-    look: "float eye:big ex:flame sz:.58 hue:25",
-    desc: "Una llamita a la deriva que busca calor en cuevas y ruinas. Se apaga si la dejan sola demasiado tiempo.",
-    evo: [[45, 20]]
-  });
-  S2(45, "Cirio", "fuego/espiritu", [60, 50, 60, 85, 75, 60], "R", {
-    cr: 75,
-    h: 0.9,
-    w: 5,
-    xp: 140,
-    g: "medio",
-    ab: ["llama_interior", "lamento_espiritual"],
-    hab: ["volcan", "ruinas"],
-    egg: ["amorfo", "fantasia"],
-    bh: "curioso",
-    look: "float eye:wide ex:flame tail:long sz:.82 hue:25",
-    desc: "Un esp\xEDritu de cera derretida con una llama azulada. Gu\xEDa a los perdidos o los desorienta, seg\xFAn su humor.",
-    evo: [[46, 0, "item:gema_ocaso"]]
-  });
-  S2(46, "Candel\xF3n", "fuego/espiritu", [78, 62, 82, 115, 95, 78], "V", {
-    cr: 45,
-    h: 1.6,
-    w: 12,
-    xp: 220,
-    g: "medio",
-    ab: ["corazon_volcan", "lamento_espiritual"],
-    hab: [],
-    egg: ["amorfo", "fantasia"],
-    bh: "sociable",
-    look: "float eye:wide ex:flame tail:long arm:fin pat:gems sz:1.0 hue:25",
-    desc: "Un candelabro vivo que alumbra los pasillos de las ruinas. Su llama no calienta: hiela."
-  });
-  S2(47, "Cop\xEDn", "hielo", [40, 35, 35, 55, 50, 45], "C", {
-    cr: 220,
-    h: 0.3,
-    w: 1.5,
-    xp: 52,
-    g: "medio",
-    ab: ["alma_glaciar", "patinaje"],
-    hab: ["nieve"],
-    egg: ["amorfo"],
-    bh: "curioso",
-    look: "blob eye:big mouth:smile ex:snow sz:.58",
-    desc: "Un copo de nieve con vida propia. Se disuelve en tu mano, pero nunca del todo.",
-    evo: [[48, 20]]
-  });
-  S2(48, "Nevisca", "hielo", [62, 50, 55, 80, 70, 65], "U", {
-    cr: 100,
-    h: 0.9,
-    w: 12,
-    xp: 120,
-    g: "medio",
-    ab: ["alma_glaciar", "patinaje"],
-    hab: ["nieve"],
-    egg: ["amorfo"],
-    bh: "curioso",
-    look: "float eye:big mouth:smile ex:snow tail:long sz:.82",
-    desc: "Danza en las tormentas de nieve. All\xED donde pasa, la escarcha florece en los cristales.",
-    evo: [[49, 0, "item:gema_escarcha"]]
-  });
-  S2(49, "Ventisquero", "hielo/aire", [80, 65, 75, 110, 95, 90], "V", {
-    cr: 45,
-    h: 1.6,
-    w: 25,
-    xp: 210,
-    g: "medio",
-    ab: ["alma_glaciar", "patinaje"],
-    hab: [],
-    egg: ["amorfo"],
-    bh: "sociable",
-    look: "float wing:feather eye:wide ex:snow tail:long sz:1.0",
-    desc: "Un remolino de nieve con alas. Cuando agita su cola desciende la temperatura de toda la monta\xF1a."
-  });
-  S2(50, "Polar\xEDn", "hielo", [55, 60, 55, 35, 40, 35], "C", {
-    cr: 200,
-    h: 0.6,
-    w: 30,
-    xp: 56,
-    g: "medio",
-    ab: ["pelaje_grueso", "alma_glaciar"],
-    hab: ["nieve"],
-    egg: ["campo"],
-    bh: "sociable",
-    look: "quad ear:round tail:tuft eye:big mouth:snout pat:belly sz:.68",
-    desc: "Un osezno que se desliza panza abajo por las laderas. Duerme abrazado a su hermano.",
-    evo: [[51, 32]]
-  });
-  S2(51, "Polaron", "hielo/lucha", [90, 110, 85, 50, 70, 60], "U", {
-    cr: 60,
-    h: 2,
-    w: 240,
-    xp: 170,
-    g: "medio",
-    ab: ["pelaje_grueso", "fuerza_pura"],
-    hab: ["nieve"],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "bip ear:round arm:claw eye:angry mouth:fang pat:band sz:1.05",
-    desc: "Rompe el hielo con un pu\xF1etazo. Un solo rugido provoca avalanchas en las cumbres."
-  });
-  S2(52, "Pu\xF1\xEDn", "lucha", [45, 60, 40, 30, 35, 45], "C", {
-    cr: 220,
-    h: 0.5,
-    w: 11,
-    xp: 50,
-    g: "medio",
-    ab: ["fuerza_pura", "robustez"],
-    hab: ["montana", "pradera"],
-    egg: ["monstruo"],
-    bh: "agresivo",
-    look: "bip arm:big eye:angry mouth:smile sz:.65",
-    desc: "Entrena golpeando troncos desde que sale el sol. A\xFAn no sabe encajar un golpe, pero nunca se rinde.",
-    evo: [[53, 22]]
-  });
-  S2(53, "Pu\xF1et\xF3n", "lucha", [70, 90, 65, 45, 55, 60], "U", {
-    cr: 100,
-    h: 1.2,
-    w: 55,
-    xp: 120,
-    g: "medio",
-    ab: ["fuerza_pura", "impulso"],
-    hab: ["montana"],
-    egg: ["monstruo"],
-    bh: "agresivo",
-    look: "bip arm:big eye:angry mouth:fang pat:band sz:.85",
-    desc: "Tiene los nudillos como piedras. Busca rivales fuertes para medirse, no para vencerlos.",
-    evo: [[54, 36]]
-  });
-  S2(54, "Titanox", "lucha", [90, 125, 90, 55, 70, 70], "R", {
-    cr: 45,
-    h: 2,
-    w: 130,
-    xp: 210,
-    g: "lento",
-    ab: ["fuerza_pura", "intimidar"],
-    hab: [],
-    egg: ["monstruo"],
-    bh: "terco",
-    look: "bip arm:big eye:angry mouth:fang pat:band ex:mane horn:small sz:1.05",
-    desc: "Un coloso de m\xFAsculos como cuerdas. Respeta a quien le planta cara, aunque pierda."
-  });
-  S2(55, "Macaqu\xEDn", "lucha", [50, 55, 45, 45, 45, 70], "C", {
-    cr: 200,
-    h: 0.6,
-    w: 12,
-    xp: 54,
-    g: "medio",
-    ab: ["impulso", "ojo_critico"],
-    hab: ["bosque"],
-    egg: ["campo"],
-    bh: "curioso",
-    look: "bip ear:round tail:long eye:big mouth:smile pat:belly sz:.68",
-    desc: "Salta de rama en rama imitando todo lo que ve. Es capaz de copiar un golpe tras verlo una vez.",
-    evo: [[56, 28]]
-  });
-  S2(56, "Macaquirr\xF3n", "lucha/planta", [76, 88, 72, 62, 68, 94], "U", {
-    cr: 60,
-    h: 1.4,
-    w: 50,
-    xp: 155,
-    g: "medio",
-    ab: ["impulso", "espesura"],
-    hab: ["bosque"],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "bip ear:round tail:leaf arm:big eye:angry mouth:fang pat:belly ex:vines sz:.95",
-    desc: "L\xEDder de su tropa. Combina golpes de artes marciales con trucos de la selva que nadie le ense\xF1\xF3."
-  });
-  S2(57, "Serp\xEDn", "veneno", [40, 50, 45, 40, 40, 55], "C", {
-    cr: 230,
-    h: 0.8,
-    w: 3,
-    xp: 50,
-    g: "medio",
-    ab: ["puas_toxicas", "mente_clara"],
-    hab: ["pantano", "pradera"],
-    egg: ["campo", "dragon"],
-    bh: "timido",
-    look: "snake eye:slit mouth:fang sz:.62",
-    desc: "Mordisquea por defensa y sisea sin parar. Se camufla perfectamente entre la maleza h\xFAmeda.",
-    evo: [[58, 22]]
-  });
-  S2(58, "V\xEDbora", "veneno", [60, 80, 65, 60, 60, 75], "U", {
-    cr: 100,
-    h: 1.8,
-    w: 18,
-    xp: 130,
-    g: "medio",
-    ab: ["puas_toxicas", "intimidar"],
-    hab: ["pantano"],
-    egg: ["campo", "dragon"],
-    bh: "agresivo",
-    look: "snake eye:slit mouth:fang horn:small pat:band sz:.82",
-    desc: "Hipnotiza a sus presas balanceando la cabeza. Su mordedura paraliza antes que envenena.",
-    evo: [[59, 38]]
-  });
-  S2(59, "Basilisco", "veneno/dragon", [80, 105, 90, 80, 80, 85], "R", {
-    cr: 45,
-    h: 3.2,
-    w: 75,
-    xp: 215,
-    g: "medio",
-    ab: ["puas_toxicas", "aura_eclipse"],
-    hab: [],
-    egg: ["campo", "dragon"],
-    bh: "agresivo",
-    look: "snake eye:slit mouth:fang horn:big ex:crest pat:band sz:1.05",
-    desc: "Antiguas cr\xF3nicas lo describen como un drag\xF3n sin alas. Su mirada es tan hipn\xF3tica como su veneno."
-  });
-  S2(60, "Mist\xEDn", "mental", [42, 35, 40, 60, 55, 60], "U", {
-    cr: 150,
-    h: 0.5,
-    w: 7,
-    xp: 62,
-    g: "medio",
-    ab: ["aura_sanadora", "ojo_compuesto"],
-    hab: ["pradera", "bosque"],
-    egg: ["campo", "fantasia"],
-    bh: "curioso",
-    look: "quad ear:point tail:fluff eye:big ex:gem pat:belly sz:.65",
-    desc: "Un zorrito con una gema en la frente. Si te mira fijamente, sientes que sabe lo que piensas.",
-    evo: [[61, 24]]
-  });
-  S2(61, "Ilusor", "mental", [62, 50, 55, 85, 75, 80], "R", {
-    cr: 75,
-    h: 1.1,
-    w: 22,
-    xp: 140,
-    g: "medio",
-    ab: ["aura_sanadora", "ojo_compuesto"],
-    hab: ["bosque"],
-    egg: ["campo", "fantasia"],
-    bh: "curioso",
-    look: "quad ear:point tail:fluff eye:wide ex:gem pat:belly sz:.88",
-    desc: "Crea ilusiones de s\xED mismo para desorientar a los depredadores. Nadie sabe cu\xE1l de sus colas es la real.",
-    evo: [[62, 0, "item:gema_solar"]]
-  });
-  S2(62, "Or\xE1culo", "mental/luz", [75, 58, 72, 118, 100, 92], "V", {
-    cr: 45,
-    h: 1.5,
-    w: 35,
-    xp: 218,
-    g: "medio",
-    ab: ["aura_luz", "aura_sanadora"],
-    hab: [],
-    egg: ["campo", "fantasia"],
-    bh: "sociable",
-    look: "quad ear:point tail:fluff eye:wide ex:halo pat:gems sz:1.0",
-    desc: "Se dice que predice el futuro con sus nueve colas de luz. Rara vez muestra su rostro a la gente."
-  });
-  S2(63, "Lechuz", "mental/aire", [50, 40, 45, 60, 55, 50], "C", {
-    cr: 180,
-    h: 0.5,
-    w: 2.5,
-    xp: 58,
-    g: "medio",
-    ab: ["insomnio", "ojo_compuesto"],
-    hab: ["bosque"],
-    egg: ["volador"],
-    bh: "curioso",
-    tm: "n",
-    look: "bird wing:small ear:point eye:big mouth:beak pat:belly sz:.65",
-    desc: "Gira la cabeza casi del todo y no hace ruido al volar. Es la vigilante m\xE1s callada del bosque.",
-    evo: [[64, 34]]
-  });
-  S2(64, "Sabiolo", "mental/aire", [78, 58, 72, 98, 92, 68], "U", {
-    cr: 60,
-    h: 1.3,
-    w: 34,
-    xp: 170,
-    g: "medio",
-    ab: ["insomnio", "ojo_compuesto"],
-    hab: ["bosque", "ruinas"],
-    egg: ["volador"],
-    bh: "sociable",
-    tm: "n",
-    look: "bird wing:big ear:point eye:wide mouth:beak pat:belly ex:crest sz:.92",
-    desc: "Un viejo b\xFAho que acumula historias. Los m\xE1s ancianos de los pueblos a\xFAn le piden consejo."
-  });
-  S2(65, "So\xF1ol\xEDn", "mental", [70, 45, 45, 45, 60, 25], "C", {
-    cr: 190,
-    h: 0.8,
-    w: 45,
-    xp: 62,
-    g: "lento",
-    ab: ["insomnio", "aura_sanadora"],
-    hab: ["cueva", "pradera"],
-    egg: ["campo"],
-    bh: "dormilon",
-    look: "blob ear:round eye:sleepy mouth:smile pat:belly sz:.8",
-    desc: "Se pasa quince horas al d\xEDa dormido. Cuando sue\xF1a, sus sue\xF1os flotan sobre \xE9l como pompas.",
-    evo: [[66, 30, "time:noche"]]
-  });
-  S2(66, "On\xEDrico", "mental/espiritu", [100, 60, 70, 95, 105, 40], "U", {
-    cr: 60,
-    h: 1.8,
-    w: 150,
-    xp: 175,
-    g: "lento",
-    ab: ["aura_sanadora", "lamento_espiritual"],
-    hab: [],
-    egg: ["campo"],
-    bh: "dormilon",
-    look: "blob ear:round eye:sleepy ex:cloud pat:belly arm:fin sz:1.05 hue:15",
-    desc: "Se alimenta de sue\xF1os ajenos. Si te encuentras con \xE9l, tendr\xE1s una noche extra\xF1a pero tranquila."
-  });
-  S2(67, "Noctur\xEDn", "sombra", [40, 52, 40, 45, 40, 63], "C", {
-    cr: 200,
-    h: 0.4,
-    w: 5,
-    xp: 52,
-    g: "medio",
-    ab: ["aura_sombra", "ojo_compuesto"],
-    hab: ["bosque", "pradera"],
-    egg: ["campo"],
-    bh: "curioso",
-    tm: "n",
-    look: "quad ear:point tail:long eye:slit mouth:smile sz:.62",
-    desc: "Un gatito negro de ojos violeta. Solo sale al anochecer y desaparece si lo miras demasiado.",
-    evo: [[68, 28, "time:noche"]]
-  });
-  S2(68, "Panter\xF3n", "sombra", [68, 98, 66, 70, 66, 100], "R", {
-    cr: 50,
-    h: 1.5,
-    w: 60,
-    xp: 178,
-    g: "medio",
-    ab: ["aura_sombra", "impulso"],
-    hab: ["bosque"],
-    egg: ["campo"],
-    bh: "agresivo",
-    tm: "n",
-    look: "quad ear:point tail:long eye:slit mouth:fang pat:band sz:1.0",
-    desc: "Una pantera hecha de sombra. Se lanza desde la oscuridad con una precisi\xF3n escalofriante."
-  });
-  S2(69, "Cuerv\xEDn", "sombra/aire", [45, 55, 40, 45, 40, 60], "C", {
-    cr: 200,
-    h: 0.5,
-    w: 3.5,
-    xp: 54,
-    g: "medio",
-    ab: ["ojo_critico", "insomnio"],
-    hab: ["cueva", "nieve", "ruinas"],
-    egg: ["volador"],
-    bh: "curioso",
-    look: "bird wing:small eye:slit mouth:beak sz:.65 hue:-20",
-    desc: "Roba objetos brillantes y los esconde en grietas. Algunos exploradores recuperan as\xED tesoros perdidos.",
-    evo: [[70, 30, "time:noche"]]
-  });
-  S2(70, "Corvux", "sombra/aire", [78, 95, 62, 70, 62, 88], "U", {
-    cr: 75,
-    h: 1.3,
-    w: 28,
-    xp: 160,
-    g: "medio",
-    ab: ["ojo_critico", "aura_sombra"],
-    hab: ["ruinas"],
-    egg: ["volador"],
-    bh: "agresivo",
-    tm: "n",
-    look: "bird wing:big tail:long eye:slit mouth:beak ex:crest sz:.95 hue:-20",
-    desc: "L\xEDder de bandadas de cuervos. Dicen que sabe d\xF3nde guarda cada ladr\xF3n su bot\xEDn."
-  });
-  S2(71, "Hal\xEDn", "luz", [45, 35, 45, 60, 60, 50], "U", {
-    cr: 130,
-    h: 0.4,
-    w: 3,
-    xp: 62,
-    g: "medio",
-    ab: ["aura_luz", "aura_sanadora"],
-    hab: ["pradera", "montana"],
-    egg: ["fantasia", "volador"],
-    bh: "sociable",
-    look: "float wing:small ex:halo eye:big mouth:smile sz:.6",
-    desc: "Un angelito redondo que flota sobre los prados. Su halo es c\xE1lido al tacto.",
-    evo: [[72, 0, "friend"]]
-  });
-  S2(72, "Aureolo", "luz", [65, 50, 65, 85, 85, 70], "R", {
-    cr: 75,
-    h: 0.9,
-    w: 8,
-    xp: 140,
-    g: "medio",
-    ab: ["aura_luz", "aura_sanadora"],
-    hab: [],
-    egg: ["fantasia", "volador"],
-    bh: "sociable",
-    look: "float wing:feather ex:halo eye:big arm:fin sz:.82",
-    desc: "Aparece cuando un entrenador cuida a su compa\xF1ero con cari\xF1o. Su aureola crece con la amistad.",
-    evo: [[73, 0, "item:gema_solar"]]
-  });
-  S2(73, "Seraf\xEDn", "luz/aire", [82, 62, 78, 112, 100, 90], "V", {
-    cr: 40,
-    h: 1.7,
-    w: 30,
-    xp: 225,
-    g: "medio",
-    ab: ["aura_alba", "aura_sanadora"],
-    hab: [],
-    egg: ["fantasia", "volador"],
-    bh: "sociable",
-    look: "float wing:big ex:halo eye:wide arm:fin pat:gems sz:1.0",
-    desc: "Un mensajero del amanecer. Donde extiende sus seis alas, la lluvia amaina y brota el trigo."
-  });
-  S2(74, "Cervatillo", "planta", [55, 48, 52, 50, 52, 55], "C", {
-    cr: 190,
-    h: 0.8,
-    w: 20,
-    xp: 58,
-    g: "medio",
-    ab: ["espesura", "aura_sanadora"],
-    hab: ["bosque", "pradera"],
-    egg: ["campo"],
-    bh: "timido",
-    look: "quad ear:leaf horn:small eye:big mouth:snout pat:spots sz:.7",
-    desc: "Un cervatillo moteado de hojas. Se queda quieto como una estatua para pasar desapercibido.",
-    evo: [[75, 28, "friend"]]
-  });
-  S2(75, "Albaciervo", "planta/luz", [88, 82, 84, 76, 88, 78], "R", {
-    cr: 60,
-    h: 1.9,
-    w: 110,
-    xp: 180,
-    g: "medio",
-    ab: ["aura_luz", "espesura"],
-    hab: [],
-    egg: ["campo"],
-    bh: "sociable",
-    look: "quad ear:leaf horn:antler eye:wide mouth:snout pat:spots ex:halo sz:1.0",
-    desc: "Sus astas florecen con la primavera. Los habitantes del bosque lo consideran un protector."
-  });
-  S2(76, "Tornill\xEDn", "metal", [40, 55, 70, 30, 35, 35], "C", {
-    cr: 220,
-    h: 0.3,
-    w: 12,
-    xp: 52,
-    g: "medio",
-    ab: ["piel_dura", "robustez"],
-    hab: ["cueva", "ruinas"],
-    egg: ["mineral"],
-    bh: "curioso",
-    look: "golem eye:big ex:gear sz:.58",
-    desc: "Un peque\xF1o aut\xF3mata de tuercas. Nadie recuerda qui\xE9n lo fabric\xF3, pero sigue funcionando.",
-    evo: [[77, 25, "place:cueva"]]
-  });
-  S2(77, "Engran\xF3n", "metal", [60, 85, 95, 45, 55, 50], "U", {
-    cr: 100,
-    h: 1,
-    w: 85,
-    xp: 125,
-    g: "medio",
-    ab: ["piel_dura", "robustez"],
-    hab: ["cueva", "ruinas"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "golem arm:big eye:angry ex:gear pat:band sz:.82",
-    desc: "Sus engranajes giran al comp\xE1s de su respiraci\xF3n. Si tose, sale vapor.",
-    evo: [[78, 42]]
-  });
-  S2(78, "Coloso F\xE9rreo", "metal/roca", [85, 120, 130, 50, 70, 45], "R", {
-    cr: 40,
-    h: 2.5,
-    w: 420,
-    xp: 222,
-    g: "lento",
-    ab: ["coraza_antigua", "robustez"],
-    hab: [],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "golem arm:big eye:angry ex:gear horn:small pat:band sz:1.06",
-    desc: "Una m\xE1quina viva forjada hace milenios. Aplasta rocas con un movimiento de brazo."
-  });
-  S2(79, "Espad\xEDn", "metal/espiritu", [40, 55, 65, 35, 45, 45], "U", {
-    cr: 120,
-    h: 0.5,
-    w: 3,
-    xp: 62,
-    g: "medio",
-    ab: ["piel_dura", "lamento_espiritual"],
-    hab: ["ruinas"],
-    egg: ["mineral", "fantasia"],
-    bh: "curioso",
-    look: "float eye:wide ex:blade sz:.6",
-    desc: "Una espada vac\xEDa que se mueve sola. Se dice que guarda el esp\xEDritu de un caballero olvidado.",
-    evo: [[80, 30]]
-  });
-  S2(80, "Hojad\xF3n", "metal/espiritu", [65, 100, 115, 50, 75, 65], "R", {
-    cr: 60,
-    h: 1.4,
-    w: 25,
-    xp: 175,
-    g: "medio",
-    ab: ["coraza_antigua", "lamento_espiritual"],
-    hab: [],
-    egg: ["mineral", "fantasia"],
-    bh: "terco",
-    look: "float arm:blade eye:wide ex:blade pat:band sz:1.0",
-    desc: "Un guerrero fantasma con un escudo y una espada que fueron de otra era. No ataca sin ser desafiado."
-  });
-  S2(81, "Drac\xEDn", "dragon", [45, 64, 45, 50, 50, 50], "R", {
-    cr: 45,
-    h: 0.9,
-    w: 3.3,
-    xp: 60,
-    g: "lento",
-    ab: ["intimidar", "plaga"],
-    hab: ["montana"],
-    egg: ["dragon", "agua"],
-    bh: "curioso",
-    look: "snake eye:big mouth:smile horn:small ear:fin sz:.65",
-    desc: "Una peque\xF1a serpiente de aire que vive en cascadas de altura. Es esquiva y muy t\xEDmida.",
-    evo: [[82, 30]]
-  });
-  S2(82, "Dragonar", "dragon", [65, 84, 65, 70, 70, 70], "R", {
-    cr: 45,
-    h: 2.1,
-    w: 16,
-    xp: 140,
-    g: "lento",
-    ab: ["intimidar", "nube_lluvia"],
-    hab: ["montana"],
-    egg: ["dragon", "agua"],
-    bh: "terco",
-    look: "drag wing:small eye:big horn:small tail:long sz:.9",
-    desc: "Un joven drag\xF3n que ya vuela. Sus alas diminutas lo sostienen gracias a su magia natural.",
-    evo: [[83, 50]]
-  });
-  S2(83, "Drakonor", "dragon/aire", [91, 134, 95, 100, 100, 80], "E", {
-    cr: 25,
-    h: 2.2,
-    w: 210,
-    xp: 300,
-    g: "lento",
-    ab: ["intimidar", "robustez"],
-    hab: [],
-    egg: ["dragon"],
-    bh: "terco",
-    look: "drag wing:big horn:big eye:angry tail:long arm:claw pat:belly sz:1.05",
-    desc: "Un drag\xF3n majestuoso que cruza el oc\xE9ano en un d\xEDa. Rescata a n\xE1ufragos aunque no sea su costumbre."
-  });
-  S2(84, "Cant\xEDn", "sonido/aire", [45, 40, 40, 60, 45, 60], "C", {
-    cr: 220,
-    h: 0.3,
-    w: 1.6,
-    xp: 53,
-    g: "medio",
-    ab: ["voz_potente", "ojo_critico"],
-    hab: ["pradera", "bosque", "montana"],
-    egg: ["volador"],
-    bh: "sociable",
-    look: "bird wing:small eye:big mouth:beak ex:notes sz:.6",
-    desc: "Un pajarito cantor. Cada macho tiene una melod\xEDa propia que ense\xF1a a sus cr\xEDas.",
-    evo: [[85, 26]]
-  });
-  S2(85, "Cantor", "sonido/aire", [70, 55, 60, 100, 70, 95], "U", {
-    cr: 90,
-    h: 0.9,
-    w: 9,
-    xp: 140,
-    g: "medio",
-    ab: ["voz_potente", "ojo_critico"],
-    hab: ["bosque", "montana"],
-    egg: ["volador"],
-    bh: "sociable",
-    look: "bird wing:feather tail:long eye:big mouth:beak ex:notes pat:belly sz:.82",
-    desc: "Su canto cambia el clima de \xE1nimo del bosque entero. Los animales dejan de pelear cuando lo oyen."
-  });
-  S2(86, "Campan\xEDn", "sonido", [50, 45, 60, 55, 50, 35], "C", {
-    cr: 200,
-    h: 0.4,
-    w: 6,
-    xp: 55,
-    g: "medio",
-    ab: ["voz_potente", "piel_dura"],
-    hab: ["ruinas", "montana", "cueva"],
-    egg: ["mineral"],
-    bh: "timido",
-    look: "bell eye:big mouth:smile c1:#c99a3c c2:#f2dc8a sz:.6",
-    desc: "Una campana peque\xF1a que suena con el viento. Los antiguos pueblos las colgaban en las puertas.",
-    evo: [[87, 32]]
-  });
-  S2(87, "Campan\xF3n", "sonido/metal", [85, 65, 95, 90, 80, 45], "U", {
-    cr: 75,
-    h: 1.4,
-    w: 130,
-    xp: 160,
-    g: "medio",
-    ab: ["voz_potente", "coraza_antigua"],
-    hab: ["ruinas"],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "bell eye:angry arm:big pat:band c1:#c99a3c c2:#f2dc8a sz:1.0",
-    desc: "Su repique atraviesa las rocas. Los mineros lo oyen avisar cuando se acerca un derrumbe."
-  });
-  S2(88, "Tambor\xEDn", "sonido", [55, 60, 50, 45, 45, 45], "C", {
-    cr: 200,
-    h: 0.5,
-    w: 8,
-    xp: 54,
-    g: "medio",
-    ab: ["voz_potente", "fuerza_pura"],
-    hab: ["bosque", "montana"],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "bip arm:big eye:big mouth:smile ex:drum sz:.65",
-    desc: "Lleva un tambor en la barriga y lo toca cuando est\xE1 contento. Es muy ruidoso, pero buena compa\xF1\xEDa.",
-    evo: [[89, 34]]
-  });
-  S2(89, "Tronador", "sonido/lucha", [90, 98, 72, 66, 68, 58], "U", {
-    cr: 60,
-    h: 1.7,
-    w: 95,
-    xp: 165,
-    g: "medio",
-    ab: ["voz_potente", "intimidar"],
-    hab: ["montana"],
-    egg: ["campo"],
-    bh: "agresivo",
-    look: "bip arm:big eye:angry mouth:fang ex:drum pat:band sz:1.0",
-    desc: "Con cada golpe de tambor hace temblar el suelo. Su ritmo marca el comp\xE1s de las batallas."
-  });
-  S2(90, "Brum\xEDn", "espiritu", [35, 30, 35, 55, 45, 50], "C", {
-    cr: 200,
-    h: 0.4,
-    w: 0.5,
-    xp: 52,
-    g: "medio",
-    ab: ["levitar", "lamento_espiritual"],
-    hab: ["pantano", "ruinas"],
-    egg: ["amorfo"],
-    bh: "timido",
-    tm: "n",
-    look: "float eye:big mouth:smile tail:long sz:.58",
-    desc: "Una brizna de niebla con ojos curiosos. Se queda en los rincones sin que lo vea nadie.",
-    evo: [[91, 22]]
-  });
-  S2(91, "Nebl\xEDn", "espiritu", [55, 45, 50, 80, 65, 70], "U", {
-    cr: 100,
-    h: 1,
-    w: 1.2,
-    xp: 120,
-    g: "medio",
-    ab: ["levitar", "lamento_espiritual"],
-    hab: ["pantano", "ruinas"],
-    egg: ["amorfo"],
-    bh: "curioso",
-    tm: "n",
-    look: "float eye:wide mouth:fang arm:fin tail:long sz:.82",
-    desc: "Aparece en las noches de niebla gimiendo suavemente. Quien lo oye cree escuchar a un viejo conocido.",
-    evo: [[92, 38]]
-  });
-  S2(92, "Aparecido", "espiritu", [70, 60, 70, 115, 90, 85], "R", {
-    cr: 45,
-    h: 1.6,
-    w: 2.5,
-    xp: 205,
-    g: "medio",
-    ab: ["levitar", "aura_sombra"],
-    hab: [],
-    egg: ["amorfo"],
-    bh: "agresivo",
-    look: "float eye:wide mouth:fang arm:fin tail:long ex:crown sz:1.0",
-    desc: "El esp\xEDritu de un antiguo se\xF1or del pantano. Observa los viajes desde lejos y a veces los gu\xEDa."
-  });
-  S2(93, "Antifaz", "espiritu", [50, 55, 60, 50, 50, 45], "C", {
-    cr: 190,
-    h: 0.5,
-    w: 2,
-    xp: 58,
-    g: "medio",
-    ab: ["levitar", "insomnio"],
-    hab: ["ruinas", "cueva"],
-    egg: ["fantasia"],
-    bh: "curioso",
-    look: "float eye:wide ex:mask sz:.62",
-    desc: "Una m\xE1scara de piedra que flota en las ruinas. Cambia de expresi\xF3n seg\xFAn el humor del que la mira.",
-    evo: [[94, 0, "item:gema_ocaso"]]
-  });
-  S2(94, "Mascar\xF3n", "espiritu/sombra", [78, 90, 90, 66, 78, 66], "R", {
-    cr: 60,
-    h: 1.4,
-    w: 22,
-    xp: 178,
-    g: "medio",
-    ab: ["levitar", "aura_sombra"],
-    hab: [],
-    egg: ["fantasia"],
-    bh: "agresivo",
-    look: "float eye:wide ex:mask arm:blade pat:band tail:long sz:1.0",
-    desc: "Una m\xE1scara ceremonial con capa de sombras. Los arque\xF3logos dicen que se vigilaba a s\xED misma."
-  });
-  S2(95, "Ara\xF1\xEDn", "insecto", [40, 50, 45, 45, 40, 55], "C", {
-    cr: 220,
-    h: 0.3,
-    w: 3,
-    xp: 50,
-    g: "medio",
-    ab: ["plaga", "puas_toxicas"],
-    hab: ["bosque", "cueva"],
-    egg: ["bicho"],
-    bh: "timido",
-    look: "bug arm:claw eye:three mouth:fang pat:spots sz:.58",
-    desc: "Teje telara\xF1as tan finas que solo se ven al amanecer. Atrapa insectos y gotas de roc\xEDo.",
-    evo: [[96, 28]]
-  });
-  S2(96, "Tejedora", "insecto/veneno", [70, 80, 70, 85, 70, 85], "U", {
-    cr: 75,
-    h: 1.4,
-    w: 38,
-    xp: 158,
-    g: "medio",
-    ab: ["plaga", "puas_toxicas"],
-    hab: ["bosque", "pantano"],
-    egg: ["bicho"],
-    bh: "agresivo",
-    look: "bug arm:blade eye:three mouth:fang pat:spots tail:spike sz:.95",
-    desc: "Su seda se usa para bordar trajes de gala. No es tan generosa si te acercas a su nido."
-  });
-  S2(97, "Mant\xEDn", "insecto", [45, 60, 45, 40, 45, 65], "U", {
-    cr: 130,
-    h: 0.5,
-    w: 4,
-    xp: 60,
-    g: "medio",
-    ab: ["plaga", "ojo_critico"],
-    hab: ["bosque", "pradera"],
-    egg: ["bicho"],
-    bh: "agresivo",
-    look: "bug arm:blade eye:angry mouth:smile sz:.65",
-    desc: "Una peque\xF1a mantis que se camufla en las hojas. Sus guada\xF1as todav\xEDa est\xE1n afil\xE1ndose.",
-    evo: [[98, 33]]
-  });
-  S2(98, "Guada\xF1\xF3n", "insecto/aire", [72, 105, 72, 50, 68, 98], "R", {
-    cr: 50,
-    h: 1.7,
-    w: 30,
-    xp: 178,
-    g: "medio",
-    ab: ["plaga", "ojo_critico"],
-    hab: ["bosque"],
-    egg: ["bicho"],
-    bh: "agresivo",
-    look: "bug wing:big arm:blade eye:angry mouth:fang sz:1.0",
-    desc: "Sus guada\xF1as cortan hojas de acero. Antes de atacar cierra los ojos para concentrarse."
-  });
-  S2(99, "Escarab\xEDn", "insecto", [45, 55, 70, 30, 35, 30], "C", {
-    cr: 200,
-    h: 0.4,
-    w: 12,
-    xp: 52,
-    g: "medio",
-    ab: ["piel_dura", "plaga"],
-    hab: ["bosque", "cueva"],
-    egg: ["bicho"],
-    bh: "terco",
-    look: "bug horn:single eye:big sz:.62 hue:-30",
-    desc: "Rueda bolitas de tierra m\xE1s grandes que \xE9l. Su caparaz\xF3n brilla bajo la luz de la luna.",
-    evo: [[100, 34]]
-  });
-  S2(100, "Titan\xE1baro", "insecto/roca", [80, 115, 125, 40, 65, 45], "R", {
-    cr: 45,
-    h: 1.8,
-    w: 240,
-    xp: 190,
-    g: "lento",
-    ab: ["piel_dura", "piel_petrea"],
-    hab: [],
-    egg: ["bicho"],
-    bh: "terco",
-    look: "bug horn:big arm:claw eye:angry pat:band sz:1.04 hue:-30",
-    desc: "Su cuerno parte troncos como si fueran ramitas. Es el campe\xF3n de los torneos de escarabajos de Roble."
-  });
-  S2(101, "Armad\xEDn", "tierra", [45, 55, 75, 30, 35, 30], "C", {
-    cr: 200,
-    h: 0.5,
-    w: 14,
-    xp: 52,
-    g: "medio",
-    ab: ["piel_dura", "robustez"],
-    hab: ["desierto", "cueva", "pradera"],
-    egg: ["campo"],
-    bh: "timido",
-    look: "shell ear:round eye:big tail:tuft sz:.65 hue:15",
-    desc: "Se enrolla en una bola impenetrable si lo asustan. Rueda cuesta abajo para escapar.",
-    evo: [[102, 30]]
-  });
-  S2(102, "Blindarr\xF3n", "tierra/metal", [75, 95, 125, 45, 65, 35], "U", {
-    cr: 60,
-    h: 1.5,
-    w: 130,
-    xp: 170,
-    g: "medio",
-    ab: ["piel_dura", "coraza_antigua"],
-    hab: ["desierto", "cueva"],
-    egg: ["campo", "mineral"],
-    bh: "terco",
-    look: "shell arm:claw eye:angry ex:spikes pat:band sz:1.0 hue:15",
-    desc: "Su armadura met\xE1lica resiste la lava y el hielo. Es un tanque vivo que apenas se mueve."
-  });
-  S2(103, "Fosil\xEDn", "roca", [45, 60, 80, 55, 50, 25], "R", {
-    cr: 70,
-    h: 0.7,
-    w: 9,
-    xp: 88,
-    g: "medio",
-    ab: ["robustez", "piel_petrea"],
-    hab: ["cueva", "ruinas"],
-    egg: ["mineral", "agua"],
-    bh: "timido",
-    look: "shell eye:big ex:spiral pat:spots sz:.7 hue:40",
-    desc: "Un f\xF3sil que cobr\xF3 vida al tocar el agua. A\xFAn recuerda el mar antiguo y huye de la tierra seca.",
-    evo: [[104, 36]]
-  });
-  S2(104, "Amonit\xF3n", "roca/planta", [78, 86, 110, 95, 68, 48], "V", {
-    cr: 40,
-    h: 1.6,
-    w: 90,
-    xp: 195,
-    g: "medio",
-    ab: ["piel_petrea", "espesura"],
-    hab: [],
-    egg: ["mineral", "agua"],
-    bh: "terco",
-    look: "shell eye:angry ex:spiral tail:leaf arm:claw pat:band sz:1.0 hue:40",
-    desc: "Una criatura prehist\xF3rica con zarcillos de hojas. Las algas crecen en su caparaz\xF3n enroscado."
-  });
-  S2(105, "Bateruela", "electrico/metal", [45, 40, 60, 60, 50, 35], "U", {
-    cr: 150,
-    h: 0.4,
-    w: 7,
-    xp: 62,
-    g: "medio",
-    ab: ["pararrayos", "robustez"],
-    hab: ["cueva", "ruinas"],
-    egg: ["mineral"],
-    bh: "curioso",
-    look: "golem eye:big mouth:smile ex:sparks arm:fin sz:.62",
-    desc: "Una pila viviente. Guarda energ\xEDa para a\xF1os y se la ofrece a quien le cae bien.",
-    evo: [[106, 33]]
-  });
-  S2(106, "Dinam\xF3n", "electrico/metal", [80, 65, 95, 105, 85, 50], "R", {
-    cr: 60,
-    h: 1.5,
-    w: 110,
-    xp: 190,
-    g: "medio",
-    ab: ["pararrayos", "piel_dura"],
-    hab: [],
-    egg: ["mineral"],
-    bh: "terco",
-    look: "golem arm:big eye:angry ex:sparks horn:small pat:band sz:1.0",
-    desc: "Un generador con patas. Su zumbido tranquiliza a los t\xE9cnicos de las centrales el\xE9ctricas."
-  });
-  S2(107, "Lucecita", "insecto/electrico", [40, 35, 40, 60, 45, 55], "C", {
-    cr: 200,
-    h: 0.3,
-    w: 0.8,
-    xp: 52,
-    g: "medio",
-    ab: ["chispa_viva", "plaga"],
-    hab: ["bosque", "pantano"],
-    egg: ["bicho"],
-    bh: "curioso",
-    tm: "n",
-    look: "bug wing:small ex:glowtail eye:big mouth:smile sz:.58",
-    desc: "Una luci\xE9rnaga que parpadea en c\xF3digo. Se comunica con las dem\xE1s con destellos de colores.",
-    evo: [[108, 26]]
-  });
-  S2(108, "Fulgor", "insecto/electrico", [70, 60, 65, 105, 80, 90], "U", {
-    cr: 75,
-    h: 1.1,
-    w: 12,
-    xp: 150,
-    g: "medio",
-    ab: ["chispa_viva", "plaga"],
-    hab: ["bosque", "pantano"],
-    egg: ["bicho"],
-    bh: "sociable",
-    tm: "n",
-    look: "bug wing:moth ex:glowtail eye:big pat:spots sz:.9",
-    desc: "Ilumina enjambres de noche como una constelaci\xF3n en movimiento. Su luz hipnotiza."
-  });
-  S2(109, "Flor\xEDn", "planta", [45, 40, 50, 65, 60, 40], "C", {
-    cr: 190,
-    h: 0.4,
-    w: 3,
-    xp: 56,
-    g: "medio",
-    ab: ["espesura", "aura_sanadora"],
-    hab: ["pradera", "bosque"],
-    egg: ["planta"],
-    bh: "sociable",
-    look: "plant eye:big mouth:smile ex:flowerhead sz:.6 hue:70",
-    desc: "Una florecilla que sigue al sol dando saltitos. Su perfume calma a quien lo huele.",
-    evo: [[110, 0, "item:gema_solar"]]
-  });
-  S2(110, "Floralia", "planta/luz", [78, 58, 78, 108, 98, 58], "R", {
-    cr: 45,
-    h: 1.3,
-    w: 14,
-    xp: 195,
-    g: "medio",
-    ab: ["aura_luz", "aura_sanadora"],
-    hab: [],
-    egg: ["planta", "fantasia"],
-    bh: "sociable",
-    look: "plant eye:wide mouth:smile ex:flowerhead arm:fin ear:leaf pat:gems sz:.95 hue:70",
-    desc: "Su corola irradia luz propia. Dicen que florece solo ante personas de buen coraz\xF3n."
-  });
-  S2(111, "Anguil\xEDn", "agua", [45, 45, 40, 55, 40, 60], "C", {
-    cr: 190,
-    h: 0.7,
-    w: 4,
-    xp: 55,
-    g: "medio",
-    ab: ["nado_veloz", "pararrayos"],
-    hab: ["lago", "pantano", "mar"],
-    egg: ["agua"],
-    bh: "timido",
-    look: "snake eye:big mouth:smile tail:fin sz:.62 hue:-40",
-    desc: "Una peque\xF1a anguila que lanza chispitas al ser sorprendida. Prefiere el agua dulce y fresca.",
-    evo: [[112, 34]]
-  });
-  S2(112, "Voltanguila", "agua/electrico", [82, 85, 68, 98, 68, 82], "R", {
-    cr: 60,
-    h: 2.4,
-    w: 55,
-    xp: 180,
-    g: "medio",
-    ab: ["pararrayos", "nado_veloz"],
-    hab: ["lago", "mar"],
-    egg: ["agua"],
-    bh: "agresivo",
-    look: "snake eye:angry mouth:fang tail:fin ex:sparks pat:band sz:1.0 hue:-40",
-    desc: "Una anguila gigante que ilumina la profundidad con descargas. Los pescadores la temen y la respetan."
-  });
-  S2(113, "Tempestra", "aire/electrico", [90, 90, 85, 125, 90, 110], "L", {
-    cr: 15,
-    h: 2.4,
-    w: 68,
-    xp: 330,
-    g: "lento",
-    ab: ["tormenta_viva", "pararrayos"],
-    hab: ["isla"],
-    egg: ["sin"],
-    bh: "agresivo",
-    look: "bird wing:big tail:bolt eye:angry mouth:beak ex:sparks crest pat:band sz:1.08",
-    lore: "Guardiana de las tormentas. Cuando bate sus alas, el cielo se parte en rayos. Su nido est\xE1 en lo m\xE1s alto de la Isla Tormenta.",
-    desc: "La Guardiana de las Tormentas. Cada vez que bate sus alas, el cielo de Aurelia se llena de truenos."
-  });
-  S2(114, "Magmaron", "fuego/tierra", [100, 125, 100, 100, 85, 70], "L", {
-    cr: 15,
-    h: 3.6,
-    w: 620,
-    xp: 330,
-    g: "lento",
-    ab: ["corazon_volcan", "robustez"],
-    hab: ["volcan"],
-    egg: ["sin"],
-    bh: "terco",
-    look: "quad horn:big arm:claw eye:angry mouth:fang ex:flame pat:spots sz:1.08",
-    desc: "El Guardi\xE1n del Cr\xE1ter. Duerme dentro del volc\xE1n y sus sue\xF1os provocan temblores y fumarolas."
-  });
-  S2(115, "Glaciaris", "hielo/agua", [95, 85, 115, 125, 105, 60], "L", {
-    cr: 15,
-    h: 3,
-    w: 310,
-    xp: 330,
-    g: "lento",
-    ab: ["alma_glaciar", "marea_viva"],
-    hab: ["nieve"],
-    egg: ["sin"],
-    bh: "terco",
-    look: "drag wing:feather horn:antler tail:long eye:wide ex:crystal pat:belly sz:1.08",
-    desc: "El Guardi\xE1n del Hielo Eterno. Cada paso suyo cubre de escarcha el sendero que pisa."
-  });
-  S2(116, "Arkanion", "metal/espiritu", [90, 110, 130, 80, 115, 55], "L", {
-    cr: 15,
-    h: 3.8,
-    w: 850,
-    xp: 330,
-    g: "lento",
-    ab: ["coraza_antigua", "lamento_espiritual"],
-    hab: ["ruinas"],
-    egg: ["sin"],
-    bh: "terco",
-    look: "golem arm:big horn:crown eye:wide ex:gems pat:band sz:1.1",
-    desc: "El Centinela de las Ruinas. Hecho de metal y de recuerdos, vigila el sello desde antes de que Aurelia tuviera nombre."
-  });
-  S2(117, "Aurelion", "luz/dragon", [105, 100, 100, 130, 110, 95], "L", {
-    cr: 10,
-    h: 4,
-    w: 380,
-    xp: 350,
-    g: "lento",
-    ab: ["aura_alba", "aura_luz"],
-    hab: ["final"],
-    egg: ["sin"],
-    bh: "sociable",
-    look: "drag wing:big horn:crown tail:long eye:wide ex:halo pat:gems sz:1.12",
-    desc: "El Drag\xF3n del Alba. Se dice que cada amanecer es su primer aliento. Sin \xE9l, el d\xEDa no llegar\xEDa a Aurelia."
-  });
-  S2(118, "Umbraxis", "sombra/dragon", [105, 130, 100, 110, 100, 95], "L", {
-    cr: 10,
-    h: 4.2,
-    w: 410,
-    xp: 350,
-    g: "lento",
-    ab: ["aura_eclipse", "intimidar"],
-    hab: ["final"],
-    egg: ["sin"],
-    bh: "agresivo",
-    look: "drag wing:bat horn:big tail:spike eye:angry mouth:fang ex:crystal pat:band sz:1.12",
-    desc: "El Drag\xF3n del Ocaso, gemelo de Aurelion. Su hambre de oscuridad es solo el reflejo del miedo de quienes lo despertaron."
-  });
-  S2(119, "Lunaria", "mental/espiritu", [95, 70, 95, 120, 125, 95], "L", {
-    cr: 12,
-    h: 2,
-    w: 90,
-    xp: 320,
-    g: "lento",
-    ab: ["lamento_espiritual", "aura_sanadora"],
-    hab: ["ruinas"],
-    egg: ["sin"],
-    bh: "timido",
-    tm: "n",
-    look: "float wing:feather tail:long eye:wide ex:halo arm:fin pat:gems sz:1.05 c1:#a9bcf0 c2:#f0f4ff c3:#ffe58a c4:#7f8fe0",
-    desc: "La Dama de la Luna. Solo aparece en noches claras sobre las ruinas, y desaparece si siente que la persiguen."
-  });
-  S2(120, "Eterna", "planta/espiritu", [110, 80, 105, 95, 115, 95], "M", {
-    cr: 8,
-    h: 1.6,
-    w: 35,
-    xp: 340,
-    g: "lento",
-    ab: ["aura_sanadora", "espesura"],
-    hab: [],
-    egg: ["sin"],
-    bh: "timido",
-    look: "plant ear:leaf eye:wide mouth:smile ex:flowerhead arm:fin pat:gems wing:leaf sz:1.0 c1:#78dca4 c2:#eafff0 c3:#ff9ad0 c4:#4fb88a",
-    desc: "La Semilla Eterna. Brota una vez cada mil a\xF1os en un rinc\xF3n secreto. Quien la cuida recibe su bendici\xF3n."
-  });
-  S2(121, "Quimera", "sonido/mental", [90, 110, 85, 125, 90, 100], "M", {
-    cr: 8,
-    h: 1.9,
-    w: 120,
-    xp: 340,
-    g: "lento",
-    ab: ["voz_potente", "mente_clara"],
-    hab: [],
-    egg: ["sin"],
-    bh: "curioso",
-    look: "float wing:moth horn:antler eye:three mouth:fang ex:notes pat:gems tail:long sz:.9",
-    desc: "Un ser cambiante que adopta la forma de lo que oye. Solo se manifiesta ante quien completa el desaf\xEDo del Eco."
-  });
 
   // src/data/species.js
   init_rng();
@@ -4133,92 +3981,39 @@
   var speciesByHabitat = (hab) => SPECIES_LIST.filter((s) => s.habitats.includes(hab));
   var TYPE_COUNT = Object.fromEntries(TYPE_IDS.map((t) => [t, SPECIES_LIST.filter((s) => s.types.includes(t)).length]));
 
-  // src/data/abilities.js
-  var ABILITIES = {};
-  var A = (id, name, desc, fx) => {
-    ABILITIES[id] = { id, name, desc, ...fx };
-  };
-  A("intimidar", "Intimidar", "Al entrar, reduce el Ataque del rival.", { enter: { stat: ["foe", "atk", -1] } });
-  A("nube_lluvia", "Nube de Lluvia", "Al entrar, provoca lluvia.", { enter: { weather: "lluvia" } });
-  A("sol_radiante", "Sol Radiante", "Al entrar, provoca sol intenso.", { enter: { weather: "soleado" } });
-  A("remolino_arena", "Remolino de Arena", "Al entrar, levanta una tormenta de arena.", { enter: { weather: "arena" } });
-  A("aura_helada", "Aura Helada", "Al entrar, provoca granizo.", { enter: { weather: "granizo" } });
-  A("absorbe_agua", "Absorbe Agua", "Inmune al agua; la absorbe para curarse.", { absorb: { type: "agua", heal: 0.25 } });
-  A("pararrayos", "Pararrayos", "Inmune a lo el\xE9ctrico; lo absorbe para curarse.", { absorb: { type: "electrico", heal: 0.25 } });
-  A("piel_seca", "Piel \xCDgnea", "Inmune al fuego; lo absorbe para curarse.", { absorb: { type: "fuego", heal: 0.25 } });
-  A("levitar", "Levitaci\xF3n", "Flota: inmune a los movimientos de Tierra.", { immuneType: "tierra" });
-  A("llama_interior", "Llama Interior", "Con pocos PS potencia el fuego.", { boost: { type: "fuego", mult: 1.5, pinch: true } });
-  A("marea_viva", "Marea Viva", "Con pocos PS potencia el agua.", { boost: { type: "agua", mult: 1.5, pinch: true } });
-  A("espesura", "Espesura", "Con pocos PS potencia la planta.", { boost: { type: "planta", mult: 1.5, pinch: true } });
-  A("plaga", "Plaga", "Con pocos PS potencia los insectos.", { boost: { type: "insecto", mult: 1.5, pinch: true } });
-  A("chispa_viva", "Chispa Viva", "Con pocos PS potencia lo el\xE9ctrico.", { boost: { type: "electrico", mult: 1.5, pinch: true } });
-  A("cuerpo_ardiente", "Cuerpo Ardiente", "Puede quemar a quien lo golpea.", { contact: { st: ["quemado", 30] } });
-  A("estatica", "Est\xE1tica", "Puede paralizar a quien lo golpea.", { contact: { st: ["paralizado", 30] } });
-  A("puas_toxicas", "P\xFAas T\xF3xicas", "Puede envenenar a quien lo golpea.", { contact: { st: ["envenenado", 30] } });
-  A("espinas", "Espinas", "Da\xF1a a quien lo golpea.", { contact: { dmg: 0.125 } });
-  A("cuerpo_libre", "Cuerpo Libre", "No sufre estados alterados.", { noStatus: "all" });
-  A("insomnio", "Insomnio", "No se puede dormir.", { noStatus: ["dormido"] });
-  A("nado_veloz", "Nado Veloz", "Doble de velocidad con lluvia.", { weatherSpeed: { lluvia: 2 } });
-  A("clorofila", "Clorofila", "Doble de velocidad con sol.", { weatherSpeed: { soleado: 2 } });
-  A("pies_arena", "Pies de Arena", "Doble de velocidad en tormenta de arena.", { weatherSpeed: { arena: 2 } });
-  A("patinaje", "Patinaje", "Doble de velocidad con granizo.", { weatherSpeed: { granizo: 2 } });
-  A("regeneracion", "Regeneraci\xF3n", "Recupera 1/16 de sus PS cada turno.", { regen: 0.0625 });
-  A("robustez", "Robustez", "Sobrevive con 1 PS a un golpe letal si ten\xEDa PS completos.", { sturdy: true });
-  A("pelaje_grueso", "Pelaje Grueso", "Resiste el fuego y el hielo.", { resist: { fuego: 0.5, hielo: 0.5 } });
-  A("piel_dura", "Piel Dura", "Reduce el da\xF1o f\xEDsico recibido.", { physRed: 0.8 });
-  A("ojo_compuesto", "Ojo Compuesto", "Aumenta la precisi\xF3n de sus movimientos.", { accMult: 1.3 });
-  A("ojo_critico", "Ojo Cr\xEDtico", "Sus golpes cr\xEDticos son m\xE1s probables.", { critBoost: 1 });
-  A("impulso", "Impulso", "Al derrotar a un rival sube su Ataque.", { onKo: { stat: ["atk", 1] } });
-  A("voz_potente", "Voz Potente", "Potencia los movimientos de sonido.", { boost: { type: "sonido", mult: 1.3 } });
-  A("mente_clara", "Mente Clara", "Sus estad\xEDsticas no pueden ser bajadas por el rival.", { noDrop: true });
-  A("piel_petrea", "Piel P\xE9trea", "Inmune a la arena y m\xE1s resistente a golpes de roca.", { sandImmune: true, resist: { roca: 0.5 } });
-  A("aura_sanadora", "Aura Sanadora", "Puede curar su estado alterado al final del turno.", { cleanse: 0.33 });
-  A("adaptable", "Adaptable", "Potencia el bonus por mismo tipo (STAB).", { adaptable: true });
-  A("fuerza_pura", "Fuerza Pura", "Potencia sus movimientos f\xEDsicos.", { atkMult: 1.3 });
-  A("aura_sombra", "Aura de Sombra", "Potencia los movimientos de Sombra.", { boost: { type: "sombra", mult: 1.25 } });
-  A("aura_luz", "Aura de Luz", "Potencia los movimientos de Luz.", { boost: { type: "luz", mult: 1.25 } });
-  A("aura_alba", "Aura del Alba", "Al entrar provoca sol; potencia la Luz.", { enter: { weather: "soleado" }, boost: { type: "luz", mult: 1.3 } });
-  A("aura_eclipse", "Aura del Eclipse", "Potencia la Sombra y el Drag\xF3n.", { boost: { type: "sombra", mult: 1.3 } });
-  A("tormenta_viva", "Tormenta Viva", "Al entrar provoca lluvia.", { enter: { weather: "lluvia" }, boost: { type: "electrico", mult: 1.2 } });
-  A("corazon_volcan", "Coraz\xF3n de Volc\xE1n", "Al entrar provoca sol; potencia el fuego.", { enter: { weather: "soleado" }, boost: { type: "fuego", mult: 1.25 } });
-  A("alma_glaciar", "Alma de Glaciar", "Al entrar provoca granizo; resiste el hielo.", { enter: { weather: "granizo" }, resist: { hielo: 0.5 } });
-  A("coraza_antigua", "Coraza Antigua", "Reduce el da\xF1o recibido de todo tipo.", { physRed: 0.85, resist: { roca: 0.5, metal: 0.5 } });
-  A("lamento_espiritual", "Lamento Espiritual", "Al entrar baja el Ataque Esp. del rival.", { enter: { stat: ["foe", "spa", -1] } });
+  // src/creatures.js
+  init_rng();
+
+  // src/util.js
+  var clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  var fmtMoney = (n) => "\u20B3" + Math.floor(n).toLocaleString("es-ES");
+  function fmtTime(sec) {
+    sec = Math.floor(sec);
+    const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+    return `${h}:${String(m).padStart(2, "0")}`;
+  }
+  var uid = /* @__PURE__ */ (() => {
+    let n = 0;
+    return () => "u" + Date.now().toString(36) + (n++).toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+  })();
+  function el(tag, props = {}, kids = []) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "style" && typeof v === "object") Object.assign(n.style, v);
+      else if (k === "html") n.innerHTML = v;
+      else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const c of [].concat(kids)) {
+      if (c == null || c === false) continue;
+      n.append(c.nodeType ? c : document.createTextNode(String(c)));
+    }
+    return n;
+  }
 
   // src/creatures.js
-  var creatures_exports = {};
-  __export(creatures_exports, {
-    EV_CAP: () => EV_CAP,
-    EV_TOTAL: () => EV_TOTAL,
-    NATURES: () => NATURES,
-    NATURE_IDS: () => NATURE_IDS,
-    STATUS: () => STATUS,
-    addEv: () => addEv,
-    battleXp: () => battleXp,
-    calcStat: () => calcStat,
-    canFight: () => canFight,
-    changeFriendship: () => changeFriendship,
-    createCreature: () => createCreature,
-    displayName: () => displayName,
-    evYield: () => evYield,
-    gainXp: () => gainXp,
-    healCreature: () => healCreature,
-    healParty: () => healParty,
-    hpRatio: () => hpRatio,
-    isFainted: () => isFainted,
-    learnMove: () => learnMove,
-    levelUpOnce: () => levelUpOnce,
-    makeMove: () => makeMove,
-    natureMod: () => natureMod,
-    recalcStats: () => recalcStats,
-    setStatus: () => setStatus,
-    speciesOf: () => speciesOf,
-    validateCreature: () => validateCreature,
-    xpProgress: () => xpProgress,
-    xpToNext: () => xpToNext
-  });
-  init_config();
-  init_rng();
   var N = (id, name, up, down, text) => [id, { id, name, up, down, text }];
   var NATURES = Object.fromEntries([
     N("audaz", "Audaz", "atk", "def", "Le encanta lanzarse al ataque."),
@@ -4440,11 +4235,133 @@
     }
   }
 
+  // src/trainers.js
+  init_rng();
+  var TRAINERS = {};
+  function defineTrainer(id, def) {
+    TRAINERS[id] = { id, ai: "basic", iv: 5, reward: 0, ...def };
+    return TRAINERS[id];
+  }
+  function getTrainer(id) {
+    const t = TRAINERS[id];
+    if (!t) throw new Error("Entrenador desconocido: " + id);
+    return t;
+  }
+  var teamOf = (def, g) => typeof def.team === "function" ? def.team(g) : def.team;
+  function buildTeam(def, g = null) {
+    const rng = new RNG(hashStr(def.id));
+    return teamOf(def, g).map((m) => {
+      const iv = Object.fromEntries(STAT_KEYS.map((k) => [k, m.iv ?? def.iv ?? 5]));
+      const abilitySlot = m.ab ?? 0;
+      return createCreature(m.sp, m.lv, { rng, iv, nature: m.nat || "equilibrado", moves: m.moves, abilitySlot, ot: def.name, friendship: 70 });
+    });
+  }
+  var defaultReward = (def, g = null) => def.reward || Math.max(60, teamOf(def, g)[teamOf(def, g).length - 1].lv * 40);
+
+  // src/maps/looks.js
+  var L = (o) => ({ skin: 1, hair: "short", hairColor: 1, outfit: "tshirt", top: 0, bottom: 0, shoes: "#3a2a22", hat: "none", hatColor: 0, glasses: false, scarf: null, bag: null, ...o });
+  var LOOKS = {
+    tia: L({ skin: 1, hair: "bun", hairColor: 2, outfit: "dress", top: 4, bottom: 5 }),
+    sauce: L({ skin: 2, hair: "short", hairColor: 4, outfit: "coat", top: 7, bottom: 1, glasses: true }),
+    ayudante: L({ skin: 0, hair: "ponytail", hairColor: 3, outfit: "jacket", top: 6, bottom: 1 }),
+    kai: L({ skin: 3, hair: "spiky", hairColor: 0, outfit: "hoodie", top: 3, bottom: 1, hat: "goggles", hatColor: 7, bag: 1 }),
+    nino: L({ skin: 1, hair: "short", hairColor: 3, outfit: "tshirt", top: 1, bottom: 2, hat: "cap", hatColor: 0 }),
+    nina: L({ skin: 0, hair: "ponytail", hairColor: 5, outfit: "overalls", top: 3, bottom: 6, hat: "ribbon", hatColor: 9 }),
+    abuelo: L({ skin: 2, hair: "bald", hairColor: 4, outfit: "coat", top: 8, bottom: 7, glasses: true }),
+    abuela: L({ skin: 1, hair: "bun", hairColor: 4, outfit: "dress", top: 9, bottom: 5, scarf: 8 }),
+    tendero: L({ skin: 4, hair: "short", hairColor: 0, outfit: "overalls", top: 7, bottom: 3, hat: "cap", hatColor: 1 }),
+    enfermera: L({ skin: 0, hair: "bob", hairColor: 5, outfit: "dress", top: 9, bottom: 5, hat: "headband", hatColor: 9 }),
+    excursionista: L({ skin: 2, hair: "short", hairColor: 1, outfit: "jacket", top: 5, bottom: 2, hat: "hat", hatColor: 3, bag: 3 }),
+    marinero: L({ skin: 3, hair: "short", hairColor: 0, outfit: "tshirt", top: 7, bottom: 0, hat: "cap", hatColor: 1, scarf: 1 }),
+    pescador: L({ skin: 2, hair: "curly", hairColor: 4, outfit: "overalls", top: 6, bottom: 2, hat: "hat", hatColor: 3 }),
+    cientifico: L({ skin: 1, hair: "spiky", hairColor: 8, outfit: "coat", top: 7, bottom: 1, glasses: true }),
+    nadador: L({ skin: 3, hair: "short", hairColor: 0, outfit: "tshirt", top: 1, bottom: 0 }),
+    karateka: L({ skin: 2, hair: "mohawk", hairColor: 0, outfit: "jacket", top: 7, bottom: 7, hat: "headband", hatColor: 0 }),
+    minero: L({ skin: 4, hair: "short", hairColor: 0, outfit: "overalls", top: 3, bottom: 2, hat: "hat", hatColor: 3 }),
+    bruja: L({ skin: 0, hair: "long", hairColor: 9, outfit: "dress", top: 4, bottom: 8, hat: "hat", hatColor: 4 }),
+    esquiador: L({ skin: 0, hair: "short", hairColor: 3, outfit: "hoodie", top: 1, bottom: 0, hat: "beanie", hatColor: 0, scarf: 0 }),
+    domador: L({ skin: 5, hair: "curly", hairColor: 0, outfit: "jacket", top: 1, bottom: 2, hat: "goggles", hatColor: 6 }),
+    jugador_extra: L({ skin: 2, hair: "bob", hairColor: 8, outfit: "tshirt", top: 5, bottom: 0 }),
+    // Orden del Eclipse
+    recluta: L({ skin: 1, hair: "short", hairColor: 8, outfit: "uniform", top: 8, bottom: 8, hat: "beanie", hatColor: 4, shoes: "#1a1226" }),
+    recluta2: L({ skin: 2, hair: "ponytail", hairColor: 8, outfit: "uniform", top: 8, bottom: 8, hat: "beanie", hatColor: 4, shoes: "#1a1226" }),
+    teniente: L({ skin: 0, hair: "long", hairColor: 5, outfit: "coat", top: 8, bottom: 8, hat: "none", shoes: "#1a1226", scarf: 4 }),
+    teniente2: L({ skin: 4, hair: "mohawk", hairColor: 0, outfit: "coat", top: 8, bottom: 8, hat: "none", shoes: "#1a1226", scarf: 0 }),
+    vesper: L({ skin: 1, hair: "long", hairColor: 4, outfit: "coat", top: 8, bottom: 8, hat: "none", shoes: "#1a1226", scarf: 4, glasses: true }),
+    // líderes y élite
+    fresia: L({ skin: 0, hair: "long", hairColor: 8, outfit: "dress", top: 2, bottom: 5, hat: "ribbon", hatColor: 3 }),
+    marlo: L({ skin: 3, hair: "short", hairColor: 0, outfit: "tshirt", top: 1, bottom: 0, hat: "cap", hatColor: 1, scarf: 7 }),
+    volta: L({ skin: 4, hair: "spiky", hairColor: 3, outfit: "jacket", top: 3, bottom: 1, hat: "goggles", hatColor: 3 }),
+    petra: L({ skin: 2, hair: "bob", hairColor: 1, outfit: "overalls", top: 5, bottom: 2, hat: "hat", hatColor: 3 }),
+    ignacio: L({ skin: 2, hair: "spiky", hairColor: 5, outfit: "jacket", top: 0, bottom: 1, scarf: 5 }),
+    morgana: L({ skin: 0, hair: "long", hairColor: 9, outfit: "dress", top: 4, bottom: 8, hat: "hat", hatColor: 4 }),
+    boreal: L({ skin: 0, hair: "curly", hairColor: 4, outfit: "coat", top: 7, bottom: 0, scarf: 1 }),
+    draconia: L({ skin: 1, hair: "ponytail", hairColor: 6, outfit: "coat", top: 4, bottom: 8, hat: "none", glasses: false }),
+    elite1: L({ skin: 5, hair: "mohawk", hairColor: 0, outfit: "hoodie", top: 8, bottom: 8, scarf: 0 }),
+    elite2: L({ skin: 2, hair: "short", hairColor: 3, outfit: "jacket", top: 8, bottom: 7 }),
+    elite3: L({ skin: 0, hair: "bob", hairColor: 9, outfit: "dress", top: 9, bottom: 8, hat: "ribbon", hatColor: 9 }),
+    elite4: L({ skin: 3, hair: "spiky", hairColor: 8, outfit: "tshirt", top: 4, bottom: 3, hat: "headband", hatColor: 3 }),
+    campeon: L({ skin: 2, hair: "long", hairColor: 3, outfit: "coat", top: 3, bottom: 8, hat: "crown", scarf: 0 })
+  };
+  var look = (name, over = {}) => ({ ...LOOKS[name] || LOOKS.nino, ...over });
+
+  // src/data/abilities.js
+  var ABILITIES = {};
+  var A = (id, name, desc, fx) => {
+    ABILITIES[id] = { id, name, desc, ...fx };
+  };
+  A("intimidar", "Intimidar", "Al entrar, reduce el Ataque del rival.", { enter: { stat: ["foe", "atk", -1] } });
+  A("nube_lluvia", "Nube de Lluvia", "Al entrar, provoca lluvia.", { enter: { weather: "lluvia" } });
+  A("sol_radiante", "Sol Radiante", "Al entrar, provoca sol intenso.", { enter: { weather: "soleado" } });
+  A("remolino_arena", "Remolino de Arena", "Al entrar, levanta una tormenta de arena.", { enter: { weather: "arena" } });
+  A("aura_helada", "Aura Helada", "Al entrar, provoca granizo.", { enter: { weather: "granizo" } });
+  A("absorbe_agua", "Absorbe Agua", "Inmune al agua; la absorbe para curarse.", { absorb: { type: "agua", heal: 0.25 } });
+  A("pararrayos", "Pararrayos", "Inmune a lo el\xE9ctrico; lo absorbe para curarse.", { absorb: { type: "electrico", heal: 0.25 } });
+  A("piel_seca", "Piel \xCDgnea", "Inmune al fuego; lo absorbe para curarse.", { absorb: { type: "fuego", heal: 0.25 } });
+  A("levitar", "Levitaci\xF3n", "Flota: inmune a los movimientos de Tierra.", { immuneType: "tierra" });
+  A("llama_interior", "Llama Interior", "Con pocos PS potencia el fuego.", { boost: { type: "fuego", mult: 1.5, pinch: true } });
+  A("marea_viva", "Marea Viva", "Con pocos PS potencia el agua.", { boost: { type: "agua", mult: 1.5, pinch: true } });
+  A("espesura", "Espesura", "Con pocos PS potencia la planta.", { boost: { type: "planta", mult: 1.5, pinch: true } });
+  A("plaga", "Plaga", "Con pocos PS potencia los insectos.", { boost: { type: "insecto", mult: 1.5, pinch: true } });
+  A("chispa_viva", "Chispa Viva", "Con pocos PS potencia lo el\xE9ctrico.", { boost: { type: "electrico", mult: 1.5, pinch: true } });
+  A("cuerpo_ardiente", "Cuerpo Ardiente", "Puede quemar a quien lo golpea.", { contact: { st: ["quemado", 30] } });
+  A("estatica", "Est\xE1tica", "Puede paralizar a quien lo golpea.", { contact: { st: ["paralizado", 30] } });
+  A("puas_toxicas", "P\xFAas T\xF3xicas", "Puede envenenar a quien lo golpea.", { contact: { st: ["envenenado", 30] } });
+  A("espinas", "Espinas", "Da\xF1a a quien lo golpea.", { contact: { dmg: 0.125 } });
+  A("cuerpo_libre", "Cuerpo Libre", "No sufre estados alterados.", { noStatus: "all" });
+  A("insomnio", "Insomnio", "No se puede dormir.", { noStatus: ["dormido"] });
+  A("nado_veloz", "Nado Veloz", "Doble de velocidad con lluvia.", { weatherSpeed: { lluvia: 2 } });
+  A("clorofila", "Clorofila", "Doble de velocidad con sol.", { weatherSpeed: { soleado: 2 } });
+  A("pies_arena", "Pies de Arena", "Doble de velocidad en tormenta de arena.", { weatherSpeed: { arena: 2 } });
+  A("patinaje", "Patinaje", "Doble de velocidad con granizo.", { weatherSpeed: { granizo: 2 } });
+  A("regeneracion", "Regeneraci\xF3n", "Recupera 1/16 de sus PS cada turno.", { regen: 0.0625 });
+  A("robustez", "Robustez", "Sobrevive con 1 PS a un golpe letal si ten\xEDa PS completos.", { sturdy: true });
+  A("pelaje_grueso", "Pelaje Grueso", "Resiste el fuego y el hielo.", { resist: { fuego: 0.5, hielo: 0.5 } });
+  A("piel_dura", "Piel Dura", "Reduce el da\xF1o f\xEDsico recibido.", { physRed: 0.8 });
+  A("ojo_compuesto", "Ojo Compuesto", "Aumenta la precisi\xF3n de sus movimientos.", { accMult: 1.3 });
+  A("ojo_critico", "Ojo Cr\xEDtico", "Sus golpes cr\xEDticos son m\xE1s probables.", { critBoost: 1 });
+  A("impulso", "Impulso", "Al derrotar a un rival sube su Ataque.", { onKo: { stat: ["atk", 1] } });
+  A("voz_potente", "Voz Potente", "Potencia los movimientos de sonido.", { boost: { type: "sonido", mult: 1.3 } });
+  A("mente_clara", "Mente Clara", "Sus estad\xEDsticas no pueden ser bajadas por el rival.", { noDrop: true });
+  A("piel_petrea", "Piel P\xE9trea", "Inmune a la arena y m\xE1s resistente a golpes de roca.", { sandImmune: true, resist: { roca: 0.5 } });
+  A("aura_sanadora", "Aura Sanadora", "Puede curar su estado alterado al final del turno.", { cleanse: 0.33 });
+  A("adaptable", "Adaptable", "Potencia el bonus por mismo tipo (STAB).", { adaptable: true });
+  A("fuerza_pura", "Fuerza Pura", "Potencia sus movimientos f\xEDsicos.", { atkMult: 1.3 });
+  A("aura_sombra", "Aura de Sombra", "Potencia los movimientos de Sombra.", { boost: { type: "sombra", mult: 1.25 } });
+  A("aura_luz", "Aura de Luz", "Potencia los movimientos de Luz.", { boost: { type: "luz", mult: 1.25 } });
+  A("aura_alba", "Aura del Alba", "Al entrar provoca sol; potencia la Luz.", { enter: { weather: "soleado" }, boost: { type: "luz", mult: 1.3 } });
+  A("aura_eclipse", "Aura del Eclipse", "Potencia la Sombra y el Drag\xF3n.", { boost: { type: "sombra", mult: 1.3 } });
+  A("tormenta_viva", "Tormenta Viva", "Al entrar provoca lluvia.", { enter: { weather: "lluvia" }, boost: { type: "electrico", mult: 1.2 } });
+  A("corazon_volcan", "Coraz\xF3n de Volc\xE1n", "Al entrar provoca sol; potencia el fuego.", { enter: { weather: "soleado" }, boost: { type: "fuego", mult: 1.25 } });
+  A("alma_glaciar", "Alma de Glaciar", "Al entrar provoca granizo; resiste el hielo.", { enter: { weather: "granizo" }, resist: { hielo: 0.5 } });
+  A("coraza_antigua", "Coraza Antigua", "Reduce el da\xF1o recibido de todo tipo.", { physRed: 0.85, resist: { roca: 0.5, metal: 0.5 } });
+  A("lamento_espiritual", "Lamento Espiritual", "Al entrar baja el Ataque Esp. del rival.", { enter: { stat: ["foe", "spa", -1] } });
+
   // src/gfx/creature_gfx.js
   init_color();
   init_rng();
   var SPR = 48;
-  var cache2 = /* @__PURE__ */ new Map();
+  var cache = /* @__PURE__ */ new Map();
   var E = (cx, cy, rx, ry, rot = 0) => {
     const c = Math.cos(rot), s = Math.sin(rot);
     const f = (x, y) => {
@@ -4476,8 +4393,8 @@
   };
   function makePalette(sp, hue) {
     const t1 = TYPES[sp.types[0]], t2 = TYPES[sp.types[1] || sp.types[0]];
-    const L2 = sp.look;
-    let body = L2.c1 || t1.color, belly = L2.c2 || t1.light, accent = L2.c3 || (sp.types[1] ? t2.color : t1.alt);
+    const L3 = sp.look;
+    let body = L3.c1 || t1.color, belly = L3.c2 || t1.light, accent = L3.c3 || (sp.types[1] ? t2.color : t1.alt);
     let dark = t1.dark;
     const sh = (c) => shiftHue(c, hue);
     body = sh(body);
@@ -4491,7 +4408,7 @@
       dark,
       line: darken(dark, 0.55),
       light: sh(t1.light),
-      second: L2.c4 ? L2.c4 : sh(sp.types[1] ? t2.color : t1.alt),
+      second: L3.c4 ? L3.c4 : sh(sp.types[1] ? t2.color : t1.alt),
       secondD: sh(sp.types[1] ? t2.dark : darken(t1.alt, 0.3)),
       white: "#fffaf0",
       ink: "#1b1228",
@@ -4888,42 +4805,42 @@
     return layer;
   }
   function render(sp, variant) {
-    const L2 = sp.look;
-    const hue = (L2.hue || 0) + (variant?.hue || 0);
+    const L3 = sp.look;
+    const hue = (L3.hue || 0) + (variant?.hue || 0);
     const pal = makePalette(sp, hue);
     const sc = new Scene(pal);
-    sc.look = L2;
-    sc.exs = new Set((L2.ex || "").split(",").filter(Boolean));
-    const plan = PLANS[L2.plan] || PLANS.blob;
+    sc.look = L3;
+    sc.exs = new Set((L3.ex || "").split(",").filter(Boolean));
+    const plan = PLANS[L3.plan] || PLANS.blob;
     plan(sc);
-    const sz = L2.sz || 1;
-    if (L2.ear && L2.ear !== "none") addEars(sc, L2.ear);
-    if (L2.horn && L2.horn !== "none") addHorns(sc, L2.horn);
-    if (L2.tail && L2.tail !== "none") addTail(sc, L2.tail);
-    const wing = L2.wing && L2.wing !== "none" ? L2.wing : L2.plan === "bird" ? "small" : null;
+    const sz = L3.sz || 1;
+    if (L3.ear && L3.ear !== "none") addEars(sc, L3.ear);
+    if (L3.horn && L3.horn !== "none") addHorns(sc, L3.horn);
+    if (L3.tail && L3.tail !== "none") addTail(sc, L3.tail);
+    const wing = L3.wing && L3.wing !== "none" ? L3.wing : L3.plan === "bird" ? "small" : null;
     if (wing) addWings(sc, wing);
-    if (L2.arm && L2.arm !== "none") addArms(sc, L2.arm);
-    if (L2.mouth === "beak" || L2.plan === "bird" && !L2.mouth) {
+    if (L3.arm && L3.arm !== "none") addArms(sc, L3.arm);
+    if (L3.mouth === "beak" || L3.plan === "bird" && !L3.mouth) {
       const h = sc.head;
       sc.add(TRI(h.x - 2.8, h.y + 1.2, h.x + 2.8, h.y + 1.2, h.x, h.y + 6), "#f2b430", 6, { line: true });
     }
-    if (L2.mouth === "snout") {
+    if (L3.mouth === "snout") {
       const h = sc.head;
       sc.add(E(h.x, h.y + h.r * 0.45, h.r * 0.5, h.r * 0.38), "belly", 6, { line: true });
     }
-    if (L2.pat === "belly" && sc.anch.belly) {
+    if (L3.pat === "belly" && sc.anch.belly) {
       const [bx, by, rx, ry] = sc.anch.belly;
       sc.add(E(bx, by, rx, ry), "belly", 4);
     }
-    if (L2.pat === "cheeks") {
+    if (L3.pat === "cheeks") {
       const h = sc.head;
       for (const sg of [-1, 1]) sc.add(C(h.x + sg * h.r * 0.78, h.y + h.r * 0.35, 2.6), "#ff6a5a", 6, { nos: true });
     }
     addExtras(sc, [...sc.exs]);
     const layer = rasterize(sc, sz);
-    return finish(sc, layer, sz, sp, L2, variant);
+    return finish(sc, layer, sz, sp, L3, variant);
   }
-  function finish(sc, layer, sz, sp, L2, variant) {
+  function finish(sc, layer, sz, sp, L3, variant) {
     const N2 = SPR, pal = sc.pal;
     const cv = document.createElement("canvas");
     cv.width = cv.height = N2;
@@ -4998,7 +4915,7 @@
       }
       put(x, y, c);
     }
-    if (L2.plan === "golem") {
+    if (L3.plan === "golem") {
       for (let y = 0; y < N2; y++) for (let x = 0; x < N2; x++) {
         const l = layer[y * N2 + x];
         if (l < 0) continue;
@@ -5013,22 +4930,22 @@
       return l >= 0 && sc.S[l].col === "body" && sc.S[l].z >= 2;
     };
     const dark = pal.dark, acc = pal.accent;
-    if (L2.pat === "stripe" || L2.pat === "band") {
-      const w = L2.pat === "stripe" ? 3 : 2, per = L2.pat === "stripe" ? 7 : 11;
+    if (L3.pat === "stripe" || L3.pat === "band") {
+      const w = L3.pat === "stripe" ? 3 : 2, per = L3.pat === "stripe" ? 7 : 11;
       for (let y = 0; y < N2; y++) for (let x = 0; x < N2; x++) if (isBody(x, y) && (y + (x >> 2)) % per < w && y > 16) put(x, y, mix(parseHex ? toHex(...parseHex(sc.color("body"))) : dark, dark, 0.55));
     }
-    if (L2.pat === "spots") {
+    if (L3.pat === "spots") {
       for (let k = 0; k < 7; k++) {
         const cx = rng.int(13, 35), cy = rng.int(14, 40), rr = rng.chance(0.5) ? 1.4 : 2.1;
         for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (x * x + y * y <= rr * rr && isBody(cx + x, cy + y)) put(cx + x, cy + y, k % 2 ? acc : mix(sc.color("body"), dark, 0.5));
       }
     }
-    if (L2.pat === "mask") {
+    if (L3.pat === "mask") {
       const h = sc.head;
       const hx = 24 + (h.x - 24) * sz, hy = 44 + (h.y - 44) * sz;
       for (let y = -3; y <= 3; y++) for (let x = -9; x <= 9; x++) if (x * x / 80 + y * y / 9 <= 1 && at(Math.round(hx + x), Math.round(hy + y)) >= 0) put(Math.round(hx + x), Math.round(hy + y), mix(sc.color("body"), dark, 0.65));
     }
-    if (L2.pat === "gems" || sc.exs.has("gems")) {
+    if (L3.pat === "gems" || sc.exs.has("gems")) {
       const cx = Math.round(24 + (sc.anch.chest[0] - 24) * sz), cy = Math.round(44 + (sc.anch.chest[1] - 44) * sz);
       for (const [dx, dy] of [[0, 0], [-4, 2], [4, 2]]) {
         put(cx + dx, cy + dy, "#ffffff");
@@ -5050,7 +4967,7 @@
         const px2 = Math.round(cx + k * 5 * sz), py = Math.round(cy + y * sz);
         if (isBody(px2, py) && Math.abs(y + 2) < 1) put(px2, py, mix(sc.color("body"), dark, 0.5));
       }
-      if (sc.exs.has("spiral") || L2.ex === "spiral") {
+      if (sc.exs.has("spiral") || L3.ex === "spiral") {
         for (let t = 0; t < 40; t++) {
           const a = t * 0.45, r2 = 1 + t * 0.28;
           const px2 = Math.round(24 + Math.cos(a) * r2 * sz), py = Math.round(44 + (28 - 44) * sz + Math.sin(a) * r2 * 0.8 * sz);
@@ -5058,11 +4975,11 @@
         }
       }
     }
-    if (sc.golem && L2.pat === "band") {
+    if (sc.golem && L3.pat === "band") {
     }
     const ink = pal.ink, wht = pal.white;
     const mp = (x, y) => [Math.round(24 + (x - 24) * sz), Math.round(44 + (y - 44) * sz)];
-    const eye = L2.eye || "dot";
+    const eye = L3.eye || "dot";
     const drawEye = (ex, ey, sd) => {
       if (eye === "dot") {
         put(ex, ey, ink);
@@ -5114,9 +5031,9 @@
       const [px2, py] = mp(sc.head.x, sc.head.y - 3.5);
       drawEye(px2 - 1, py - 1, 0);
     }
-    if (L2.plan === "fish") {
+    if (L3.plan === "fish") {
     }
-    const mt = L2.mouth || (L2.plan === "bird" ? "beak" : "smile");
+    const mt = L3.mouth || (L3.plan === "bird" ? "beak" : "smile");
     if (mt !== "beak" && mt !== "none" && sc.mouth) {
       const [mx, my] = mp(sc.mouth[0], sc.mouth[1] + (mt === "snout" ? 0 : 0));
       const mc = pal.ink;
@@ -5160,10 +5077,10 @@
   }
   function creatureCanvas(spId, variant = null) {
     const key = spId + "|" + (variant ? variant.hue + (variant.rare ? "r" : "") : "0");
-    let cv = cache2.get(key);
+    let cv = cache.get(key);
     if (!cv) {
       cv = render(getSpecies(spId), variant);
-      cache2.set(key, cv);
+      cache.set(key, cv);
     }
     return cv;
   }
@@ -5573,29 +5490,6 @@
     });
   }
 
-  // src/trainers.js
-  init_rng();
-  var TRAINERS = {};
-  function defineTrainer(id, def) {
-    TRAINERS[id] = { id, ai: "basic", iv: 5, reward: 0, ...def };
-    return TRAINERS[id];
-  }
-  function getTrainer(id) {
-    const t = TRAINERS[id];
-    if (!t) throw new Error("Entrenador desconocido: " + id);
-    return t;
-  }
-  var teamOf = (def, g) => typeof def.team === "function" ? def.team(g) : def.team;
-  function buildTeam(def, g = null) {
-    const rng = new RNG(hashStr(def.id));
-    return teamOf(def, g).map((m) => {
-      const iv = Object.fromEntries(STAT_KEYS.map((k) => [k, m.iv ?? def.iv ?? 5]));
-      const abilitySlot = m.ab ?? 0;
-      return createCreature(m.sp, m.lv, { rng, iv, nature: m.nat || "equilibrado", moves: m.moves, abilitySlot, ot: def.name, friendship: 70 });
-    });
-  }
-  var defaultReward = (def, g = null) => def.reward || Math.max(60, teamOf(def, g)[teamOf(def, g).length - 1].lv * 40);
-
   // src/data/trainers_data.js
   var rivalStarter = (g) => ({ 1: 4, 4: 7, 7: 1 })[g.count("starter")] || 4;
   var evoStep = (sp, n) => {
@@ -5621,6 +5515,436 @@
   });
   defineTrainer("teo", { name: "Teo", cls: "Joven", look: look("nino"), ai: "basic", iv: 2, team: [{ sp: 10, lv: 3 }, { sp: 13, lv: 3 }], reward: 140, intro: "\xA1Eh! \xA1T\xFA! \xA1Mis criaturas y yo queremos combatir!", win: "\xA1Uf! \xA1Eres muy bueno! Me voy a entrenar m\xE1s.", lose: "\xA1Gan\xE9! \xA1Ja ja!", afterWin: "Voy a entrenar en la hierba alta. \xA1Ah\xED hay montones de criaturas!" });
   defineTrainer("mia", { name: "M\xEDa", cls: "Ni\xF1a exploradora", look: look("nina"), ai: "basic", iv: 2, team: [{ sp: 15, lv: 4 }, { sp: 22, lv: 4 }], reward: 190, intro: "\xA1Te he visto al pasar! \xBFAceptas un combate?", win: "\xA1Qu\xE9 bien lo has hecho! Toma, una c\xE1psula de regalo.", afterWin: "Dicen que en el Bosque Umbra viven criaturas muy raras." });
+
+  // src/data/gym_trainers.js
+  var L2 = (id, name, lookName, cls, o) => defineTrainer(id, { name, cls, look: look(lookName), ai: "smart", iv: 10, gym: true, ...o });
+  L2("lider_fresia", "Fresia", "fresia", "L\xEDder de Gimnasio \xB7 Planta", {
+    iv: 8,
+    reward: 1400,
+    items: { pocion: 1 },
+    music: "gym",
+    intro: "\xA1Bienvenido a mi jard\xEDn! Soy Fresia. Aqu\xED, cada criatura florece a su ritmo... pero ninguna se rinde sin pelear. \xA1Veamos qu\xE9 has plantado t\xFA!",
+    win: "Has regado bien tus semillas... \xA1Eres un entrenador de verdad! Toma la Medalla Hoja, te la has ganado.",
+    lose: "Hasta las flores m\xE1s fuertes necesitan tiempo para crecer. Vuelve a intentarlo.",
+    team: [{ sp: 25, lv: 12, moves: ["esporas_sueno", "drenaje", "latigo_cepa", "acido"] }, { sp: 74, lv: 13, moves: ["latigo_cepa", "hoja_afilada", "brote_vital", "zarpazo_tierra"] }, { sp: 109, lv: 14, moves: ["drenaje", "semilla_parasita", "brote_vital", "destello"] }, { sp: 26, lv: 16, ab: 0, moves: ["bomba_semillas", "bomba_lodo", "esporas_sueno", "drenaje"] }]
+  });
+  L2("lider_marlo", "Marlo", "marlo", "L\xEDder de Gimnasio \xB7 Agua", {
+    iv: 9,
+    reward: 2200,
+    items: { super_pocion: 1 },
+    music: "gym",
+    intro: "\xA1Ahoy, marinero de tierra! Soy Marlo, capit\xE1n de este puerto. En mis aguas se nada o se naufraga. \xA1Sube a bordo y demu\xE9strame tu rumbo!",
+    win: "\xA1Viento en popa! Has navegado mejor que muchos lobos de mar. \xA1Aqu\xED tienes la Medalla Marea!",
+    lose: "Esta vez el mar te ha tragado. \xA1Vuelve cuando tengas mejor br\xFAjula!",
+    team: [{ sp: 38, lv: 18, moves: ["remolino_marino", "piedra_lanzada", "coraza_acuosa", "burbujeo"] }, { sp: 40, lv: 19, moves: ["burbujeo", "chispa", "torrente", "danza_lluvia"] }, { sp: 21, lv: 20, moves: ["cascada", "rafaga_punos", "golpe_corto", "chorro_menor"] }, { sp: 37, lv: 21, moves: ["cascada", "mordisco_oscuro", "cola_acuatica", "noche_cerrada"] }]
+  });
+  L2("lider_volta", "Volta", "volta", "L\xEDder de Gimnasio \xB7 El\xE9ctrico", {
+    iv: 10,
+    reward: 3200,
+    items: { super_pocion: 2 },
+    music: "gym",
+    intro: "\xA1Zzzap! Soy Volta, la mente brillante de Ciudad D\xEDnamo. Mi gimnasio funciona con energ\xEDa limpia y combates de alto voltaje. \xA1Cuidado con los calambres!",
+    win: "\xA1Qu\xE9 descarga! Me has dejado sin bater\xEDa... Aqu\xED tienes la Medalla Chispa. \xA1Y esta bicicleta, para que no pierdas tiempo!",
+    lose: "Cortocircuito... pero de tu equipo. \xA1Rec\xE1rgalo y vuelve!",
+    team: [{ sp: 23, lv: 24, moves: ["descarga", "aire_cortante", "carga_voltio", "onda_electrica"] }, { sp: 105, lv: 25, moves: ["descarga", "garra_metal", "carga_voltio", "canon_plata"] }, { sp: 108, lv: 26, moves: ["rayo_corto", "zumbido", "destello", "rafaga_insecto"] }, { sp: 24, lv: 28, ab: 0, moves: ["trueno_fuerte", "voltio_cruzado", "vendaval", "carga_voltio"] }]
+  });
+  L2("lider_petra", "Petra", "petra", "L\xEDder de Gimnasio \xB7 Roca", {
+    iv: 11,
+    reward: 4200,
+    items: { hiper_pocion: 1 },
+    music: "gym",
+    intro: "Soy Petra, hija de mineros y guardiana de la cantera. Las rocas no se mueven por gritos: \xA1hay que tallarlas! Veamos de qu\xE9 material est\xE1s hecho.",
+    win: "Hasta la roca m\xE1s dura se agrieta... con la presi\xF3n correcta. La Medalla Cantera es tuya. Ll\xE9vate tambi\xE9n este piolet: te abrir\xE1 paredes.",
+    lose: "Ni un rasgu\xF1o. Vuelve cuando seas m\xE1s afilado.",
+    team: [{ sp: 30, lv: 30, moves: ["avalancha", "pulverizar", "muro_piedra", "puno_trueno"] }, { sp: 102, lv: 31, moves: ["golpe_acero", "zarpazo_tierra", "coraza_ferrea", "temblor"] }, { sp: 103, lv: 31, moves: ["poder_gema", "avalancha", "drenaje", "coraza_roca"] }, { sp: 33, lv: 32, moves: ["colmillo_veneno", "zarpazo_tierra", "residuos", "derrumbe_barro"] }, { sp: 31, lv: 34, ab: 1, moves: ["derrumbe_mayor", "sismo", "roca_afilada", "muro_piedra"] }]
+  });
+  L2("lider_ignacio", "Ignacio", "ignacio", "L\xEDder de Gimnasio \xB7 Fuego", {
+    iv: 11,
+    reward: 4800,
+    items: { hiper_pocion: 1 },
+    music: "gym",
+    intro: "\xA1Quema, quema, quema! Soy Ignacio, y mi gimnasio est\xE1 sobre el volc\xE1n. Aqu\xED no hay medias tintas: \xA1o arde tu equipo o arde el m\xEDo!",
+    win: "Has apagado mis llamas... y has encendido mi respeto. \xA1Aqu\xED tienes la Medalla Ascua!",
+    lose: "Cenizas... eso es todo lo que queda de tu estrategia.",
+    team: [{ sp: 43, lv: 33, moves: ["puno_magma", "derrumbe_mayor", "ola_calor", "coraza_roca"] }, { sp: 45, lv: 34, moves: ["aliento_igneo", "bola_espectral", "fuego_fatuo", "susurro_gelido"] }, { sp: 5, lv: 35, moves: ["colmillo_brasa", "calcinada", "danza_llama", "garra_nocturna"] }, { sp: 46, lv: 37, ab: 0, moves: ["torbellino_igneo", "niebla_espectral", "sol_abrasador", "reposo_astral"] }]
+  });
+  L2("lider_morgana", "Morgana", "morgana", "L\xEDder de Gimnasio \xB7 Veneno", {
+    iv: 12,
+    reward: 5400,
+    items: { hiper_pocion: 2 },
+    music: "gym",
+    intro: "Je je... una visita en la niebla. Soy Morgana, guardiana del Pantano. Aqu\xED abajo, el veneno es medicina y la medicina es veneno. \xBFBrindamos?",
+    win: "Qu\xE9 ant\xEDdoto tan inesperado... Has vencido a la bruja. Toma la Medalla Bruma, y esta llave: la gente de las ruinas te necesitar\xE1.",
+    lose: "Dulces sue\xF1os... Vuelve cuando seas inmune.",
+    team: [{ sp: 58, lv: 36, moves: ["colmillo_veneno", "bomba_lodo", "intimidar_placeholder", "corrosion"].map((m) => m.replace("intimidar_placeholder", "niebla_toxica")) }, { sp: 26, lv: 37, ab: 0, moves: ["bomba_lodo", "esporas_sueno", "drenaje", "canon_residual"] }, { sp: 92, lv: 38, moves: ["niebla_espectral", "bola_espectral", "abismo", "fuego_fatuo"] }, { sp: 59, lv: 40, moves: ["bomba_lodo", "garra_dragon", "colera_draconica", "corrosion"] }]
+  });
+  L2("lider_boreal", "Boreal", "boreal", "L\xEDder de Gimnasio \xB7 Hielo", {
+    iv: 12,
+    reward: 6200,
+    items: { hiper_pocion: 2 },
+    music: "gym",
+    intro: "Silencio... \xBFLo oyes? Es la nieve cayendo. Soy Boreal, guardi\xE1n de la cumbre. Mi gimnasio es un lago helado: un mal paso y resbalar\xE1s hasta mi ventisca.",
+    win: "Has fundido mi hielo. Merec\xEDas la Medalla Cristal. Y ten cuidado: algo oscuro se mueve en las ruinas.",
+    lose: "El fr\xEDo no perdona. Vuelve cuando tu coraz\xF3n arda m\xE1s.",
+    team: [{ sp: 51, lv: 42, moves: ["puno_hielo", "barrido", "colmillo_hielo", "contragolpe"] }, { sp: 48, lv: 43, moves: ["rayo_hielo", "copos_cortantes", "granizo", "escudo_hielo"] }, { sp: 49, lv: 44, moves: ["ventisca", "vendaval", "rafaga_cegadora", "copos_cortantes"] }, { sp: 9, lv: 46, moves: ["rayo_hielo", "torrente", "escudo_hielo", "cola_acuatica"] }]
+  });
+  L2("lider_draconia", "Draconia", "draconia", "L\xEDder de Gimnasio \xB7 Drag\xF3n", {
+    iv: 13,
+    reward: 7600,
+    items: { hiper_pocion: 2, cura_total: 1 },
+    music: "gym",
+    intro: "Soy Draconia, \xFAltima guardiana de la Orden del Alba en Ciudad Arcana. Mis dragones han visto nacer y caer imperios. Demuestra que puedes cargar con el peso de la leyenda.",
+    win: "El fuego de tu esp\xEDritu vence al de mis dragones. La Medalla Drag\xF3n es tuya. Y con ella, la \xFAltima puerta: el Santuario del Alba te espera.",
+    lose: "Los dragones no se doman con prisa. Vuelve con m\xE1s paciencia.",
+    team: [{ sp: 82, lv: 48, moves: ["garra_dragon", "cola_dragon", "danza_dragon", "aliento_dragon"] }, { sp: 59, lv: 50, moves: ["bomba_lodo", "garra_dragon", "colera_draconica", "corrosion"] }, { sp: 6, lv: 51, moves: ["torbellino_igneo", "pulso_dragon", "garra_dragon", "danza_dragon"] }, { sp: 83, lv: 54, ab: 0, moves: ["garra_dragon", "vendaval", "danza_dragon", "cae_halcon"] }]
+  });
+  var E2 = (id, name, lookName, cls, o) => defineTrainer(id, { name, cls, look: look(lookName), ai: "ace", iv: 13, gym: true, reward: 9e3, items: { cura_total: 2 }, music: "league", ...o });
+  E2("elite1", "Noctis", "elite1", "Alto Mando \xB7 Sombra", {
+    intro: "Soy Noctis. Camino entre la noche y el eco de los vencidos. Cada sombra tiene un motivo... \xBFcu\xE1l es el tuyo?",
+    win: "La sombra se disipa. Sigue adelante.",
+    lose: "La oscuridad siempre gana.",
+    team: [{ sp: 68, lv: 56, moves: ["garra_nocturna", "golpe_traicionero", "sombra_fugaz", "mordisco_oscuro"] }, { sp: 70, lv: 56, moves: ["pulso_umbrio", "pico_taladro", "noche_cerrada", "aire_cortante"] }, { sp: 94, lv: 57, moves: ["posesion", "golpe_traicionero", "cabezazo_hierro", "sombra_fugaz"] }, { sp: 28, lv: 57, moves: ["abismo", "vendaval", "robo_vital", "rafaga_cegadora"] }, { sp: 92, lv: 59, ab: 2, moves: ["niebla_espectral", "abismo", "fuego_fatuo", "reposo_astral"] }]
+  });
+  E2("elite2", "Brann", "elite2", "Alto Mando \xB7 Lucha y Metal", {
+    intro: "Soy Brann. M\xFAsculo y acero. Aqu\xED no hay trucos: solo fuerza bien dirigida. \xA1Pelea!",
+    win: "\xA1Ja! Qu\xE9 pu\xF1etazo. Ve con el siguiente.",
+    lose: "M\xE1s entrenamiento, ni\xF1o.",
+    team: [{ sp: 54, lv: 57, moves: ["fuerza_bruta", "puno_titan", "golpe_certero", "respiracion_zen"] }, { sp: 78, lv: 58, moves: ["meteoro_acero", "sismo", "bomba_hierro", "coraza_ferrea"] }, { sp: 12, lv: 57, moves: ["pico_taladro", "golpe_certero", "karate_tajo", "pluma_veloz"] }, { sp: 51, lv: 58, moves: ["puno_hielo", "barrido", "colmillo_hielo", "rafaga_punos"] }, { sp: 80, lv: 60, moves: ["meteoro_acero", "posesion", "golpe_acero", "coraza_ferrea"] }]
+  });
+  E2("elite3", "Lumi", "elite3", "Alto Mando \xB7 Mental y Luz", {
+    intro: "Soy Lumi. Veo tus pensamientos como notas de m\xFAsica. Pero incluso la mente m\xE1s clara puede quedarse sin luz... \xA1adelante!",
+    win: "Tu mente brilla m\xE1s que la m\xEDa. Pasa.",
+    lose: "Lo vi venir.",
+    team: [{ sp: 62, lv: 58, moves: ["psiquico_fuerte", "rayo_luz", "telequinesis", "muro_psiquico"] }, { sp: 73, lv: 59, moves: ["rayo_prisma", "vendaval", "luz_curativa", "velo_luz"] }, { sp: 64, lv: 58, moves: ["psiquico_fuerte", "aire_cortante", "meditacion", "reflejo"] }, { sp: 66, lv: 58, moves: ["bola_espectral", "impacto_mental", "descanso", "abismo"] }, { sp: 110, lv: 60, moves: ["rayo_prisma", "tormenta_petalos", "luz_curativa", "drenaje"] }]
+  });
+  E2("elite4", "Aria", "elite4", "Alto Mando \xB7 Sonido y Aire", {
+    intro: "\xA1Soy Aria! \xA1Prep\xE1rate para la mayor sinfon\xEDa de combate que hayas o\xEDdo!",
+    win: "Qu\xE9 final... \xA1qu\xE9 crescendo! Eres digno de la campeona.",
+    lose: "Fuera de comp\xE1s.",
+    team: [{ sp: 85, lv: 59, moves: ["estruendo", "vendaval", "voz_cristal", "himno_valeroso"] }, { sp: 89, lv: 60, moves: ["retumbo", "puno_titan", "alboroto", "himno_valeroso"] }, { sp: 87, lv: 60, moves: ["alboroto", "canon_plata", "coraza_ferrea", "melodia_calmante"] }, { sp: 112, lv: 60, moves: ["trueno_fuerte", "hidrocanon", "carga_voltio", "torrente"] }, { sp: 83, lv: 62, ab: 0, moves: ["garra_dragon", "vendaval", "danza_dragon", "cae_halcon"] }]
+  });
+  E2("campeona", "Solara", "campeon", "Campeona de Aurelia", {
+    reward: 2e4,
+    iv: 15,
+    intro: "As\xED que has llegado hasta aqu\xED. Soy Solara, campeona de Aurelia. Cri\xE9 a las tres iniciales con mis propias manos... y te esperaba. \xA1Mostr\xE9monos mutuamente de qu\xE9 estamos hechos!",
+    win: "\xA1Incre\xEDble! Despu\xE9s de tantos a\xF1os... una nueva campeona o campe\xF3n. El Sal\xF3n de la Fama te espera.",
+    lose: "A\xFAn no. Entrena, y vuelve a por la corona.",
+    team: [{ sp: 3, lv: 63, moves: ["fuerza_bruta", "rayo_clorofila", "tormenta_petalos", "golpe_certero"] }, { sp: 6, lv: 63, moves: ["torbellino_igneo", "pulso_dragon", "garra_dragon", "danza_dragon"] }, { sp: 9, lv: 63, moves: ["ventisca", "hidrocanon", "escudo_hielo", "cola_acuatica"] }, { sp: 62, lv: 64, moves: ["psiquico_fuerte", "rayo_luz", "telequinesis", "muro_psiquico"] }, { sp: 78, lv: 64, moves: ["meteoro_acero", "sismo", "bomba_hierro", "coraza_ferrea"] }, { sp: 83, lv: 66, ab: 0, moves: ["garra_dragon", "vendaval", "danza_dragon", "cae_halcon"] }]
+  });
+  var K = (id, o, mons) => defineTrainer(id, { name: "Kai", cls: "Rival", look: look("kai"), ai: "smart", iv: 9, ...o, team: (g) => mons(g) });
+  K("rival2", { reward: 900, iv: 6, intro: "\xA1{player}! \xA1Te dije que te alcanzar\xEDa! \xA1Mira c\xF3mo ha crecido mi equipo!", win: "\xA1Qu\xE9 rabia! Pero me has ganado limpiamente. Seguir\xE9 entrenando.", lose: "\xA1Gan\xE9! \xA1Ja! La pr\xF3xima vez, m\xE1s fuerte." }, (g) => [{ ...rivalMon(g, 13, 0), moves: void 0 }, { sp: 10, lv: 11 }, { sp: 52, lv: 11 }]);
+  K("rival3", { reward: 2600, iv: 9, intro: "\xA1Eh, {player}! \xBFHas visto lo que pas\xF3 en D\xEDnamo? Esa gente del Eclipse es peligrosa. Pero antes, \xA1un combate, para no perder la costumbre!", win: "Cada vez eres m\xE1s fuerte... Yo tambi\xE9n lo ser\xE9.", lose: "Todav\xEDa me queda ventaja." }, (g) => [{ ...rivalMon(g, 27, 1) }, { sp: 11, lv: 24 }, { sp: 61, lv: 25 }, { sp: 53, lv: 25 }]);
+  K("rival4", { reward: 5200, iv: 12, intro: "{player}. Estoy aqu\xED por lo mismo que t\xFA: detener a Vesper. Pero antes necesito saber si est\xE1s a la altura... \xA1Combate!", win: "Ten\xEDas raz\xF3n en confiar en tu camino. Vamos juntos al Santuario.", lose: "A\xFAn no est\xE1s listo. Entrena y vuelve." }, (g) => [{ ...rivalMon(g, 48, 2) }, { sp: 12, lv: 45 }, { sp: 62, lv: 45 }, { sp: 54, lv: 46 }, { sp: 89, lv: 46 }]);
+  K("rival5", { reward: 14e3, iv: 14, ai: "ace", intro: "T\xFA y yo, de nuevo. Esta vez, sin excusas. \xA1Quiero ver qui\xE9n es el mejor entrenador de Aurelia!", win: "\xA1Lo has logrado! ... Gracias por no rendirte nunca.", lose: "A\xFAn no. \xA1Pero lo conseguir\xE1s!" }, (g) => [{ ...rivalMon(g, 66, 2) }, { sp: 12, lv: 63 }, { sp: 62, lv: 63 }, { sp: 54, lv: 64 }, { sp: 78, lv: 64 }, { sp: 83, lv: 65 }]);
+  var O = (id, name, lookName, cls, o) => defineTrainer(id, { name, cls, look: look(lookName), ai: "smart", iv: 9, ...o });
+  O("cinder1", "Teniente Cinder", "teniente", "Teniente del Eclipse", {
+    reward: 1e3,
+    iv: 7,
+    intro: "As\xED que t\xFA eres el entrenador entrometido. Soy Cinder, teniente de la Orden del Eclipse. El Prisma ahora nos pertenece, \xA1y t\xFA no nos detendr\xE1s!",
+    win: "\xA1Maldici\xF3n! \xA1Esto no cambia nada! La Orden... \xA1lo recordar\xE1!",
+    lose: "F\xE1cil. Muy f\xE1cil.",
+    team: [{ sp: 27, lv: 13, moves: ["mordisco_oscuro", "ala_cortante", "picotazo", "rafaga"] }, { sp: 57, lv: 14, moves: ["colmillo_veneno", "picadura_toxica", "ataque_arena", "aliento_dragon"] }, { sp: 67, lv: 15, moves: ["garra_nocturna", "sombra_fugaz", "mal_de_ojo", "mordisco_oscuro"] }]
+  });
+  O("gris1", "Teniente Gris", "teniente2", "Teniente del Eclipse", {
+    reward: 3600,
+    intro: "Soy Gris. Mi trabajo es hacer que las m\xE1quinas funcionen... para el Eclipse. Ahora, esa central ser\xE1 nuestro altavoz.",
+    win: "Hmpf. Han apagado el plan. Pero el Maestro Vesper tiene m\xE1s piezas.",
+    lose: "No eres rival para la Orden.",
+    team: [{ sp: 96, lv: 24, moves: ["picadura_toxica", "hilo_pegajoso", "rafaga_insecto", "alas_cortantes"] }, { sp: 28, lv: 25, moves: ["pulso_umbrio", "ala_cortante", "robo_vital", "rafaga_cegadora"] }, { sp: 105, lv: 25, moves: ["descarga", "garra_metal", "canon_plata", "carga_voltio"] }, { sp: 70, lv: 26, moves: ["pico_taladro", "garra_nocturna", "noche_cerrada", "aire_cortante"] }]
+  });
+  O("cinder2", "Teniente Cinder", "teniente", "Teniente del Eclipse", {
+    reward: 5e3,
+    iv: 11,
+    intro: "Otra vez t\xFA. Ahora el Prisma \xC1mbar ser\xE1 nuestro. \xA1Se acab\xF3 jugar!",
+    win: "Imposible... \xA1Otra vez! \xA1Esto no acaba aqu\xED!",
+    lose: "Tu ceniza ser\xE1 parte del volc\xE1n.",
+    team: [{ sp: 28, lv: 35, moves: ["pulso_umbrio", "ala_cortante", "robo_vital", "vendaval"] }, { sp: 58, lv: 36, moves: ["colmillo_veneno", "bomba_lodo", "niebla_toxica", "corrosion"] }, { sp: 68, lv: 37, moves: ["garra_nocturna", "sombra_fugaz", "golpe_traicionero", "mordisco_oscuro"] }, { sp: 45, lv: 38, moves: ["aliento_igneo", "bola_espectral", "fuego_fatuo", "niebla_espectral"] }]
+  });
+  O("gris2", "Teniente Gris", "teniente2", "Teniente del Eclipse", {
+    reward: 6200,
+    iv: 11,
+    intro: "El Prisma N\xE1car es nuestro. Aqu\xED, entre tanta nieve, nadie nos oir\xE1.",
+    win: "Los planes del Maestro... no se detienen contigo.",
+    lose: "Te congelar\xE9 en la historia.",
+    team: [{ sp: 96, lv: 42, moves: ["bomba_lodo", "hilo_pegajoso", "rafaga_insecto", "picadura_toxica"] }, { sp: 70, lv: 43, moves: ["pico_taladro", "garra_nocturna", "noche_cerrada", "pulso_umbrio"] }, { sp: 94, lv: 44, moves: ["posesion", "golpe_traicionero", "cabezazo_hierro", "sombra_fugaz"] }, { sp: 92, lv: 45, moves: ["niebla_espectral", "abismo", "fuego_fatuo", "reposo_astral"] }]
+  });
+  O("vesper1", "Maestro Vesper", "vesper", "L\xEDder de la Orden del Eclipse", {
+    reward: 12e3,
+    iv: 13,
+    ai: "ace",
+    items: { cura_total: 2 },
+    music: "trainer",
+    intro: "As\xED que has llegado. Soy Vesper. Fui investigador de criaturas, como tu profesor. Vi c\xF3mo los entrenadores las encadenaban a sus ambiciones... Por eso liberar\xE9 a Umbraxis: para que el mundo vuelva a ser libre... \xA1y salvaje!",
+    win: "... No puedo ser derrotado aqu\xED. Umbraxis... \xA1ay\xFAdame!",
+    lose: "El Eclipse ya empieza.",
+    team: [{ sp: 92, lv: 55, moves: ["niebla_espectral", "abismo", "fuego_fatuo", "reposo_astral"] }, { sp: 68, lv: 56, moves: ["garra_nocturna", "golpe_traicionero", "sombra_fugaz", "mordisco_oscuro"] }, { sp: 28, lv: 56, moves: ["pulso_umbrio", "ala_cortante", "robo_vital", "vendaval"] }, { sp: 59, lv: 57, moves: ["bomba_lodo", "garra_dragon", "colera_draconica", "corrosion"] }, { sp: 94, lv: 58, moves: ["posesion", "golpe_traicionero", "cabezazo_hierro", "sombra_fugaz"] }]
+  });
+
+  // src/maps/alba.js
+  init_world();
+
+  // src/maps/helpers.js
+  init_world();
+
+  // src/data/items.js
+  var ITEMS = {};
+  var POCKETS = {
+    medicina: "Medicinas",
+    capturas: "C\xE1psulas",
+    evolucion: "Evoluci\xF3n",
+    discos: "Discos T\xE9cnicos",
+    exploracion: "Exploraci\xF3n",
+    mision: "Misi\xF3n",
+    tesoros: "Tesoros",
+    viaje: "Viaje"
+  };
+  var POCKET_ORDER = ["medicina", "capturas", "evolucion", "discos", "exploracion", "viaje", "mision", "tesoros"];
+  function I(id, name, pocket, price, desc, fx = {}, o = {}) {
+    ITEMS[id] = { id, name, pocket, price, desc, fx, use: o.use || "field", sell: o.sell ?? (price > 0 && pocket !== "mision" && pocket !== "exploracion" && !fx.key), ...o };
+  }
+  I("pocion", "Poci\xF3n", "medicina", 200, "Restaura 20 PS.", { heal: 20 }, { use: "both" });
+  I("super_pocion", "S\xFAper Poci\xF3n", "medicina", 600, "Restaura 60 PS.", { heal: 60 }, { use: "both" });
+  I("hiper_pocion", "Hiper Poci\xF3n", "medicina", 1400, "Restaura 120 PS.", { heal: 120 }, { use: "both" });
+  I("pocion_maxima", "Poci\xF3n M\xE1xima", "medicina", 2600, "Restaura todos los PS.", { healFull: true }, { use: "both" });
+  I("cura_total", "Cura Total", "medicina", 1800, "Restaura todos los PS y cura cualquier estado.", { healFull: true, cure: "all" }, { use: "both" });
+  I("antidoto", "Ant\xEDdoto", "medicina", 100, "Cura el envenenamiento.", { cure: "envenenado" }, { use: "both" });
+  I("antiquemar", "Antiquemar", "medicina", 150, "Cura las quemaduras.", { cure: "quemado" }, { use: "both" });
+  I("antiparalizador", "Antiparalizador", "medicina", 150, "Cura la par\xE1lisis.", { cure: "paralizado" }, { use: "both" });
+  I("despertar", "Despertar", "medicina", 150, "Despierta a una criatura dormida.", { cure: "dormido" }, { use: "both" });
+  I("antihielo", "Antihielo", "medicina", 150, "Descongela a una criatura.", { cure: "congelado" }, { use: "both" });
+  I("cura_estados", "Cura Estados", "medicina", 300, "Cura cualquier estado alterado.", { cure: "all" }, { use: "both" });
+  I("revivir", "Revivir", "medicina", 1500, "Revive a una criatura con la mitad de sus PS.", { revive: 0.5 }, { use: "both" });
+  I("revivir_max", "Revivir M\xE1x.", "medicina", 3500, "Revive con todos los PS.", { revive: 1 }, { use: "both" });
+  I("eter", "\xC9ter", "medicina", 1200, "Restaura 10 PP de un movimiento.", { pp: 10 }, { use: "field" });
+  I("eter_max", "\xC9ter M\xE1x.", "medicina", 2500, "Restaura todos los PP de un movimiento.", { pp: 99 }, { use: "field" });
+  I("elixir", "Elixir", "medicina", 3e3, "Restaura 10 PP de todos los movimientos.", { ppAll: 10 }, { use: "field" });
+  I("caramelo_exp_s", "Caramelo Exp. S", "medicina", 300, "Otorga 100 puntos de experiencia.", { xp: 100 }, { use: "field" });
+  I("caramelo_exp_m", "Caramelo Exp. M", "medicina", 1500, "Otorga 800 puntos de experiencia.", { xp: 800 }, { use: "field" });
+  I("caramelo_exp_l", "Caramelo Exp. L", "medicina", 5e3, "Otorga 3000 puntos de experiencia.", { xp: 3e3 }, { use: "field" });
+  I("caramelo_raro", "Caramelo Raro", "medicina", 0, "Sube 1 nivel (respeta el l\xEDmite de nivel por medallas).", { lvUp: 1 }, { use: "field", sell: false });
+  I("proteina", "Prote\xEDna", "medicina", 4e3, "Entrena el Ataque (+10 esfuerzo).", { ev: { stat: "atk", n: 10 } }, { use: "field" });
+  I("hierro", "Hierro", "medicina", 4e3, "Entrena la Defensa (+10 esfuerzo).", { ev: { stat: "def", n: 10 } }, { use: "field" });
+  I("calcio", "Calcio", "medicina", 4e3, "Entrena el Ataque Esp. (+10 esfuerzo).", { ev: { stat: "spa", n: 10 } }, { use: "field" });
+  I("zinc", "Zinc", "medicina", 4e3, "Entrena la Defensa Esp. (+10 esfuerzo).", { ev: { stat: "spd", n: 10 } }, { use: "field" });
+  I("carbono", "Carbono", "medicina", 4e3, "Entrena la Velocidad (+10 esfuerzo).", { ev: { stat: "spe", n: 10 } }, { use: "field" });
+  I("vigor", "Vigor", "medicina", 4e3, "Entrena los PS (+10 esfuerzo).", { ev: { stat: "hp", n: 10 } }, { use: "field" });
+  I("baya_amistad", "Baya Amistad", "medicina", 500, "Aumenta la amistad de una criatura.", { friend: 12 }, { use: "field" });
+  I("capsula", "C\xE1psula", "capturas", 200, "Dispositivo b\xE1sico de captura.", { ball: { mult: 1 } }, { use: "battle" });
+  I("super_capsula", "S\xFAper C\xE1psula", "capturas", 600, "Mejor que la c\xE1psula b\xE1sica (x1,5).", { ball: { mult: 1.5 } }, { use: "battle" });
+  I("ultra_capsula", "Ultra C\xE1psula", "capturas", 1200, "Alto rendimiento (x2).", { ball: { mult: 2 } }, { use: "battle" });
+  I("capsula_red", "C\xE1psula Red", "capturas", 1e3, "x3,5 contra criaturas de Agua e Insecto.", { ball: { mult: 1, cond: "red" } }, { use: "battle" });
+  I("capsula_noche", "C\xE1psula Noche", "capturas", 1e3, "x3 de noche o en cuevas.", { ball: { mult: 1, cond: "noche" } }, { use: "battle" });
+  I("capsula_veloz", "C\xE1psula Veloz", "capturas", 1e3, "x4 si se lanza en el primer turno.", { ball: { mult: 1, cond: "veloz" } }, { use: "battle" });
+  I("capsula_atlas", "C\xE1psula Atlas", "capturas", 1e3, "x3,5 contra especies que a\xFAn no tienes registradas.", { ball: { mult: 1, cond: "atlas" } }, { use: "battle" });
+  I("capsula_maestra", "C\xE1psula Maestra", "capturas", 0, "Captura sin fallo. Solo hay una.", { ball: { mult: 255, master: true } }, { use: "battle", sell: false });
+  I("gema_ignea", "Gema \xCDgnea", "evolucion", 2100, "Una gema ardiente que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_marina", "Gema Marina", "evolucion", 2100, "Una gema h\xFAmeda que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_silvestre", "Gema Silvestre", "evolucion", 2100, "Una gema verde que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_chispa", "Gema Chispa", "evolucion", 2100, "Una gema cargada que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_lunar", "Gema Lunar", "evolucion", 2100, "Una gema p\xE1lida que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_solar", "Gema Solar", "evolucion", 2400, "Una gema luminosa que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_escarcha", "Gema Escarcha", "evolucion", 2400, "Una gema helada que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("gema_ocaso", "Gema Ocaso", "evolucion", 2400, "Una gema oscura que hace evolucionar a ciertas criaturas.", { evo: true }, { use: "field" });
+  I("repelente", "Repelente", "exploracion", 350, "Evita encuentros salvajes durante 100 pasos.", { repel: 100 }, { use: "field", sell: true });
+  I("super_repelente", "S\xFAper Repelente", "exploracion", 500, "Evita encuentros durante 200 pasos.", { repel: 200 }, { use: "field", sell: true });
+  I("cuerda_fuga", "Cuerda de Fuga", "exploracion", 550, "Te saca al instante de una cueva.", { escape: true }, { use: "field", sell: true });
+  I("lupa", "Lupa de Aurelia", "exploracion", 0, "Muestra destellos de objetos ocultos cercanos.", { key: "lupa" }, { use: "none", sell: false });
+  I("bicicleta", "Bicicleta", "exploracion", 0, "Doble de velocidad. Act\xEDvala desde la mochila.", { key: "bicicleta" }, { use: "field", sell: false });
+  I("barca", "Barca Plegable", "exploracion", 0, "Permite navegar por el agua.", { key: "barca" }, { use: "none", sell: false });
+  I("piolet", "Piolet", "exploracion", 0, "Permite escalar paredes de roca agrietada.", { key: "piolet" }, { use: "none", sell: false });
+  I("machete", "Machete", "exploracion", 0, "Corta la maleza espesa que bloquea el camino.", { key: "machete" }, { use: "none", sell: false });
+  I("linterna", "Linterna", "exploracion", 0, "Ilumina las cuevas oscuras.", { key: "linterna" }, { use: "none", sell: false });
+  I("repartir_exp", "Repartir Exp.", "exploracion", 0, "Reparte parte de la experiencia con todo el equipo.", { key: "repartir_exp" }, { use: "none", sell: false });
+  I("pase_viaje", "Pase de Viaje", "viaje", 0, "Permite viajar a las ciudades que ya visitaste.", { key: "pase_viaje" }, { use: "none", sell: false });
+  I("mapa", "Mapa de Aurelia", "viaje", 0, "Un mapa de toda la regi\xF3n.", { key: "mapa" }, { use: "none", sell: false });
+  I("billete_ferry", "Billete de Ferry", "viaje", 0, "Te permite embarcar en el puerto.", { key: "billete" }, { use: "none", sell: false });
+  I("amuleto_exp", "Amuleto Exp.", "exploracion", 0, "Aumenta un 20% la experiencia ganada.", { key: "amuleto_exp" }, { use: "none", sell: false });
+  I("paquete_sauce", "Paquete del Prof. Sauce", "mision", 0, "Un paquete fr\xE1gil para el Museo de Ciudad Roble.", {}, { use: "none", sell: false });
+  I("carta_roble", "Carta de Fresia", "mision", 0, "Una carta sellada con la hoja del Gimnasio Roble.", {}, { use: "none", sell: false });
+  I("prisma_ambar", "Prisma \xC1mbar", "mision", 0, "Un fragmento del sello antiguo, c\xE1lido al tacto.", {}, { use: "none", sell: false });
+  I("prisma_zafiro", "Prisma Zafiro", "mision", 0, "Un fragmento del sello antiguo, fr\xEDo como el mar.", {}, { use: "none", sell: false });
+  I("prisma_esmeralda", "Prisma Esmeralda", "mision", 0, "Un fragmento del sello antiguo, vivo como el bosque.", {}, { use: "none", sell: false });
+  I("prisma_nacar", "Prisma N\xE1car", "mision", 0, "Un fragmento del sello antiguo, p\xE1lido como la nieve.", {}, { use: "none", sell: false });
+  I("fusible", "Fusible D\xEDnamo", "mision", 0, "Un fusible grande de la central el\xE9ctrica.", {}, { use: "none", sell: false });
+  I("mineral_estrella", "Mineral Estrella", "mision", 0, "Un mineral raro que centellea.", {}, { use: "none", sell: false });
+  I("amuleto_pantano", "Amuleto del Pantano", "mision", 0, "Un talism\xE1n de las brujas de la niebla.", {}, { use: "none", sell: false });
+  I("diario_perdido", "Diario Perdido", "mision", 0, "El diario de un explorador desaparecido.", {}, { use: "none", sell: false });
+  I("llave_ruinas", "Llave de las Ruinas", "mision", 0, "Abre la puerta sellada de las ruinas.", {}, { use: "none", sell: false });
+  I("pase_liga", "Pase de la Liga", "mision", 0, "Acredita tus ocho medallas.", {}, { use: "none", sell: false });
+  I("huevo_misterioso", "Huevo Misterioso", "mision", 0, "Un huevo c\xE1lido que alguien dej\xF3 en el camino.", {}, { use: "none", sell: false });
+  I("baston_perdido", "Bast\xF3n Perdido", "mision", 0, "El bast\xF3n de un anciano de Villa Alba.", {}, { use: "none", sell: false });
+  I("medalla_foto", "Fotograf\xEDa Rara", "mision", 0, "Una foto borrosa de una criatura esquiva.", {}, { use: "none", sell: false });
+  I("pepita", "Pepita", "tesoros", 1e3, "Una pepita de oro. Se vende bien.", {}, { use: "none", sell: true });
+  I("perla", "Perla", "tesoros", 700, "Una perla brillante.", {}, { use: "none", sell: true });
+  I("perla_grande", "Perla Grande", "tesoros", 3e3, "Una perla enorme.", {}, { use: "none", sell: true });
+  I("fragmento_estrella", "Fragmento Estelar", "tesoros", 1500, "Un fragmento de meteorito.", {}, { use: "none", sell: true });
+  I("hueso_antiguo", "Hueso Antiguo", "tesoros", 1e3, "Un hueso fosilizado.", {}, { use: "none", sell: true });
+  I("concha_rara", "Concha Rara", "tesoros", 500, "Una concha nacarada.", {}, { use: "none", sell: true });
+  I("polvo_cristal", "Polvo de Cristal", "tesoros", 400, "Polvo brillante de cuevas.", {}, { use: "none", sell: true });
+  var TM_LIST = [
+    "garra_dragon",
+    "rayo_corto",
+    "rayo_hielo",
+    "psiquico_fuerte",
+    "bomba_lodo",
+    "sismo",
+    "derrumbe_mayor",
+    "torrente",
+    "ola_calor",
+    "drenaje",
+    "pulso_umbrio",
+    "rayo_luz",
+    "golpe_acero",
+    "vendaval",
+    "chupa_vida",
+    "bola_espectral",
+    "alboroto",
+    "golpe_certero",
+    "puno_trueno",
+    "puno_hielo",
+    "hoja_afilada",
+    "colmillo_brasa",
+    "cabezazo_zen",
+    "esporas_sueno",
+    "reflejo",
+    "muro_psiquico",
+    "velo_luz",
+    "pulido",
+    "tormenta_arena",
+    "sol_abrasador",
+    "danza_lluvia",
+    "granizo",
+    "aura_protectora",
+    "descanso",
+    "semilla_parasita",
+    "coraza_ferrea",
+    "danza_dragon",
+    "sombra_fugaz",
+    "golpe_corto",
+    "escudo_vital"
+  ];
+  TM_LIST.forEach((mid, i) => {
+    const m = MOVES[mid];
+    const n = String(i + 1).padStart(2, "0");
+    I("dt" + n, `DT${n} ${m.name}`, "discos", 1500 + Math.min(4, Math.max(m.pow, 40) / 30 | 0) * 600, `Ense\xF1a ${m.name} (${m.type}). Reutilizable.`, { tm: mid }, { use: "field", sell: true });
+  });
+  function getItem(id) {
+    const it = ITEMS[id];
+    if (!it) throw new Error("Objeto desconocido: " + id);
+    return it;
+  }
+
+  // src/data/shops.js
+  var SHOPS = {
+    alba: { name: "Tienda de Villa Alba", stock: [["pocion", 0], ["capsula", 0], ["antidoto", 0], ["despertar", 0], ["antiparalizador", 0], ["repelente", 1]] },
+    general: { name: "Tienda", stock: [["pocion", 0], ["super_pocion", 1], ["hiper_pocion", 4], ["antidoto", 0], ["antiquemar", 0], ["antiparalizador", 0], ["despertar", 0], ["antihielo", 0], ["cura_estados", 2], ["revivir", 3], ["capsula", 0], ["super_capsula", 2], ["ultra_capsula", 5], ["repelente", 0], ["super_repelente", 3], ["cuerda_fuga", 2], ["eter", 3], ["caramelo_exp_s", 1]] },
+    puerto: { name: "Tienda del Puerto", stock: [["pocion", 0], ["super_pocion", 0], ["capsula", 0], ["super_capsula", 0], ["capsula_red", 0], ["antidoto", 0], ["concha_rara", 99]] },
+    grandes: { name: "Grandes Almacenes D\xEDnamo", stock: [["super_pocion", 0], ["hiper_pocion", 2], ["revivir", 2], ["cura_estados", 0], ["super_capsula", 0], ["ultra_capsula", 3], ["capsula_veloz", 2], ["capsula_noche", 2], ["super_repelente", 0], ["eter", 0], ["elixir", 5], ["caramelo_exp_s", 0], ["caramelo_exp_m", 4], ["proteina", 4], ["hierro", 4], ["calcio", 4], ["zinc", 4], ["carbono", 4], ["vigor", 4]] },
+    discos: { name: "Tienda de Discos T\xE9cnicos", stock: TM_LIST.map((m, i) => ["dt" + String(i + 1).padStart(2, "0"), 2 + Math.floor(i / 6)]) },
+    gemas: { name: "Joyer\xEDa Evolutiva", stock: [["gema_ignea", 3], ["gema_marina", 3], ["gema_silvestre", 3], ["gema_chispa", 3], ["gema_lunar", 4], ["gema_solar", 5], ["gema_escarcha", 5], ["gema_ocaso", 5]] },
+    atlas: { name: "Emporio de Arcana", stock: [["hiper_pocion", 0], ["pocion_maxima", 6], ["cura_total", 6], ["revivir_max", 7], ["ultra_capsula", 0], ["capsula_atlas", 0], ["capsula_veloz", 0], ["capsula_noche", 0], ["caramelo_exp_l", 6], ["elixir", 0]] }
+  };
+  function shopStock(id, badges) {
+    const s = SHOPS[id] || SHOPS.general;
+    return s.stock.filter(([, b]) => b <= badges && b < 99).map(([it]) => it);
+  }
+
+  // src/maps/helpers.js
+  function interior(id, w, h, opts, fn) {
+    const cx = opts.exitX ?? Math.floor(w / 2);
+    defineMap(id, w, h, { indoor: true, music: "indoor", weather: false, fill: opts.floor || "wood", ...opts }, (m) => {
+      for (let x = 0; x < w; x++) {
+        m.put(x, 0, opts.wall || "wallint");
+        m.put(x, 1, opts.wall || "wallint");
+      }
+      m.set(cx, h - 1, "mat");
+      if (opts.exit) m.warp(cx, h - 1, opts.exit.to, opts.exit.spawn, 0, "down", { sfx: "door" });
+      m.spawn("door", cx, h - 2, "up");
+      fn(m, { cx, w, h });
+    });
+    return id;
+  }
+  function setRespawn(g, cityId, spawn) {
+    const sp = getMap(cityId).spawns[spawn];
+    if (sp) g.state.lastHeal = { map: cityId, x: sp.x, y: sp.y };
+  }
+  function nurseTalk(cityId, spawn = "door_centro") {
+    return async (g, e, ow) => {
+      await g.say("\xA1Bienvenido al Centro de Curaci\xF3n! Aqu\xED cuidamos de tus criaturas.", { speaker: "Enfermera" });
+      if (await g.yesNo("\xBFQuieres que curemos a todo tu equipo?")) {
+        await g.say("Muy bien. D\xE9jamelas un momento...", { speaker: "Enfermera" });
+        g.ui.closeDialog();
+        g.audio.stopMusic();
+        await g.wait(500);
+        g.audio.sfx("heal");
+        await g.wait(1600);
+        g.healAll();
+        setRespawn(g, cityId, spawn);
+        g.audio.playMusic(ow.map.music);
+        await g.say("\xA1Gracias por esperar! Tus criaturas est\xE1n en perfecto estado.", { speaker: "Enfermera" });
+        if (g.settings.autosave) g.save(g.slot, { quiet: false });
+        await g.say("\xA1Esperamos volver a verte!", { speaker: "Enfermera" });
+      } else await g.say("Vuelve cuando lo necesites.", { speaker: "Enfermera" });
+    };
+  }
+  function defineCenter(cityId, cityName, { extra = null, city = cityId } = {}) {
+    const id = `int_${cityId}_centro`;
+    interior(id, 13, 9, { name: "Centro de Curaci\xF3n", title: `Centro de Curaci\xF3n de ${cityName}`, floor: "floor", wall: "wallint2", exit: { to: city, spawn: "door_centro" }, noFly: true }, (m, { cx }) => {
+      for (let x = 3; x <= 9; x++) m.put(x, 3, "counter");
+      m.put(4, 2, "healer");
+      m.put(8, 2, "plant");
+      m.npc({ id: "enfermera", x: 6, y: 2, dir: "down", look: look("enfermera"), name: "Enfermera", solid: true, talk: nurseTalk(cityId), move: "static" });
+      m.object(1, 2, "pc", { name: "Terminal", talk: async (g) => {
+        await g.say("Terminal de almacenamiento de criaturas. Se conecta con las cajas.");
+        await g.openPC();
+      } });
+      m.put(11, 2, "bookcase");
+      m.put(1, 6, "plant");
+      m.put(11, 6, "plant");
+      m.put(10, 4, "chair");
+      m.put(2, 4, "chair");
+      m.rect(5, 4, 3, 3, "carpet");
+      m.put(1, 4, "table");
+      m.npc({ id: "visitante", x: 10, y: 5, dir: "left", look: look("excursionista"), name: "Visitante", text: "\xA1Qu\xE9 descanso! Los Centros de Curaci\xF3n son un lujo en un viaje largo.", move: "static" });
+      if (extra) extra(m);
+    });
+    return id;
+  }
+  function defineShopInterior(cityId, shopId, { name = null, clerk = "tendero", city = cityId } = {}) {
+    const id = `int_${cityId}_tienda`;
+    interior(id, 10, 8, { name: SHOPS[shopId]?.name || "Tienda", title: name || SHOPS[shopId]?.name || "Tienda", floor: "wood", exit: { to: city, spawn: "door_tienda" } }, (m, { cx }) => {
+      for (let x = 1; x <= 6; x++) m.put(x, 3, "counter");
+      m.put(8, 2, "shelf");
+      m.put(9, 2, "shelf");
+      m.put(1, 2, "shelf");
+      m.put(2, 2, "shelf");
+      m.put(7, 5, "crate");
+      m.put(8, 5, "crate");
+      m.put(1, 6, "plant");
+      m.npc({ id: "tendero", x: 3, y: 2, dir: "down", look: look(clerk), name: "Dependiente", move: "static", talk: async (g) => {
+        await g.say("\xA1Bienvenido! \xBFEn qu\xE9 puedo ayudarte?", { speaker: "Dependiente" });
+        await g.openShop(shopId);
+        await g.say("\xA1Gracias por tu visita!", { speaker: "Dependiente" });
+      } });
+      m.npc({ id: "cliente", x: 6, y: 5, dir: "up", look: look("nina"), name: "Cliente", text: "Las c\xE1psulas son lo m\xE1s importante del viaje. \xA1Lleva siempre unas cuantas!", move: "static" });
+    });
+    return id;
+  }
+  function defineHouse(cityId, key, { name = "Casa", w = 9, h = 7, npcs = [], decor = null, floor = "wood", title = null, city = cityId } = {}) {
+    const id = `int_${cityId}_${key}`;
+    interior(id, w, h, { name, title: title || name, floor, exit: { to: city, spawn: "door_" + key } }, (m, { cx }) => {
+      m.put(1, 2, "bed");
+      m.put(w - 2, 2, "bookcase");
+      m.put(w - 3, 2, "shelf");
+      m.put(3, 1, "window_int");
+      m.put(2, 4, "table");
+      m.put(w - 2, h - 2, "plant");
+      m.rect(cx - 1, 3, 3, 2, "rug");
+      for (const n of npcs) m.npc({ move: "static", ...n, look: typeof n.look === "string" ? look(n.look) : n.look });
+      if (decor) decor(m);
+    });
+    return id;
+  }
 
   // src/inventory.js
   init_config();
@@ -5818,9 +6142,9 @@
     m.npc({ id: "ayudante", x: 9, y: 5, dir: "left", look: look("ayudante"), name: "Ayudante", move: "static", text: "Llevamos meses catalogando criaturas. \xA1Cada una nueva que registras me hace saltar de alegr\xEDa!" });
     m.npc({ id: "kai_lab", x: 5, y: 9, dir: "up", look: look("kai"), name: "Kai", move: "static", show: (g) => g.flag("kai_en_lab"), solid: true, text: "..." });
   });
-  defineHouse("alba", "rival", { name: "Casa de Kai", npcs: [{ id: "madre_kai", x: 4, y: 4, dir: "down", look: "abuela", name: "Madre de Kai", text: "\xA1Kai sali\xF3 corriendo hace nada! Siempre con prisa. Si lo ves, dile que coma algo." }] });
-  defineHouse("alba", "abuelo", { name: "Casa de Tom\xE1s", npcs: [{ id: "gato", x: 6, y: 4, dir: "left", look: "nino", name: "Nieto", text: "El abuelo siempre cuenta que de joven captur\xF3 una criatura legendaria. \xA1Yo no me lo creo! ... \xBFO s\xED?" }] });
-  defineShopInterior("alba", "alba", { name: "Tienda de Villa Alba" });
+  defineHouse("alba", "rival", { city: "villa_alba", name: "Casa de Kai", npcs: [{ id: "madre_kai", x: 4, y: 4, dir: "down", look: "abuela", name: "Madre de Kai", text: "\xA1Kai sali\xF3 corriendo hace nada! Siempre con prisa. Si lo ves, dile que coma algo." }] });
+  defineHouse("alba", "abuelo", { city: "villa_alba", name: "Casa de Tom\xE1s", npcs: [{ id: "gato", x: 6, y: 4, dir: "left", look: "nino", name: "Nieto", text: "El abuelo siempre cuenta que de joven captur\xF3 una criatura legendaria. \xA1Yo no me lo creo! ... \xBFO s\xED?" }] });
+  defineShopInterior("alba", "alba", { city: "villa_alba", name: "Tienda de Villa Alba" });
   defineMap("ruta1", 44, 24, {
     name: "Ruta 1",
     title: "Ruta 1",
@@ -5874,6 +6198,1742 @@
     m.trigger(40, 14, async (g) => {
       g.setFlag("ruta1_cruzada");
     }, { w: 2, h: 2, once: true });
+  });
+
+  // src/maps/valle.js
+  init_world();
+
+  // src/maps/archetypes.js
+  init_world();
+
+  // src/encounters.js
+  function minWildLevel(sp) {
+    const s = typeof sp === "number" ? getSpecies(sp) : sp;
+    if (!s.prev) return 1;
+    const prev = SPECIES[s.prev];
+    const rule = prev.evo.find((e) => e.to === s.id);
+    const lv = rule && rule.lv ? rule.lv : s.stage === 2 ? 20 : 30;
+    return Math.max(2, lv);
+  }
+  var isNight = (hour) => hour >= 20 || hour < 6;
+  function buildEncounterList(spec) {
+    if (spec.list) return spec.list.map((e) => ({ lv: spec.lv, w: 10, ...e }));
+    const [lo, hi] = spec.lv;
+    const maxR = spec.maxRarity ? "CURVELM".indexOf(spec.maxRarity) : 4;
+    const out = [];
+    for (const s of SPECIES_LIST) {
+      if (s.legendary) continue;
+      if (spec.exclude && spec.exclude.includes(s.id)) continue;
+      const inc = spec.include && spec.include.includes(s.id);
+      if (!inc && !(spec.zone && s.habitats.includes(spec.zone))) continue;
+      if (!inc && "CURVELM".indexOf(s.rarity) > maxR) continue;
+      if (!inc && minWildLevel(s) > hi + 1) continue;
+      const w = (RARITY[s.rarity].w || 5) * (spec.boost?.[s.id] || 1) * (inc && !spec.zone ? 1 : 1);
+      out.push({ sp: s.id, w, lv: [Math.max(lo, minWildLevel(s) > lo ? minWildLevel(s) : lo), hi], time: s.timeOnly, wx: s.weather });
+    }
+    return out;
+  }
+  var cacheKey = (spec) => JSON.stringify(spec);
+  var LISTS = /* @__PURE__ */ new Map();
+  function encounterList(spec) {
+    const k = cacheKey(spec);
+    if (!LISTS.has(k)) LISTS.set(k, buildEncounterList(spec));
+    return LISTS.get(k);
+  }
+  function rollEncounter(rng, spec, ctx = {}) {
+    if (!spec) return null;
+    const night = ctx.hour != null ? isNight(ctx.hour) : false;
+    let list = encounterList(spec).filter((e) => {
+      if (e.time === "n" && !night) return false;
+      if (e.time === "d" && night) return false;
+      if (e.wx && ctx.weather !== e.wx) return false;
+      return true;
+    });
+    if (!list.length) list = encounterList(spec).filter((e) => !e.time && !e.wx);
+    if (!list.length) return null;
+    const weighted = list.map((e) => {
+      const s = SPECIES[e.sp];
+      let w = e.w;
+      if (ctx.weather === "lluvia" || ctx.weather === "tormenta") {
+        if (s.types.includes("agua") || s.types.includes("electrico")) w *= 2;
+      }
+      if (ctx.weather === "nieve" && s.types.includes("hielo")) w *= 2.5;
+      if (ctx.weather === "calor" && (s.types.includes("fuego") || s.types.includes("tierra"))) w *= 2;
+      if (ctx.weather === "niebla" && (s.types.includes("espiritu") || s.types.includes("sombra"))) w *= 2.5;
+      if (night && (s.types.includes("sombra") || s.types.includes("espiritu") || s.timeOnly === "n")) w *= 1.8;
+      if (!night && s.types.includes("luz")) w *= 1.5;
+      return { e, w };
+    });
+    const pick = rng.weighted(weighted, (x) => x.w).e;
+    const lv = rng.int(pick.lv[0], Math.max(pick.lv[0], pick.lv[1]));
+    return { sp: pick.sp, lv };
+  }
+  function makeWild(rng, enc, opts = {}) {
+    return createCreature(enc.sp, enc.lv, { rng, ...opts });
+  }
+  var ENCOUNTER_RATE = { hierba: 0.1, agua: 0.07, cueva: 0.075, pantano: 0.1, arena: 0.06, nieve: 0.08, desierto: 0.09, ruinas: 0.07, volcan: 0.08 };
+
+  // src/maps/archetypes.js
+  init_rng();
+  var STYLE = {
+    pradera: { fill: "grass", tree: "oak", dens: 0.2, tall: "tallgrass", enc: "hierba", path: "path", deco: ["flowers", "flowers:b", "flowers:y"] },
+    bosque: { fill: "grass", tree: "oak", dens: 0.55, tall: "tallgrass", enc: "hierba", path: "path", deco: ["flowers:y"] },
+    lago: { fill: "grass", tree: "oak", dens: 0.15, tall: "tallgrass", enc: "hierba", path: "path", deco: ["flowers", "flowers:b"] },
+    playa: { fill: "beach", tree: "palm", dens: 0.05, tall: null, enc: "arena", path: "sand", deco: [] },
+    nieve: { fill: "snow", tree: "snowpine", dens: 0.3, tall: "snowgrass", enc: "nieve", path: "gravel", deco: [] },
+    desierto: { fill: "sand", tree: null, dens: 0, tall: "dune", enc: "desierto", path: "path", deco: [], objs: ["cactus", "rock", "boulder"] },
+    pantano: { fill: "bog", tree: "swamptree", dens: 0.3, tall: "mud", enc: "pantano", path: "path", deco: [] },
+    montana: { fill: "grass", tree: "pine", dens: 0.18, tall: "tallgrass", enc: "hierba", path: "gravel", deco: [], objs: ["boulder", "rock"] },
+    volcan: { fill: "ash", tree: null, dens: 0, tall: "cinder", enc: "volcan", path: "gravel", deco: [], objs: ["lavarock", "boulder"] },
+    ruinas: { fill: "grass", tree: "dead", dens: 0.18, tall: "tallgrass", enc: "hierba", path: "ruinfloor", deco: [], objs: ["brokenpillar", "pillar"] },
+    victoria: { fill: "gravel", tree: "pine", dens: 0.12, tall: null, enc: null, path: "cobble", deco: [], objs: ["statue", "lamp"] }
+  };
+  var SIDE_GAP = { w: (c, m) => [0, c.rows[0] - 1, 2, c.rows[1] - c.rows[0] + 3], e: (c, m) => [m.w - 2, c.rows[0] - 1, 2, c.rows[1] - c.rows[0] + 3], n: (c, m) => [c.cols[0] - 1, 0, c.cols[1] - c.cols[0] + 3, 2], s: (c, m) => [c.cols[0] - 1, m.h - 2, c.cols[1] - c.cols[0] + 3, 2] };
+  function applyConn(m, conn) {
+    const gaps = [];
+    for (const [side, c] of Object.entries(conn || {})) {
+      gaps.push(SIDE_GAP[side](c, m));
+      if (c.map) m.connect(side, c.map, { offset: c.off || 0, rng: c.rows || c.cols || null });
+    }
+    return gaps;
+  }
+  var NAMES = ["\xC1lex", "Bruno", "Carla", "Dani", "Elena", "Fabio", "Gala", "Hugo", "Irene", "Joel", "Kira", "Leo", "Mara", "Nico", "Olga", "Pablo", "Quique", "Rita", "Sa\xFAl", "Tania", "Ux\xEDa", "V\xEDctor", "Wendy", "Yago", "Zoe", "Adela", "Biel", "Celia", "D\xEDdac", "Eva", "Fran", "Greta", "Iv\xE1n", "Jana", "Lucas", "Marta", "Noa", "\xD3scar", "Paula", "Ra\xFAl", "Sara", "Telmo", "Vera", "Xavi", "Ainhoa", "Berta", "Cosme", "Dora", "Emil", "Flor"];
+  var CLASSES = {
+    joven: { label: "Joven", looks: ["nino", "nina"], types: null, intro: ["\xA1Tus ojos dicen que quieres combatir!", "\xA1Eh! \xA1Mis criaturas necesitan pr\xE1ctica!", "\xA1Una mirada y ya hay combate!"], win: ["\xA1Vaya! \xA1Me has ganado!", "Buf... tengo que entrenar m\xE1s."], lose: ["\xA1Gan\xE9! \xA1Ja ja!"], after: ["Sigo entrenando. \xA1La pr\xF3xima vez ser\xE1 distinto!"] },
+    excursionista: { label: "Excursionista", looks: ["excursionista"], types: ["roca", "tierra", "lucha", "aire"], intro: ["\xA1Llevo d\xEDas caminando y necesito un combate!", "\xA1Esta monta\xF1a es m\xEDa! \xA1Demu\xE9strame que puedes pasar!"], win: ["Qu\xE9 piernas... y qu\xE9 criaturas.", "Me has dejado sin aliento."], lose: ["El que no entrena, no sube."], after: ["Respira hondo y sigue. \xA1El camino es largo!"] },
+    pescador: { label: "Pescador", looks: ["pescador"], types: ["agua", "hielo", "electrico"], intro: ["\xA1Esta orilla no se cruza sin pasar por m\xED!", "Los peces pican poco hoy... \xA1pero yo s\xED!"], win: ["\xA1Qu\xE9 gran captura! ... Digo, qu\xE9 gran combate."], lose: ["\xA1Un pez m\xE1s para mi cubo!"], after: ["Hoy no pica nada. Pero ya me da igual."] },
+    nadador: { label: "Nadador", looks: ["nadador"], types: ["agua", "hielo"], intro: ["\xA1Salto al agua cuando quieras!", "\xA1Sal del agua y combate!"], win: ["\xA1Qu\xE9 ola me has dado!"], lose: ["\xA1Chapuz\xF3n de derrota!"], after: ["El agua est\xE1 perfecta hoy."] },
+    karateka: { label: "Karateka", looks: ["karateka"], types: ["lucha", "roca"], intro: ["\xA1Mi dojo es el mundo! \xA1En guardia!", "La fuerza no est\xE1 en los m\xFAsculos, \xA1pero ayuda! \xA1Combate!"], win: ["\xA1Osu! Has ganado con honor."], lose: ["A\xFAn te falta disciplina."], after: ["La derrota tambi\xE9n ense\xF1a."] },
+    minero: { label: "Minero", looks: ["minero"], types: ["roca", "tierra", "metal"], intro: ["\xA1Aqu\xED abajo se combate a pico y pala!", "Mis criaturas y yo hemos cavado hondo. \xA1Veamos tu temple!"], win: ["Tienes veta de campe\xF3n."], lose: ["\xA1M\xE1s duro que la roca!"], after: ["El mineral m\xE1s valioso es la perseverancia."] },
+    cientifico: { label: "Cient\xEDfico", looks: ["cientifico"], types: ["electrico", "metal", "mental"], intro: ["Mi hip\xF3tesis: \xA1voy a ganarte! Comprob\xE9moslo.", "\xA1Perfecto! Necesito datos de combate."], win: ["Mi hip\xF3tesis era err\xF3nea... Fascinante."], lose: ["Resultado: victoria m\xEDa. Apuntando."], after: ["Estoy anotando tus datos de combate, \xBFte importa?"] },
+    bruja: { label: "Bruja", looks: ["bruja"], types: ["veneno", "espiritu", "sombra", "mental"], intro: ["Je je... entre la niebla se combate mejor.", "\xBFUna visita? Te lo tengo preparado: \xA1un hechizo!"], win: ["El hechizo ha salido al rev\xE9s..."], lose: ["Je je je. Dulces sue\xF1os."], after: ["Vuelve cuando la niebla sea m\xE1s espesa."] },
+    esquiador: { label: "Esquiador", looks: ["esquiador"], types: ["hielo", "agua", "aire"], intro: ["\xA1La nieve aqu\xED no perdona! \xA1Combate!", "\xA1Voy a deslizarme directo a la victoria!"], win: ["\xA1Me he ca\xEDdo de la ladera!"], lose: ["\xA1Medalla de oro para m\xED!"], after: ["Si esqu\xEDo aqu\xED al amanecer, \xA1es lo mejor!"] },
+    domador: { label: "Domador", looks: ["domador"], types: ["dragon", "fuego", "lucha", "insecto"], intro: ["\xA1Mis criaturas tienen car\xE1cter! \xBFTe atreves?", "\xA1Un desaf\xEDo! \xA1Eso es lo que quer\xEDa!"], win: ["Se me han ido de las manos... \xA1qu\xE9 gran combate!"], lose: ["Las domo yo. \xA1Y a ti tambi\xE9n!"], after: ["Con paciencia se doma cualquier criatura."] },
+    recluta: { label: "Recluta del Eclipse", looks: ["recluta", "recluta2"], types: ["sombra", "veneno", "aire", "espiritu", "insecto"], intro: ["\xA1Alto! \xA1La Orden del Eclipse no permite testigos!", "No deber\xEDas estar aqu\xED. \xA1Tendr\xE9 que echarte!", "\xA1Por el Eclipse y la verdadera libertad! \xA1En guardia!"], win: ["\xA1Maldici\xF3n! Informar\xE9 al teniente...", "\xA1Imposible! \xBFQui\xE9n eres?"], lose: ["Vuelve a tu casa y olvida lo que has visto."], after: ["...No tengo nada que decirte."] },
+    artista: { label: "Artista", looks: ["jugador_extra", "nina"], types: ["sonido", "luz", "mental", "espiritu"], intro: ["\xA1Tu estampa es perfecta para mi pr\xF3ximo cuadro! \xBFUn combate?", "\xA1Combatamos al ritmo de mi canci\xF3n!"], win: ["\xA1Qu\xE9 obra maestra de combate!"], lose: ["Mi performance gana otra ovaci\xF3n."], after: ["Estoy componiendo un himno a la regi\xF3n de Aurelia."] },
+    campista: { label: "Campista", looks: ["excursionista", "nino"], types: ["planta", "insecto", "fuego", "aire"], intro: ["\xA1Mi campamento, mis reglas! \xA1Combate!", "\xBFQuieres compartir el fuego? \xA1Primero combate!"], win: ["Qu\xE9 buen combate junto al fuego."], lose: ["\xA1Mi criatura gana! \xA1A cenar!"], after: ["\xBFSalchichas? Hay de sobra."] }
+  };
+  var pickOf = (rng, arr) => arr[Math.floor(rng.next() * arr.length)];
+  function routeTrainer(mapId, idx, spec, zoneSpec) {
+    const id = `${mapId}_t${idx}`;
+    const rng = new RNG(hashStr(id));
+    const C3 = CLASSES[spec.cls] || CLASSES.joven;
+    const name = spec.name || NAMES[hashStr(id) % NAMES.length];
+    const [lo, hi] = spec.lv;
+    const n = spec.n || 2;
+    const base = encounterList({ ...zoneSpec, lv: [lo, hi] });
+    const types = spec.types || C3.types;
+    let pool = base.filter((e) => !types || SPECIES[e.sp].types.some((t) => types.includes(t)));
+    if (pool.length < 2) pool = base;
+    const used = /* @__PURE__ */ new Set();
+    const team = [];
+    for (let i = 0; i < n; i++) {
+      const cand = pool.filter((e2) => !used.has(e2.sp));
+      const e = rng.weighted(cand.length ? cand : pool, (x) => x.w);
+      used.add(e.sp);
+      const lv = Math.min(hi, Math.max(lo, Math.round(lo + (hi - lo) * (i + rng.next() * 0.6) / Math.max(1, n - 0.4))));
+      team.push({ sp: e.sp, lv: Math.max(e.lv[0] > lv ? e.lv[0] : lv, 2) });
+    }
+    const lookName = pickOf(rng, C3.looks);
+    defineTrainer(id, {
+      name,
+      cls: C3.label,
+      look: look(lookName, spec.look || {}),
+      team,
+      ai: spec.ai || "basic",
+      iv: spec.iv ?? Math.min(15, 4 + Math.floor(hi / 6)),
+      reward: spec.reward,
+      rematchable: spec.rematch !== false && spec.cls !== "recluta",
+      intro: pickOf(rng, C3.intro),
+      win: pickOf(rng, C3.win),
+      lose: pickOf(rng, C3.lose),
+      afterWin: pickOf(rng, C3.after)
+    });
+    return { id, trainer: id, x: spec.x, y: spec.y, dir: spec.dir || "down", look: look(lookName, spec.look || {}), name, sight: spec.sight ?? 4, kind: "trainer", show: spec.show };
+  }
+  function defineRoute(id, cfg) {
+    const st = STYLE[cfg.style || "pradera"];
+    const w = cfg.w, h = cfg.h;
+    defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: st.fill, music: cfg.music || "route", zone: cfg.zone, tags: ["ruta", ...cfg.tags || []], climate: cfg.climate || "templado", region: cfg.region || "valle", encounters: cfg.enc, cave: !!cfg.cave, dark: !!cfg.dark, noFly: !!cfg.noFly, level: cfg.level, forceWeather: cfg.forceWeather || null, fly: cfg.fly || null }, (m) => {
+      const rng = m.rng;
+      const waterBlobs = cfg.water || [];
+      const patches = cfg.patches || (st.tall ? autoPatches(rng, w, h, cfg.waypoints, Math.max(3, Math.round(w * h / 170))) : []);
+      if (st.tall) for (const [cx, cy, rx, ry] of patches) m.blob(cx, cy, rx, ry, st.tall);
+      for (const [cx, cy, rx, ry, kind] of waterBlobs) {
+        m.blob(cx, cy, rx, ry, kind || "water");
+        if (!kind || kind === "water") m.blob(cx, cy, rx + 1.6, ry + 1.2, "beach", { rough: 0.5, only: [st.fill, st.tall] });
+        m.blob(cx, cy, rx - 0.8, ry - 0.6, kind || "water");
+      }
+      if (cfg.waypoints) m.path(cfg.waypoints, st.path, cfg.width || 2);
+      for (const d of st.deco) m.scatter(d, Math.round(w * h / 140), { rect: [2, 2, w - 4, h - 4], on: [st.fill], layer: "ground" });
+      const gaps = applyConn(m, cfg.conn);
+      m.frame(st.tree || (cfg.style === "desierto" ? "oak" : "oak"), 2, gaps);
+      if (st.tree && st.dens > 0) m.forest(2, 2, w - 4, h - 4, st.tree, cfg.density ?? st.dens, { on: [st.fill] });
+      if (st.objs) for (const o of st.objs) m.scatter(o, Math.round(w * h / (o === "cactus" ? 90 : 160)), { rect: [2, 2, w - 4, h - 4], on: [st.fill], layer: "obj" });
+      for (const [x, y, text] of cfg.signs || []) {
+        clearSpot(m, x, y);
+        m.sign(x, y, text);
+      }
+      for (const [x, y, item, n] of cfg.items || []) {
+        clearSpot(m, x, y);
+        m.item(x, y, item, { n: n || 1 });
+      }
+      for (const [x, y, item] of cfg.hidden || []) {
+        clearSpot(m, x, y);
+        m.hidden(x, y, item);
+      }
+      for (const t of cfg.trainers || []) clearSpot(m, t.x, t.y);
+      for (const n of cfg.npcs || []) clearSpot(m, n.x, n.y);
+      (cfg.trainers || []).forEach((t, i) => m.entities.push(routeTrainer(id, i, { ai: cfg.ai, ...t }, cfg.enc?.[st.enc] || cfg.enc?.hierba || { zone: cfg.zone, lv: [5, 10] })));
+      for (const npc of cfg.npcs || []) m.npc({ move: "static", ...npc, look: typeof npc.look === "string" ? look(npc.look) : npc.look });
+      for (const [name, [x, y, dir]] of Object.entries(cfg.spawns || {})) m.spawn(name, x, y, dir || "down");
+      if (cfg.extra) cfg.extra(m, { w, h, st });
+      for (const [side, c] of Object.entries(cfg.conn || {})) clearEntrance(m, side, c, st);
+    });
+  }
+  function clearSpot(m, x, y) {
+    const k = m.getObj(x, y);
+    m.clear(x, y);
+    if (k.endsWith("_b")) {
+      if (m.getObj(x, y - 1).endsWith("_t")) m.clear(x, y - 1);
+    } else if (k.endsWith("_t")) {
+      if (m.getObj(x, y + 1).endsWith("_b")) m.clear(x, y + 1);
+    }
+  }
+  function autoPatches(rng, w, h, wp, n) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const [px2, py] = wp ? wp[Math.floor(rng.next() * wp.length)] : [w / 2, h / 2];
+      const ang = rng.next() * 6.283, dist = 4 + rng.next() * 5;
+      out.push([Math.max(4, Math.min(w - 5, Math.round(px2 + Math.cos(ang) * dist))), Math.max(4, Math.min(h - 5, Math.round(py + Math.sin(ang) * dist))), 2.5 + rng.next() * 2.5, 2 + rng.next() * 2]);
+    }
+    return out;
+  }
+  function clearEntrance(m, side, c, st) {
+    const f = st.path;
+    if (c.sea) {
+      if (side === "w" || side === "e") {
+        for (let y = c.rows[0]; y <= c.rows[1]; y++) for (let k = 0; k < 4; k++) {
+          const x = side === "w" ? k : m.w - 1 - k;
+          m.clear(x, y);
+          m.clear(x, y - 1);
+          m.set(x, y, "deepwater");
+        }
+      } else for (let x = c.cols[0]; x <= c.cols[1]; x++) for (let k = 0; k < 4; k++) {
+        const y = side === "n" ? k : m.h - 1 - k;
+        m.clear(x, y);
+        m.clear(x, y - 1);
+        m.set(x, y, "deepwater");
+      }
+      return;
+    }
+    if (side === "w" || side === "e") {
+      for (let y = c.rows[0]; y <= c.rows[1]; y++) for (let k = 0; k < 4; k++) {
+        const x = side === "w" ? k : m.w - 1 - k;
+        m.clear(x, y);
+        m.clear(x, y - 1);
+        m.set(x, y, f);
+      }
+    } else for (let x = c.cols[0]; x <= c.cols[1]; x++) for (let k = 0; k < 4; k++) {
+      const y = side === "n" ? k : m.h - 1 - k;
+      m.clear(x, y);
+      m.clear(x, y - 1);
+      m.set(x, y, f);
+    }
+  }
+  var SLOT_X = { 1: 3, 2: 11, 3: 19, 4: 27, 5: 35 };
+  var UP_DOOR = 8;
+  var LOW_DOOR = 19;
+  function defineCity(id, cfg) {
+    const w = cfg.w || 38, h = cfg.h || 28;
+    defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: cfg.fill || "grass", music: cfg.music || "town", zone: cfg.zone || "ciudad", tags: ["ciudad", ...cfg.tags || []], climate: cfg.climate || "templado", region: cfg.region || "valle", fly: cfg.fly !== false, noFly: false }, (m) => {
+      const pathTile = cfg.path || "cobble";
+      const rng = m.rng;
+      if (cfg.preDecor) cfg.preDecor(m);
+      const gaps = applyConn(m, cfg.conn);
+      m.path([[2, 10], [w - 3, 10]], pathTile, 2).path([[2, 20], [w - 3, 20]], pathTile, 2).path([[Math.floor(w / 2) - 1, 9], [Math.floor(w / 2) - 1, 21]], pathTile, 2);
+      for (const [side, c] of Object.entries(cfg.conn || {})) {
+        if (side === "w") m.path([[0, c.rows[0]], [4, c.rows[0]]], pathTile, c.rows[1] - c.rows[0] + 1);
+        if (side === "e") m.path([[w - 5, c.rows[0]], [w - 1, c.rows[0]]], pathTile, c.rows[1] - c.rows[0] + 1);
+        if (side === "n") m.path([[c.cols[0], 0], [c.cols[0], 9]], pathTile, c.cols[1] - c.cols[0] + 1);
+        if (side === "s") m.path([[c.cols[0], h - 1], [c.cols[0], 21]], pathTile, c.cols[1] - c.cols[0] + 1);
+      }
+      m.frame(cfg.tree || "oak", 2, gaps);
+      for (const b of cfg.buildings || []) {
+        const row = b.slot[0], n = +b.slot.slice(1);
+        const bw = b.w || 6, bh = b.h || (b.kind === "gym" ? 6 : 4);
+        const doorY = row === "U" ? UP_DOOR : LOW_DOOR;
+        const x = (cfg.slotX || SLOT_X)[n] + (b.dx || 0);
+        m.building(x, doorY - (bh - 1), bw, bh, { kind: b.kind, roof: b.roof, wall: b.wall, to: b.to, tx: "door", key: b.key, name: b.name, doorX: b.doorX, req: b.req, reqText: b.reqText });
+      }
+      if (cfg.decor) cfg.decor(m, { w, h });
+      if (cfg.extra) cfg.extra(m, { w, h });
+      for (const npc of cfg.npcs || []) m.npc({ move: "wander", range: 2, ...npc, look: typeof npc.look === "string" ? look(npc.look) : npc.look });
+      m.spawn("fly", Math.floor(w / 2), 10, "down");
+    });
+  }
+  function roadBlock(m, cells, cond, text, { tile = "gate", name = "Barrera" } = {}) {
+    for (const [x, y] of cells) {
+      clearSpot(m, x, y);
+      m.gate(x, y, tile, { name, show: (g) => !cond(g), text });
+    }
+    return m;
+  }
+  function caveMouth(m, x, y, to, spawn, { key = null, sfx = "door" } = {}) {
+    for (let j = -1; j <= 0; j++) for (const i of [-1, 1]) {
+      clearSpot(m, x + i, y + j);
+      m.put(x + i, y + j, "rockwall");
+    }
+    clearSpot(m, x, y - 1);
+    m.put(x, y - 1, "rockwall");
+    clearSpot(m, x, y);
+    clearSpot(m, x, y + 1);
+    m.set(x, y, "cavefloor");
+    m.warp(x, y, to, spawn, 0, "up", { sfx });
+    m.spawn("cueva_" + (key || to), x, y + 1, "down");
+    return m;
+  }
+  function defineCave(id, cfg) {
+    const w = cfg.w, h = cfg.h;
+    const enc = cfg.enc || { cueva: { zone: "cueva", lv: cfg.lv || [10, 14], maxRarity: "R" } };
+    defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: "cavefloor", music: cfg.music || "cave", zone: "cueva", tags: ["cueva", ...cfg.tags || []], cave: true, dark: !!cfg.dark, weather: false, noFly: true, region: cfg.region || "valle", encounters: enc, level: cfg.level }, (m) => {
+      m.putRect(0, 0, w, h, "cavewall");
+      const carve = (cx, cy, rx, ry) => {
+        for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+          if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue;
+          if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.02) m.clear(x, y);
+        }
+      };
+      for (const [cx, cy, rx, ry] of cfg.rooms || []) carve(cx, cy, rx, ry);
+      const wd = cfg.width || 3;
+      for (const pts of cfg.passages || []) for (let i = 0; i < pts.length - 1; i++) {
+        let [x, y] = pts[i];
+        const [tx, ty] = pts[i + 1];
+        const stamp = (px2, py) => {
+          for (let a = 0; a < wd; a++) for (let b = 0; b < wd; b++) {
+            const X = px2 + a - Math.floor(wd / 2), Y = py + b - Math.floor(wd / 2);
+            if (X >= 1 && Y >= 1 && X < w - 1 && Y < h - 1) m.clear(X, Y);
+          }
+        };
+        while (x !== tx || y !== ty) {
+          stamp(x, y);
+          if (x !== tx) x += Math.sign(tx - x);
+          else y += Math.sign(ty - y);
+        }
+        stamp(tx, ty);
+      }
+      for (const [k, n] of Object.entries(cfg.objs || { stalagmite: Math.round(w * h / 90), crystal: Math.round(w * h / 160), mushroom: Math.round(w * h / 220) })) m.scatter(k, n, { rect: [2, 2, w - 4, h - 4], on: ["cavefloor"], layer: "obj" });
+      for (const ex of cfg.exits || []) {
+        const up = ex.dir === "up";
+        for (let j = 0; j <= 2; j++) for (let i = -1; i <= 1; i++) m.clear(ex.x + i, up ? ex.y + j : ex.y - j);
+        m.set(ex.x, ex.y, "mat");
+        m.warp(ex.x, ex.y, ex.to, ex.spawn, 0, up ? "up" : "down", { sfx: "door" });
+        const sy = up ? ex.y + 1 : ex.y - 1;
+        m.spawn("entrada_" + (ex.key || ex.to), ex.x, sy, up ? "down" : "up");
+        if (!m.spawns.door) m.spawn("door", ex.x, sy, up ? "down" : "up");
+      }
+      for (const [x, y, text] of cfg.signs || []) {
+        clearSpot(m, x, y);
+        m.sign(x, y, text);
+      }
+      for (const [x, y, item, n] of cfg.items || []) {
+        clearSpot(m, x, y);
+        m.item(x, y, item, { n: n || 1 });
+      }
+      for (const [x, y, item] of cfg.hidden || []) {
+        clearSpot(m, x, y);
+        m.hidden(x, y, item);
+      }
+      for (const t of cfg.trainers || []) clearSpot(m, t.x, t.y);
+      for (const n of cfg.npcs || []) clearSpot(m, n.x, n.y);
+      (cfg.trainers || []).forEach((t, i) => m.entities.push(routeTrainer(id, i, { ai: cfg.ai, ...t }, enc.cueva || Object.values(enc)[0])));
+      for (const npc of cfg.npcs || []) m.npc({ move: "static", ...npc, look: typeof npc.look === "string" ? look(npc.look) : npc.look });
+      if (cfg.extra) cfg.extra(m, { w, h });
+    });
+  }
+
+  // src/maps/gyms.js
+  init_world();
+  init_rng();
+
+  // src/gyms.js
+  var BADGES = [
+    { id: "hoja", name: "Medalla Hoja", city: "Ciudad Roble", icon: "\u{1F343}", color: "#4fb547", type: "planta", cap: 24 },
+    { id: "marea", name: "Medalla Marea", city: "Puerto Marea", icon: "\u{1F30A}", color: "#3f8fe8", type: "agua", cap: 30 },
+    { id: "chispa", name: "Medalla Chispa", city: "Ciudad D\xEDnamo", icon: "\u26A1", color: "#f2c830", type: "electrico", cap: 36 },
+    { id: "cantera", name: "Medalla Cantera", city: "Pico Granito", icon: "\u26F0", color: "#a39a7c", type: "roca", cap: 44 },
+    { id: "ascua", name: "Medalla Ascua", city: "Ciudad Brasa", icon: "\u{1F525}", color: "#ef5b2a", type: "fuego", cap: 52 },
+    { id: "bruma", name: "Medalla Bruma", city: "Aldea Niebla", icon: "\u2620", color: "#a455c8", type: "veneno", cap: 60 },
+    { id: "cristal", name: "Medalla Cristal", city: "Cima Escarcha", icon: "\u2744", color: "#7fd8e6", type: "hielo", cap: 70 },
+    { id: "dragon", name: "Medalla Drag\xF3n", city: "Ciudad Arcana", icon: "\u{1F409}", color: "#5a58d8", type: "dragon", cap: 100 }
+  ];
+  var badgeById = (id) => BADGES.find((b) => b.id === id);
+  async function awardBadge(g, id) {
+    const b = badgeById(id);
+    if (!g.state.badges.includes(id)) {
+      g.state.badges.push(id);
+      g.audio.sfx("badge");
+      g.emit("badge", { id, n: g.state.badges.length });
+      g.setFlag("badge_" + id);
+    }
+    return b;
+  }
+
+  // src/maps/gyms.js
+  function carveMaze(seed, cw, ch, ox, oy, start) {
+    const rng = new RNG(seed);
+    const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    const key = (x, y) => x + "," + y;
+    const seen = /* @__PURE__ */ new Set([key(...start)]), stack = [start], parent = {}, floor = /* @__PURE__ */ new Set(), deg = {};
+    const tile = (x, y) => [ox + 2 * x, oy + 2 * y];
+    floor.add(key(...tile(...start)));
+    deg[key(...start)] = 0;
+    while (stack.length) {
+      const [x, y] = stack[stack.length - 1];
+      const nb = rng.shuffle(dirs).map(([dx2, dy2]) => [x + dx2, y + dy2, dx2, dy2]).filter(([nx2, ny2]) => nx2 >= 0 && ny2 >= 0 && nx2 < cw && ny2 < ch && !seen.has(key(nx2, ny2)));
+      if (!nb.length) {
+        stack.pop();
+        continue;
+      }
+      const [nx, ny, dx, dy] = nb[0];
+      seen.add(key(nx, ny));
+      parent[key(nx, ny)] = [x, y];
+      const [tx, ty] = tile(x, y);
+      floor.add(key(tx + dx, ty + dy));
+      floor.add(key(...tile(nx, ny)));
+      deg[key(x, y)] = (deg[key(x, y)] || 0) + 1;
+      deg[key(nx, ny)] = (deg[key(nx, ny)] || 0) + 1;
+      stack.push([nx, ny]);
+    }
+    const pathTo = (cell) => {
+      const p = [];
+      let c = cell;
+      while (c) {
+        p.unshift(c);
+        c = parent[key(...c)];
+      }
+      return p;
+    };
+    const leaves = [];
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) if (deg[key(x, y)] === 1) leaves.push([x, y]);
+    return { floor, pathTo, leaves, tile, parent, cw, ch };
+  }
+  var dirOf = (a, b) => b[0] > a[0] ? "right" : b[0] < a[0] ? "left" : b[1] > a[1] ? "down" : "up";
+  function buildMaze(m, o) {
+    const w = o.w, h = o.h;
+    const exitX = o.exitX;
+    const ox = 1, oy = 6;
+    const cw = Math.floor((w - 1) / 2), ch = Math.floor((h - 2 - oy) / 2) + 1;
+    const startCell = [(exitX - ox) / 2, ch - 1], goalCell = [(exitX - ox) / 2, 0];
+    const mz = carveMaze(o.seed, cw, ch, ox, oy, startCell);
+    const W = o.wall, ground = W.layer === "ground";
+    const open = (x, y) => mz.floor.has(x + "," + y) || x === exitX && (y === 4 || y === 5);
+    for (let y = 4; y <= h - 2; y++) for (let x = 0; x < w; x++) {
+      if (!open(x, y)) {
+        if (ground) {
+          m.set(x, y, W.tile);
+        } else m.put(x, y, W.tile);
+      } else if (ground) m.set(x, y, o.mazeFloor || "bridge");
+    }
+    for (let x = 0; x < w; x++) if (x !== exitX) m.put(x, h - 1, "wallint");
+    m.set(exitX, h - 1, "mat");
+    const path = mz.pathTo(goalCell);
+    return { mz, path, gate: [exitX, 4], startCell, goalCell, cw, ch };
+  }
+  function iceLayout(m, c) {
+    const { id, w, h, exitX, trainerSpecs, addTrainers } = c;
+    const y0 = 5, y1 = h - 2;
+    const field = (x, y) => x >= 1 && x <= w - 2 && y >= y0 && y <= y1;
+    const platform = (x, y) => y === y1 && Math.abs(x - exitX) <= 2 || x === exitX && y === y0;
+    const rng = new RNG(hashStr(id) ^ 462);
+    const slide = (blocks2, x, y, dx, dy) => {
+      let nx = x + dx, ny = y + dy;
+      if (!field(nx, ny) || blocks2.has(nx + "," + ny)) return null;
+      while (!platform(nx, ny) && field(nx + dx, ny + dy) && !blocks2.has(nx + dx + "," + (ny + dy))) {
+        nx += dx;
+        ny += dy;
+      }
+      return [nx, ny];
+    };
+    const solve = (blocks2) => {
+      const start = [exitX, y1], goalK = exitX + "," + y0;
+      const par = /* @__PURE__ */ new Map([[start.join(), null]]);
+      const q2 = [start];
+      while (q2.length) {
+        const [x, y] = q2.shift();
+        for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+          const r = slide(blocks2, x, y, dx, dy);
+          if (!r) continue;
+          const k2 = r.join();
+          if (par.has(k2)) continue;
+          par.set(k2, [x, y, dx, dy]);
+          q2.push(r);
+        }
+      }
+      if (!par.has(goalK)) return null;
+      const stops = [];
+      const cells2 = /* @__PURE__ */ new Set();
+      let k = goalK;
+      while (par.get(k)) {
+        const [px2, py, dx, dy] = par.get(k);
+        const [x, y] = k.split(",").map(Number);
+        stops.unshift([x, y]);
+        let cx = px2 + dx, cy = py + dy;
+        cells2.add(px2 + "," + py);
+        while (true) {
+          cells2.add(cx + "," + cy);
+          if (cx === x && cy === y) break;
+          cx += dx;
+          cy += dy;
+        }
+        k = px2 + "," + py;
+      }
+      stops.unshift(start);
+      cells2.add(start.join());
+      return { stops, cells: cells2 };
+    };
+    let blocks = null, sol = null;
+    for (let attempt = 0; attempt < 600 && !sol; attempt++) {
+      const b = /* @__PURE__ */ new Set();
+      const n = 16 + rng.int(0, 8);
+      for (let i = 0; i < n * 3 && b.size < n; i++) {
+        const x = rng.int(1, w - 2), y = rng.int(y0, y1 - 1);
+        if (platform(x, y) || x === exitX && y <= y0 + 2) continue;
+        b.add(x + "," + y);
+      }
+      const r = solve(b);
+      if (r && r.stops.length >= 5 && r.stops.length <= 12) {
+        blocks = b;
+        sol = r;
+      }
+    }
+    if (!sol) throw new Error("No se pudo generar un puzle de hielo resoluble para " + id);
+    for (let y = 4; y <= h - 2; y++) for (let x = 0; x < w; x++) {
+      if (x === 0 || x === w - 1 || y === 4 && x !== exitX) {
+        m.put(x, y, "wallint");
+        continue;
+      }
+      if (y === 4) continue;
+      m.set(x, y, platform(x, y) ? "floor" : "ice");
+    }
+    for (const k of blocks) {
+      const [x, y] = k.split(",").map(Number);
+      m.put(x, y, "iceblock");
+    }
+    m.set(exitX, 4, "floor");
+    const cells = [];
+    const inner = sol.stops.slice(1, -1);
+    const used = /* @__PURE__ */ new Set([...sol.cells, ...blocks]);
+    for (let i = 0; i < trainerSpecs.length; i++) {
+      const stop = inner[Math.min(inner.length - 1, Math.floor((i + 1) * inner.length / (trainerSpecs.length + 1)))];
+      if (!stop) break;
+      const opts = [[0, -1, "down"], [1, 0, "left"], [0, 1, "up"], [-1, 0, "right"]].map(([dx, dy, dir]) => ({ x: stop[0] + dx, y: stop[1] + dy, dir })).filter((o) => field(o.x, o.y) && !used.has(o.x + "," + o.y) && !platform(o.x, o.y));
+      const pick = opts[0] || null;
+      if (!pick) {
+        cells.push(null);
+        continue;
+      }
+      used.add(pick.x + "," + pick.y);
+      cells.push(pick);
+    }
+    addTrainers(cells.map((c0, i) => c0 || { x: 1, y: y0 + i, dir: "right" }));
+    m.solution = sol.stops;
+    return { gate: [exitX, 4], leader: [exitX, 2] };
+  }
+  function padsLayout(m, c) {
+    const { id, w, h, exitX, addTrainers } = c;
+    for (let y = 4; y <= h - 2; y++) for (let x = 0; x < w; x++) m.set(x, y, "void");
+    for (let x = 0; x < w; x++) m.put(x, h - 1, "wallint");
+    const room = (x, y, rw, rh, tile = "floor") => m.rect(x, y, rw, rh, tile);
+    const A3 = { x: exitX - 3, y: h - 6, w: 7, h: 5 }, B = { x: 1, y: 8, w: 8, h: 5 }, C3 = { x: w - 9, y: 8, w: 8, h: 5 };
+    room(A3.x, A3.y, A3.w, A3.h);
+    room(B.x, B.y, B.w, B.h);
+    room(C3.x, C3.y, C3.w, C3.h);
+    room(exitX - 4, 2, 9, 3, "marble");
+    m.set(exitX, h - 1, "mat");
+    const pad = (x, y, tx, ty, label) => {
+      m.set(x, y, "pad");
+      m.warp(x, y, id, tx, ty, "down", { sfx: "warp", label });
+    };
+    const startX = exitX, startY = h - 3;
+    pad(exitX - 2, h - 5, B.x + 3, B.y + 1);
+    pad(exitX + 2, h - 5, startX, startY);
+    pad(exitX, h - 5, startX, startY);
+    pad(B.x + 6, B.y + 4, C3.x + 3, C3.y + 1);
+    pad(B.x, B.y + 4, startX, startY);
+    pad(B.x + 4, B.y, B.x + 3, B.y + 1);
+    pad(C3.x + 5, C3.y, exitX, 4);
+    pad(C3.x, C3.y + 4, B.x + 3, B.y + 1);
+    pad(C3.x + 4, C3.y + 4, C3.x + 3, C3.y + 1);
+    m.sign(exitX - 3, h - 2, "PLATAFORMAS DE BRUMA\nSolo una plataforma de cada sala lleva al siguiente nivel. Las dem\xE1s... te devuelven.");
+    const cells = [{ x: B.x + 6, y: B.y + 1, dir: "left" }, { x: B.x + 2, y: B.y + 3, dir: "right" }, { x: C3.x + 6, y: C3.y + 1, dir: "left" }, { x: C3.x + 2, y: C3.y + 3, dir: "right" }];
+    addTrainers(cells);
+    return { gate: [exitX, 4], leader: [exitX, 2], noGate: true, afterTids: true };
+  }
+  function riddleLayout(m, c) {
+    const { id, w, h, exitX, spec, addTrainers, tids, cityId } = c;
+    const gates = [12, 8, 4];
+    for (let y = 4; y <= h - 2; y++) for (let x = 0; x < w; x++) {
+      if (x === 0 || x === w - 1 || gates.includes(y) && x !== exitX) m.put(x, y, "wallint");
+    }
+    for (let y = 5; y <= h - 2; y++) for (let x = 1; x < w - 1; x++) m.set(x, y, spec.riddleFloor || "marble");
+    const cham = [{ top: 13, bottom: h - 2 }, { top: 9, bottom: 11 }, { top: 5, bottom: 7 }];
+    const cells = cham.map((ch) => ({ x: 3, y: Math.min(ch.bottom, ch.top + 1), dir: "right" }));
+    addTrainers(cells.map((cell) => ({ ...cell })));
+    (spec.riddles || []).forEach((r, i) => {
+      const gy = gates[i], flag2 = `riddle_${cityId}_${i}`;
+      m.gate(exitX, gy, "gate_iron", { name: "Compuerta", show: (g) => !g.flag(flag2), text: "La compuerta de piedra no se mueve. Un grabado dice: \xABResponde con sabidur\xEDa ante el altar\xBB." });
+      m.object(exitX + 2, gy + 1, "dragonstatue", { name: "Altar del acertijo", talk: async (g, e, ow) => {
+        if (g.flag(flag2)) {
+          await g.say("El altar brilla con tenue luz. Ya respondiste correctamente.");
+          return;
+        }
+        const a = await g.ask(r.q, r.options, { speaker: "Altar" });
+        if (a === r.answer) {
+          g.setFlag(flag2);
+          g.audio.sfx("achievement");
+          ow.refreshEntities();
+          await g.say("El altar resplandece y la compuerta se desliza.");
+        } else {
+          g.audio.sfx("error");
+          await g.say(r.hint || "Nada ocurre. Los dragones susurran: \xABA\xFAn no\xBB.");
+        }
+      } });
+      if (r.npc) m.npc({ id: "sabio" + i, x: r.npc.x ?? w - 4, y: gy + 2, dir: "left", look: look(r.npc.look || "cientifico"), name: r.npc.name || "Erudito", move: "static", text: r.npc.text });
+    });
+    return { gate: [exitX, 4], leader: [exitX, 2], noGate: true };
+  }
+  var LAYOUTS = { ice: iceLayout, pads: padsLayout, riddle: riddleLayout };
+  var trainersDone = (g, ids) => ids.every((id) => g.state.trainers[id]?.beaten);
+  function defineGym(cityId, spec) {
+    const id = `gym_${cityId}`;
+    const badge = BADGES.find((b) => b.id === spec.badge);
+    const w = spec.w || 21, h = spec.h || 18;
+    const tids = [];
+    interior(id, w, h, { name: spec.name, title: spec.title || spec.name, floor: spec.floor || "floor", wall: spec.wallTile || "wallint", exit: { to: cityId, spawn: "door_gym" }, exitX: spec.exitX ?? 9, noFly: true, music: "gym", noSave: false }, (m, ctx) => {
+      let gateXY = [9, 4], leaderPos = [9, 2], noGate = false;
+      const exitX = spec.exitX ?? 9;
+      const trainerSpecs = spec.trainers || [];
+      const addTrainers = (cells) => {
+        trainerSpecs.forEach((t, i) => {
+          const c = cells[i];
+          if (!c) return;
+          const ent = routeTrainer(id, i, { ...t, x: c.x, y: c.y, dir: c.dir, sight: t.sight ?? 5, ai: "smart", rematch: false }, spec.zone || { zone: "ciudad" });
+          tids.push(ent.id);
+          ent.show = (g) => !g.state.trainers[ent.id]?.beaten;
+          m.entities.push(ent);
+        });
+      };
+      if (spec.layout === "maze") {
+        const L3 = buildMaze(m, { w, h, seed: hashStr(id), exitX, wall: spec.wall || { layer: "obj", tile: "hedge" }, mazeFloor: spec.mazeFloor });
+        const n = trainerSpecs.length;
+        const cells = [];
+        for (let i = 0; i < n; i++) {
+          const idx = Math.max(2, Math.round((i + 1) / (n + 1) * (L3.path.length - 1)));
+          const a = L3.path[idx], b = L3.path[Math.max(0, idx - 1)];
+          const [x, y] = L3.mz.tile(...a);
+          cells.push({ x, y, dir: dirOf(a, b) });
+        }
+        addTrainers(cells);
+        const nb = spec.barriers || 0;
+        for (let k = 0; k < nb; k++) {
+          const bi = Math.round((k + 1) / (nb + 1) * (L3.path.length - 1)) + 1;
+          const bcell = L3.path[Math.min(bi, L3.path.length - 2)];
+          const [bx, by] = L3.mz.tile(...bcell);
+          const flag2 = `gym_${cityId}_sw${k}`;
+          const onPath = new Set(L3.path.slice(0, bi).map((c) => c.join()));
+          const attach = (cell) => {
+            let c = cell;
+            while (c && !onPath.has(c.join())) c = L3.mz.parent[c.join()];
+            return c;
+          };
+          const candidates = L3.mz.leaves.filter((c) => !L3.path.some((p) => p.join() === c.join()) && attach(c)).sort((a, b) => b.length - a.length);
+          const leaf = candidates[k % Math.max(1, candidates.length)] || L3.path[Math.max(1, bi - 2)];
+          const [sx, sy] = L3.mz.tile(...leaf);
+          m.gate(bx, by, spec.barrierTile || "barrier_e", { show: (g) => !g.flag(flag2), name: spec.barrierName || "Barrera el\xE9ctrica", text: spec.barrierText || "Una barrera de energ\xEDa bloquea el paso. Debe de haber un interruptor por alg\xFAn rinc\xF3n del laberinto." });
+          m.gate(sx, sy, "switch_off", { name: "Interruptor", show: (g) => !g.flag(flag2), talk: async (g, e, ow) => {
+            g.audio.sfx("item");
+            g.setFlag(flag2);
+            ow.refreshEntities();
+            await g.say(spec.switchText || "\xA1Clic! Una barrera se ha desactivado.");
+          }, free: false });
+          m.gate(sx, sy, "switch_on", { name: "Interruptor", show: (g) => g.flag(flag2), text: "El interruptor ya est\xE1 activado." });
+        }
+        gateXY = L3.gate;
+        leaderPos = [exitX, 2];
+      } else if (LAYOUTS[spec.layout]) {
+        const r = LAYOUTS[spec.layout](m, { id, w, h, exitX, spec, addTrainers, trainerSpecs, tids, cityId });
+        gateXY = r.gate;
+        leaderPos = r.leader;
+        noGate = !!r.noGate;
+      } else if (spec.custom) {
+        const r = spec.custom(m, { id, w, h, exitX, addTrainers, trainerSpecs, tids });
+        gateXY = r.gate;
+        leaderPos = r.leader;
+      }
+      const ids = tids;
+      if (spec.layout === "pads") {
+        const hh = h;
+        const padCell = [w - 9 + 5, 8];
+        m.gate(padCell[0], padCell[1], "barrier_e", { show: (g) => !trainersDone(g, ids), name: "Barrera de bruma", text: "Una barrera de bruma cubre la plataforma. Derrota a todos los entrenadores para disiparla." });
+      }
+      if (spec.layout === "riddle") m.gate(gateXY[0], gateXY[1], "gate_iron", { show: (g) => !trainersDone(g, ids) && !g.state.badges.includes(spec.badge) && !g.flag(`riddle_${cityId}_2`), name: "Verja", text: "La verja del l\xEDder sigue cerrada." });
+      if (!noGate) m.gate(gateXY[0], gateXY[1], "gate_iron", { show: (g) => !trainersDone(g, ids) && !g.state.badges.includes(spec.badge), name: "Verja", text: "La verja del l\xEDder sigue cerrada. Debes superar a todos los entrenadores del gimnasio." });
+      if (spec.decor) spec.decor(m, { w, h });
+      const lead = TRAINERS[spec.leader];
+      m.npc({ id: "lider", x: leaderPos[0], y: leaderPos[1], dir: "down", look: lead.look, name: lead.name, move: "static", talk: async (g, e, ow) => {
+        if (g.state.badges.includes(spec.badge)) {
+          await g.say(spec.after || `La ${badge.name} te acredita como un entrenador de talento. \xA1Sigue adelante!`, { speaker: lead.name });
+          return;
+        }
+        if (spec.require && !spec.require.test(g)) {
+          await g.say(spec.require.text, { speaker: lead.name });
+          return;
+        }
+        const r = await g.battleTrainer(spec.leader, { entity: e });
+        if (r.result !== "win") return;
+        await awardBadge(g, spec.badge);
+        await g.say(`\xA1${g.playerName} ha obtenido la ${badge.name}!`);
+        const R = spec.rewards || {};
+        if (R.tm) await g.giveItem(R.tm, 1);
+        for (const k of R.keyItems || []) await g.giveItem(k, 1);
+        for (const [it, n] of Object.entries(R.items || {})) await g.giveItem(it, n);
+        if (spec.afterWin) await spec.afterWin(g, ow);
+        g.emit("gym_won", { badge: spec.badge });
+        ow.refreshEntities();
+      } });
+      m.object(2, 2, "trophy", { name: "Trofeos", text: `Un expositor de trofeos del gimnasio ${badge.city}.` });
+      m.object(w - 3, 2, "banner", { name: "Estandarte", text: `El estandarte del gimnasio. Su emblema es la ${badge.name}.` });
+    });
+    return id;
+  }
+
+  // src/story.js
+  var chapter = (g, name) => {
+    g.state.flags.chapter_name = name;
+  };
+  async function fight(g, id, opts) {
+    const r = await g.battleTrainer(id, opts);
+    return r.result === "win";
+  }
+  async function scene(g, lines) {
+    for (const [who, text] of lines) await g.say(text, who ? { speaker: who } : void 0);
+  }
+  var rec = (id, name, lookName, team, o = {}) => defineTrainer(id, { name, cls: "Recluta del Eclipse", look: look(lookName), ai: "basic", iv: 6, reward: 300, intro: "\xA1Esto no te incumbe! \xA1Fuera de aqu\xED!", win: "\xA1Ugh! \xA1El teniente se enterar\xE1!", lose: "Ja. Para la Orden, esto es poco.", ...o, team });
+  async function legendary(g, ow, spec, { text = null } = {}) {
+    const { id, lv, flag: flag2, minBadges = 0, music = "legend", after = null } = spec;
+    if (text) await g.say(text);
+    if (g.flag(flag2 + "_done")) {
+      await g.say("Ya no queda nada aqu\xED... salvo el eco de la tormenta.");
+      return;
+    }
+    if (g.badges.length < minBadges) {
+      await g.say("Una fuerza inmensa te empuja hacia atr\xE1s. A\xFAn no est\xE1s preparado: vuelve con m\xE1s medallas.");
+      return;
+    }
+    const cool = g.state.counters[flag2 + "_day"];
+    if (cool != null && g.now.day <= cool) {
+      await g.say("La criatura se ha retirado. Quiz\xE1 vuelva ma\xF1ana.");
+      return;
+    }
+    if (!await g.yesNo("\xBFTe acercas a la presencia?")) return;
+    const mon = createCreature(id, lv, { rng: g.rng });
+    g.audio.sfx("thunder");
+    const r = await g.battleWild(mon, { music, canFlee: true });
+    if (r.result === "captured") {
+      g.setFlag(flag2 + "_done");
+      g.emit("legendary", { sp: id });
+      if (after) await after(g, ow);
+    } else if (r.result === "win") {
+      g.state.counters[flag2 + "_day"] = g.now.day;
+      await g.say("La criatura legendaria huye hacia el cielo, herida pero libre.");
+    } else if (r.result === "fled" || r.result === "run") {
+      g.state.counters[flag2 + "_day"] = g.now.day;
+    }
+    ow.refreshEntities();
+  }
+
+  // src/maps/valle.js
+  rec("eclipse_museo1", "Recluta", "recluta", [{ sp: 27, lv: 8 }, { sp: 67, lv: 8 }], { reward: 240, intro: "\xA1Qu\xE9date quieto! \xA1Nos llevamos el Prisma y nadie dir\xE1 nada!", win: "\xA1Aaah! \xA1Retirada!" });
+  rec("eclipse_museo2", "Recluta", "recluta2", [{ sp: 57, lv: 9 }, { sp: 27, lv: 9 }], { reward: 270, intro: "\xA1T\xFA otra vez! \xA1No dejaremos que lo recuperes!", win: "\xA1Imposible!" });
+  rec("eclipse_inv1", "Recluta", "recluta", [{ sp: 57, lv: 11 }, { sp: 15, lv: 10 }, { sp: 67, lv: 11 }], { reward: 330 });
+  rec("eclipse_inv2", "Recluta", "recluta2", [{ sp: 27, lv: 11 }, { sp: 57, lv: 12 }], { reward: 360 });
+  defineRoute("bosque_umbra", {
+    name: "Bosque Umbra",
+    w: 48,
+    h: 30,
+    style: "bosque",
+    zone: "bosque",
+    tags: ["bosque"],
+    music: "forest",
+    density: 0.5,
+    waypoints: [[0, 14], [10, 14], [10, 20], [22, 20], [22, 8], [34, 8], [34, 10], [47, 10]],
+    width: 2,
+    conn: { w: { map: "ruta1", rows: [14, 15], off: 0 }, e: { map: "ciudad_roble", rows: [10, 11], off: 0 } },
+    enc: { hierba: { zone: "bosque", lv: [5, 8], maxRarity: "R" } },
+    trainers: [{ cls: "campista", x: 14, y: 17, dir: "right", lv: [6, 8], n: 2 }, { cls: "joven", x: 26, y: 18, dir: "up", lv: [6, 7], n: 2, sight: 3 }, { cls: "excursionista", x: 30, y: 6, dir: "down", lv: [7, 9], n: 2, sight: 3 }],
+    items: [[8, 17, "pocion"], [20, 6, "antidoto"], [28, 22, "capsula", 2], [40, 5, "super_pocion"]],
+    hidden: [[12, 24, "concha_rara"], [38, 20, "polvo_cristal"], [5, 6, "baya_amistad"]],
+    signs: [[4, 13, "BOSQUE UMBRA\nLos \xE1rboles filtran la luz: \xA1no te desv\xEDes del camino!\n\u2190 Ruta 1    Ciudad Roble \u2192"], [44, 8, "CIUDAD ROBLE\nA 10 minutos a pie. Museo, gimnasio y Centro de Curaci\xF3n."]],
+    npcs: [
+      { id: "guarda", x: 11, y: 12, dir: "down", look: "excursionista", name: "Guardabosques", text: "La niebla del bosque se cierra al caer la noche. Si te pierdes, sigue el camino de tierra: siempre vuelve a alg\xFAn lado." },
+      { id: "lucero", x: 24, y: 10, dir: "left", look: "nina", name: "Ni\xF1a curiosa", text: "Por la noche, los pastizales brillan con luci\xE9rnagas. \xA1Son criaturas peque\xF1itas que parpadean! \xBFLas has visto?" }
+    ],
+    extra: (m) => {
+      m.building(36, 15, 5, 4, { kind: "house", roof: "green", wall: "wood", to: "int_bosque_invernadero", tx: "door", key: "inv", name: "Invernadero abandonado" });
+      m.npc({ id: "kai_bosque", x: 32, y: 8, dir: "left", look: look("kai"), name: "Kai", move: "static", show: (g) => g.flag("rival1_done") && !g.flag("rival2_done"), talk: async (g, e, ow) => {
+        if (await fight(g, "rival2", { entity: e })) {
+          g.setFlag("rival2_done");
+          ow.refreshEntities();
+          await g.say("\xA1Me adelanto! Voy a Ciudad Roble, \xA1nos vemos all\xED!", { speaker: "Kai" });
+        }
+      } });
+      m.trigger(30, 8, async (g, ow) => {
+        const kai = ow.entity("kai_bosque");
+        if (!kai) return;
+        await ow.exclaim(kai, 500);
+        await ow.approach(kai, ow.player.x, ow.player.y, 5);
+        ow.faceToward(ow.player, kai.x, kai.y);
+        await kai.def.talk(g, kai, ow);
+      }, { w: 1, h: 3, show: (g) => g.flag("rival1_done") && !g.flag("rival2_done") });
+      m.trigger(45, 10, async (g) => {
+        g.setFlag("bosque_cruzado");
+        chapter(g, "Cap\xEDtulo 1 \xB7 Ciudad Roble");
+      }, { w: 2, h: 2, once: true });
+    }
+  });
+  interior("int_bosque_invernadero", 16, 12, { name: "Invernadero abandonado", title: "Invernadero abandonado", floor: "darkfloor", wall: "wallint3", exit: { to: "bosque_umbra", spawn: "door_inv" }, noFly: true, music: "cave" }, (m) => {
+    for (const x of [2, 3, 12, 13]) m.put(x, 2, "plant");
+    m.put(7, 2, "console");
+    m.put(8, 2, "console");
+    m.put(1, 5, "crate");
+    m.put(14, 5, "crate");
+    m.put(1, 8, "crate");
+    m.put(14, 8, "shelf");
+    m.put(4, 6, "table");
+    m.put(11, 6, "table");
+    m.put(3, 9, "plant");
+    m.trainer({ id: "inv_r1", trainer: "eclipse_inv1", x: 6, y: 7, dir: "right", look: look("recluta"), name: "Recluta", sight: 3, show: (g) => !g.state.trainers.eclipse_inv1?.beaten });
+    m.trainer({ id: "inv_r2", trainer: "eclipse_inv2", x: 10, y: 5, dir: "left", look: look("recluta2"), name: "Recluta", sight: 3, show: (g) => !g.state.trainers.eclipse_inv2?.beaten });
+    m.npc({ id: "cinder", x: 8, y: 3, dir: "down", look: look("teniente"), name: "Teniente Cinder", move: "static", show: (g) => !g.flag("prisma_esmeralda"), talk: async (g, e, ow) => {
+      if (!(g.state.trainers.eclipse_inv1?.beaten && g.state.trainers.eclipse_inv2?.beaten)) {
+        await g.say("\xBFYa te cansaste de esperar? \xA1Mis reclutas te atender\xE1n primero!", { speaker: "Teniente Cinder" });
+        return;
+      }
+      if (await fight(g, "cinder1", { entity: e })) {
+        g.setFlag("prisma_esmeralda");
+        await g.giveItem("prisma_esmeralda");
+        ow.refreshEntities();
+        await scene(g, [["Teniente Cinder", "Tsk... Ll\xE9vatelo. Pero la Orden tiene muchos ojos. Esto no ha terminado."], [null, "La teniente se esfuma entre los cristales rotos del invernadero."]]);
+        chapter(g, "Cap\xEDtulo 1 \xB7 Ciudad Roble");
+      }
+    } });
+  });
+  defineCenter("ciudad_roble", "Ciudad Roble");
+  defineShopInterior("ciudad_roble", "general", { name: "Tienda Roble" });
+  defineHouse("ciudad_roble", "casa1", { name: "Casa del herbolario", title: "Casa del herbolario", npcs: [{ id: "herbolario", x: 4, y: 4, dir: "down", look: "abuela", name: "Herbolaria Zinia", talk: async (g) => {
+    const st = g.questStatus("side_herbolario");
+    if (st === "none") {
+      await g.say("Preparo ung\xFCentos con hierbas del bosque... pero me faltan ant\xEDdotos para mezclar. Si me traes tres, te dar\xE9 algo muy especial.", { speaker: "Zinia" });
+      if (await g.yesNo("\xBFAceptas conseguirle 3 ant\xEDdotos?")) await g.startQuest("side_herbolario");
+    } else if (st === "active" || st === "ready") {
+      if (g.hasItem("antidoto", 3)) {
+        g.takeItem("antidoto", 3);
+        g.setFlag("herbolario_entregado");
+        await g.completeQuest("side_herbolario");
+        await g.say("\xA1Perfecto! Con esto el ung\xFCento saldr\xE1 a la primera. Ten tu recompensa.", { speaker: "Zinia" });
+      } else await g.say("Necesito tres ant\xEDdotos. Los venden en las tiendas.", { speaker: "Zinia" });
+    } else await g.say("Tu ayuda ha sido un regalo. \xA1Que la hierba crezca bajo tus pies!", { speaker: "Zinia" });
+  } }] });
+  defineHouse("ciudad_roble", "casa2", { name: "Casa de Pablo", npcs: [{ id: "pablo", x: 5, y: 4, dir: "left", look: "nino", name: "Pablo", text: "Mi hermana dice que el gimnasio de Roble es un laberinto de setos. \xA1Yo siempre me pierdo!" }] });
+  defineHouse("ciudad_roble", "casa3", { name: "Casa de Dora", npcs: [{ id: "dora", x: 4, y: 3, dir: "down", look: "abuelo", name: "Anciano \xCD\xF1igo", talk: async (g) => {
+    await scene(g, [["Anciano \xCD\xF1igo", "Mis abuelos me contaban la leyenda de los Dos Dragones: Aurelion, que enciende el d\xEDa, y Umbraxis, que lo apaga para que descansemos."], ["Anciano \xCD\xF1igo", "Los antiguos los sellaron con cuatro Prismas para que ninguno devorase al otro. Pero un sello es solo una promesa..."]]);
+  } }] });
+  interior("int_roble_museo", 14, 12, { name: "Museo de Roble", title: "Museo de Historia Natural de Roble", floor: "floor", wall: "wallint2", exit: { to: "ciudad_roble", spawn: "door_museo" }, noFly: true }, (m, { cx }) => {
+    for (const x of [1, 2, 11, 12]) m.put(x, 2, "shelf");
+    m.put(6, 2, "statue");
+    m.put(7, 2, "statue");
+    m.rect(4, 4, 6, 4, "carpet");
+    m.object(3, 5, "crystal", { name: "Cristal", text: "Cristales de las minas de Aurelia, expuestos tal como se hallaron." });
+    m.object(10, 5, "brokenpillar", { name: "Columna", text: "Un fragmento de columna de las Ruinas Antiguas. El cartel dice: \xABEra de la \xE9poca anterior a los Dos Dragones\xBB." });
+    m.object(1, 6, "bookcase", { name: "Estanter\xEDa", text: "Libros sobre la fauna de Aurelia: \xABCriaturas del Valle\xBB, \xABAtlas de Rutas\xBB, \xABLa Orden del Alba y sus Prismas\xBB." });
+    m.object(7, 5, "altar", { name: "Vitrina", show: (g) => !g.flag("museo_robado") || g.flag("prisma_devuelto"), text: "Una vitrina con un cristal verde brillante: el Prisma Esmeralda. Una de las cuatro piezas del Sello de Aurelia." });
+    m.npc({ id: "almendra", x: 7, y: 6, dir: "down", look: "cientifico", name: "Dra. Almendra", move: "static", talk: async (g, e, ow) => {
+      if (!g.flag("paquete_entregado")) {
+        if (!g.hasItem("paquete_sauce")) {
+          await g.say("Soy la Dra. Almendra, conservadora del museo. \xBFBuscas algo?", { speaker: "Dra. Almendra" });
+          return;
+        }
+        await scene(g, [["Dra. Almendra", "\xBFUn paquete del Prof. Sauce? \xA1Por fin! Lo estaba esperando con ansia."], [null, "La doctora abre el paquete con mimo: dentro hay una lente de cristal que brilla con luz c\xE1lida."], ["Dra. Almendra", "La Lente del Alba... Sirve para leer las inscripciones de los antiguos. Y mira, aqu\xED tengo el Prisma Esmeralda, una de las piezas del Sello de Aurelia."], ["Dra. Almendra", "Juntando ambas cosas podr\xEDa descifrar..."]]);
+        g.takeItem("paquete_sauce");
+        g.setFlag("paquete_entregado");
+        g.audio.stopMusic();
+        await g.ui.fade(true, 300);
+        g.audio.sfx("thunder");
+        await g.wait(300);
+        await g.ui.fade(false, 300);
+        g.setFlag("museo_asalto_activo");
+        ow.refreshEntities();
+        const r1 = ow.entity("recluta_m1"), r2 = ow.entity("recluta_m2");
+        g.audio.playMusic("trainer");
+        await scene(g, [["Recluta", "\xA1Nadie se mueva! \xA1La Orden del Eclipse se lleva el Prisma y la lente!"], ["Dra. Almendra", "\xA1Es una locura! \xA1Eso es patrimonio de Aurelia!"]]);
+        if (r1) {
+          await ow.approach(r1, ow.player.x, ow.player.y, 5);
+        }
+        if (await fight(g, "eclipse_museo1")) {
+          await g.say("\xA1Mala suerte, entrometido!", { speaker: "Recluta" });
+          if (r2) {
+            ow.faceToward(r2, ow.player.x, ow.player.y);
+            await ow.approach(r2, ow.player.x, ow.player.y, 5);
+          }
+          if (await fight(g, "eclipse_museo2")) {
+            g.setFlag("museo_robado");
+            g.clearFlag("museo_asalto_activo");
+            ow.refreshEntities();
+            await scene(g, [["Recluta", "Se escapa... pero la teniente ya se ha llevado el Prisma. \xA1Jam\xE1s lo recuperar\xE9is!"], [null, "Los reclutas huyen por la puerta. Un instante despu\xE9s, entra una mujer de pelo largo."], ["Fresia", "\xA1Dra. Almendra! \xBFEst\xE1is bien? He visto a gente con capas oscuras saliendo hacia el Bosque Umbra..."], ["Dra. Almendra", "Se han llevado el Prisma y la Lente del Alba. Fresia, \xA1alguien debe ir tras ellos! Yo no puedo abandonar el museo."], ["Fresia", "Mi gimnasio no abrir\xE1 mientras la Orden ande suelta. {player}, \xBFhas visto lo que han hecho? Si quieres ayudar, mira en el invernadero abandonado del Bosque Umbra: ah\xED se esconden."]]);
+            await g.startQuest("main_04");
+            chapter(g, "Cap\xEDtulo 1 \xB7 El Prisma robado");
+          }
+        }
+        g.audio.playMusic("indoor");
+        return;
+      }
+      if (g.flag("prisma_esmeralda") && !g.flag("prisma_devuelto")) {
+        await scene(g, [["Dra. Almendra", "\xA1El Prisma Esmeralda! Lo has recuperado... \xA1Eres un h\xE9roe!"]]);
+        g.setFlag("prisma_devuelto");
+        await scene(g, [["Dra. Almendra", "Pero la Lente del Alba no ha vuelto. Si no la encontramos, la Orden podr\xE1 leer lo que desciframos."], ["Dra. Almendra", "Qu\xE9date con el Prisma, {player}: aqu\xED no estar\xE1 a salvo, la Orden volver\xE1. Y toma estos regalos del museo."]]);
+        await g.giveItem("repartir_exp");
+        await g.giveItem("pase_viaje");
+        await g.say("El Pase de Viaje te permitir\xE1 regresar a las ciudades que ya hayas visitado. \xA1Y el Repartir Exp. har\xE1 que tu equipo crezca unido!", { speaker: "Dra. Almendra" });
+        await g.completeQuest("main_04");
+        await g.startQuest("main_05");
+        g.setFlag("gimnasio_roble_abierto");
+        chapter(g, "Cap\xEDtulo 1 \xB7 El gimnasio de Roble");
+        return;
+      }
+      await g.say(g.flag("prisma_devuelto") ? "El museo sigue con el cartel de \xABcerrado por robo\xBB... pero t\xFA has evitado lo peor." : "Cuando recuperes el Prisma, tr\xE1emelo.", { speaker: "Dra. Almendra" });
+    } });
+    m.npc({ id: "recluta_m1", x: 6, y: 9, dir: "up", look: look("recluta"), name: "Recluta", move: "static", show: (g) => g.flag("museo_asalto_activo") });
+    m.npc({ id: "recluta_m2", x: 8, y: 9, dir: "up", look: look("recluta2"), name: "Recluta", move: "static", show: (g) => g.flag("museo_asalto_activo") });
+    m.npc({ id: "guia", x: 11, y: 8, dir: "left", look: "ayudante", name: "Gu\xEDa del museo", move: "static", text: "Aqu\xED se exponen criaturas fosilizadas, minerales y la historia de la Orden del Alba. \xA1Pide ver al Prisma Esmeralda: es un cristal \xFAnico!" });
+  });
+  defineCity("ciudad_roble", {
+    name: "Ciudad Roble",
+    w: 38,
+    h: 28,
+    fill: "grass",
+    path: "cobble",
+    tree: "oak",
+    music: "town",
+    zone: "ciudad",
+    tags: ["ciudad", "valle"],
+    climate: "templado",
+    region: "valle",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { w: { map: "bosque_umbra", rows: [10, 11], off: 0 }, e: { map: "ruta3", rows: [10, 11], off: 0 }, s: { map: "ruta2", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "cream", key: "centro", to: "int_ciudad_roble_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "blue", wall: "cream", key: "tienda", to: "int_ciudad_roble_tienda", w: 6, name: "Tienda" },
+      { slot: "U3", kind: "hall", roof: "grey", wall: "stone", key: "museo", to: "int_roble_museo", w: 7, h: 5, name: "Museo" },
+      { slot: "U4", kind: "house", roof: "green", wall: "wood", key: "casa1", to: "int_ciudad_roble_casa1", w: 5, name: "Casa de Zinia" },
+      { slot: "L1", kind: "house", roof: "orange", wall: "sand", key: "casa2", to: "int_ciudad_roble_casa2", w: 5, name: "Casa de Pablo" },
+      { slot: "L2", kind: "gym", roof: "green", wall: "stone", key: "gym", to: "gym_ciudad_roble", w: 7, name: "Gimnasio Roble", req: (g) => g.flag("gimnasio_roble_abierto"), reqText: "El gimnasio est\xE1 cerrado. Un cartel dice: \xABCerrado por robo en el museo. Fresia est\xE1 investigando.\xBB" },
+      { slot: "L4", kind: "house", roof: "purple", wall: "cream", key: "casa3", to: "int_ciudad_roble_casa3", w: 5, name: "Casa de \xCD\xF1igo" }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "fountain");
+      m.put(22, 14, "flowerbed");
+      m.put(24, 14, "flowerbed");
+      m.put(21, 14, "lamp");
+      m.put(25, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.tree(3, 13, "oak");
+      m.tree(34, 13, "oak");
+      m.tree(35, 23, "oak");
+      m.tree(3, 23, "oak");
+      m.sign(9, 9, "CIUDAD ROBLE\nRodeada de bosque, protegida por el roble milenario.");
+      m.sign(22, 9, "MUSEO DE HISTORIA NATURAL");
+      m.sign(12, 20, "GIMNASIO DE ROBLE\nL\xEDder: Fresia \xB7 Tipo: Planta");
+      m.scatter("flowers", 6, { rect: [2, 22, 34, 3], on: ["grass"], layer: "ground" });
+    },
+    npcs: [
+      { id: "guia_roble", x: 20, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "\xA1Bienvenido a Ciudad Roble! A la derecha tienes el museo, al fondo el gimnasio, y arriba el Centro de Curaci\xF3n y la tienda." },
+      { id: "nino_roble", x: 25, y: 22, dir: "down", look: "nino", name: "Ni\xF1o", text: "Mi abuelo dice que el roble del centro tiene mil a\xF1os. Y que si le hablas bien, te cuenta secretos. Yo solo oigo ruido de hojas..." },
+      { id: "fresia_calle", x: 17, y: 12, dir: "down", look: "fresia", name: "Fresia", move: "static", show: (g) => g.flag("museo_robado") && !g.flag("prisma_devuelto"), text: "Estoy esperando noticias del invernadero... \xA1Ten cuidado ah\xED dentro!" },
+      { id: "viajera", x: 31, y: 12, dir: "left", look: "excursionista", name: "Viajera", text: "Vengo de las monta\xF1as del norte. Dicen que en Pico Granito hay unas minas donde se encuentran cristales que cantan. \xA1Quiero o\xEDrlos!" }
+    ],
+    extra: null
+  });
+  defineGym("ciudad_roble", {
+    name: "Gimnasio Roble",
+    title: "Gimnasio de Ciudad Roble",
+    badge: "hoja",
+    leader: "lider_fresia",
+    layout: "maze",
+    zone: { zone: "bosque" },
+    trainers: [{ cls: "campista", lv: [9, 10], n: 2 }, { cls: "joven", types: ["planta", "insecto"], lv: [10, 11], n: 2 }, { cls: "excursionista", types: ["planta", "insecto"], lv: [11, 12], n: 2 }],
+    rewards: { tm: "dt10", items: { super_pocion: 3 } },
+    after: "Mi jard\xEDn es tuyo cuando quieras volver. \xA1Y cuida bien a tus criaturas: el camino se endurece!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_hoja");
+      await g.completeQuest("main_05");
+      await g.startQuest("main_06");
+      chapter(g, "Cap\xEDtulo 2 \xB7 Rumbo a Puerto Marea");
+    }
+  });
+
+  // src/maps/costa.js
+  defineRoute("ruta2", {
+    name: "Lago Espejo",
+    title: "Ruta 2 \xB7 Lago Espejo",
+    w: 44,
+    h: 36,
+    style: "lago",
+    zone: "lago",
+    tags: ["lago"],
+    music: "route",
+    waypoints: [[18, 0], [18, 9], [10, 9], [10, 20], [26, 20], [26, 28], [18, 28], [18, 35]],
+    width: 2,
+    conn: { n: { map: "ciudad_roble", cols: [18, 19], off: 0 }, s: { map: "puerto_marea", cols: [18, 19], off: 0 } },
+    water: [[34, 11, 7, 5], [7, 30, 5, 4]],
+    enc: { hierba: { zone: "pradera", lv: [9, 13], maxRarity: "R" }, agua: { zone: "lago", lv: [10, 14], maxRarity: "R" } },
+    trainers: [{ cls: "joven", x: 14, y: 12, dir: "up", lv: [10, 12], n: 2, sight: 3 }, { cls: "pescador", x: 20, y: 23, dir: "up", lv: [11, 13], n: 2, sight: 3 }, { cls: "nadador", x: 29, y: 24, dir: "left", lv: [11, 13], n: 2, sight: 3 }, { cls: "excursionista", x: 22, y: 31, dir: "up", lv: [12, 14], n: 3, sight: 3 }],
+    items: [[13, 6, "pocion"], [30, 17, "super_capsula"], [8, 24, "antidoto"], [24, 33, "repelente"]],
+    hidden: [[36, 18, "concha_rara"], [4, 27, "perla"], [16, 14, "baya_amistad"]],
+    signs: [[16, 3, "RUTA 2 \xB7 LAGO ESPEJO\n\u2191 Ciudad Roble    \u2193 Puerto Marea\nEl lago refleja el cielo como un espejo."]],
+    npcs: [
+      { id: "pescador_viejo", x: 29, y: 18, dir: "right", look: "pescador", name: "Pescador", text: "Llevo a\xF1os aqu\xED y nunca he pescado nada. Pero el lago es tan bonito que no me importa. \xA1Dicen que con una barca se llega a una isla al sur del puerto!" },
+      { id: "excursionista_lago", x: 12, y: 22, dir: "right", look: "excursionista", name: "Excursionista", text: "Por la noche, la hierba de aqu\xED brilla con luci\xE9rnagas. Con lluvia salen m\xE1s criaturas de agua. \xA1Merece la pena venir en un d\xEDa gris!" }
+    ]
+  });
+  rec("eclipse_muelle1", "Recluta", "recluta", [{ sp: 27, lv: 14 }, { sp: 67, lv: 14 }], { reward: 420, intro: "\xA1Eh, t\xFA! \xA1Este barco ya es nuestro! \xA1L\xE1rgate!", win: "\xA1Se acab\xF3! \xA1Nos vamos!" });
+  rec("eclipse_muelle2", "Recluta", "recluta2", [{ sp: 57, lv: 15 }, { sp: 15, lv: 14 }, { sp: 27, lv: 15 }], { reward: 480, intro: "\xA1El capit\xE1n no se enterar\xE1! \xA1Un paso m\xE1s y te hundo!", win: "\xA1Maldici\xF3n! \xA1Abortamos!" });
+  defineCenter("puerto_marea", "Puerto Marea");
+  defineShopInterior("puerto_marea", "puerto", { name: "Mercado del Puerto" });
+  defineHouse("puerto_marea", "casa1", { name: "Casa del farero", title: "Casa del farero", npcs: [{ id: "farero", x: 5, y: 4, dir: "down", look: "abuelo", name: "Farero Eugenio", talk: async (g) => {
+    const st = g.questStatus("side_conchas");
+    if (st === "none") {
+      await g.say("Colecciono conchas nacaradas de Playa Brisa. Si me traes dos, te dar\xE9 una S\xFAper C\xE1psula de las buenas.", { speaker: "Eugenio" });
+      if (await g.yesNo("\xBFAceptas traerle 2 conchas raras?")) await g.startQuest("side_conchas");
+    } else if (st === "active" || st === "ready") {
+      if (g.hasItem("concha_rara", 2)) {
+        g.takeItem("concha_rara", 2);
+        await g.completeQuest("side_conchas");
+        await g.say("\xA1Preciosas! Mi colecci\xF3n est\xE1 completa. Gracias, entrenador.", { speaker: "Eugenio" });
+      } else await g.say("Necesito dos conchas raras. Las suele haber enterradas en las playas.", { speaker: "Eugenio" });
+    } else await g.say("Cada concha guarda el sonido del mar. Escucha: \xA1a\xFAn suena!", { speaker: "Eugenio" });
+  } }] });
+  defineHouse("puerto_marea", "casa2", { name: "Casa de L\xEDa", npcs: [{ id: "lia", x: 3, y: 4, dir: "right", look: "nina", name: "L\xEDa", text: "Mi padre es marinero. Dice que, antes de la Medalla Marea, ni se acerca uno a la isla del sur. \xA1Ah\xED siempre hay tormenta!" }] });
+  defineHouse("puerto_marea", "casa3", { name: "Casa del cart\xF3grafo", npcs: [{ id: "cartografo", x: 5, y: 3, dir: "down", look: "cientifico", name: "Cart\xF3grafo Nilo", talk: async (g) => {
+    if (!g.hasItem("mapa") && g.badges.length >= 1) {
+      await g.say("Veo que ya has empezado tu viaje. Toma: un mapa de Aurelia. Te ayudar\xE1 a orientarte.", { speaker: "Nilo" });
+      await g.giveItem("mapa");
+    } else await g.say("Cartografiar Aurelia es mi vida. Cada ciudad, cada gruta... \xA1y cada leyenda!", { speaker: "Nilo" });
+  } }] });
+  interior("int_puerto_capitania", 14, 10, { name: "Capitan\xEDa", title: "Capitan\xEDa de Puerto Marea", floor: "wood", wall: "wallint2", exit: { to: "puerto_marea", spawn: "door_capitania" }, noFly: true }, (m) => {
+    m.put(1, 2, "bookcase");
+    m.put(2, 2, "bookcase");
+    m.put(11, 2, "shelf");
+    m.put(12, 2, "shelf");
+    m.put(5, 2, "table");
+    m.put(6, 2, "table");
+    m.rect(4, 4, 6, 3, "carpet");
+    m.put(1, 6, "plant");
+    m.put(12, 6, "plant");
+    m.object(8, 2, "boat", { name: "Maqueta", text: "Una maqueta de la Gaviota, la barca del capit\xE1n, con velas blancas y una bandera azul." });
+    m.npc({ id: "marlo", x: 6, y: 3, dir: "down", look: look("marlo"), name: "Capit\xE1n Marlo", move: "static", talk: async (g, e, ow) => {
+      const T2 = "Capit\xE1n Marlo";
+      if (g.badges.includes("marea")) {
+        await g.say("\xA1Viento en popa, entrenador! La Gaviota es tuya cuando la necesites.", { speaker: T2 });
+        return;
+      }
+      if (g.flag("gaviota_recuperada")) {
+        if (!g.flag("gimnasio_marea_abierto")) {
+          await scene(g, [[T2, "\xA1Mi Gaviota! \xA1Intacta! No s\xE9 c\xF3mo agradec\xE9rtelo... Ahora s\xED: mi gimnasio est\xE1 abierto. Te espero all\xED. \xA1Y prepara los pies: son pasarelas sobre el mar!"]]);
+          g.setFlag("gimnasio_marea_abierto");
+        } else await g.say("Te espero en el gimnasio. \xA1Cuidado con las olas!", { speaker: T2 });
+        return;
+      }
+      if (!g.flag("marlo_pidio")) {
+        await scene(g, [[T2, "\xA1Ahoy! Soy Marlo, capit\xE1n del puerto y l\xEDder del gimnasio. Pero hoy no hay combate: \xA1me han robado la Gaviota!"], [T2, 'Unos individuos con capas oscuras la han amarrado al final del muelle. Dicen que la necesitan "para llegar a la isla". \xA1Mi barca, la \xFAnica que cruza las tormentas!'], [T2, "T\xFA tienes pinta de ser capaz. Recup\xE9rala y mi gimnasio ser\xE1 tuyo."]]);
+        g.setFlag("marlo_pidio");
+        await g.startQuest("main_07");
+        chapter(g, "Cap\xEDtulo 2 \xB7 Puerto Marea");
+      } else await g.say("El muelle est\xE1 al sur. Dos tipos con capas oscuras la custodian. \xA1Recupera mi Gaviota!", { speaker: T2 });
+    } });
+    m.npc({ id: "marinero_cap", x: 10, y: 6, dir: "left", look: look("pescador"), name: "Marinero", move: "static", text: "El capit\xE1n es un lobo de mar, pero duerme abrazado a su br\xFAjula. \xA1Nunca ha perdido un combate en agua!" });
+  });
+  defineCity("puerto_marea", {
+    name: "Puerto Marea",
+    w: 38,
+    h: 28,
+    fill: "grass",
+    path: "cobble",
+    tree: "palm",
+    music: "sea",
+    zone: "ciudad",
+    tags: ["ciudad", "costa"],
+    climate: "costero",
+    region: "costa",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { n: { map: "ruta2", cols: [18, 19], off: 0 }, w: { map: "playa_brisa", rows: [10, 11], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "cream", key: "centro", to: "int_puerto_marea_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "blue", wall: "cream", key: "tienda", to: "int_puerto_marea_tienda", w: 6, name: "Mercado del Puerto" },
+      { slot: "U3", kind: "hall", roof: "blue", wall: "stone", key: "capitania", to: "int_puerto_capitania", w: 7, h: 5, name: "Capitan\xEDa" },
+      { slot: "U4", kind: "house", roof: "orange", wall: "wood", key: "casa1", to: "int_puerto_marea_casa1", w: 5, name: "Casa del farero" },
+      { slot: "L1", kind: "house", roof: "blue", wall: "sand", key: "casa2", to: "int_puerto_marea_casa2", w: 5, name: "Casa de L\xEDa" },
+      { slot: "L2", kind: "gym", roof: "blue", wall: "stone", key: "gym", to: "gym_puerto_marea", w: 7, name: "Gimnasio Marea", req: (g) => g.flag("gimnasio_marea_abierto"), reqText: "El gimnasio est\xE1 cerrado. Una nota dice: \xABCapit\xE1n Marlo: busca mi barca en el muelle. Vuelvo en cuanto la encuentre\xBB." },
+      { slot: "L4", kind: "house", roof: "green", wall: "cream", key: "casa3", to: "int_puerto_marea_casa3", w: 5, name: "Casa del cart\xF3grafo" }
+    ],
+    decor: (m) => {
+      m.clearRect(0, 22, 38, 6);
+      m.rect(0, 22, 38, 1, "beach");
+      m.rect(0, 23, 38, 5, "water");
+      m.rect(0, 25, 38, 3, "deepwater");
+      m.rect(0, 22, 2, 1, "water");
+      m.rect(36, 22, 2, 1, "water");
+      m.rect(17, 22, 3, 4, "dock");
+      m.sign(9, 9, "PUERTO MAREA\nLa puerta del sur de Aurelia.");
+      m.sign(22, 9, "CAPITAN\xCDA");
+      m.sign(12, 20, "GIMNASIO DE MAREA\nL\xEDder: Marlo \xB7 Tipo: Agua");
+      m.sign(16, 22, "MUELLE\nSolo personal autorizado.");
+      m.put(25, 14, "fountain");
+      m.put(24, 14, "flowerbed");
+      m.put(26, 14, "flowerbed");
+      m.put(21, 14, "lamp");
+      m.put(27, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.object(18, 25, "boat", { name: "La Gaviota", show: (g) => !g.flag("gaviota_recuperada") || true, talk: async (g, e, ow) => {
+        if (g.flag("gaviota_recuperada")) {
+          await g.say("La Gaviota, amarrada y lista. Habla con el capit\xE1n Marlo.");
+          return;
+        }
+        if (!(g.state.trainers.eclipse_muelle1?.beaten && g.state.trainers.eclipse_muelle2?.beaten)) {
+          await g.say("La barca est\xE1 amarrada con cuerdas nuevas. Los reclutas la vigilan.");
+          return;
+        }
+        await g.say("Cortas las cuerdas del Eclipse y ayudas a llevar la Gaviota de vuelta a su amarre.");
+        g.setFlag("gaviota_recuperada");
+        g.audio.sfx("item");
+        await g.say("\xA1Ahora cu\xE9ntaselo al capit\xE1n Marlo en la Capitan\xEDa!");
+      } });
+      m.trainer({ id: "muelle_r1", trainer: "eclipse_muelle1", x: 17, y: 23, dir: "right", look: look("recluta"), name: "Recluta", sight: 2, show: (g) => !g.state.trainers.eclipse_muelle1?.beaten && g.flag("marlo_pidio") });
+      m.trainer({ id: "muelle_r2", trainer: "eclipse_muelle2", x: 19, y: 24, dir: "left", look: look("recluta2"), name: "Recluta", sight: 2, show: (g) => !g.state.trainers.eclipse_muelle2?.beaten && g.flag("marlo_pidio") });
+    },
+    npcs: [
+      { id: "guia_puerto", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "\xA1Bienvenido a Puerto Marea! El Centro y el Mercado est\xE1n al norte. El gimnasio, al sur. Y la Capitan\xEDa, al fondo a la derecha." },
+      { id: "marinero_puerto", x: 30, y: 21, dir: "down", look: "pescador", name: "Marinero", text: "Tras el puerto, al oeste, est\xE1 Playa Brisa. Con una barca y ocho medallas, dicen que hasta se llega a la Isla Tormenta..." },
+      { id: "turista", x: 6, y: 22, dir: "up", look: "excursionista", name: "Turista", text: "\xA1Mira qu\xE9 olas! Aqu\xED el agua siempre est\xE1 cantando. \xA1Y de noche hasta brillan las algas!" }
+    ]
+  });
+  defineGym("puerto_marea", {
+    name: "Gimnasio Marea",
+    title: "Gimnasio de Puerto Marea",
+    badge: "marea",
+    leader: "lider_marlo",
+    layout: "maze",
+    zone: { zone: "lago" },
+    floor: "floor",
+    wall: { layer: "ground", tile: "water" },
+    mazeFloor: "bridge",
+    w: 21,
+    h: 18,
+    trainers: [{ cls: "nadador", lv: [15, 16], n: 2 }, { cls: "pescador", lv: [16, 17], n: 2 }, { cls: "nadador", lv: [17, 18], n: 3 }],
+    rewards: { tm: "dt08", items: { super_pocion: 3 }, keyItems: ["barca"] },
+    after: "La Gaviota te espera en el muelle cuando quieras surcar las aguas. \xA1Buen viento!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_marea");
+      await g.say("Marlo te entrega la Barca: con ella podr\xE1s navegar por cualquier agua profunda.");
+      await g.completeQuest("main_07");
+      await g.startQuest("main_08");
+      chapter(g, "Cap\xEDtulo 3 \xB7 Camino a Ciudad D\xEDnamo");
+    }
+  });
+  defineRoute("playa_brisa", {
+    name: "Playa Brisa",
+    title: "Playa Brisa",
+    w: 36,
+    h: 26,
+    style: "playa",
+    zone: "playa",
+    tags: ["playa", "costa"],
+    music: "sea",
+    climate: "costero",
+    region: "costa",
+    waypoints: [[35, 10], [24, 10], [24, 14], [14, 14], [14, 18]],
+    width: 2,
+    conn: { e: { map: "puerto_marea", rows: [10, 11], off: 0 }, s: { map: "isla_tormenta", cols: [14, 15], off: 0, sea: true } },
+    water: [[3, 13, 7, 14, "water"], [3, 13, 3.5, 9, "deepwater"], [22, 3, 5, 2.5, "water"], [15, 25, 8, 3.5, "water"], [15, 25, 4.5, 2.5, "deepwater"]],
+    patches: [[26, 16, 4, 3], [18, 7, 3, 2], [12, 22, 3, 2]],
+    enc: { arena: { zone: "playa", lv: [11, 15], maxRarity: "R" }, hierba: { zone: "playa", lv: [11, 15], maxRarity: "R" }, agua: { zone: "mar", lv: [12, 16], maxRarity: "R" } },
+    trainers: [{ cls: "nadador", x: 20, y: 11, dir: "down", lv: [13, 15], n: 2, sight: 3 }, { cls: "pescador", x: 18, y: 15, dir: "left", lv: [13, 15], n: 2, sight: 3 }, { cls: "artista", x: 27, y: 21, dir: "up", lv: [14, 16], n: 2, sight: 3 }],
+    items: [[30, 7, "super_pocion"], [12, 20, "capsula", 3], [28, 4, "antidoto"]],
+    hidden: [[33, 22, "concha_rara"], [10, 6, "concha_rara"], [20, 21, "perla"]],
+    signs: [[33, 9, "PLAYA BRISA\nAl norte, el faro. Cuidado con la marea alta."]],
+    npcs: [
+      { id: "farero_playa", x: 21, y: 6, dir: "down", look: "abuelo", name: "Farero", text: "El faro lleva m\xE1s de cien a\xF1os guiando a los barcos. Si te alejas en barca, no pierdas de vista su luz." },
+      { id: "nina_playa", x: 29, y: 13, dir: "left", look: "nina", name: "Ni\xF1a", text: "Si cavas en la arena, a veces aparece una concha... \xA1o un cangrejo enfadado!" }
+    ],
+    extra: (m) => {
+      m.put(22, 5, "lighthouse");
+      m.sign(18, 9, "FARO DE BRISA");
+    }
+  });
+  var TEMPESTRA = { id: 113, lv: 50, flag: "tempestra" };
+  defineRoute("isla_tormenta", {
+    name: "Isla Tormenta",
+    title: "Isla Tormenta",
+    w: 30,
+    h: 26,
+    style: "playa",
+    zone: "isla",
+    tags: ["isla", "tormenta", "legendaria"],
+    music: "legend",
+    climate: "costero",
+    region: "costa",
+    forceWeather: "tormenta",
+    noFly: true,
+    patches: [],
+    spawns: { door: [15, 10, "down"] },
+    conn: { n: { map: "playa_brisa", cols: [14, 15], off: 0, sea: true } },
+    water: [[15, 3, 14, 5], [2, 13, 3, 12], [27, 13, 3, 12], [15, 24, 14, 3]],
+    enc: { arena: { zone: "isla", lv: [14, 18], maxRarity: "R" }, hierba: { zone: "isla", lv: [14, 18], maxRarity: "R" }, agua: { zone: "mar", lv: [14, 18], maxRarity: "R" } },
+    items: [[7, 16, "hiper_pocion"], [23, 18, "eter"], [20, 8, "caramelo_raro"]],
+    hidden: [[11, 20, "perla_grande"], [18, 21, "polvo_cristal"]],
+    extra: (m) => {
+      m.rect(11, 14, 8, 6, "beach");
+      m.putRect(11, 14, 8, 1, "rock");
+      m.putRect(11, 19, 8, 1, "rock");
+      m.clear(15, 14);
+      m.clear(15, 19);
+      m.object(15, 16, "altar", { name: "Altar de la Tormenta", talk: async (g, e, ow) => legendary(g, ow, TEMPESTRA, { text: "Un altar de piedra azotado por el viento. Los rayos caen alrededor, pero ninguno te alcanza. Una presencia enorme remolinea sobre las nubes..." }), show: (g) => !g.flag("tempestra_done") });
+      m.sign(14, 7, "ISLA TORMENTA\nAqu\xED nunca deja de llover. Cuenta la leyenda que un ave de rayos duerme en el altar.");
+    }
+  });
+
+  // src/maps/este.js
+  defineRoute("ruta3", {
+    name: "Ruta 3",
+    title: "Ruta 3",
+    w: 52,
+    h: 30,
+    style: "pradera",
+    zone: "pradera",
+    tags: ["ruta"],
+    music: "route",
+    waypoints: [[0, 10], [16, 10], [16, 18], [34, 18], [34, 10], [51, 10]],
+    width: 2,
+    conn: { w: { map: "ciudad_roble", rows: [10, 11], off: 0 }, e: { map: "ciudad_dinamo", rows: [10, 11], off: 0 } },
+    enc: { hierba: { zone: "pradera", lv: [15, 20], maxRarity: "R" } },
+    trainers: [{ cls: "cientifico", x: 8, y: 13, dir: "up", lv: [16, 18], n: 2, sight: 3 }, { cls: "joven", x: 20, y: 15, dir: "down", lv: [16, 18], n: 3, sight: 3 }, { cls: "karateka", x: 30, y: 21, dir: "up", lv: [17, 19], n: 2, sight: 3 }, { cls: "excursionista", x: 37, y: 14, dir: "left", lv: [18, 20], n: 3, sight: 2 }, { cls: "artista", x: 45, y: 13, dir: "up", lv: [18, 20], n: 2, sight: 3 }],
+    items: [[6, 6, "super_pocion"], [22, 22, "capsula", 3], [40, 5, "eter"], [12, 25, "antidoto"]],
+    hidden: [[28, 6, "polvo_cristal"], [47, 24, "baya_amistad"]],
+    signs: [[2, 9, "RUTA 3\n\u2190 Ciudad Roble    Ciudad D\xEDnamo \u2192\nCueva Eco: salida al norte, bajo el risco."], [41, 9, "GUARDIA DE CIUDAD D\xCDNAMO\nSolo entrenadores con 2 o m\xE1s medallas."]],
+    npcs: [{ id: "guia_cueva", x: 25, y: 7, dir: "down", look: "excursionista", name: "Excursionista", text: "Esa cueva al norte se llama Cueva Eco: cualquier ruido rebota mil veces. \xA1Dicen que alguien a\xFAn responde cuando gritas!" }],
+    extra: (m) => {
+      m.path([[26, 18], [26, 6]], "path", 2);
+      caveMouth(m, 26, 4, "cueva_eco", "entrada_ruta3", { key: "ruta3" });
+      roadBlock(m, [[43, 10], [43, 11]], (g) => g.badges.length >= 2, "Un guardia te corta el paso: \xABLa Ruta 3 est\xE1 cerrada a entrenadores con menos de dos medallas. Los apagones de D\xEDnamo han vuelto agresivas a las criaturas de la zona\xBB.");
+    }
+  });
+  rec("eclipse_eco1", "Recluta", "recluta", [{ sp: 27, lv: 20 }, { sp: 67, lv: 21 }], { reward: 600 });
+  rec("eclipse_eco2", "Recluta", "recluta2", [{ sp: 57, lv: 21 }, { sp: 28, lv: 22 }, { sp: 15, lv: 21 }], { reward: 660, intro: "\xA1Eh! \xA1Esta cueva es zona restringida! El fusible es de la Orden." });
+  defineCave("cueva_eco", {
+    name: "Cueva Eco",
+    title: "Cueva Eco",
+    w: 44,
+    h: 32,
+    lv: [18, 23],
+    dark: false,
+    music: "cave",
+    rooms: [[8, 25, 5, 3], [20, 20, 6, 4], [34, 24, 5, 3], [10, 10, 5, 4], [26, 8, 6, 4], [38, 8, 4, 3], [22, 28, 3, 1]],
+    passages: [[[8, 25], [8, 20], [20, 20]], [[20, 20], [34, 20], [34, 24]], [[20, 20], [20, 12], [10, 12], [10, 10]], [[20, 12], [26, 12], [26, 8]], [[26, 8], [38, 8]], [[8, 26], [22, 28]]],
+    exits: [{ x: 8, y: 29, to: "ruta3", spawn: "cueva_ruta3", key: "ruta3" }],
+    trainers: [{ cls: "minero", x: 20, y: 18, dir: "down", lv: [19, 21], n: 2, sight: 3 }, { cls: "excursionista", x: 14, y: 12, dir: "right", lv: [20, 22], n: 2, sight: 3 }],
+    items: [[34, 26, "super_pocion"], [10, 8, "caramelo_raro"], [40, 9, "hiper_pocion"]],
+    hidden: [[5, 24, "polvo_cristal"], [22, 29, "pepita"]],
+    signs: [[9, 28, "CUEVA ECO\nCualquier grito rebota... \xA1y a veces te responden!"]],
+    npcs: [{ id: "eco_viejo", x: 12, y: 24, dir: "right", look: "abuelo", name: "Eremita", text: "Llevo a\xF1os escuchando el eco. Cuentan que, para despertarlo, hay que reunir a las tres criaturas que guardan los ecos del mundo y... bueno, ya sabes. Yo solo escucho." }],
+    extra: (m) => {
+      m.trainer({ id: "eco_r1", trainer: "eclipse_eco1", x: 34, y: 21, dir: "down", look: look("recluta"), name: "Recluta", sight: 3, show: (g) => !g.state.trainers.eclipse_eco1?.beaten });
+      m.trainer({ id: "eco_r2", trainer: "eclipse_eco2", x: 36, y: 8, dir: "left", look: look("recluta2"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_eco2?.beaten });
+      m.object(40, 6, "crate", { name: "Caja de la Orden", show: (g) => !g.flag("fusible_tomado"), talk: async (g, e, ow) => {
+        if (g.flag("fusible_tomado")) {
+          await g.say("La caja est\xE1 vac\xEDa.");
+          return;
+        }
+        await g.say("Una caja con el sello de la Orden del Eclipse. Dentro, entre cables, hay un fusible industrial grande.");
+        await g.giveItem("fusible");
+        g.setFlag("fusible_tomado");
+        ow.refreshEntities();
+        await g.say("Parece el repuesto de la central de Ciudad D\xEDnamo. \xA1Tienes que llev\xE1rselo a Volta!");
+      } });
+    }
+  });
+  defineCenter("ciudad_dinamo", "Ciudad D\xEDnamo");
+  defineShopInterior("ciudad_dinamo", "general", { name: "Tienda D\xEDnamo" });
+  defineHouse("ciudad_dinamo", "casa1", { name: "Casa de Remedios", npcs: [{ id: "remedios", x: 4, y: 3, dir: "down", look: "abuela", name: "Remedios", text: "Desde el apag\xF3n la nevera no funciona y mis flanes se han echado a perder. \xA1Pero mis criaturas el\xE9ctricas me dan calor y luz! Tengo cinco, y ninguna da calambres... casi nunca." }] });
+  defineHouse("ciudad_dinamo", "casa2", { name: "Taller de Nicol\xE1s", npcs: [{ id: "nicolas", x: 3, y: 4, dir: "right", look: "cientifico", name: "Nicol\xE1s", talk: async (g) => {
+    if (g.flag("central_restaurada")) {
+      await g.say("\xA1Luz otra vez! Estoy reparando un cacharro que sirve para repartir experiencia. Si alg\xFAn d\xEDa lo termino, ser\xE1s el primero en saberlo.", { speaker: "Nicol\xE1s" });
+      return;
+    }
+    await g.say("Sin corriente no puedo soldar nada. S\xE9 que hay fusibles en la Cueva Eco, al norte de la Ruta 3... pero los guarda gente muy desagradable.", { speaker: "Nicol\xE1s" });
+  } }] });
+  defineHouse("ciudad_dinamo", "casa3", { name: "Casa de Gala", npcs: [{ id: "gala", x: 5, y: 3, dir: "down", look: "nina", name: "Gala", text: "Mi hermano trabaja en la central. Dice que un hombre con una capa gris lleva d\xEDas all\xED dentro sin salir. \xA1Da mucho miedo!" }] });
+  interior("int_dinamo_central", 18, 14, { name: "Central D\xEDnamo", title: "Central el\xE9ctrica de D\xEDnamo", floor: "metalfloor", wall: "wallint3", exit: { to: "ciudad_dinamo", spawn: "door_central" }, noFly: true, music: "indoor" }, (m) => {
+    for (const x of [2, 4, 6, 11, 13, 15]) m.put(x, 2, "console");
+    m.put(1, 5, "crate");
+    m.put(16, 5, "crate");
+    m.put(1, 9, "crate");
+    m.put(16, 9, "crate");
+    m.object(8, 2, "console", { name: "Generador principal", talk: async (g, e, ow) => {
+      if (g.flag("central_restaurada")) {
+        await g.say("El generador ronronea con fuerza. La ciudad vuelve a tener corriente.");
+        return;
+      }
+      if (!g.state.trainers.gris1?.beaten) {
+        await g.say("El generador est\xE1 apagado. El tipo de la capa gris te mira con desprecio desde el centro de la sala.");
+        return;
+      }
+      if (!g.hasItem("fusible")) {
+        await g.say("El generador est\xE1 apagado. Falta el fusible principal; hace falta uno de repuesto. Volta dice que la Orden se llev\xF3 el \xFAltimo a la Cueva Eco.");
+        return;
+      }
+      await g.say("Colocas el fusible en su alojamiento... Un zumbido recorre las paredes y las luces se encienden de golpe.");
+      g.takeItem("fusible");
+      g.setFlag("central_restaurada");
+      g.audio.sfx("thunder");
+      ow.refreshEntities();
+      await scene(g, [["Volta", "\xA1Ha vuelto la luz! \xA1Lo has conseguido! Ciudad D\xEDnamo te debe una. Mi gimnasio est\xE1 abierto: \xA1te espero all\xED, con toda la energ\xEDa!"]]);
+      chapter(g, "Cap\xEDtulo 3 \xB7 Ciudad D\xEDnamo");
+    } });
+    m.npc({ id: "gris", x: 9, y: 6, dir: "down", look: look("teniente2"), name: "Teniente Gris", move: "static", show: (g) => !g.state.trainers.gris1?.beaten, talk: async (g, e, ow) => {
+      if (await fight(g, "gris1", { entity: e })) {
+        ow.refreshEntities();
+        await scene(g, [["Teniente Gris", "Hmpf... El plan sigue su curso, aunque yo caiga. La Orden tiene cuatro Prismas que reunir. Y t\xFA... tienes uno."], [null, "Gris desaparece por una puerta lateral dejando una nube de chispas."]]);
+        g.setFlag("gris1_done");
+      }
+    } });
+    m.npc({ id: "volta_central", x: 14, y: 8, dir: "left", look: look("volta"), name: "Volta", move: "static", show: (g) => !g.flag("central_restaurada"), talk: async (g, e, ow) => {
+      const T2 = "Volta";
+      if (!g.flag("volta_hablo")) {
+        await scene(g, [[T2, "\xA1Ah, por fin alguien! Soy Volta, l\xEDder del gimnasio. Ese tipo de la capa gris desconect\xF3 la central y se ha atrincherado. \xA1Sin luz no hay gimnasio!"], [T2, "Aun peor: se llev\xF3 el fusible principal. S\xE9 que lo escondi\xF3 en la Cueva Eco, al norte de la Ruta 3. Tr\xE1elo y pl\xE1ntale cara a ese teniente. \xA1Yo te cubro!"]]);
+        g.setFlag("volta_hablo");
+        await g.startQuest("main_09");
+        chapter(g, "Cap\xEDtulo 3 \xB7 Apag\xF3n en D\xEDnamo");
+      } else await g.say(g.hasItem("fusible") ? "\xA1Tienes el fusible! Derrota al teniente y col\xF3calo en el generador principal." : "El fusible est\xE1 en la Cueva Eco, al norte de la Ruta 3. \xA1Date prisa!", { speaker: T2 });
+    } });
+    m.npc({ id: "tecnico", x: 3, y: 8, dir: "right", look: look("cientifico"), name: "T\xE9cnico", move: "static", text: "Los generadores se alimentan de un \xFAnico fusible. Si se funde, \xA1adi\xF3s D\xEDnamo! Pero nadie quiso comprar uno de repuesto..." });
+  });
+  defineCity("ciudad_dinamo", {
+    name: "Ciudad D\xEDnamo",
+    w: 38,
+    h: 28,
+    fill: "grass",
+    path: "cobble",
+    tree: "pine",
+    music: "town",
+    zone: "ciudad",
+    tags: ["ciudad", "industrial"],
+    climate: "templado",
+    region: "interior",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { w: { map: "ruta3", rows: [10, 11], off: 0 }, e: { map: "desierto_ambar", rows: [10, 11], off: 0 }, n: { map: "ruta_granito", cols: [18, 19], off: 0 }, s: { map: "pantano_niebla", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "cream", key: "centro", to: "int_ciudad_dinamo_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "blue", wall: "cream", key: "tienda", to: "int_ciudad_dinamo_tienda", w: 6, name: "Tienda" },
+      { slot: "U3", kind: "hall", roof: "grey", wall: "stone", key: "central", to: "int_dinamo_central", w: 7, h: 5, name: "Central el\xE9ctrica" },
+      { slot: "U4", kind: "house", roof: "orange", wall: "sand", key: "casa1", to: "int_ciudad_dinamo_casa1", w: 5, name: "Casa de Remedios" },
+      { slot: "L1", kind: "house", roof: "blue", wall: "stone", key: "casa2", to: "int_ciudad_dinamo_casa2", w: 5, name: "Taller de Nicol\xE1s" },
+      { slot: "L2", kind: "gym", roof: "blue", wall: "stone", key: "gym", to: "gym_ciudad_dinamo", w: 7, name: "Gimnasio D\xEDnamo", req: (g) => g.flag("central_restaurada"), reqText: "Una verja el\xE9ctrica cierra el gimnasio. Un cartel dice: \xABCERRADO POR APAG\xD3N. Solicite informaci\xF3n en la Central\xBB." },
+      { slot: "L4", kind: "house", roof: "green", wall: "wood", key: "casa3", to: "int_ciudad_dinamo_casa3", w: 5, name: "Casa de Gala" }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "fountain");
+      m.put(22, 14, "flowerbed");
+      m.put(24, 14, "flowerbed");
+      m.put(21, 14, "lamp");
+      m.put(25, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.sign(9, 9, "CIUDAD D\xCDNAMO\nLa ciudad que nunca duerme... salvo cuando hay apag\xF3n.");
+      m.sign(22, 9, "CENTRAL EL\xC9CTRICA");
+      m.sign(12, 20, "GIMNASIO D\xCDNAMO\nL\xEDder: Volta \xB7 Tipo: El\xE9ctrico");
+      m.sign(18, 5, "\u2191 Ruta Granito y Pico Granito");
+      m.sign(18, 25, "\u2193 Pantano Niebla");
+      m.sign(33, 12, "\u2192 Desierto \xC1mbar y Oasis Zafiro");
+    },
+    extra: (m) => {
+      m.npc({ id: "kai_dinamo", x: 20, y: 12, dir: "left", look: look("kai"), name: "Kai", move: "static", show: (g) => g.flag("central_restaurada") && !g.flag("rival3_done"), talk: async (g, e, ow) => {
+        if (await fight(g, "rival3", { entity: e })) {
+          g.setFlag("rival3_done");
+          ow.refreshEntities();
+          await g.say("Voy a Pico Granito: all\xED hay un gimnasio de roca y minas profundas. \xA1Nos vemos all\xED!", { speaker: "Kai" });
+        }
+      } });
+    },
+    npcs: [
+      { id: "guia_dinamo", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "D\xEDnamo es el cruce de caminos de Aurelia: al norte, Pico Granito; al este, el desierto; al sur, el pantano. \xA1Elige tu rumbo con tiento!" },
+      { id: "obrero", x: 30, y: 22, dir: "down", look: "minero", name: "Obrero", text: "Las minas de Pico Granito proveen casi toda la roca de Aurelia. Y los cristales que cantan salen de all\xED." }
+    ]
+  });
+  defineGym("ciudad_dinamo", {
+    name: "Gimnasio D\xEDnamo",
+    title: "Gimnasio de Ciudad D\xEDnamo",
+    badge: "chispa",
+    leader: "lider_volta",
+    layout: "maze",
+    zone: { zone: "cueva" },
+    floor: "metalfloor",
+    wallTile: "wallint3",
+    wall: { layer: "obj", tile: "wallint3" },
+    w: 23,
+    h: 20,
+    exitX: 11,
+    barriers: 2,
+    trainers: [{ cls: "cientifico", types: ["electrico", "metal"], lv: [22, 23], n: 2 }, { cls: "cientifico", types: ["electrico", "metal", "insecto"], lv: [23, 24], n: 3 }, { cls: "karateka", types: ["electrico", "lucha"], lv: [24, 25], n: 3 }],
+    rewards: { tm: "dt02", items: { hiper_pocion: 2 } },
+    after: "\xA1Cada vez que veas un rayo, piensa en m\xED! \xA1Y en el siguiente gimnasio: Pico Granito, al norte!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_chispa");
+      await g.completeQuest("main_09");
+      await g.startQuest("main_10");
+      chapter(g, "Cap\xEDtulo 4 \xB7 Rumbo a Pico Granito");
+    }
+  });
+
+  // src/maps/norte.js
+  defineRoute("ruta_granito", {
+    name: "Ruta Granito",
+    title: "Ruta Granito",
+    w: 44,
+    h: 40,
+    style: "montana",
+    zone: "montana",
+    tags: ["montana"],
+    music: "route",
+    region: "norte",
+    waypoints: [[18, 39], [18, 30], [28, 30], [28, 20], [14, 20], [14, 10], [18, 10], [18, 0]],
+    width: 2,
+    conn: { s: { map: "ciudad_dinamo", cols: [18, 19], off: 0 }, n: { map: "pico_granito", cols: [18, 19], off: 0 } },
+    enc: { hierba: { zone: "montana", lv: [26, 31], maxRarity: "R" } },
+    trainers: [{ cls: "excursionista", x: 22, y: 33, dir: "left", lv: [27, 29], n: 3, sight: 4 }, { cls: "karateka", x: 24, y: 27, dir: "up", lv: [28, 30], n: 3, sight: 3 }, { cls: "minero", x: 20, y: 22, dir: "down", lv: [28, 30], n: 3, sight: 3 }, { cls: "excursionista", x: 8, y: 17, dir: "right", lv: [29, 31], n: 3, sight: 4 }, { cls: "minero", x: 16, y: 6, dir: "down", lv: [29, 31], n: 3, sight: 3 }],
+    items: [[22, 36, "hiper_pocion"], [34, 30, "caramelo_raro"], [6, 14, "super_capsula", 3], [26, 5, "eter"]],
+    hidden: [[38, 26, "pepita"], [10, 3, "polvo_cristal"]],
+    signs: [[16, 37, "RUTA GRANITO\n\u2191 Pico Granito    \u2193 Ciudad D\xEDnamo\nMina Granito: entrada al este (36,18)."]],
+    npcs: [{ id: "minero_ruta", x: 31, y: 21, dir: "left", look: "minero", name: "Minero", text: "Esa cueva es la Mina Granito. Dentro hace tanta oscuridad que ni los murci\xE9lagos se aclaran. El capataz suele dar linternas a quien las necesita." }],
+    extra: (m) => {
+      m.path([[28, 20], [36, 20]], "gravel", 2);
+      caveMouth(m, 36, 18, "mina_granito", "entrada_ruta", { key: "ruta" });
+      m.putRect(2, 4, 6, 1, "rockwall");
+      m.putRect(2, 5, 1, 3, "rockwall");
+      m.putRect(7, 5, 1, 3, "rockwall");
+      m.putRect(2, 8, 6, 1, "rockwall");
+      for (const [x, y] of [[3, 5], [4, 5], [5, 5], [6, 5], [3, 6], [4, 6], [5, 6], [6, 6], [3, 7], [4, 7], [5, 7], [6, 7]]) {
+        m.clear(x, y);
+        m.set(x, y, "gravel");
+      }
+      m.item(4, 6, "hiper_pocion", { n: 2 });
+      m.item(5, 6, "elixir");
+    }
+  });
+  rec("eclipse_mina1", "Recluta", "recluta", [{ sp: 33, lv: 30 }, { sp: 28, lv: 30 }, { sp: 57, lv: 31 }], { reward: 800, intro: "\xA1Prohibido el paso! Esta mina ya no es de los mineros.", win: "\xA1Perdimos! \xA1Pero ya tenemos el cristal!" });
+  rec("eclipse_mina2", "Recluta", "recluta2", [{ sp: 58, lv: 31 }, { sp: 70, lv: 31 }, { sp: 33, lv: 32 }], { reward: 860, intro: "\xA1Nadie nos quita el mineral estrella!", win: "\xA1Imposible! \xA1Se lo dir\xE9 a la teniente!" });
+  defineCave("mina_granito", {
+    name: "Mina Granito",
+    title: "Mina Granito",
+    w: 52,
+    h: 36,
+    lv: [28, 32],
+    dark: true,
+    music: "cave",
+    region: "norte",
+    rooms: [[8, 30, 5, 3], [22, 26, 6, 4], [38, 28, 5, 3], [12, 16, 5, 4], [28, 14, 6, 4], [44, 10, 4, 3], [24, 5, 4, 2]],
+    passages: [[[8, 30], [8, 26], [22, 26]], [[22, 26], [38, 26], [38, 28]], [[22, 26], [22, 16], [12, 16]], [[22, 16], [28, 16], [28, 14]], [[28, 14], [28, 8], [44, 8], [44, 10]], [[28, 8], [24, 8], [24, 5]], [[44, 8], [44, 4]]],
+    exits: [{ x: 8, y: 33, to: "ruta_granito", spawn: "cueva_ruta", key: "ruta" }, { x: 44, y: 2, to: "pico_granito", spawn: "cueva_pico", key: "pico", dir: "up" }],
+    trainers: [{ cls: "minero", x: 22, y: 22, dir: "down", lv: [29, 31], n: 3, sight: 4 }, { cls: "minero", x: 16, y: 16, dir: "right", lv: [30, 32], n: 3, sight: 4 }, { cls: "minero", x: 36, y: 26, dir: "left", lv: [30, 32], n: 3, sight: 4 }],
+    items: [[8, 28, "super_pocion"], [40, 29, "hiper_pocion"], [26, 5, "eter"], [11, 14, "caramelo_raro"]],
+    hidden: [[5, 31, "pepita"], [46, 11, "polvo_cristal"], [24, 3, "pepita"]],
+    signs: [[9, 32, "MINA GRANITO\nUsa linterna. Cuidado con los derrumbes."]],
+    npcs: [{ id: "capataz_mina", x: 10, y: 30, dir: "right", look: "minero", name: "Capataz Roc\xEDo", talk: async (g) => {
+      if (!g.hasKey("linterna")) {
+        await g.say("\xA1Eh, t\xFA! Aqu\xED abajo sin luz no se ve ni la punta de la nariz. Toma esta linterna: te la presto de por vida si cuidas la mina.", { speaker: "Roc\xEDo" });
+        await g.giveItem("linterna");
+      } else await g.say("Cuidado con los reclutas del fondo: se han hecho fuertes en la galer\xEDa este. \xA1Y no toqu\xE9is los cristales!", { speaker: "Roc\xEDo" });
+    } }],
+    extra: (m) => {
+      m.trainer({ id: "mina_r1", trainer: "eclipse_mina1", x: 38, y: 24, dir: "down", look: look("recluta"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_mina1?.beaten });
+      m.trainer({ id: "mina_r2", trainer: "eclipse_mina2", x: 44, y: 8, dir: "left", look: look("recluta2"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_mina2?.beaten });
+      m.object(46, 9, "crystal", { name: "Mineral estrella", show: (g) => !g.flag("mineral_estrella_tomado"), talk: async (g, e, ow) => {
+        await g.say("Un cristal color del cielo nocturno, con motas brillantes como estrellas. \xA1Canta suavemente!");
+        await g.giveItem("mineral_estrella");
+        g.setFlag("mineral_estrella_tomado");
+        ow.refreshEntities();
+        await g.say("Ll\xE9vaselo a Petra, en la oficina minera de Pico Granito.");
+      } });
+    }
+  });
+  defineCenter("pico_granito", "Pico Granito");
+  defineShopInterior("pico_granito", "grandes", { name: "Almac\xE9n de Granito" });
+  defineHouse("pico_granito", "casa1", { name: "Casa de Hilario", npcs: [{ id: "hilario", x: 4, y: 3, dir: "down", look: "abuelo", name: "Hilario", text: "Los cristales que cantan de la mina... cuando era joven los escuchaba cada noche. Dicen que suenan distinto cuando hay una criatura legendaria cerca." }] });
+  defineHouse("pico_granito", "casa2", { name: "Casa de Marga", npcs: [{ id: "marga", x: 5, y: 4, dir: "left", look: "abuela", name: "Marga", text: "Mi hijo es minero. Siempre vuelve con las manos negras y una sonrisa. Los de la Orden, en cambio, vienen con la cara tapada." }] });
+  interior("int_pico_oficina", 14, 10, { name: "Oficina minera", title: "Oficina minera de Pico Granito", floor: "wood", wall: "wallint2", exit: { to: "pico_granito", spawn: "door_oficina" }, noFly: true }, (m) => {
+    m.put(1, 2, "bookcase");
+    m.put(2, 2, "bookcase");
+    m.put(11, 2, "shelf");
+    m.put(12, 2, "shelf");
+    m.put(5, 2, "table");
+    m.rect(4, 4, 6, 3, "carpet");
+    m.put(1, 6, "plant");
+    m.put(12, 6, "plant");
+    m.object(8, 2, "rocktable", { name: "Mesa de minerales", text: "Una mesa con muestras de granito, cuarzo y mica. Cada piedra tiene una etiqueta con la fecha de extracci\xF3n." });
+    m.npc({ id: "petra_oficina", x: 6, y: 3, dir: "down", look: look("petra"), name: "Petra", move: "static", talk: async (g, e, ow) => {
+      const T2 = "Petra";
+      if (g.badges.includes("cantera")) {
+        await g.say("El mineral estrella late en lo m\xE1s profundo de la roca. \xA1Gracias otra vez, entrenador!", { speaker: T2 });
+        return;
+      }
+      if (g.flag("mineral_entregado")) {
+        await g.say("Mi gimnasio est\xE1 abierto. \xA1Prep\xE1rate para un combate de peso!", { speaker: T2 });
+        return;
+      }
+      if (g.hasItem("mineral_estrella")) {
+        g.takeItem("mineral_estrella");
+        g.setFlag("mineral_entregado");
+        g.setFlag("gimnasio_cantera_abierto");
+        await scene(g, [[T2, "\xA1El mineral estrella! Estaba a punto de perder la esperanza... Este cristal resuena con los Prismas: la Orden lo buscaba para encontrar los sellos."], [T2, "Ya est\xE1 a salvo. Mi gimnasio vuelve a abrir. \xA1Demu\xE9strame ahora lo que has aprendido en el camino!"]]);
+        return;
+      }
+      if (!g.flag("petra_hablo")) {
+        await scene(g, [[T2, "Soy Petra, l\xEDder de este gimnasio. Pero mi gimnasio est\xE1 cerrado: \xA1la Orden del Eclipse se ha instalado en la Mina Granito!"], [T2, "Buscan el mineral estrella, un cristal \xFAnico que resuena con los Prismas. Si lo recuperas antes de que se lo lleven, mi gimnasio abrir\xE1. La entrada est\xE1 en la Ruta Granito, al este."]]);
+        g.setFlag("petra_hablo");
+        await g.startQuest("main_11");
+        chapter(g, "Cap\xEDtulo 4 \xB7 Pico Granito");
+      } else await g.say("El mineral estrella est\xE1 en la galer\xEDa este de la mina. \xA1Cuidado con los reclutas!", { speaker: T2 });
+    } });
+    m.npc({ id: "secretaria", x: 10, y: 6, dir: "left", look: look("ayudante"), name: "Secretaria", move: "static", text: "La oficina lleva la contabilidad de todas las minas de Aurelia. Pero hoy... solo atiendo preguntas sobre el gimnasio." });
+  });
+  defineCity("pico_granito", {
+    name: "Pico Granito",
+    w: 38,
+    h: 28,
+    fill: "grass",
+    path: "gravel",
+    tree: "pine",
+    music: "town",
+    zone: "ciudad",
+    tags: ["ciudad", "montana"],
+    climate: "frio",
+    region: "norte",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { s: { map: "ruta_granito", cols: [18, 19], off: 0 }, n: { map: "ruta_nevada", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "cream", key: "centro", to: "int_pico_granito_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "blue", wall: "stone", key: "tienda", to: "int_pico_granito_tienda", w: 6, name: "Almac\xE9n" },
+      { slot: "U3", kind: "hall", roof: "grey", wall: "stone", key: "oficina", to: "int_pico_oficina", w: 7, h: 5, name: "Oficina minera" },
+      { slot: "U4", kind: "house", roof: "orange", wall: "stone", key: "casa1", to: "int_pico_granito_casa1", w: 5, name: "Casa de Hilario" },
+      { slot: "L1", kind: "house", roof: "brown", wall: "stone", key: "casa2", to: "int_pico_granito_casa2", w: 5, name: "Casa de Marga" },
+      { slot: "L2", kind: "gym", roof: "grey", wall: "stone", key: "gym", to: "gym_pico_granito", w: 7, name: "Gimnasio Cantera", req: (g) => g.flag("gimnasio_cantera_abierto"), reqText: "El gimnasio est\xE1 cerrado. Una nota clavada en la puerta: \xABPetra, en la Oficina minera: asunto de la Mina Granito\xBB." }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "fountain");
+      m.put(22, 14, "flowerbed");
+      m.put(24, 14, "flowerbed");
+      m.put(21, 14, "lamp");
+      m.put(25, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.sign(9, 9, "PICO GRANITO\nLa ciudad de las minas. 1.200 m sobre el valle.");
+      m.sign(22, 9, "OFICINA MINERA");
+      m.sign(12, 20, "GIMNASIO CANTERA\nL\xEDder: Petra \xB7 Tipo: Roca");
+      m.sign(18, 5, "\u2191 Ruta Nevada (se necesitan 6 medallas)");
+      m.sign(18, 25, "\u2193 Ruta Granito y Ciudad D\xEDnamo");
+      caveMouth(m, 32, 20, "mina_granito", "entrada_pico", { key: "pico" });
+      roadBlock(m, [[18, 1], [19, 1]], (g) => g.badges.length >= 6, "Un guardia de monta\xF1a te corta el paso: \xABLa Ruta Nevada es peligrosa. Solo entrenadores con 6 medallas o m\xE1s pueden subir\xBB.");
+    },
+    npcs: [
+      { id: "guia_pico", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Pico Granito vive de las minas. Si tienes linterna, la galer\xEDa de Roc\xEDo es una buena ruta entre D\xEDnamo y aqu\xED." },
+      { id: "turista_pico", x: 27, y: 22, dir: "left", look: "excursionista", name: "Alpinista", text: "Hay repisas en las rocas que solo se alcanzan trepando. \xA1Necesitar\xE1s un piolet!" }
+    ]
+  });
+  defineGym("pico_granito", {
+    name: "Gimnasio Cantera",
+    title: "Gimnasio de Pico Granito",
+    badge: "cantera",
+    leader: "lider_petra",
+    layout: "maze",
+    zone: { zone: "cueva" },
+    floor: "cavefloor",
+    wall: { layer: "obj", tile: "cavewall" },
+    wallTile: "cavewall",
+    w: 23,
+    h: 20,
+    exitX: 11,
+    barriers: 1,
+    barrierTile: "boulder",
+    barrierName: "Roca enorme",
+    barrierText: "Una roca enorme bloquea el pasillo. Quiz\xE1 alguna palanca por los t\xFAneles la mueva.",
+    switchText: "Giras la palanca. Un chirrido de piedra... \xA1la roca rueda a un lado!",
+    trainers: [{ cls: "minero", types: ["roca", "tierra"], lv: [28, 29], n: 3 }, { cls: "minero", types: ["roca", "metal"], lv: [29, 30], n: 3 }, { cls: "excursionista", types: ["roca", "lucha"], lv: [30, 31], n: 3 }],
+    rewards: { tm: "dt07", items: { hiper_pocion: 2 }, keyItems: ["piolet"] },
+    after: "Con el piolet podr\xE1s trepar a las repisas. \xA1Hay tesoros que solo se ven desde arriba!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_cantera");
+      await g.say("Petra te entrega el Piolet: ahora podr\xE1s trepar por las paredes de roca agrietada.");
+      await g.completeQuest("main_11");
+      await g.startQuest("main_12");
+      chapter(g, "Cap\xEDtulo 5 \xB7 Desierto \xC1mbar");
+    }
+  });
+  defineRoute("ruta_nevada", {
+    name: "Ruta Nevada",
+    title: "Ruta Nevada",
+    w: 44,
+    h: 36,
+    style: "nieve",
+    zone: "nieve",
+    tags: ["nieve"],
+    music: "snow",
+    climate: "nevado",
+    region: "norte",
+    waypoints: [[18, 35], [18, 26], [30, 26], [30, 14], [14, 14], [14, 6], [18, 6], [18, 0]],
+    width: 2,
+    conn: { s: { map: "pico_granito", cols: [18, 19], off: 0 }, n: { map: "cima_escarcha", cols: [18, 19], off: 0 } },
+    enc: { nieve: { zone: "nieve", lv: [38, 43], maxRarity: "V" }, hierba: { zone: "nieve", lv: [38, 43], maxRarity: "V" } },
+    trainers: [{ cls: "esquiador", x: 22, y: 29, dir: "left", lv: [38, 40], n: 3, sight: 4 }, { cls: "esquiador", x: 34, y: 20, dir: "up", lv: [39, 41], n: 3, sight: 3 }, { cls: "bruja", x: 22, y: 12, dir: "down", lv: [40, 42], n: 3, sight: 3 }, { cls: "excursionista", x: 10, y: 9, dir: "right", lv: [40, 42], n: 3, sight: 4 }],
+    items: [[24, 33, "hiper_pocion"], [36, 26, "revivir"], [6, 12, "elixir"], [26, 4, "caramelo_raro"]],
+    hidden: [[38, 8, "perla_grande"], [8, 30, "pepita"]],
+    signs: [[16, 33, "RUTA NEVADA\n\u2191 Cima Escarcha    \u2193 Pico Granito\nCueva Hielo: al oeste."]],
+    npcs: [{ id: "esquiadora_nieve", x: 26, y: 24, dir: "down", look: "esquiador", name: "Esquiadora", text: "Con la nieve de verdad (tormenta), aparecen criaturas de hielo muy raras. \xA1Las he visto bailar sobre la ventisca!" }],
+    extra: (m) => {
+      m.path([[14, 14], [8, 14], [8, 9]], "gravel", 2);
+      caveMouth(m, 8, 7, "cueva_hielo", "entrada_nevada", { key: "nevada" });
+    }
+  });
+  rec("eclipse_hielo1", "Recluta", "recluta", [{ sp: 48, lv: 40 }, { sp: 70, lv: 41 }, { sp: 59, lv: 41 }], { reward: 1200, intro: "\xA1Silencio! La teniente est\xE1 trabajando.", win: "\xA1Aaah! \xA1Qu\xE9 fr\xEDo...!" });
+  rec("eclipse_hielo2", "Recluta", "recluta2", [{ sp: 94, lv: 41 }, { sp: 28, lv: 42 }, { sp: 51, lv: 42 }], { reward: 1300, intro: "\xA1Esta cueva ya es de la Orden!", win: "\xA1Imposible!" });
+  var GLACIARIS = { id: 115, lv: 55, flag: "glaciaris", minBadges: 6 };
+  defineCave("cueva_hielo", {
+    name: "Cueva Hielo",
+    title: "Cueva Hielo",
+    w: 50,
+    h: 36,
+    lv: [40, 44],
+    music: "cave",
+    region: "norte",
+    objs: { stalagmite: 20, crystal: 28, mushroom: 6 },
+    rooms: [[8, 30, 5, 3], [22, 26, 6, 4], [38, 28, 5, 3], [12, 16, 5, 4], [28, 14, 6, 4], [42, 8, 4, 3], [24, 6, 5, 3]],
+    passages: [[[8, 30], [8, 26], [22, 26]], [[22, 26], [38, 26], [38, 28]], [[22, 26], [22, 16], [12, 16]], [[22, 16], [28, 16], [28, 14]], [[28, 14], [28, 8], [42, 8], [46, 8], [46, 5]], [[28, 8], [24, 8], [24, 6]]],
+    exits: [{ x: 8, y: 33, to: "ruta_nevada", spawn: "cueva_nevada", key: "nevada" }],
+    trainers: [{ cls: "esquiador", x: 22, y: 21, dir: "down", lv: [40, 42], n: 3, sight: 4 }, { cls: "bruja", x: 14, y: 16, dir: "right", lv: [41, 43], n: 3, sight: 4 }],
+    items: [[8, 28, "hiper_pocion"], [40, 29, "revivir"], [24, 4, "elixir"]],
+    hidden: [[5, 31, "perla_grande"], [44, 9, "pepita"]],
+    extra: (m) => {
+      m.rect(17, 24, 11, 4, "ice");
+      m.rect(33, 26, 9, 5, "ice");
+      m.rect(20, 5, 9, 3, "ice");
+      m.rect(26, 10, 5, 7, "ice");
+      m.trainer({ id: "hielo_r1", trainer: "eclipse_hielo1", x: 38, y: 24, dir: "down", look: look("recluta"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_hielo1?.beaten });
+      m.trainer({ id: "hielo_r2", trainer: "eclipse_hielo2", x: 36, y: 8, dir: "left", look: look("recluta2"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_hielo2?.beaten });
+      m.npc({ id: "gris2", x: 42, y: 9, dir: "down", look: look("teniente2"), name: "Teniente Gris", move: "static", show: (g) => !g.state.trainers.gris2?.beaten, talk: async (g, e, ow) => {
+        if (!(g.state.trainers.eclipse_hielo1?.beaten && g.state.trainers.eclipse_hielo2?.beaten)) {
+          await g.say("Los reclutas te esperan antes que yo. \xA1Atraviesa el hielo si puedes!", { speaker: "Teniente Gris" });
+          return;
+        }
+        if (await fight(g, "gris2", { entity: e })) {
+          ow.refreshEntities();
+          g.setFlag("prisma_nacar");
+          await g.giveItem("prisma_nacar");
+          await scene(g, [["Teniente Gris", "Tsk... Te lo llevas. Pero el Maestro Vesper ya sabe d\xF3nde se esconde el \xFAltimo sello. Y yo me retiro... por ahora."], [null, "Gris se desvanece en la ventisca. El Prisma N\xE1car brilla en tu mano, helado como la nieve."]]);
+          chapter(g, "Cap\xEDtulo 6 \xB7 El Prisma N\xE1car");
+        }
+      } });
+      m.object(46, 4, "altar", { name: "Altar de hielo", talk: async (g, e, ow) => legendary(g, ow, GLACIARIS, { text: "Un altar tallado en hielo azul. Sobre \xE9l, el aire se condensa en cristales que giran lentamente. Una presencia helada, enorme, observa desde la penumbra..." }) });
+    }
+  });
+  defineCenter("cima_escarcha", "Cima Escarcha");
+  defineShopInterior("cima_escarcha", "grandes", { name: "Tienda Escarcha" });
+  defineHouse("cima_escarcha", "casa1", { name: "Casa de Noa", npcs: [{ id: "noa", x: 4, y: 3, dir: "down", look: "nina", name: "Noa", text: "El suelo del gimnasio es puro hielo. \xA1Mi t\xEDo se pas\xF3 una hora desliz\xE1ndose hasta que alguien le ech\xF3 una mano! Dice que lo importante es pensar d\xF3nde vas a parar, no por d\xF3nde vas." }] });
+  defineHouse("cima_escarcha", "casa2", { name: "Casa de Anselmo", npcs: [{ id: "anselmo", x: 5, y: 4, dir: "left", look: "abuelo", name: "Anselmo", text: "Las ruinas al este son m\xE1s antiguas que Aurelia misma. All\xED duermen dos criaturas: una de metal y esp\xEDritu, otra que solo sale de noche... Mi abuelo juraba haber visto sus ojos." }] });
+  interior("int_cima_observatorio", 14, 10, { name: "Observatorio", title: "Observatorio de Cima Escarcha", floor: "darkfloor", wall: "wallint3", exit: { to: "cima_escarcha", spawn: "door_observatorio" }, noFly: true }, (m) => {
+    m.put(1, 2, "console");
+    m.put(2, 2, "console");
+    m.put(11, 2, "bookcase");
+    m.put(12, 2, "bookcase");
+    m.put(6, 2, "altar");
+    m.rect(4, 4, 6, 3, "carpet");
+    m.put(1, 6, "plant");
+    m.object(8, 2, "crystal", { name: "Maqueta de los dragones", text: "Una maqueta luminosa: un drag\xF3n de luz y otro de sombra, enroscados uno en torno al otro, y cuatro joyas en las esquinas." });
+    m.npc({ id: "astronoma", x: 7, y: 5, dir: "down", look: look("cientifico"), name: "Dra. Lira", move: "static", talk: async (g) => {
+      await scene(g, [["Dra. Lira", "Observo el cielo y observo la historia. Hace mil a\xF1os, Aurelion \u2014el drag\xF3n de luz\u2014 y Umbraxis \u2014el drag\xF3n de sombra\u2014 se disputaron el amanecer. Los antiguos los sellaron con cuatro Prismas: Esmeralda, Zafiro, \xC1mbar y N\xE1car."], ["Dra. Lira", "Cada eclipse solar, los sellos tiemblan un poco. El pr\xF3ximo ser\xE1 dentro de poco... y el Maestro Vesper lo sabe."]]);
+      if (g.hasItem("prisma_esmeralda") && g.hasItem("prisma_nacar")) await g.say("\xA1T\xFA ya tienes dos Prismas! Re\xFAne los otros dos y ll\xE9valos al Santuario del Alba antes del eclipse. Solo as\xED evitar\xE1s que Vesper libere a Umbraxis.", { speaker: "Dra. Lira" });
+    } });
+  });
+  defineCity("cima_escarcha", {
+    name: "Cima Escarcha",
+    w: 38,
+    h: 28,
+    fill: "snow",
+    path: "gravel",
+    tree: "snowpine",
+    music: "snow",
+    zone: "ciudad",
+    tags: ["ciudad", "nieve"],
+    climate: "nevado",
+    region: "norte",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { s: { map: "ruta_nevada", cols: [18, 19], off: 0 }, e: { map: "ruinas_antiguas", rows: [10, 11], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "cream", key: "centro", to: "int_cima_escarcha_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "blue", wall: "cream", key: "tienda", to: "int_cima_escarcha_tienda", w: 6, name: "Tienda" },
+      { slot: "U3", kind: "hall", roof: "purple", wall: "stone", key: "observatorio", to: "int_cima_observatorio", w: 7, h: 5, name: "Observatorio" },
+      { slot: "U4", kind: "house", roof: "blue", wall: "sand", key: "casa1", to: "int_cima_escarcha_casa1", w: 5, name: "Casa de Noa" },
+      { slot: "L1", kind: "house", roof: "purple", wall: "cream", key: "casa2", to: "int_cima_escarcha_casa2", w: 5, name: "Casa de Anselmo" },
+      { slot: "L2", kind: "gym", roof: "blue", wall: "stone", key: "gym", to: "gym_cima_escarcha", w: 7, name: "Gimnasio Escarcha" }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "fountain");
+      m.put(22, 14, "flowerbed");
+      m.put(24, 14, "flowerbed");
+      m.put(21, 14, "lamp");
+      m.put(25, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.sign(9, 9, "CIMA ESCARCHA\nLa ciudad m\xE1s alta de Aurelia: 2.300 m.");
+      m.sign(22, 9, "OBSERVATORIO");
+      m.sign(12, 20, "GIMNASIO ESCARCHA\nL\xEDder: Boreal \xB7 Tipo: Hielo");
+      m.sign(33, 12, "\u2192 Ruinas Antiguas");
+    },
+    npcs: [
+      { id: "guia_cima", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Bienvenido a Cima Escarcha. Aqu\xED arriba el aire es tan puro que oyes cantar a las criaturas de hielo." },
+      { id: "esquiador_cima", x: 28, y: 22, dir: "left", look: "esquiador", name: "Esquiador", text: "La pista del gimnasio es de hielo macizo: si te deslizas, \xA1piensa en d\xF3nde vas a parar!" }
+    ]
+  });
+  defineGym("cima_escarcha", {
+    name: "Gimnasio Escarcha",
+    title: "Gimnasio de Cima Escarcha",
+    badge: "cristal",
+    leader: "lider_boreal",
+    layout: "ice",
+    zone: { zone: "nieve" },
+    floor: "floor",
+    w: 23,
+    h: 20,
+    exitX: 11,
+    trainers: [{ cls: "esquiador", types: ["hielo", "agua"], lv: [38, 40], n: 3 }, { cls: "esquiador", types: ["hielo", "aire"], lv: [39, 41], n: 3 }, { cls: "bruja", types: ["hielo", "mental", "espiritu"], lv: [40, 42], n: 3 }],
+    rewards: { tm: "dt03", items: { hiper_pocion: 3, revivir: 1 }, keyItems: ["amuleto_exp"] },
+    after: "El hielo siempre te devuelve al principio... salvo que sepas d\xF3nde parar. \xA1Bien hecho!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_cristal");
+      await g.say("Boreal te regala el Amuleto Exp.: un talism\xE1n que aumenta la experiencia ganada.");
+      await g.completeQuest("main_16");
+      await g.startQuest("main_17");
+      chapter(g, "Cap\xEDtulo 7 \xB7 Las Ruinas Antiguas");
+    }
   });
 
   // src/quests.js
@@ -5979,6 +8039,17 @@
   defineQuest("side_captura1", { kind: "side", name: "Primera captura", desc: "Debilita a una criatura salvaje y lanza una c\xE1psula para capturarla.", objectives: [{ text: "Captura una criatura salvaje", ev: "capture" }], reward: { money: 300, items: { super_capsula: 2 } } });
   defineQuest("side_entrenador1", { kind: "side", name: "Duelo en la ruta", desc: "Los entrenadores de la Ruta 1 buscan rivales. Demuestra lo que vales.", objectives: [{ text: "Derrota a 2 entrenadores", ev: "defeat", n: 2, match: (d) => !d.gym }], reward: { money: 400, items: { antidoto: 3, pocion: 3 } } });
   defineQuest("side_dex10", { kind: "side", name: "Atlas de Aurelia", desc: "Sauce necesita datos para su Atlas: registra criaturas captur\xE1ndolas.", objectives: [{ text: "Captura 5 especies distintas", state: (g) => Math.min(5, caughtN(g) - 1) }], reward: { money: 800, items: { super_capsula: 5 } } });
+  defineQuest("main_04", { kind: "main", name: "El Prisma robado", desc: "La Orden del Eclipse ha robado el Prisma Esmeralda del museo. Fresia cree que se esconden en el invernadero abandonado del Bosque Umbra.", objectives: [{ text: "Recupera el Prisma Esmeralda en el invernadero del Bosque Umbra", state: flag("prisma_esmeralda") }, { text: "Devu\xE9lvelo a la Dra. Almendra", state: flag("prisma_devuelto") }], reward: { money: 800 } });
+  defineQuest("main_05", { kind: "main", name: "La Medalla Hoja", desc: "El gimnasio de Ciudad Roble vuelve a abrir. Atraviesa el laberinto de setos y derrota a Fresia.", objectives: [{ text: "Obt\xE9n la Medalla Hoja", state: (g) => g.state.badges.includes("hoja") ? 1 : 0 }], reward: { money: 500 } });
+  defineQuest("main_06", { kind: "main", name: "Rumbo a Puerto Marea", desc: "Fresia ha o\xEDdo que la Orden del Eclipse se mueve por la costa. Sigue la Ruta 2 hacia el sur hasta Puerto Marea.", objectives: [{ text: "Llega a Puerto Marea", state: (g) => g.state.fastTravel.includes("puerto_marea") ? 1 : 0 }], reward: { money: 400 } });
+  defineQuest("side_herbolario", { kind: "side", name: "Ant\xEDdotos para Zinia", desc: "La herbolaria Zinia necesita tres ant\xEDdotos para preparar un ung\xFCento.", turnIn: true, objectives: [{ text: "Consigue 3 ant\xEDdotos", state: (g) => Math.min(3, bagCount(g.bag, "antidoto")) }], reward: { money: 600, items: { baya_amistad: 2, elixir: 1 } } });
+  defineQuest("main_07", { kind: "main", name: "La Gaviota robada", desc: "El capit\xE1n Marlo ha perdido su barca, la Gaviota, a manos de la Orden del Eclipse. Recup\xE9rala en el muelle de Puerto Marea y desaf\xEDa su gimnasio.", objectives: [{ text: "Recupera la Gaviota en el muelle", state: flag("gaviota_recuperada") }, { text: "Obt\xE9n la Medalla Marea", state: (g) => g.state.badges.includes("marea") ? 1 : 0 }], reward: { money: 700, items: { super_capsula: 5 } } });
+  defineQuest("side_conchas", { kind: "side", name: "Conchas para el farero", desc: "Eugenio colecciona conchas nacaradas. Las hay escondidas en las playas de Aurelia.", turnIn: true, objectives: [{ text: "Consigue 2 conchas raras", state: (g) => Math.min(2, bagCount(g.bag, "concha_rara")) }], reward: { money: 400, items: { super_capsula: 3 } } });
+  defineQuest("main_08", { kind: "main", name: "Camino a Ciudad D\xEDnamo", desc: "Una central el\xE9ctrica en Ciudad D\xEDnamo ha sufrido apagones extra\xF1os. Sigue la Ruta 3 desde Ciudad Roble hacia el este (hacen falta 2 medallas).", objectives: [{ text: "Llega a Ciudad D\xEDnamo", state: (g) => g.state.fastTravel.includes("ciudad_dinamo") ? 1 : 0 }], reward: { money: 500 } });
+  defineQuest("main_09", { kind: "main", name: "Apag\xF3n en D\xEDnamo", desc: "Un teniente de la Orden del Eclipse ha tomado la central de D\xEDnamo. El fusible principal est\xE1 escondido en la Cueva Eco, al norte de la Ruta 3.", objectives: [{ text: "Encuentra el fusible en la Cueva Eco", state: flag("fusible_tomado") }, { text: "Derrota a la Teniente Gris en la Central", state: flag("gris1_done") }, { text: "Restaura el generador de la Central", state: flag("central_restaurada") }, { text: "Obt\xE9n la Medalla Chispa", state: (g) => g.state.badges.includes("chispa") ? 1 : 0 }], reward: { money: 1200, items: { hiper_pocion: 2 } } });
+  defineQuest("main_10", { kind: "main", name: "Rumbo a Pico Granito", desc: "Kai se dirige a las minas de Pico Granito, al norte de Ciudad D\xEDnamo. Hay un gimnasio de roca esperando.", objectives: [{ text: "Llega a Pico Granito", state: (g) => g.state.fastTravel.includes("pico_granito") ? 1 : 0 }], reward: { money: 600 } });
+  defineQuest("main_11", { kind: "main", name: "El mineral estrella", desc: "La Orden del Eclipse ocupa la Mina Granito en busca del mineral estrella. Petra no abrir\xE1 su gimnasio hasta que se recupere.", objectives: [{ text: "Recupera el mineral estrella en la Mina Granito", state: flag("mineral_estrella_tomado") }, { text: "Entr\xE9gaselo a Petra en la Oficina minera", state: flag("mineral_entregado") }, { text: "Obt\xE9n la Medalla Cantera", state: (g) => g.state.badges.includes("cantera") ? 1 : 0 }], reward: { money: 1500, items: { hiper_pocion: 2 } } });
+  defineQuest("main_16", { kind: "main", name: "La Medalla Cristal", desc: "En Cima Escarcha, el gimnasio de Hielo te espera. Sus pasillos de hielo exigen planificar cada deslizamiento.", objectives: [{ text: "Obt\xE9n el Prisma N\xE1car en la Cueva Hielo", state: flag("prisma_nacar") }, { text: "Obt\xE9n la Medalla Cristal", state: (g) => g.state.badges.includes("cristal") ? 1 : 0 }], reward: { money: 3e3 } });
 
   // src/input.js
   var KEYMAP = {
@@ -6415,17 +8486,17 @@
   var DEFAULT_LOOK = { skin: 1, hair: "short", hairColor: 1, outfit: "jacket", top: 0, bottom: 0, shoes: "#3a2a22", hat: "none", hatColor: 0, glasses: false, scarf: null, bag: null, style: "a" };
   var cache3 = /* @__PURE__ */ new Map();
   function resolve(look2) {
-    const L2 = { ...DEFAULT_LOOK, ...look2 };
+    const L3 = { ...DEFAULT_LOOK, ...look2 };
     const col = (v, arr) => typeof v === "number" ? arr[v % arr.length] : v;
     return {
-      ...L2,
-      skinC: col(L2.skin, SKINS),
-      hairC: col(L2.hairColor, HAIR_COLORS),
-      topC: col(L2.top, OUTFIT_COLORS),
-      botC: col(L2.bottom, PANTS_COLORS),
-      hatC: col(L2.hatColor, OUTFIT_COLORS),
-      scarfC: L2.scarf == null ? null : col(L2.scarf, OUTFIT_COLORS),
-      bagC: L2.bag == null ? null : col(L2.bag, OUTFIT_COLORS)
+      ...L3,
+      skinC: col(L3.skin, SKINS),
+      hairC: col(L3.hairColor, HAIR_COLORS),
+      topC: col(L3.top, OUTFIT_COLORS),
+      botC: col(L3.bottom, PANTS_COLORS),
+      hatC: col(L3.hatColor, OUTFIT_COLORS),
+      scarfC: L3.scarf == null ? null : col(L3.scarf, OUTFIT_COLORS),
+      bagC: L3.bag == null ? null : col(L3.bag, OUTFIT_COLORS)
     };
   }
   function trainerCanvas(look2, dir = "down", frame = 0) {
@@ -6437,7 +8508,7 @@
     }
     return c;
   }
-  function draw(L2, dir, frame) {
+  function draw(L3, dir, frame) {
     const W = 16, H = 24;
     const cv = document.createElement("canvas");
     cv.width = W;
@@ -6450,20 +8521,20 @@
     const P2 = (x, y, c) => R(x, y, 1, 1, c);
     const mirror = dir === "right";
     if (mirror) dir = "left";
-    const skin = L2.skinC, skinD = darken(skin, 0.18), hair = L2.hairC, hairD = darken(hair, 0.25), hairL = lighten(hair, 0.2);
-    const top = L2.topC, topD = darken(top, 0.22), topL = lighten(top, 0.22), bot = L2.botC, botD = darken(bot, 0.22), shoe = L2.shoes;
+    const skin = L3.skinC, skinD = darken(skin, 0.18), hair = L3.hairC, hairD = darken(hair, 0.25), hairL = lighten(hair, 0.2);
+    const top = L3.topC, topD = darken(top, 0.22), topL = lighten(top, 0.22), bot = L3.botC, botD = darken(bot, 0.22), shoe = L3.shoes;
     const step = frame === 0 ? 0 : frame === 1 ? 1 : -1;
     const bob = frame === 0 ? 0 : 0;
     const front = dir === "down", back = dir === "up", side = dir === "left";
-    const legY = 18, legH = L2.outfit === "dress" ? 3 : 4;
-    const dressLegY = L2.outfit === "dress" ? 19 : legY;
+    const legY = 18, legH = L3.outfit === "dress" ? 3 : 4;
+    const dressLegY = L3.outfit === "dress" ? 19 : legY;
     if (front || back) {
       const lh = (s) => legH - (s === 1 ? 1 : 0);
       R(5, dressLegY, 3, lh(step), bot);
       R(8, dressLegY, 3, lh(-step), bot);
       R(5, dressLegY + lh(step) - 0, 3, 2 - (step === 1 ? 0 : 0), shoe);
       R(8, dressLegY + lh(-step), 3, 2, shoe);
-      if (L2.outfit === "dress") {
+      if (L3.outfit === "dress") {
         R(5, 19, 3, 3, skin);
         R(8, 19, 3, 3, skin);
         R(5, 21, 3, 1, shoe);
@@ -6476,17 +8547,17 @@
       R(7 - o, legY, 3, legH, botD);
       R(5 + o, legY + legH, 4, 2, shoe);
       R(7 - o, legY + legH, 4, 2, darken(shoe, 0.2));
-      if (L2.outfit === "dress") {
+      if (L3.outfit === "dress") {
         R(6 + o, 19, 3, 3, skin);
         R(7 - o, 19, 3, 3, skinD);
       }
     }
     const torsoY = 11 + bob;
-    const longCoat = L2.outfit === "coat";
-    const bodyBot = L2.outfit === "dress" ? 19 : longCoat ? 20 : 18;
+    const longCoat = L3.outfit === "coat";
+    const bodyBot = L3.outfit === "dress" ? 19 : longCoat ? 20 : 18;
     if (front || back) {
       R(5, torsoY, 6, bodyBot - torsoY, top);
-      if (L2.outfit === "dress") {
+      if (L3.outfit === "dress") {
         R(4, 16, 8, 3, top);
         R(3, 18, 10, 1, topD);
         R(4, 17, 8, 1, topL);
@@ -6496,7 +8567,7 @@
         R(4, 19, 8, 1, topD);
       }
       R(5, torsoY, 6, 1, topL);
-      if (L2.outfit === "jacket") {
+      if (L3.outfit === "jacket") {
         if (front) {
           R(7, torsoY + 1, 2, 6, "#f4f0e8");
           R(7, torsoY, 1, 7, topD);
@@ -6505,7 +8576,7 @@
         }
         R(5, torsoY + 5, 6, 1, topD);
       }
-      if (L2.outfit === "hoodie") {
+      if (L3.outfit === "hoodie") {
         R(5, torsoY - 1, 6, 2, topL);
         if (front) {
           R(7, torsoY + 2, 1, 3, "#f4f0e8");
@@ -6513,7 +8584,7 @@
           R(6, torsoY + 4, 4, 2, topD);
         }
       }
-      if (L2.outfit === "overalls") {
+      if (L3.outfit === "overalls") {
         if (front) {
           R(5, torsoY + 2, 6, 5, bot);
           R(5, torsoY, 1, 3, bot);
@@ -6521,7 +8592,7 @@
           R(7, torsoY + 3, 2, 2, botD);
         } else R(5, torsoY + 4, 6, 3, bot);
       }
-      if (L2.outfit === "uniform") {
+      if (L3.outfit === "uniform") {
         R(5, torsoY + 5, 6, 1, "#d8c060");
         if (front) {
           R(7, torsoY + 1, 2, 3, "#f4f4f4");
@@ -6529,23 +8600,23 @@
           P2(8, torsoY + 2, "#d8453f");
         }
       }
-      if (L2.outfit === "tshirt") {
+      if (L3.outfit === "tshirt") {
         R(5, torsoY + 5, 6, 1, topD);
       }
-      const armC = L2.outfit === "tshirt" || L2.outfit === "dress" || L2.outfit === "overalls" ? skin : top;
+      const armC = L3.outfit === "tshirt" || L3.outfit === "dress" || L3.outfit === "overalls" ? skin : top;
       const aY = torsoY + 1 + (step === 1 ? 0 : 0);
       R(3, aY, 2, 6, armC);
       R(11, aY, 2, 6, armC);
       R(3, aY + 5, 2, 1, skin);
       R(11, aY + 5, 2, 1, skin);
-      if (L2.outfit === "jacket" || L2.outfit === "hoodie" || L2.outfit === "coat" || L2.outfit === "uniform") {
+      if (L3.outfit === "jacket" || L3.outfit === "hoodie" || L3.outfit === "coat" || L3.outfit === "uniform") {
         R(3, aY + 4, 2, 1, topD);
         R(11, aY + 4, 2, 1, topD);
       }
     } else {
       R(5, torsoY, 6, bodyBot - torsoY, top);
       R(5, torsoY, 6, 1, topL);
-      if (L2.outfit === "dress") {
+      if (L3.outfit === "dress") {
         R(4, 16, 8, 3, top);
         R(4, 18, 8, 1, topD);
       }
@@ -6553,16 +8624,16 @@
         R(4, 17, 8, 3, top);
         R(4, 19, 8, 1, topD);
       }
-      if (L2.outfit === "overalls") R(6, torsoY + 3, 5, 4, bot);
-      if (L2.outfit === "jacket") R(5, torsoY + 5, 6, 1, topD);
-      const armC = L2.outfit === "tshirt" || L2.outfit === "dress" || L2.outfit === "overalls" ? skin : top;
+      if (L3.outfit === "overalls") R(6, torsoY + 3, 5, 4, bot);
+      if (L3.outfit === "jacket") R(5, torsoY + 5, 6, 1, topD);
+      const armC = L3.outfit === "tshirt" || L3.outfit === "dress" || L3.outfit === "overalls" ? skin : top;
       const o = step * 2;
       R(7 + o, torsoY + 1, 3, 6, armC);
       R(7 + o, torsoY + 6, 3, 1, skin);
       R(7 + o, torsoY + 1, 1, 6, darken(armC, 0.12));
     }
-    if (L2.bagC) {
-      const bc = L2.bagC, bd = darken(bc, 0.25);
+    if (L3.bagC) {
+      const bc = L3.bagC, bd = darken(bc, 0.25);
       if (back) {
         R(4, torsoY, 8, 7, bc);
         R(4, torsoY + 6, 8, 1, bd);
@@ -6575,8 +8646,8 @@
         R(10, torsoY, 1, 6, bd);
       }
     }
-    if (L2.scarfC) {
-      const sc = L2.scarfC;
+    if (L3.scarfC) {
+      const sc = L3.scarfC;
       R(5, 10, 6, 2, sc);
       R(5, 11, 6, 1, darken(sc, 0.2));
       if (front || side) R(side ? 6 : 8, 12, 2, 3, sc);
@@ -6610,7 +8681,7 @@
       P2(5, hy + 3, "#fff");
       P2(4, hy + 5, skinD);
     }
-    if (L2.glasses && !back) {
+    if (L3.glasses && !back) {
       const gc = "#2a2a3a";
       if (front) {
         R(5, hy + 3, 3, 3, gc);
@@ -6627,7 +8698,7 @@
         R(7, hy + 4, 4, 1, gc);
       }
     }
-    const hs = L2.hair;
+    const hs = L3.hair;
     const hairFront = () => {
       R(4, hy, 8, 2, hair);
       R(4, hy + 2, 1, 3, hair);
@@ -6651,7 +8722,7 @@
       R(8, hy + 7, 4, 1, hairD);
       R(4, hy, 8, 1, hairL);
     };
-    if (L2.hat !== "cap" || true) {
+    if (L3.hat !== "cap" || true) {
       if (hs === "bald") {
       } else if (back) hairBack();
       else if (side) hairSide();
@@ -6709,31 +8780,31 @@
         R(7, hy - 3, 1, 3, hairL);
       }
     }
-    const hc = L2.hatC, hcD = darken(hc, 0.25), hcL = lighten(hc, 0.25);
-    if (L2.hat === "cap") {
+    const hc = L3.hatC, hcD = darken(hc, 0.25), hcL = lighten(hc, 0.25);
+    if (L3.hat === "cap") {
       R(4, hy - 1, 8, 3, hc);
       R(4, hy - 1, 8, 1, hcL);
       if (front) R(4, hy + 2, 8, 1, hcD);
       else if (side) R(2, hy + 2, 6, 1, hcD);
       if (side) R(2, hy + 1, 3, 1, hc);
       P2(7, hy, "#f4f0e8");
-    } else if (L2.hat === "beanie") {
+    } else if (L3.hat === "beanie") {
       R(4, hy - 1, 8, 4, hc);
       R(4, hy - 1, 8, 1, hcL);
       R(4, hy + 2, 8, 1, hcD);
       R(7, hy - 3, 2, 2, hcL);
-    } else if (L2.hat === "hat") {
+    } else if (L3.hat === "hat") {
       R(2, hy + 1, 12, 1, hcD);
       R(3, hy, 10, 1, hc);
       R(4, hy - 3, 8, 3, hc);
       R(4, hy - 1, 8, 1, hcD);
       R(4, hy - 3, 8, 1, hcL);
-    } else if (L2.hat === "headband") {
+    } else if (L3.hat === "headband") {
       R(4, hy + 1, 8, 1, hc);
       if (front || side) {
         R(11, hy + 1, 2, 2, hc);
       }
-    } else if (L2.hat === "goggles") {
+    } else if (L3.hat === "goggles") {
       R(4, hy, 8, 1, "#3a3a4a");
       if (!back) {
         R(5, hy - 2, 3, 3, "#5a5a70");
@@ -6741,11 +8812,11 @@
         R(6, hy - 1, 1, 1, "#9ae8ff");
         R(9, hy - 1, 1, 1, "#9ae8ff");
       }
-    } else if (L2.hat === "ribbon") {
+    } else if (L3.hat === "ribbon") {
       R(9, hy - 1, 5, 3, hc);
       R(8, hy, 2, 1, hcD);
       P2(11, hy, hcL);
-    } else if (L2.hat === "crown") {
+    } else if (L3.hat === "crown") {
       const gold = "#f2c040", gd = "#a8861c";
       R(4, hy - 1, 8, 2, gold);
       for (const x of [4, 7, 10]) R(x, hy - 3, 2, 2, gold);
@@ -6753,7 +8824,7 @@
       P2(8, hy - 1, "#4a7ad8");
       P2(11, hy - 1, "#d84a4a");
       R(4, hy, 8, 1, gd);
-    } else if (L2.hat === "laurel") {
+    } else if (L3.hat === "laurel") {
       const lf = "#4aa85a", ld = "#2f7a3c";
       R(4, hy, 8, 1, lf);
       R(3, hy + 1, 1, 3, lf);
@@ -6762,7 +8833,7 @@
       P2(11, hy + 1, ld);
       P2(3, hy + 3, ld);
       P2(12, hy + 3, ld);
-    } else if (L2.hat === "tophat") {
+    } else if (L3.hat === "tophat") {
       R(2, hy + 1, 12, 1, "#1a1226");
       R(4, hy - 4, 8, 5, "#2a2238");
       R(4, hy - 1, 8, 1, "#d84a4a");
@@ -7264,73 +9335,6 @@
   init_tiles();
   init_rng();
 
-  // src/encounters.js
-  function minWildLevel(sp) {
-    const s = typeof sp === "number" ? getSpecies(sp) : sp;
-    if (!s.prev) return 1;
-    const prev = SPECIES[s.prev];
-    const rule = prev.evo.find((e) => e.to === s.id);
-    const lv = rule && rule.lv ? rule.lv : s.stage === 2 ? 20 : 30;
-    return Math.max(2, lv);
-  }
-  var isNight = (hour) => hour >= 20 || hour < 6;
-  function buildEncounterList(spec) {
-    if (spec.list) return spec.list.map((e) => ({ lv: spec.lv, w: 10, ...e }));
-    const [lo, hi] = spec.lv;
-    const maxR = spec.maxRarity ? "CURVELM".indexOf(spec.maxRarity) : 4;
-    const out = [];
-    for (const s of SPECIES_LIST) {
-      if (s.legendary) continue;
-      if (spec.exclude && spec.exclude.includes(s.id)) continue;
-      const inc = spec.include && spec.include.includes(s.id);
-      if (!inc && !(spec.zone && s.habitats.includes(spec.zone))) continue;
-      if (!inc && "CURVELM".indexOf(s.rarity) > maxR) continue;
-      if (!inc && minWildLevel(s) > hi + 1) continue;
-      const w = (RARITY[s.rarity].w || 5) * (spec.boost?.[s.id] || 1) * (inc && !spec.zone ? 1 : 1);
-      out.push({ sp: s.id, w, lv: [Math.max(lo, minWildLevel(s) > lo ? minWildLevel(s) : lo), hi], time: s.timeOnly, wx: s.weather });
-    }
-    return out;
-  }
-  var cacheKey = (spec) => JSON.stringify(spec);
-  var LISTS = /* @__PURE__ */ new Map();
-  function encounterList(spec) {
-    const k = cacheKey(spec);
-    if (!LISTS.has(k)) LISTS.set(k, buildEncounterList(spec));
-    return LISTS.get(k);
-  }
-  function rollEncounter(rng, spec, ctx = {}) {
-    if (!spec) return null;
-    const night = ctx.hour != null ? isNight(ctx.hour) : false;
-    let list = encounterList(spec).filter((e) => {
-      if (e.time === "n" && !night) return false;
-      if (e.time === "d" && night) return false;
-      if (e.wx && ctx.weather !== e.wx) return false;
-      return true;
-    });
-    if (!list.length) list = encounterList(spec).filter((e) => !e.time && !e.wx);
-    if (!list.length) return null;
-    const weighted = list.map((e) => {
-      const s = SPECIES[e.sp];
-      let w = e.w;
-      if (ctx.weather === "lluvia" || ctx.weather === "tormenta") {
-        if (s.types.includes("agua") || s.types.includes("electrico")) w *= 2;
-      }
-      if (ctx.weather === "nieve" && s.types.includes("hielo")) w *= 2.5;
-      if (ctx.weather === "calor" && (s.types.includes("fuego") || s.types.includes("tierra"))) w *= 2;
-      if (ctx.weather === "niebla" && (s.types.includes("espiritu") || s.types.includes("sombra"))) w *= 2.5;
-      if (night && (s.types.includes("sombra") || s.types.includes("espiritu") || s.timeOnly === "n")) w *= 1.8;
-      if (!night && s.types.includes("luz")) w *= 1.5;
-      return { e, w };
-    });
-    const pick = rng.weighted(weighted, (x) => x.w).e;
-    const lv = rng.int(pick.lv[0], Math.max(pick.lv[0], pick.lv[1]));
-    return { sp: pick.sp, lv };
-  }
-  function makeWild(rng, enc, opts = {}) {
-    return createCreature(enc.sp, enc.lv, { rng, ...opts });
-  }
-  var ENCOUNTER_RATE = { hierba: 0.1, agua: 0.07, cueva: 0.075, pantano: 0.1, arena: 0.06, nieve: 0.08, desierto: 0.09, ruinas: 0.07, volcan: 0.08 };
-
   // src/weather.js
   init_rng();
   var WEATHER_INFO = {
@@ -7737,7 +9741,8 @@
       const p = this.player, [dx, dy] = dirVec[p.dir];
       const tx = p.x + dx, ty = p.y + dy;
       const g = this.g;
-      const e = this.ents.find((q2) => q2.x === tx && q2.y === ty && q2.kind !== "item" && q2 !== p) || this.ents.find((q2) => q2.kind === "item" && q2.hidden && q2.x === tx && q2.y === ty);
+      let e = this.ents.find((q2) => q2.x === tx && q2.y === ty && q2.kind !== "item" && q2 !== p) || this.ents.find((q2) => q2.kind === "item" && q2.hidden && q2.x === tx && q2.y === ty);
+      if (!e && (objProps(this.map, tx, ty).counter || groundProps(this.map, tx, ty).counter)) e = this.ents.find((q2) => q2.x === tx + dx && q2.y === ty + dy && q2.kind === "npc");
       if (e) {
         await this.run(async () => {
           if (e.kind === "item") {
@@ -7751,6 +9756,7 @@
           }
           g.audio.sfx("select");
           if (e.def.talk) await e.def.talk(g, e, this);
+          else if (e.kind === "trainer" && e.def.trainer) await this.talkTrainer(e);
           else if (e.def.text) await g.say(e.def.text, { speaker: e.kind === "sign" ? null : e.def.name });
           if (e.kind === "npc" && e.def.move === "static" && e._was) {
           }
@@ -7943,7 +9949,8 @@
       const g = this.g, map = this.map;
       if (!map) return;
       let w = null;
-      if (map.weather && !map.indoor) w = weatherAt(this.state.seed, map.climate, this.state.clock.minutes);
+      if (map.forceWeather) w = map.forceWeather;
+      else if (map.weather && !map.indoor) w = weatherAt(this.state.seed, map.climate, this.state.clock.minutes);
       this.weatherId = w;
       this.fx.set(w === "soleado" ? null : w);
       if (force) this.lastWeatherCheck = Math.floor(this.state.clock.minutes / 30);
@@ -8077,8 +10084,30 @@
     // ---------- warps y transiciones ----------
     async useWarp(w) {
       const g = this.g;
+      if (w.req && !w.req(g)) {
+        g.audio.sfx("bump");
+        await g.say(w.reqText || "La puerta est\xE1 cerrada.");
+        return;
+      }
       if (w.sfx) g.audio.sfx(w.sfx);
       else g.audio.sfx("warp");
+      if (w.to === this.map.id && typeof w.tx === "number") {
+        this.busy = true;
+        await g.ui.fade(true, 160);
+        const p = this.player;
+        p.x = w.tx;
+        p.y = w.ty;
+        p.dir = w.dir || p.dir;
+        p.move = null;
+        p.px = p.x * TILE;
+        p.py = p.y * TILE;
+        this.state.player.x = p.x;
+        this.state.player.y = p.y;
+        this.updateCamera(true);
+        await g.ui.fade(false, 160);
+        this.busy = false;
+        return;
+      }
       if (!mapExists(w.to)) {
         await g.say("(Este lugar a\xFAn no est\xE1 disponible.)");
         return;
@@ -8388,7 +10417,7 @@
           { label: "Controles", value: "controls" },
           { label: "Cr\xE9ditos", value: "credits" }
         ];
-        const pick = await g.ui.menu(items, { parent: this.root, panel: true, cancel: void 0, style: { position: "absolute", left: "350px", top: "215px", width: "260px", background: "linear-gradient(180deg,rgba(38,37,82,.92),rgba(27,26,56,.92))" } });
+        const pick = await g.ui.menu(items, { parent: this.root, panel: true, cancel: void 0, index: latest ? 1 : 0, style: { position: "absolute", left: "350px", top: "215px", width: "260px", background: "linear-gradient(180deg,rgba(38,37,82,.92),rgba(27,26,56,.92))" } });
         if (pick === "new") {
           const slot = await this.pickSlot("Nueva partida: elige una ranura", { mode: "new" });
           if (slot) return { type: "new", slot };
@@ -8904,18 +10933,6 @@
 
   // src/screens/menu.js
   init_config();
-
-  // src/gyms.js
-  var BADGES = [
-    { id: "hoja", name: "Medalla Hoja", city: "Ciudad Roble", icon: "\u{1F343}", color: "#4fb547", type: "planta", cap: 24 },
-    { id: "marea", name: "Medalla Marea", city: "Puerto Marea", icon: "\u{1F30A}", color: "#3f8fe8", type: "agua", cap: 30 },
-    { id: "chispa", name: "Medalla Chispa", city: "Ciudad D\xEDnamo", icon: "\u26A1", color: "#f2c830", type: "electrico", cap: 36 },
-    { id: "cantera", name: "Medalla Cantera", city: "Pico Granito", icon: "\u26F0", color: "#a39a7c", type: "roca", cap: 44 },
-    { id: "ascua", name: "Medalla Ascua", city: "Ciudad Brasa", icon: "\u{1F525}", color: "#ef5b2a", type: "fuego", cap: 52 },
-    { id: "bruma", name: "Medalla Bruma", city: "Aldea Niebla", icon: "\u2620", color: "#a455c8", type: "veneno", cap: 60 },
-    { id: "cristal", name: "Medalla Cristal", city: "Cima Escarcha", icon: "\u2744", color: "#7fd8e6", type: "hielo", cap: 70 },
-    { id: "dragon", name: "Medalla Drag\xF3n", city: "Ciudad Arcana", icon: "\u{1F409}", color: "#5a58d8", type: "dragon", cap: 100 }
-  ];
 
   // src/achievements.js
   var ACHIEVEMENTS = {};
@@ -9962,8 +11979,8 @@
       c.drawImage(trainerCanvas(p.look, "down", 0), 0, 0);
       const done = questList(g).filter((q2) => q2.status === "done").length;
       const ach = Object.keys(st.achievements).length;
-      const chapter = g.state.flags.chapter_name || "Pr\xF3logo";
-      const rows = [["Nombre", p.name], ["Tiempo jugado", fmtTime(p.playtime)], ["Dinero", fmtMoney(p.money)], ["Criaturas capturadas", `${Object.keys(st.dex.caught).length} / ${Object.keys(SPECIES).length}`], ["Criaturas vistas", Object.keys(st.dex.seen).length], ["Medallas", `${st.badges.length} / 8`], ["Misiones completadas", done], ["Progreso de la historia", chapter], ["Logros", `${ach} / ${Object.keys(ACHIEVEMENTS).length}`], ["Combates / victorias", `${st.stats.battles} / ${st.stats.wins}`], ["Pasos", st.stats.steps.toLocaleString("es-ES")], ["Evoluciones", st.stats.evolutions]];
+      const chapter2 = g.state.flags.chapter_name || "Pr\xF3logo";
+      const rows = [["Nombre", p.name], ["Tiempo jugado", fmtTime(p.playtime)], ["Dinero", fmtMoney(p.money)], ["Criaturas capturadas", `${Object.keys(st.dex.caught).length} / ${Object.keys(SPECIES).length}`], ["Criaturas vistas", Object.keys(st.dex.seen).length], ["Medallas", `${st.badges.length} / 8`], ["Misiones completadas", done], ["Progreso de la historia", chapter2], ["Logros", `${ach} / ${Object.keys(ACHIEVEMENTS).length}`], ["Combates / victorias", `${st.stats.battles} / ${st.stats.wins}`], ["Pasos", st.stats.steps.toLocaleString("es-ES")], ["Evoluciones", st.stats.evolutions]];
       const badges = el("div", { class: "row", style: { flexWrap: "wrap", gap: "8px", marginTop: "6px" } }, BADGES.map((b) => {
         const has = st.badges.includes(b.id);
         return el("div", { title: has ? b.name : "???", style: { width: "46px", height: "46px", borderRadius: "50%", border: "3px solid " + (has ? "#f2d060" : "#44406a"), background: has ? b.color : "#1a1830", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", filter: has ? "none" : "grayscale(1) brightness(.5)" } }, has ? b.icon : "\xB7");
@@ -12485,9 +14502,9 @@
         }
         const eff = mv.cat !== "est" && known ? effectiveness(mv.type, foeTypes) : null;
         infoEl.innerHTML = "";
-        infoEl.append(el("div", {}, [typeChip(mv.type), el("span", { class: "dim" }, ` ${mv.cat === "fis" ? "F\xEDsico" : mv.cat === "esp" ? "Especial" : "Estado"} \xB7 Pot ${mv.pow || "\u2014"} \xB7 Prec ${mv.acc || "\u2014"}`)]), el("div", { class: "dim", style: { marginTop: "4px" } }, mv.desc), eff != null && eff !== 1 ? el("div", { class: eff > 1 ? "good" : "bad", style: { fontWeight: 700 } }, effectLabel(eff)) : null);
+        infoEl.append(el("div", {}, [typeChip(mv.type), el("span", { class: "dim" }, ` ${mv.cat === "fis" ? "F\xEDsico" : mv.cat === "esp" ? "Especial" : "Estado"} \xB7 Pot ${mv.pow || "\u2014"} \xB7 Prec ${mv.acc || "\u2014"}`)]), el("div", { class: "dim", style: { marginTop: "4px" } }, mv.desc), eff != null && eff !== 1 ? el("div", { class: eff > 1 ? "good" : "bad", style: { fontWeight: 700 } }, effectLabel(eff)) : "");
       };
-      const r = await g.ui.menu(items, { parent: this.textBox, panel: true, cols: 2, cancel: null, onChange: show, style: { right: "12px", top: "10px", bottom: "10px", left: "48%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px", minWidth: "0", maxHeight: "none", padding: "4px 6px" } });
+      const r = await g.ui.menu(items, { parent: this.textBox, panel: true, cols: 2, cls: "movegrid", cancel: null, onChange: show, style: { right: "12px", top: "10px", bottom: "10px", left: "48%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px", minWidth: "0", maxHeight: "none", padding: "4px 6px" } });
       infoEl.remove();
       if (r === null) return null;
       return { type: "move", idx: r };
@@ -12838,21 +14855,21 @@
     });
     for (const c of party) delete c._fainted;
     for (const c of cfg.foe.party) delete c._fainted;
-    const scene = new BattleScene(g, battle, { terrain: cfg.terrain, trainerLook: cfg.trainerLook, music: cfg.music, isGym: cfg.isGym, night: g.isNight && !ow?.map?.indoor });
+    const scene2 = new BattleScene(g, battle, { terrain: cfg.terrain, trainerLook: cfg.trainerLook, music: cfg.music, isGym: cfg.isGym, night: g.isNight && !ow?.map?.indoor });
     const prev = g.scene;
-    g.scene = scene;
-    scene.enter();
+    g.scene = scene2;
+    scene2.enter();
     const wasBusy = ow?.busy;
     if (ow) ow.busy = true;
     let sum;
     try {
-      sum = await scene.run();
+      sum = await scene2.run();
     } catch (e) {
       console.error(e);
       g.reportError(e);
       sum = battle.summary();
     }
-    scene.exit();
+    scene2.exit();
     g.scene = prev;
     if (ow) ow.busy = wasBusy ?? false;
     st.stats.battles++;
@@ -12952,12 +14969,12 @@
     }
   }
   async function doEvolution(g, mon, toId, { allowCancel = true } = {}) {
-    const scene = new EvolutionScene(g, mon, toId, { allowCancel });
+    const scene2 = new EvolutionScene(g, mon, toId, { allowCancel });
     const prev = g.scene;
-    g.scene = scene;
-    scene.enter();
-    const ok = await scene.run();
-    scene.exit();
+    g.scene = scene2;
+    scene2.enter();
+    const ok = await scene2.run();
+    scene2.exit();
     g.scene = prev;
     if (!ok) {
       mon.pendingEvo = null;

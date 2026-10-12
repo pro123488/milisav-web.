@@ -106,9 +106,9 @@ interior('int_alba_lab', 12, 10, { name: 'Laboratorio', title: 'Laboratorio del 
   m.npc({ id: 'kai_lab', x: 5, y: 9, dir: 'up', look: look('kai'), name: 'Kai', move: 'static', show: (g) => g.flag('kai_en_lab'), solid: true, text: '...' });
 });
 
-defineHouse('alba', 'rival', { name: 'Casa de Kai', npcs: [{ id: 'madre_kai', x: 4, y: 4, dir: 'down', look: 'abuela', name: 'Madre de Kai', text: '¡Kai salió corriendo hace nada! Siempre con prisa. Si lo ves, dile que coma algo.' }] });
-defineHouse('alba', 'abuelo', { name: 'Casa de Tomás', npcs: [{ id: 'gato', x: 6, y: 4, dir: 'left', look: 'nino', name: 'Nieto', text: 'El abuelo siempre cuenta que de joven capturó una criatura legendaria. ¡Yo no me lo creo! ... ¿O sí?' }] });
-defineShopInterior('alba', 'alba', { name: 'Tienda de Villa Alba' });
+defineHouse('alba', 'rival', { city: 'villa_alba', name: 'Casa de Kai', npcs: [{ id: 'madre_kai', x: 4, y: 4, dir: 'down', look: 'abuela', name: 'Madre de Kai', text: '¡Kai salió corriendo hace nada! Siempre con prisa. Si lo ves, dile que coma algo.' }] });
+defineHouse('alba', 'abuelo', { city: 'villa_alba', name: 'Casa de Tomás', npcs: [{ id: 'gato', x: 6, y: 4, dir: 'left', look: 'nino', name: 'Nieto', text: 'El abuelo siempre cuenta que de joven capturó una criatura legendaria. ¡Yo no me lo creo! ... ¿O sí?' }] });
+defineShopInterior('alba', 'alba', { city: 'villa_alba', name: 'Tienda de Villa Alba' });
 
 // ============================ RUTA 1 ============================
 defineMap('ruta1', 44, 24, { name: 'Ruta 1', title: 'Ruta 1', fill: 'grass', music: 'route', zone: 'pradera', tags: ['ruta', 'pradera'], climate: 'templado', region: 'valle',

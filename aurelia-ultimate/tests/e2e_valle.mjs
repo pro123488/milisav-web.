@@ -1,0 +1,83 @@
+// Prueba de aceptación del Valle de Aurelia: Bosque Umbra, rival, museo, robo del Prisma, invernadero y gimnasio de Roble.
+import { launch, sleep, key, walk, pos, advance, driveBattle, fastText, bootWith, goTo, face } from '../tools/e2e_lib.mjs';
+const results = []; const ok = (name, cond, extra = '') => { results.push([name, !!cond]); console.log(cond ? '  ✔' : '  ✘', name, extra); };
+let { browser, page, errors, G } = await launch();
+const shot = (n) => page.screenshot({ path: `tests/out/valle_${n}.png` });
+await fastText(page);
+const S = () => G(() => { const g = window.__game; return { map: g.state.player.map, x: g.ow?.player.x, y: g.ow?.player.y, scene: g.scene?.constructor.name, flags: Object.keys(g.state.flags), bag: { ...g.state.bag }, badges: [...g.state.badges], quests: Object.fromEntries(Object.entries(g.state.quests).map(([k, v]) => [k, v.status])), trainers: Object.keys(g.state.trainers).filter((k) => g.state.trainers[k].beaten), party: g.party.map((c) => [c.sp, c.lv, c.hp]) }; });
+const strong = (g, au) => { const c = au.Creatures.createCreature(au.Species.SPECIES_LIST[0].id, 5, { rng: null }); au.Creatures.gainXp(c, 40000); au.Creatures.healCreature(c); g.addCreature(c); };
+
+console.log('1) Bosque Umbra: el rival aparece y se le derrota');
+await bootWith(page, (g, au) => {
+  const c = au.Creatures.createCreature(1, 30); au.Creatures.healCreature(c); g.addCreature(c);
+  Object.assign(g.state.flags, { starter_chosen: true, rival1_done: true }); g.state.repel = 99999;
+  Object.assign(g.state, { quests: { main_01: { status: 'done', prog: [1] }, main_02: { status: 'done', prog: [1] }, main_03: { status: 'active', prog: [0, 0] } } });
+  Object.assign(g.state.player, { map: 'bosque_umbra', x: 27, y: 8, dir: 'right' }); g.state.bag.paquete_sauce = 1;
+});
+let s = await S(); ok('la partida arranca en el Bosque Umbra', s.map === 'bosque_umbra' && s.scene === 'Overworld', JSON.stringify([s.map, s.x, s.y]));
+await shot('bosque');
+await walk(page, 'right', 3); await advance(page, { max: 60, quiet: 900 }); await sleep(500);
+ok('Kai sale al paso y comienza el combate', await G(() => window.__game.scene?.constructor.name === 'BattleScene'));
+await driveBattle(page); await advance(page, { max: 100, quiet: 1500 });
+s = await S(); ok('victoria sobre Kai registrada', s.flags.includes('rival2_done') && s.trainers.includes('rival2'), JSON.stringify(s.trainers));
+console.log('2) Cruzar el bosque hasta Ciudad Roble');
+await G(() => { const g = window.__game; g.ow.loadMap('bosque_umbra', 44, 10, 'right', { announce: false }); }); await sleep(800);
+await walk(page, 'right', 2); await page.keyboard.down('ArrowRight'); await sleep(1800); await page.keyboard.up('ArrowRight'); await sleep(1200);
+s = await S(); ok('el borde este conecta con Ciudad Roble', s.map === 'ciudad_roble', JSON.stringify([s.map, s.x, s.y]));
+ok('se marca el bosque como cruzado', s.flags.includes('bosque_cruzado'));
+ok('Ciudad Roble desbloquea el viaje rápido', await G(() => window.__game.state.fastTravel.includes('ciudad_roble')));
+await shot('ciudad');
+console.log('3) Museo: entrega del paquete y asalto de la Orden del Eclipse');
+await G(() => window.__game.ow.loadMap('ciudad_roble', 24, 9, 'up', { announce: false })); await sleep(600);
+await walk(page, 'up', 1); await sleep(1100);
+s = await S(); ok('se entra en el museo', s.map === 'int_roble_museo', s.map);
+await walk(page, 'up', 3); await sleep(200);
+await key(page, 'Enter', 1, 300); await advance(page, { max: 120, quiet: 1500 });
+ok('empieza el asalto: combate contra un recluta', await G(() => window.__game.scene?.constructor.name === 'BattleScene'));
+await driveBattle(page); await advance(page, { max: 60, quiet: 1200 });
+await driveBattle(page); await advance(page, { max: 120, quiet: 2000 });
+s = await S();
+ok('los dos reclutas del museo son derrotados', s.trainers.includes('eclipse_museo1') && s.trainers.includes('eclipse_museo2')); ok('se completa el paquete y se abre la misión del Prisma', s.flags.includes('paquete_entregado') && s.flags.includes('museo_robado') && s.quests.main_04 === 'active' && s.quests.main_03 === 'done', JSON.stringify(s.quests));
+ok('el paquete se entregó (ya no está en la mochila)', !s.bag.paquete_sauce);
+console.log('4) Invernadero: recuperar el Prisma');
+await G(() => window.__game.ow.loadMap('bosque_umbra', 38, 19, 'up', { announce: false })); await sleep(500);
+await walk(page, 'up', 1); await sleep(1200);
+s = await S(); ok('se entra en el invernadero', s.map === 'int_bosque_invernadero', s.map);
+// los dos reclutas con vista salen al paso; después la teniente
+let fights = 0;
+for (let i = 0; i < 8; i++) {
+  const p = await pos(page); if (p[2] <= 4) break;
+  console.log('   · paso', i, JSON.stringify(p));
+  await walk(page, 'up', 1); await advance(page, { max: 40, quiet: 700 });
+  await shot('inv_' + i);
+  if (await G(() => window.__game.scene?.constructor.name === 'BattleScene')) { fights++; console.log('   · combate', fights); await driveBattle(page); await advance(page, { max: 60, quiet: 1000 }); }
+}
+s = await S(); ok('los dos reclutas del invernadero salen al paso y son derrotados', fights === 2 && s.trainers.includes('eclipse_inv1') && s.trainers.includes('eclipse_inv2'), `${fights} combates · ` + JSON.stringify(s.trainers));
+await key(page, 'ArrowUp', 1, 100); await key(page, 'Enter', 1, 300); await advance(page, { max: 80, quiet: 1200 });
+ok('la teniente Cinder pelea', await G(() => window.__game.scene?.constructor.name === 'BattleScene'));
+await driveBattle(page); await advance(page, { max: 100, quiet: 1800 });
+s = await S(); ok('se recupera el Prisma Esmeralda (objeto en la mochila + bandera)', s.flags.includes('prisma_esmeralda') && s.bag.prisma_esmeralda === 1 && s.trainers.includes('cinder1'), JSON.stringify(s.bag));
+await shot('invernadero');
+console.log('5) Devolver el Prisma al museo y abrir el gimnasio');
+await G(() => window.__game.ow.loadMap('int_roble_museo', 7, 10, 'up', { announce: false })); await sleep(600);
+await walk(page, 'up', 3); await key(page, 'Enter', 1, 300); await advance(page, { max: 120, quiet: 1800 });
+s = await S(); ok('la misión del Prisma se completa y se obtienen el Pase de Viaje y el Repartir Exp.', s.quests.main_04 === 'done' && s.bag.pase_viaje === 1 && s.bag.repartir_exp === 1, JSON.stringify(s.quests));
+ok('se inicia la misión de la Medalla Hoja', s.quests.main_05 === 'active');
+await G(() => window.__game.ow.loadMap('ciudad_roble', 14, 20, 'up', { announce: false })); await sleep(600);
+await walk(page, 'up', 1); await sleep(1200);
+s = await S(); ok('el gimnasio abre tras recuperar el Prisma', s.map === 'gym_ciudad_roble', s.map);
+await shot('gimnasio');
+console.log('6) Gimnasio de Roble: laberinto, entrenadores, líder y medalla');
+let nfights = 0;
+const arrived = await goTo(page, 9, 3, { log: () => nfights++ });
+s = await S(); ok('se atraviesa el laberinto de setos hasta la sala del líder', arrived, JSON.stringify([s.map]));
+ok('se derrotó a los 3 entrenadores del gimnasio (la verja se abre)', s.trainers.filter((t) => t.startsWith('gym_ciudad_roble_t')).length === 3, JSON.stringify(s.trainers));
+await shot('gimnasio_lider');
+await face(page, 'up'); await key(page, 'Enter', 1, 300); await advance(page, { max: 100, quiet: 1500 });
+await driveBattle(page); await advance(page, { max: 200, quiet: 2500 });
+s = await S(); ok('se obtiene la Medalla Hoja y la DT10', s.badges.includes('hoja') && s.bag.dt10 === 1, JSON.stringify([s.badges, s.bag.dt10]));
+ok('las misiones avanzan: main_05 completada y main_06 activa', s.quests.main_05 === 'done' && s.quests.main_06 === 'active', JSON.stringify(s.quests));
+console.log('errores de consola:', errors.length ? errors.join('\n') : 'ninguno');
+const pass = results.filter((r) => r[1]).length;
+console.log(`\nValle: ${pass}/${results.length} comprobaciones correctas`);
+await browser.close(); process.exit(pass === results.length && !errors.length ? 0 : 1);

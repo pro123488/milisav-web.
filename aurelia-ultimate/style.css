@@ -97,3 +97,8 @@ table.t th{color:var(--edge);font-size:12px}
 #touch button{pointer-events:auto;position:absolute;width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(20,18,50,.55);color:#fff;font-size:20px;font-weight:700}
 #dpad button[data-a=up]{left:62px;bottom:84px}#dpad button[data-a=down]{left:62px;bottom:8px}#dpad button[data-a=left]{left:6px;bottom:46px}#dpad button[data-a=right]{left:118px;bottom:46px}
 #abtns button[data-a=confirm]{right:12px;bottom:50px}#abtns button[data-a=cancel]{right:76px;bottom:20px}#abtns button[data-a=menu]{right:12px;bottom:112px;width:44px;height:44px}
+
+/* menú de movimientos en combate: nombres en una sola línea para que las 4 opciones quepan siempre */
+.movegrid .mi { white-space: nowrap; padding: 6px 8px; min-width: 0; }
+.movegrid .mi > span:not(.chip):not(.hint) { overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+.movegrid .mi .hint { margin-left: auto; padding-left: 6px; }

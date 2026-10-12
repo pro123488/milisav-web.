@@ -33,14 +33,15 @@ export const pos = (page) => page.evaluate(() => { const g = window.__game; cons
 export async function advance(page, { max = 80, quiet = 500 } = {}) {
   let idle = 0;
   for (let i = 0; i < max; i++) {
-    const has = await page.evaluate(() => !!document.getElementById('dialog') || !!document.querySelector('.menu') || !!document.querySelector('.panel input[type=text]'));
+    const has = await page.evaluate(() => { const g = window.__game; return !!document.getElementById('dialog') || !!document.querySelector('.menu') || !!document.querySelector('.panel input[type=text]') || (g.scene && g.scene.constructor.name !== 'Overworld') || !!(g.ow && g.ow.busy && !g.ow.player.move); });
     if (has) { idle = 0; await page.keyboard.press('Enter'); await sleep(110); } else { idle += 100; await sleep(100); if (idle >= quiet) break; }
   }
 }
 
 /** Conduce un combate pulsando Enter (primera opción de cada menú) hasta que termine. */
-export async function driveBattle(page, { max = 600, onTurn = null } = {}) {
+export async function driveBattle(page, { max = 600, onTurn = null, keepPP = true } = {}) {
   for (let i = 0; i < max; i++) {
+    if (keepPP) await page.evaluate(() => { for (const c of window.__game.party) for (const m of c.moves || []) m.pp = m.max; });
     const inB = await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene');
     if (!inB) return true;
     if (onTurn) await onTurn(i);
@@ -69,3 +70,64 @@ export async function pathToGround(page, ground) {
   }, ground);
 }
 export async function fastText(page) { await page.evaluate(() => { const g = window.__game; g.settings.textSpeed = 'instantaneo'; g.settings.battleAnim = false; }); }
+
+/**
+ * Arranca desde un guardado fabricado: desde el título crea un estado, lo modifica con `setup(g, au)` (se ejecuta en la página),
+ * lo guarda en la ranura 1, recarga y pulsa "Continuar". Sirve para probar un tramo sin caminar todo el juego.
+ */
+export async function bootWith(page, setup, arg = null) {
+  await page.evaluate(({ src, arg }) => {
+    const g = window.__game; g.newGame({ name: 'Prueba', seed: 4242 }); g.slot = 1;
+    // eslint-disable-next-line no-new-func
+    new Function('g', 'au', 'arg', src)(g, window.__au, arg);
+    g.settings.textSpeed = 'instantaneo'; g.settings.battleAnim = false; g.saveSettings();
+    g.save(1, { quiet: true });
+  }, { src: `(${setup.toString()})(g, au, arg)`, arg });
+  await page.reload();
+  await page.waitForFunction(() => window.__game && !document.getElementById('boot'), null, { timeout: 15000 });
+  await sleep(500);
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => window.__game.scene?.constructor.name === 'Overworld' && window.__game.ow?.player, null, { timeout: 8000 });
+  await sleep(900);
+}
+
+/** Siguiente paso (BFS) hacia (tx,ty) ignorando personajes (los entrenadores se activan solos por su línea de visión); las verjas sí bloquean. */
+export function nextStep(page, tx, ty, { adjacent = false } = {}) {
+  return page.evaluate(({ tx, ty, adjacent }) => {
+    const g = window.__game, ow = g.ow, m = ow.map, W = window.__au.World, p = ow.player;
+    if (p.x === tx && p.y === ty) return 'arrived';
+    const gates = new Set(ow.ents.filter((e) => e.kind === 'gate').map((e) => e.x + ',' + e.y));
+    const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    const free = (x, y) => W.inBounds(m, x, y) && !W.terrainSolid(m, x, y) && !gates.has(x + ',' + y) && !(W.groundProps(m, x, y).water && !g.state.player.surfing);
+    const goal = (x, y) => (adjacent ? Math.abs(x - tx) + Math.abs(y - ty) === 1 : x === tx && y === ty);
+    const q = [[p.x, p.y, null]]; const seen = new Set([p.x + ',' + p.y]);
+    while (q.length) {
+      const [x, y, first] = q.shift();
+      if (goal(x, y) && first) return first;
+      for (const [d, [dx, dy]] of Object.entries(dirs)) {
+        const nx = x + dx, ny = y + dy, k = nx + ',' + ny;
+        if (seen.has(k) || !free(nx, ny)) continue;
+        seen.add(k); q.push([nx, ny, first || d]);
+      }
+    }
+    return null;
+  }, { tx, ty, adjacent });
+}
+/** Camina hasta la casilla (o junto a ella) resolviendo combates y diálogos que aparezcan. Devuelve true si llega. */
+export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log = null } = {}) {
+  let stuck = 0, last = null;
+  for (let i = 0; i < maxSteps; i++) {
+    if (await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene')) { if (log) log('combate'); await driveBattle(page); await advance(page, { max: 80, quiet: 900 }); continue; }
+    await advance(page, { max: 40, quiet: 250 });
+    const d = await nextStep(page, tx, ty, { adjacent });
+    if (d === 'arrived' || (adjacent && d === null && last === 'adj')) return true;
+    if (d === null) return false;
+    const before = await pos(page);
+    await walk(page, d, 1);
+    const after = await pos(page);
+    if (before[1] === after[1] && before[2] === after[2] && before[0] === after[0]) { if (++stuck > 6) return false; await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 600 }); } else stuck = 0;
+    if (adjacent) { const n = await nextStep(page, tx, ty, { adjacent }); if (n === null) last = 'adj'; }
+  }
+  return false;
+}
+export async function face(page, dir) { await key(page, DIRK[dir], 1, 120); }

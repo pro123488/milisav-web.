@@ -38,9 +38,9 @@ export function nurseTalk(cityId, spawn = 'door_centro') {
   };
 }
 
-export function defineCenter(cityId, cityName, { extra = null } = {}) {
+export function defineCenter(cityId, cityName, { extra = null, city = cityId } = {}) {
   const id = `int_${cityId}_centro`;
-  interior(id, 13, 9, { name: 'Centro de Curación', title: `Centro de Curación de ${cityName}`, floor: 'floor', wall: 'wallint2', exit: { to: cityId, spawn: 'door_centro' }, noFly: true }, (m, { cx }) => {
+  interior(id, 13, 9, { name: 'Centro de Curación', title: `Centro de Curación de ${cityName}`, floor: 'floor', wall: 'wallint2', exit: { to: city, spawn: 'door_centro' }, noFly: true }, (m, { cx }) => {
     for (let x = 3; x <= 9; x++) m.put(x, 3, 'counter');
     m.put(4, 2, 'healer'); m.put(8, 2, 'plant');
     m.npc({ id: 'enfermera', x: 6, y: 2, dir: 'down', look: look('enfermera'), name: 'Enfermera', solid: true, talk: nurseTalk(cityId), move: 'static' });
@@ -52,9 +52,9 @@ export function defineCenter(cityId, cityName, { extra = null } = {}) {
   });
   return id;
 }
-export function defineShopInterior(cityId, shopId, { name = null, clerk = 'tendero', roofLook = null } = {}) {
+export function defineShopInterior(cityId, shopId, { name = null, clerk = 'tendero', city = cityId } = {}) {
   const id = `int_${cityId}_tienda`;
-  interior(id, 10, 8, { name: SHOPS[shopId]?.name || 'Tienda', title: name || SHOPS[shopId]?.name || 'Tienda', floor: 'wood', exit: { to: cityId, spawn: 'door_tienda' } }, (m, { cx }) => {
+  interior(id, 10, 8, { name: SHOPS[shopId]?.name || 'Tienda', title: name || SHOPS[shopId]?.name || 'Tienda', floor: 'wood', exit: { to: city, spawn: 'door_tienda' } }, (m, { cx }) => {
     for (let x = 1; x <= 6; x++) m.put(x, 3, 'counter');
     m.put(8, 2, 'shelf'); m.put(9, 2, 'shelf'); m.put(1, 2, 'shelf'); m.put(2, 2, 'shelf'); m.put(7, 5, 'crate'); m.put(8, 5, 'crate'); m.put(1, 6, 'plant');
     m.npc({ id: 'tendero', x: 3, y: 2, dir: 'down', look: look(clerk), name: 'Dependiente', move: 'static', talk: async (g) => { await g.say('¡Bienvenido! ¿En qué puedo ayudarte?', { speaker: 'Dependiente' }); await g.openShop(shopId); await g.say('¡Gracias por tu visita!', { speaker: 'Dependiente' }); } });
@@ -63,9 +63,9 @@ export function defineShopInterior(cityId, shopId, { name = null, clerk = 'tende
   return id;
 }
 /** Casa genérica con un habitante opcional. def: {w,h,npcs:[{...}], decor:(m)=>} */
-export function defineHouse(cityId, key, { name = 'Casa', w = 9, h = 7, npcs = [], decor = null, floor = 'wood', title = null } = {}) {
+export function defineHouse(cityId, key, { name = 'Casa', w = 9, h = 7, npcs = [], decor = null, floor = 'wood', title = null, city = cityId } = {}) {
   const id = `int_${cityId}_${key}`;
-  interior(id, w, h, { name, title: title || name, floor, exit: { to: cityId, spawn: 'door_' + key } }, (m, { cx }) => {
+  interior(id, w, h, { name, title: title || name, floor, exit: { to: city, spawn: 'door_' + key } }, (m, { cx }) => {
     m.put(1, 2, 'bed'); m.put(w - 2, 2, 'bookcase'); m.put(w - 3, 2, 'shelf'); m.put(3, 1, 'window_int'); m.put(2, 4, 'table'); m.put(w - 2, h - 2, 'plant'); m.rect(cx - 1, 3, 3, 2, 'rug');
     for (const n of npcs) m.npc({ move: 'static', ...n, look: typeof n.look === 'string' ? look(n.look) : n.look });
     if (decor) decor(m);

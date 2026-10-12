@@ -143,7 +143,7 @@ export class MapBuilder {
     }
     // franja de suelo frente a la puerta
     if (this.inb(doorX, doorY + 1) && !this.getObj(doorX, doorY + 1)) { if (!/^(path|cobble|sand|beach|dune|snow|ruinfloor)/.test(this.get(doorX, doorY + 1))) this.set(doorX, doorY + 1, o.step || 'path'); }
-    if (o.to) this.warp(doorX, doorY, o.to, o.tx ?? 0, o.ty ?? 0, 'up', { door: true, sfx: 'door' });
+    if (o.to) this.warp(doorX, doorY, o.to, o.tx ?? 0, o.ty ?? 0, 'up', { door: true, sfx: 'door', req: o.req || null, reqText: o.reqText || null });
     if (o.key) this.spawn('door_' + o.key, doorX, doorY + 1, 'down');
     this.buildings.push({ x, y, w, h, doorX, doorY, kind, name: o.name || null });
     return { doorX, doorY };
@@ -169,15 +169,78 @@ export class MapBuilder {
   /** Disparador invisible al pisar la casilla */
   trigger(x, y, fn, { once = false, key = null, show = null, w = 1, h = 1 } = {}) { this.triggers.push({ x, y, w, h, fn, once, key: key || `${this.id}:trig:${x},${y}`, show }); return this; }
   encounters(spec) { this.enc = spec; return this; }
+  /**
+   * Garantiza que entradas, puertas, personajes y objetos sean alcanzables a pie. Donde un bosque o un grupo de rocas aísle una zona,
+   * abre el pasillo más corto (solo quita árboles/rocas; nunca atraviesa agua, edificios ni paredes).
+   */
+  connectAll() {
+    const REMOVABLE = /^(tree|pine|snowpine|palm|dead|swamptree|autumn|rock|boulder|cactus|lavarock|stalagmite|crystal|mushroom)/;
+    const key = (x, y) => x + ',' + y;
+    const entries = [];
+    for (const [side] of Object.entries(this.connections)) {
+      const len = side === 'w' || side === 'e' ? this.h : this.w;
+      for (let i = 0; i < len; i++) { const [x, y] = side === 'w' ? [0, i] : side === 'e' ? [this.w - 1, i] : side === 'n' ? [i, 0] : [i, this.h - 1]; if (!terrainSolid(this, x, y) && !groundProps(this, x, y).water) { entries.push([x, y]); break; } }
+    }
+    for (const sp of Object.values(this.spawns)) entries.push([sp.x, sp.y]);
+    if (!entries.length) return this;
+    const targets = [...entries.slice(1)]; const exact = new Set(targets.map((t) => key(t[0], t[1])));
+    for (const k of this.warps.keys()) { targets.push(k.split(',').map(Number)); exact.add(k); }
+    for (const e of this.entities) if (e.kind !== 'gate') { targets.push([e.x, e.y]); if (e.kind === 'item' && !e.hidden) exact.add(key(e.x, e.y)); }
+    const solidAt = (x, y) => terrainSolid(this, x, y);
+    const removable = (x, y) => { const k = tkey(this.obj[this.idx(x, y)]); return REMOVABLE.test(k); };
+    const regionOf = () => { const r = reachable(this, entries[0][0], entries[0][1], { cut: true }); return r; };
+    for (let guard = 0; guard < 400; guard++) {
+      const reach = regionOf();
+      const adj = (x, y) => [[0, 1], [0, -1], [1, 0], [-1, 0]].some(([dx, dy]) => reach.has(key(x + dx, y + dy)));
+      const miss = targets.find(([x, y]) => !reach.has(key(x, y)) && (exact.has(key(x, y)) || !adj(x, y)));
+      if (!miss) break;
+      // Dijkstra con cubos desde el objetivo hasta la región alcanzable
+      const dist = new Map([[key(miss[0], miss[1]), 0]]); const from = new Map(); const buckets = [[miss]];
+      let found = null;
+      for (let d = 0; d < buckets.length && !found; d++) {
+        for (const [x, y] of buckets[d] || []) {
+          if (dist.get(key(x, y)) !== d) continue;
+          if (reach.has(key(x, y))) { found = [x, y]; break; }
+          for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+            const nx = x + dx, ny = y + dy; if (!this.inb(nx, ny)) continue;
+            const gp = groundProps(this, nx, ny);
+            if (gp.solid || gp.water || gp.climb) continue;
+            const ob = this.obj[this.idx(nx, ny)];
+            let c = 1;
+            if (ob && tprops(ob).solid) { if (!removable(nx, ny)) continue; c = 3; }
+            if (this.warps.has(key(nx, ny)) || this.entities.some((e) => e.x === nx && e.y === ny && e.solid && e.kind !== 'item')) { if (!reach.has(key(nx, ny))) continue; }
+            const nd = d + c; const k = key(nx, ny);
+            if (dist.has(k) && dist.get(k) <= nd) continue;
+            dist.set(k, nd); from.set(k, [x, y]); (buckets[nd] ||= []).push([nx, ny]);
+          }
+        }
+      }
+      if (!found) { this._unreachable = (this._unreachable || []).concat([miss]); targets.splice(targets.findIndex((t) => t === miss), 1); continue; }
+      let cur = found;
+      while (cur) {
+        const [x, y] = cur;
+        const ob = this.obj[this.idx(x, y)];
+        if (ob && tprops(ob).solid && removable(x, y)) {
+          const k = tkey(ob);
+          this.clear(x, y);
+          if (k.endsWith('_b')) { if (tkey(this.obj[this.idx(x, y - 1)]).endsWith('_t')) this.clear(x, y - 1); }
+          else if (k.endsWith('_t')) { if (tkey(this.obj[this.idx(x, y + 1)]).endsWith('_b')) this.clear(x, y + 1); }
+        }
+        cur = from.get(key(x, y));
+      }
+    }
+    return this;
+  }
   // ---------- final ----------
   finish() {
     const o = this.opts;
+    if (!o.indoor && o.autoConnect !== false) this.connectAll();
     const map = {
       id: this.id, name: o.name || this.id, w: this.w, h: this.h, region: o.region || null, music: o.music || 'route', indoor: !!o.indoor, dark: !!o.dark,
       zone: o.zone || null, tags: o.tags || [], weather: o.weather !== undefined ? o.weather : !o.indoor, climate: o.climate || 'templado', cave: !!o.cave,
       ground: this.ground, obj: this.obj, top: this.topL, entities: this.entities, warps: this.warps, connections: this.connections, spawns: this.spawns,
       triggers: this.triggers, enc: this.enc, buildings: this.buildings, fly: o.fly || null, title: o.title || o.name || this.id, level: o.level || null,
-      ownerHooks: o.hooks || null, onEnter: o.onEnter || null, bg: o.bg || null,
+      forceWeather: o.forceWeather || null, noFly: !!o.noFly, ownerHooks: o.hooks || null, onEnter: o.onEnter || null, bg: o.bg || null,
     };
     return map;
   }
@@ -203,7 +266,7 @@ export const dirVec = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] 
  */
 export function reachable(m, sx, sy, abilities = {}) {
   const seen = new Set([sx + ',' + sy]); const q = [[sx, sy]];
-  const blockedByEntity = new Set(m.entities.filter((e) => e.solid && !e.free && e.kind !== 'item').map((e) => e.x + ',' + e.y));
+  const blockedByEntity = new Set(m.entities.filter((e) => e.solid && !e.free && e.kind !== 'item' && !(abilities.gates && e.kind === 'gate')).map((e) => e.x + ',' + e.y));
   while (q.length) {
     const [x, y] = q.shift();
     for (const [dx, dy] of Object.values(dirVec)) {
@@ -217,6 +280,7 @@ export function reachable(m, sx, sy, abilities = {}) {
       if (solid || blockedByEntity.has(k)) continue;
       seen.add(k);
       if (!m.warps.has(k)) q.push([nx, ny]);
+      else if (abilities.warps) { const w = m.warps.get(k); if (w.to === m.id && typeof w.tx === 'number') { const k2 = w.tx + ',' + w.ty; if (!seen.has(k2)) { seen.add(k2); q.push([w.tx, w.ty]); } } }
     }
   }
   return seen;
