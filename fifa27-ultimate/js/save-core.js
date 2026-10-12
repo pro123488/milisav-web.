@@ -204,7 +204,8 @@
       if (!wrote) {
         // sin espacio: restaurar lo anterior
         if (prev) G.store.set(this.key(slot), prev);
-        return { ok: false, error: 'No hay espacio de almacenamiento. Borra una ranura o exporta tu partida a un archivo.' };
+        if (G.store.available && !G.store.available()) return { ok: false, error: 'Este navegador no permite guardar aquí (almacenamiento bloqueado). Usa «Copiar como texto» para conservar tu partida.' };
+        return { ok: false, error: 'No hay espacio de almacenamiento. Borra una ranura o exporta tu partida (archivo o texto).' };
       }
       return { ok: true, size: text.length };
     },

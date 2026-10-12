@@ -16,7 +16,9 @@ No hace falta compilar nada.
 2. sirve la carpeta con cualquier servidor estático: `python3 -m http.server 8080` y abre `http://localhost:8080`.
 
 Los datos (perfil, ajustes, personalizaciones y las 6 ranuras de guardado) se guardan en el `localStorage` del
-navegador. Desde «Guardar y cargar» puedes **exportar e importar** las partidas como archivo.
+navegador. Desde «Guardar y cargar» puedes **exportar e importar** las partidas como archivo o **copiarlas como texto**
+(útil si el navegador bloquea las descargas, por ejemplo cuando el juego se abre incrustado dentro de otra página; con el
+almacenamiento bloqueado el juego sigue funcionando, pero no puede guardar).
 
 ## Controles (se pueden reasignar en Configuración; mando y pantalla táctil compatibles)
 

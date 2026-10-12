@@ -31,7 +31,10 @@
         <label class="check"><input type="checkbox" data-bind="sv_auto" ${s.autosave ? 'checked' : ''}><span><b>Autoguardado</b><small>Guarda tras cada partido y avance de competición</small></span></label>
         <div class="sv-btns"><button class="btn" data-act="sv_exportnow">${ico('download', 18)}<span>Exportar partida actual</span></button>
         <button class="btn" data-act="sv_import">${ico('upload', 18)}<span>Importar desde archivo</span></button>
+        <button class="btn" data-act="sv_exporttext">${ico('download', 18)}<span>Copiar como texto</span></button>
+        <button class="btn" data-act="sv_importtext">${ico('upload', 18)}<span>Pegar texto</span></button>
         <button class="btn danger" data-act="sv_new">${ico('plus', 18)}<span>Nueva partida</span></button></div>
+        <small class="muted">Si tu navegador bloquea las descargas (por ejemplo, cuando el juego se abre dentro de otra página), usa «Copiar como texto» y «Pegar texto».</small>
         <input id="sv-file" type="file" accept=".f27save,.json,.txt" class="hidden"></div></div>`;
   });
 
@@ -71,6 +74,22 @@
     rd.onerror = () => UI.toast('No se pudo leer el archivo', 'error');
     rd.readAsText(file);
   }; f.click(); });
+  /* Copia de seguridad como texto: funciona aunque el navegador bloquee las descargas */
+  UI.on('sv_exporttext', () => {
+    const text = S.exportText(G.state);
+    UI.modal({ title: 'Copiar partida como texto', body: `<p>Guarda este texto donde quieras (un documento, un mensaje) y restaura tu partida más tarde con «Pegar texto».</p><textarea id="sv-text" class="f27text" readonly rows="8" aria-label="Partida exportada">${esc(text)}</textarea><small class="muted">${Math.round(text.length / 1024)} KB</small>`,
+      buttons: [{ label: 'Cerrar' }, { label: 'Copiar', cls: 'primary', keep: true, fn: () => {
+        const ta = document.getElementById('sv-text'), pick = () => { if (ta) { ta.focus(); ta.select(); } UI.toast('Selecciona el texto y cópialo con Ctrl+C', 'info', 5000); };
+        try { navigator.clipboard.writeText(text).then(() => UI.toast('Texto copiado', 'good'), pick); } catch (e) { pick(); }
+      } }] });
+  });
+  UI.on('sv_importtext', () => UI.modal({ title: 'Pegar partida', body: '<p>Pega aquí el texto que copiaste con «Copiar como texto».</p><textarea id="sv-paste" class="f27text" rows="8" aria-label="Texto de la partida" placeholder="Pega el texto de la partida"></textarea>',
+    buttons: [{ label: 'Cancelar' }, { label: 'Importar', cls: 'primary', keep: true, fn: () => {
+      const ta = document.getElementById('sv-paste'), r = S.readEnvelope(String((ta && ta.value) || '').trim());
+      if (!r.ok) { UI.toast(r.error, 'error', 6000); return; }
+      UI.closeModal();
+      UI.confirm('Se importará la partida «' + esc(r.state.profile.name) + '» y sustituirá la actual. ¿Continuar?', () => { G.Game.loadState(r.state); UI.toast('Partida importada', 'good'); UI.go('menu', {}, { root: true }); }, { yes: 'Importar' });
+    } }] }));
   UI.on('sv_new', () => UI.modal({ title: 'Nueva partida', body: '<p>Se creará un perfil nuevo y se perderá la partida actual (guárdala antes si quieres conservarla).</p><label class="check"><input type="checkbox" id="sv-rand"><span><b>Generar un mundo distinto</b><small>Otros jugadores y plantillas (semilla aleatoria)</small></span></label>',
     buttons: [{ label: 'Cancelar' }, { label: 'Empezar de cero', cls: 'danger', fn: () => { const r = document.getElementById('sv-rand'); G.Game.newGame({ randomSeed: false }); UI.toast('Nueva partida creada', 'good'); UI.go('menu', {}, { root: true }); } }] }));
   UI.on('sv_new2', () => 0);

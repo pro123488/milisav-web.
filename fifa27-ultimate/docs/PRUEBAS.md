@@ -51,7 +51,7 @@ mismo resultado (comprobado: dos ejecuciones con la semilla 1234 dan 0-2, 8 tiro
 | `e2e-basic.js`, `e2e-flow.js` | Menú → partido rápido → jugar; pausa, cambios, descanso, final y resultado. |
 | `e2e-screens.js` | Todas las pantallas del menú renderizan sin errores. |
 | `e2e-comp.js` | Mundial: elegir selección, jugar un partido real y simular el resto. |
-| `e2e-save.js` | Crear progreso → guardar → recargar la página → cargar → comprobar. |
+| `e2e-save.js` | Crear progreso → guardar → recargar la página → cargar → comprobar; copiar la partida como texto y restaurarla pegándolo (rechaza texto inválido). |
 | `e2e-career.js`, `e2e-market.js`, `e2e-pcareer.js`, `e2e-proclub.js`, `e2e-ut.js`, `e2e-editor.js` | Flujo completo de cada modo con clics reales (creación, partidos jugados con teclado, temporada; `e2e-market` además abre y juega un ejercicio de entrenamiento). |
 | `e2e-responsive.js` | Con 390 px y 768 px de ancho ninguna pantalla desborda horizontalmente. |
 | `e2e-a11y.js` | Botones y campos con nombre accesible, ids únicos, foco visible, navegación con Tab/flechas/Esc; **las 23 opciones del menú abren una pantalla real**. |
@@ -128,6 +128,13 @@ escribieron para pasar:
   carrera activa. Tras corregirlo se repitió 5 veces toda la batería lógica (70 ejecuciones) sin ningún fallo.
 * Los partidos con semilla no eran reproducibles porque dos desfases iniciales de los jugadores usaban
   `Math.random()`: ahora usan un flujo con semilla aparte.
+
+## Prueba de ejecución incrustado (Artifact)
+
+El juego también se publicó como página incrustada. Antes se probó en un servidor local que imita sus límites: política de
+seguridad estricta (solo recursos propios), sin `file://` y con **`localStorage` bloqueado** (`SecurityError`). Resultado:
+arranca, muestra las 23 opciones, se juega un partido y no hay peticiones bloqueadas ni errores de JavaScript; guardar
+avisa con un mensaje claro y la copia como texto sigue funcionando. Es una simulación del entorno, no el visor real.
 
 ## Lo que NO se ha probado
 

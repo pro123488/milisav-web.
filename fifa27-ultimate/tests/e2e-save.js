@@ -44,6 +44,24 @@ const ok = (c, m) => console.log(c ? '  ✓' : '  ✗ FALLO', m) || (c ? 0 : 1);
   await page.click('[data-back]'); await page.click('[data-go="saves"]'); await page.waitForSelector('.slots');
   fails += ok(await page.locator('.slot .warn').count() >= 1, 'una ranura dañada se muestra como tal sin romper la pantalla');
   await page.click('[data-act="sv_load"][data-slot="2"]').catch(() => {});
+  // copia de seguridad como texto (sirve cuando el navegador bloquea las descargas)
+  await page.evaluate(() => { G.state.profile.name = 'Texto'; G.state.profile.coins = 4242; G.Game.saveProfile(); });
+  await page.click('[data-back]').catch(() => {}); await page.click('[data-go="saves"]'); await page.waitForSelector('.slots');
+  await page.click('[data-act="sv_exporttext"]'); await page.waitForSelector('#sv-text');
+  const txt = await page.inputValue('#sv-text');
+  fails += ok(txt.length > 100 && txt.length < 4e6, 'copiar como texto muestra la partida exportada (' + Math.round(txt.length / 1024) + ' KB)');
+  await page.screenshot({ path: OUT + '/42-export-text.png' });
+  await page.click('.modal-btns .btn:first-child');                         // cerrar
+  await page.evaluate(() => { G.state.profile.name = 'Otro'; G.state.profile.coins = 1; });
+  await page.click('[data-act="sv_importtext"]'); await page.waitForSelector('#sv-paste');
+  await page.fill('#sv-paste', 'esto no es una partida');
+  await page.click('.modal-btns .btn.primary'); await page.waitForTimeout(200);
+  fails += ok(await page.locator('#sv-paste').count() === 1 && await page.evaluate(() => G.state.profile.name === 'Otro'), 'un texto inválido se rechaza sin cambiar nada y deja el cuadro abierto');
+  await page.fill('#sv-paste', txt);
+  await page.click('.modal-btns .btn.primary'); await page.waitForSelector('.modal-btns .btn.primary');
+  await page.click('.modal-btns .btn.primary'); await page.waitForSelector('.menu-wrap');
+  const back = await page.evaluate(() => ({ n: G.state.profile.name, c: G.state.profile.coins }));
+  fails += ok(back.n === 'Texto' && back.c === 4242, 'pegar el texto restaura la partida (' + JSON.stringify(back) + ')');
   console.log('errores JS:', errors.length ? errors : 'ninguno'); fails += errors.length;
   await browser.close(); process.exit(fails ? 1 : 0);
 })().catch(e => { console.error('FALLO e2e', e); process.exit(2); });
