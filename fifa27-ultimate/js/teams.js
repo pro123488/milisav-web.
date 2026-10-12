@@ -296,6 +296,40 @@
       return list;
     },
 
+    /**
+     * Añade un club creado por el usuario ocupando el sitio de otro de su liga (def.replace).
+     * def: { id, name, short, city, league, nat, tier, c:[3 colores], crest, kitPattern, stadium:{name,cap,cat}, replace }
+     * La plantilla se genera de forma determinista; los jugadores del club sustituido quedan libres.
+     */
+    addClub(world, def) {
+      const lg = world.leagues[def.league]; if (!lg) throw new Error('Liga inexistente: ' + def.league);
+      const tiers = Object.keys(CLUB_BASE[def.league] || CLUB_BASE.LAU).map(Number);
+      const tier = tiers.includes(def.tier) ? def.tier : tiers[tiers.length - 1];
+      const rng = new RNG((G.U.hashString('club:' + def.id + ':' + def.name) ^ world.seed) >>> 0);
+      const rep = clamp(({ 1: 86, 2: 74, 3: 56, 4: 42 })[tier] + rng.int(-3, 3), 20, 97);
+      const club = {
+        id: def.id, name: def.name, short: def.short, city: def.city || def.name, league: def.league, nat: def.nat || lg.nat || 'AUR', tier, rep, fans: clamp(rep - 6 + rng.int(-4, 4), 10, 99),
+        c: def.c.slice(), crest: Object.assign({}, def.crest), stadium: makeStadium(def.stadium, { c: def.c }, rng), squad: [], lineup: [], bench: [], formation: '4-3-3', tactics: [], coach: null, custom: true
+      };
+      club.kits = makeKits(club.c, rng, def.kitPattern);
+      // los jugadores del club sustituido pasan a agentes libres
+      const old = def.replace && world.clubs[def.replace] && def.replace !== def.id ? world.clubs[def.replace] : null;
+      let idx = lg.clubs.length;
+      if (old) {
+        idx = lg.clubs.indexOf(old.id);
+        old.squad.forEach(pid => { const p = world.players[pid]; if (p) { p.club = null; p.free = true; p.contract = { exp: world.seasonYear, wage: p.contract.wage }; delete p.loan; } });
+        delete world.clubs[old.id]; lg.clubs.splice(idx, 1);
+      }
+      const used = new Set(Object.values(world.players).map(p => (p.first + ' ' + p.last).toLowerCase()));
+      const squad = squadBlueprint(rng, club, used, world); assignNumbers(squad);
+      squad.forEach(p => { world.players[p.id] = p; club.squad.push(p.id); });
+      club.coach = makeCoach(rng, club.nat, club.rep, used); club.formation = club.coach.formation; club.tactics = club.coach.tactics.slice();
+      initFinance(club, squad, rng);
+      world.clubs[club.id] = club; lg.clubs.splice(Math.min(idx, lg.clubs.length), 0, club.id);
+      World.autoPick(world, club);
+      return club;
+    },
+
     clubLabel(world, p) {
       if (p.club && world.clubs[p.club]) return world.clubs[p.club].name;
       if (p.free) return 'Agente libre';
@@ -304,5 +338,5 @@
   };
 
   G.World = World;
-  G.Teams = { SHIRT_PREF, SQUAD_PLAN, makeKits, pickKits, colorDist, luminance, contrastText, makeCoach, stadiumCategory, COACH_PHIL, COACH_SPECS };
+  G.Teams = { CLUB_BASE, SHIRT_PREF, SQUAD_PLAN, makeKits, pickKits, colorDist, luminance, contrastText, makeCoach, stadiumCategory, COACH_PHIL, COACH_SPECS };
 })(typeof window !== 'undefined' ? window : globalThis);

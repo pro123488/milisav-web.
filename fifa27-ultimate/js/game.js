@@ -144,6 +144,10 @@
       result.players.filter(pl => pl.team === humanIdx).forEach(pl => { st.assists += pl.st.a || 0; });
       const diff = me.goals - op.goals;
       if (!p.records.biggestWin || diff > p.records.biggestWin.diff) p.records.biggestWin = { diff, score: `${me.goals}-${op.goals}`, vs: op.name, date: Date.now() };
+      const rc = p.records;
+      if (!rc.mostGoals || me.goals > rc.mostGoals.g) rc.mostGoals = { g: me.goals, vs: op.name, date: Date.now() };
+      if (w === humanIdx) { rc.curWin = (rc.curWin || 0) + 1; rc.winStreak = Math.max(rc.winStreak || 0, rc.curWin); } else rc.curWin = 0;
+      if (w !== 1 - humanIdx) { rc.curUnbeaten = (rc.curUnbeaten || 0) + 1; rc.unbeaten = Math.max(rc.unbeaten || 0, rc.curUnbeaten); } else rc.curUnbeaten = 0;
       this.saveProfile();
       if (G.bus) G.bus.emit('matchRecorded', { result, humanIdx });
     },

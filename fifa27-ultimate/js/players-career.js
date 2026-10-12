@@ -47,6 +47,7 @@
       const state = G.state;
       const world = G.World.create(opts.seed !== undefined ? opts.seed : state.seed);
       world.custom = state.custom; G.Game.applyCustom(world, state.custom);
+      if (G.Editor && G.Editor.applyCustom) G.Editor.applyCustom(world, state.custom);
       const club = world.clubs[opts.club];
       if (!club) throw new Error('Club inexistente: ' + opts.club);
       world.userClub = null; world.week = 0; world.transfers = [];

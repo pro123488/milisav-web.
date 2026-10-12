@@ -405,21 +405,55 @@
   /* ===================================================================
      Estadísticas y trofeos (perfil global; los modos añaden sus datos)
      =================================================================== */
+  const sctx = () => UI.ctxOf('stats', { tab: 'mios', mode: 'ALL' });
+  const MODE_NAMES = { league: 'Liga', cup: 'Copa', world: 'Mundial', custom: 'Torneo', career: 'Carrera de entrenador', player: 'Carrera de futbolista' };
+  const teamName = id => { if (!id) return '—'; const t = G.World.teamById(W(), id); return t ? t.name : id; };
+
   UI.register('stats', () => {
-    const p = S().profile, st = p.stats;
-    const acc = st.pas ? Math.round(100 * st.pasOk / st.pas) : 0, conv = st.shots ? Math.round(100 * st.goals / st.shots) : 0;
-    const rec = p.records;
-    return `${UI.header('Estadísticas', { sub: 'Historial acumulado de tus partidos' })}
-    <div class="grid2"><div class="panel"><h3>Global</h3><div class="kv">
-      <div><b>${st.played}</b><span>Partidos</span></div><div><b>${num(st.mins)}</b><span>Minutos</span></div><div><b>${st.goals}</b><span>Goles</span></div><div><b>${st.assists}</b><span>Asistencias</span></div>
+    const ctx = sctx(), p = S().profile, st = p.stats;
+    const tabs = [{ id: 'mios', t: 'Mis partidos', icon: 'stats' }, { id: 'historial', t: 'Campeones', icon: 'trophies' }, { id: 'records', t: 'Récords', icon: 'star' }, { id: 'mundo', t: 'Mejores del mundo', icon: 'player' }];
+    let body = '';
+    if (ctx.tab === 'mios') {
+      const acc = st.pas ? Math.round(100 * st.pasOk / st.pas) : 0, conv = st.shots ? Math.round(100 * st.goals / st.shots) : 0;
+      const rec = p.records;
+      body = `<div class="grid2"><div class="panel"><h3>Global</h3><div class="kv">
+      <div><b>${st.played}</b><span>Partidos</span></div><div><b>${st.w}-${st.d}-${st.l}</b><span>V-E-D</span></div><div><b>${num(st.mins)}</b><span>Minutos</span></div><div><b>${st.goals}</b><span>Goles</span></div><div><b>${st.assists}</b><span>Asistencias</span></div>
       <div><b>${st.shots}</b><span>Disparos</span></div><div><b>${st.sot}</b><span>A puerta</span></div><div><b>${conv}%</b><span>Conversión</span></div><div><b>${acc}%</b><span>Acierto pase</span></div>
       <div><b>${st.tkl}</b><span>Entradas</span></div><div><b>${st.sav}</b><span>Paradas</span></div><div><b>${st.yc}</b><span>Amarillas</span></div><div><b>${st.rc}</b><span>Rojas</span></div></div></div>
-    <div class="panel"><h3>Récords</h3><ul class="plain">
+    <div class="panel"><h3>Récords personales</h3><ul class="plain">
       <li>Mayor victoria: <b>${rec.biggestWin ? `${rec.biggestWin.score} vs ${esc(rec.biggestWin.vs)}` : '—'}</b></li>
+      <li>Más goles de tu equipo en un partido: <b>${rec.mostGoals ? `${rec.mostGoals.g} vs ${esc(rec.mostGoals.vs)}` : '—'}</b></li>
+      <li>Mejor racha de victorias: <b>${rec.winStreak || 0}</b> (actual ${rec.curWin || 0})</li>
+      <li>Mejor racha sin perder: <b>${rec.unbeaten || 0}</b> (actual ${rec.curUnbeaten || 0})</li>
       <li>Goleadas (3+ goles de diferencia): <b>${st.bigWin}</b></li>
-      <li>Penaltis ganados / perdidos en tandas: <b>${st.penW} / ${st.penL}</b></li>
+      <li>Tandas de penaltis ganadas / perdidas: <b>${st.penW} / ${st.penL}</b></li>
       <li>Porterías a cero: <b>${st.cs}</b></li></ul></div></div>`;
+    } else if (ctx.tab === 'historial') {
+      const hist = (S().history || []).slice().reverse();
+      const modes = ['ALL'].concat(Array.from(new Set(hist.map(h => h.mode))));
+      const list = hist.filter(h => ctx.mode === 'ALL' || h.mode === ctx.mode).slice(0, 80);
+      const chips = modes.map(m => `<button class="tab ${ctx.mode === m ? 'on' : ''}" data-act="st_mode" data-m="${m}">${m === 'ALL' ? 'Todas' : (MODE_NAMES[m] || m)}</button>`).join('');
+      body = `<div class="panel"><div class="tabs">${chips}</div>${list.length ? `<div class="tablewrap"><table class="league"><thead><tr><th>Temp.</th><th>Competición</th><th>Campeón</th><th>Subcampeón</th><th class="hide-s">Goleador</th></tr></thead><tbody>${list.map(h => `<tr><td>${esc(String(h.season))}</td><td>${esc(h.name)}</td><td><b>${esc(teamName(h.champion))}</b></td><td>${esc(teamName(h.runnerUp))}</td><td class="hide-s">${h.boot ? `${esc(h.boot.name)} (${h.boot.g})` : '—'}</td></tr>`).join('')}</tbody></table></div>` : UI.empty('Aún no se ha terminado ninguna competición', 'Juega una liga, una copa, un torneo o el Mundial hasta el final y aparecerá aquí.')}</div>`;
+    } else if (ctx.tab === 'records') {
+      const hist = S().history || [];
+      const titles = {}, boots = {}, mvps = {};
+      hist.forEach(h => { if (h.champion) titles[h.champion] = (titles[h.champion] || 0) + 1; if (h.boot) { const k = h.boot.name + '|' + h.boot.team; boots[k] = boots[k] || { name: h.boot.name, team: h.boot.team, n: 0, g: 0 }; boots[k].n++; boots[k].g += h.boot.g; } if (h.mvp) { const k = h.mvp.name + '|' + h.mvp.team; mvps[k] = mvps[k] || { name: h.mvp.name, team: h.mvp.team, n: 0 }; mvps[k].n++; } });
+      const top = (o, n = 8) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
+      const tt = top(titles).map(([id, n], i) => `<tr><td class="pos">${i + 1}</td><td>${esc(teamName(id))}</td><td><b>${n}</b></td></tr>`).join('') || '<tr><td colspan="3" class="muted">Sin datos todavía</td></tr>';
+      const bb = Object.values(boots).sort((a, b) => b.g - a.g).slice(0, 8).map((x, i) => `<tr><td class="pos">${i + 1}</td><td>${esc(x.name)}</td><td>${esc(teamName(x.team))}</td><td><b>${x.g}</b> <small class="muted">en ${x.n} comp.</small></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin datos todavía</td></tr>';
+      const mm = Object.values(mvps).sort((a, b) => b.n - a.n).slice(0, 8).map((x, i) => `<tr><td class="pos">${i + 1}</td><td>${esc(x.name)}</td><td>${esc(teamName(x.team))}</td><td><b>${x.n}</b></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Sin datos todavía</td></tr>';
+      body = `<div class="grid2"><div class="panel"><h3>Más títulos</h3><table class="league"><tbody>${tt}</tbody></table></div><div class="panel"><h3>Goleadores históricos</h3><table class="league"><tbody>${bb}</tbody></table></div><div class="panel"><h3>Mejores jugadores (MVP)</h3><table class="league"><tbody>${mm}</tbody></table></div>
+        <div class="panel"><h3>Tu perfil</h3><div class="kv"><div><b>${p.level}</b><span>Nivel</span></div><div><b>${num(p.coins)}</b><span>Monedas</span></div><div><b>${p.trophies.length}</b><span>Trofeos</span></div><div><b>${hist.length}</b><span>Competiciones jugadas</span></div></div></div></div>`;
+    } else {
+      const w = W(), players = Object.values(w.players).filter(x => !x.ut && !x.pro && !x.youth && !x.prospect && x.club);
+      const best = players.sort((a, b) => b.ovr - a.ovr).slice(0, 12), young = players.filter(x => x.age <= 21).sort((a, b) => b.pot - a.pot).slice(0, 8), fast = players.slice().sort((a, b) => b.value - a.value).slice(0, 8);
+      const tbl = (l, f) => `<table class="league"><tbody>${l.map((x, i) => `<tr><td class="pos">${i + 1}</td><td><button class="linkb" data-act="show_player" data-id="${x.id}">${esc(G.Players.fullName(x))}</button></td><td>${x.pos}</td><td>${esc(w.clubs[x.club] ? w.clubs[x.club].short : '')}</td><td><b>${f(x)}</b></td></tr>`).join('')}</tbody></table>`;
+      body = `<div class="grid2"><div class="panel"><h3>Mejores jugadores</h3>${tbl(best, x => x.ovr)}</div><div class="panel"><h3>Mayores promesas (≤ 21 años)</h3>${tbl(young, x => x.pot + ' pot.')}</div><div class="panel"><h3>Más valiosos</h3>${tbl(fast, x => G.U.money(x.value))}</div></div>`;
+    }
+    return `${UI.header('Estadísticas', { sub: 'Historial, campeones y récords' })}${UI.tabs(tabs, ctx.tab, 'st_tab')}${body}`;
   });
+  UI.on('st_tab', el => { sctx().tab = el.dataset.id; UI.refresh(); });
+  UI.on('st_mode', el => { sctx().mode = el.dataset.m; UI.refresh(); });
   UI.register('trophies', () => {
     const t = S().profile.trophies;
     const list = t.length ? `<div class="trophy-grid">${t.slice().reverse().map(x => `<div class="trophy"><div>${G.Art.trophySVG(x.color || '#ffd23f', 64)}</div><b>${esc(x.name)}</b><small>${esc(x.mode || '')} · ${esc(x.season || '')}</small></div>`).join('')}</div>`

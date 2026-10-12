@@ -42,7 +42,11 @@
     /** Mete (o actualiza) al pro en el mundo y lo asegura en el once. */
     inject(world) {
       const pc = this.get(); if (!pc || !pc.pro) return;
-      const club = world.clubs[pc.clubId]; if (!club) return;
+      let club = world.clubs[pc.clubId];
+      if (!club) {                                          // su club fue sustituido por uno propio o ya no existe
+        const rep = ((G.state.custom && G.state.custom.newClubs) || []).find(d => d.replace === pc.clubId);
+        club = (rep && world.clubs[rep.id]) || Object.values(world.clubs)[0]; if (!club) return; pc.clubId = club.id;
+      }
       const p = pc.pro;
       this.syncRating(pc);
       p.club = club.id; p.pickBias = 14; p.contract = { exp: world.seasonYear + 3, wage: Math.max(p.contract.wage, 60000) };
