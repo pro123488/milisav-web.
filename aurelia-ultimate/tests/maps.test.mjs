@@ -7,7 +7,7 @@ import { ITEMS } from '../src/data/items.js';
 
 const ids = Object.keys(MAP_DEFS);
 // Mapas previstos en el plan que aún no están construidos (se vacía conforme se escriben; al terminar debe quedar vacío).
-const PLANNED = new Set(['desierto_ambar', 'pantano_niebla', 'ruinas_antiguas']);
+const PLANNED = new Set([]);
 const OPP = { n: 's', s: 'n', e: 'w', w: 'e' };
 const maps = {}; for (const id of ids) maps[id] = getMap(id);
 

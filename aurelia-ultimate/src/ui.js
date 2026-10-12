@@ -4,6 +4,7 @@ import { TYPES } from './data/types.js';
 import { RARITY } from './data/species.js';
 import { STATUS } from './creatures.js';
 import { creatureCanvas, SPR } from './gfx/creature_gfx.js';
+import { eggCanvas } from './gfx/egg.js';
 
 export const typeChip = (t) => el('span', { class: 'chip', style: { background: TYPES[t].color } }, TYPES[t].name);
 export const statusBadge = (s) => (s ? el('span', { class: 'badge-st', style: { background: STATUS[s].color } }, STATUS[s].short) : null);
@@ -14,7 +15,7 @@ export function hpBar(cur, max) {
 }
 /** Imagen (canvas) de una criatura. px = tamaño en pantalla. */
 export function creatureImg(spId, px = 96, variant = null, opts = {}) {
-  const src = creatureCanvas(spId, variant);
+  const src = opts.egg ? eggCanvas(spId) : creatureCanvas(spId, variant);
   const c = document.createElement('canvas'); c.width = c.height = SPR; c.className = 'sprite';
   c.style.width = c.style.height = px + 'px';
   const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
@@ -22,6 +23,9 @@ export function creatureImg(spId, px = 96, variant = null, opts = {}) {
   else { if (opts.flip) { g.translate(SPR, 0); g.scale(-1, 1); } g.drawImage(src, 0, 0); }
   return c;
 }
+
+/** Imagen de una criatura concreta (muestra un huevo si lo es, sin revelar la especie). */
+export const creatureImgOf = (c, px = 96, opts = {}) => creatureImg(c.sp, px, c.variant, { ...opts, egg: !!c.egg });
 
 export class UI {
   constructor(game) {

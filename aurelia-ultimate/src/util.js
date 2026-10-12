@@ -27,3 +27,8 @@ export function el(tag, props = {}, kids = []) {
   }
   return n;
 }
+
+// Evita que `append(null)` / `append(cond && nodo)` escriba el texto "null"/"false" en pantalla (el DOM lo convierte a cadena).
+if (typeof Element !== 'undefined') {
+  for (const m of ['append', 'prepend']) { const orig = Element.prototype[m]; Element.prototype[m] = function (...a) { return orig.apply(this, a.filter((x) => x != null && x !== false)); }; }
+}

@@ -91,7 +91,7 @@ export function createCreature(spId, lv, opts = {}) {
 }
 
 export const speciesOf = (c) => getSpecies(c.sp);
-export const displayName = (c) => c.nick || getSpecies(c.sp).name;
+export const displayName = (c) => (c.egg ? 'Huevo' : c.nick || getSpecies(c.sp).name);
 export const isFainted = (c) => c.hp <= 0;
 export const canFight = (c) => !c.egg && c.hp > 0;
 export const hpRatio = (c) => (c.maxHp ? c.hp / c.maxHp : 0);

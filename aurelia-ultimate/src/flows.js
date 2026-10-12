@@ -32,7 +32,7 @@ export function installFlows(game) {
     if (g.state.trainers[id]?.beaten && !opts.rematch) { if (def.afterWin) await g.say(def.afterWin, { speaker: def.name }); return { result: 'win', again: true }; }
     const ow = g.ow;
     if (def.intro) await g.say(def.intro, { speaker: def.name });
-    const team = buildTeam(def, g);
+    const team = buildTeam(def, g, { bonus: opts.rematch ? (opts.lvBonus || 0) : 0 });
     const sum = await runBattle(g, { foe: { name: def.name, party: team, wild: false, trainer: def, ai: def.ai, items: def.items }, terrain: terrainFor(ow.map, null), trainerLook: def.look, isGym: !!def.gym, music: def.music, canFlee: false, trainerDef: def, rematch: !!opts.rematch });
     if (sum.result === 'win') {
       if (def.win) await g.say(def.win, { speaker: def.name });

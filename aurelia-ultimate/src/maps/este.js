@@ -1,9 +1,9 @@
 // Interior de Aurelia: Ruta 3, Cueva Eco y Ciudad Dínamo (gimnasio Eléctrico, central eléctrica).
-import { defineRoute, defineCity, defineCave, caveMouth, roadBlock } from './archetypes.js';
+import { defineRoute, defineCity, defineCave, caveMouth, roadBlock, edgeBlock } from './archetypes.js';
 import { defineCenter, defineShopInterior, defineHouse, interior } from './helpers.js';
 import { defineGym } from './gyms.js';
 import { look } from './looks.js';
-import { rec, scene, fight, chapter } from '../story.js';
+import { rec, scene, fight, chapter, legendary, offerQuest } from '../story.js';
 
 // ============================ RUTA 3 ============================
 defineRoute('ruta3', { name: 'Ruta 3', title: 'Ruta 3', w: 52, h: 30, style: 'pradera', zone: 'pradera', tags: ['ruta'], music: 'route',
@@ -17,7 +17,7 @@ defineRoute('ruta3', { name: 'Ruta 3', title: 'Ruta 3', w: 52, h: 30, style: 'pr
   extra: (m) => {
     m.path([[26, 18], [26, 6]], 'path', 2);
     caveMouth(m, 26, 4, 'cueva_eco', 'entrada_ruta3', { key: 'ruta3' });
-    roadBlock(m, [[43, 10], [43, 11]], (g) => g.badges.length >= 2, 'Un guardia te corta el paso: «La Ruta 3 está cerrada a entrenadores con menos de dos medallas. Los apagones de Dínamo han vuelto agresivas a las criaturas de la zona».');
+    edgeBlock(m, 'e', (g) => g.badges.length >= 2, 'Un guardia te corta el paso: «La Ruta 3 está cerrada a entrenadores con menos de dos medallas. Los apagones de Dínamo han vuelto agresivas a las criaturas de la zona».');
   } });
 
 // ============================ CUEVA ECO ============================
@@ -30,10 +30,27 @@ defineCave('cueva_eco', { name: 'Cueva Eco', title: 'Cueva Eco', w: 44, h: 32, l
   trainers: [{ cls: 'minero', x: 20, y: 18, dir: 'down', lv: [19, 21], n: 2, sight: 3 }, { cls: 'excursionista', x: 14, y: 12, dir: 'right', lv: [20, 22], n: 2, sight: 3 }],
   items: [[34, 26, 'super_pocion'], [10, 8, 'caramelo_raro'], [40, 9, 'hiper_pocion']], hidden: [[5, 24, 'polvo_cristal'], [22, 29, 'pepita']],
   signs: [[9, 28, 'CUEVA ECO\nCualquier grito rebota... ¡y a veces te responden!']],
-  npcs: [{ id: 'eco_viejo', x: 12, y: 24, dir: 'right', look: 'abuelo', name: 'Eremita', text: 'Llevo años escuchando el eco. Cuentan que, para despertarlo, hay que reunir a las tres criaturas que guardan los ecos del mundo y... bueno, ya sabes. Yo solo escucho.' }],
+  npcs: [{ id: 'eco_viejo', x: 12, y: 24, dir: 'right', look: 'abuelo', name: 'Eremita', talk: async (g) => {
+    if (!g.flag('league_done')) { await g.say('Llevo años escuchando el eco. Dicen que, para despertarlo, hay que ser campeón de la Liga y haber hablado con las criaturas que guardan los extremos de Aurelia. Yo solo escucho.', { speaker: 'Eremita' }); return; }
+    await scene(g, [['Eremita', 'Eres campeón: el eco ya te escucha. En la Piedra del Eco, al noroeste, puedes llamarlo con una melodía.'], ['Eremita', 'El eco verde, el de la vida, acude si has capturado a las tres criaturas de las tormentas —la de rayos, la de lava y la de hielo— y tocas: Do, Mi, Sol.'], ['Eremita', 'El eco sonoro acude si has capturado a los dos guardianes de las ruinas —el de metal y el de luna— y tocas: Sol, Mi, Do.']]);
+  } }],
   extra: (m) => {
     m.trainer({ id: 'eco_r1', trainer: 'eclipse_eco1', x: 34, y: 21, dir: 'down', look: look('recluta'), name: 'Recluta', sight: 3, show: (g) => !g.state.trainers.eclipse_eco1?.beaten });
     m.trainer({ id: 'eco_r2', trainer: 'eclipse_eco2', x: 36, y: 8, dir: 'left', look: look('recluta2'), name: 'Recluta', sight: 4, show: (g) => !g.state.trainers.eclipse_eco2?.beaten });
+    // Desafío del Eco (tras la Liga): dos criaturas míticas que responden a melodías
+    const NOTES = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La'];
+    const echo = async (g, ow, tune, need, spec, label, hint) => {
+      const missing = need.filter((f) => !g.flag(f + '_done'));
+      if (missing.length) { await g.say(`La Piedra no responde todavía. ${hint}`); return; }
+      await g.say(`Pones las manos sobre la Piedra del Eco. Un coro de voces lejanas te pide una melodía de tres notas para ${label}.`);
+      for (let i = 0; i < 3; i++) { const a = await g.ask(`Nota ${i + 1} de 3:`, NOTES, { cancel: -1 }); if (a !== tune[i]) { g.audio.sfx('error'); await g.say('El eco se apaga con un murmullo. No era la melodía.'); return; } g.audio.sfx('select'); }
+      await legendary(g, ow, spec, { text: 'La cueva entera vibra. Las notas se multiplican, rebotan, se funden... y, de entre el eco, algo antiguo responde.' });
+    };
+    m.object(7, 9, 'crystal', { name: 'Piedra del Eco', show: (g) => g.flag('league_done'), talk: async (g, e, ow) => {
+      const o = await g.ask('La Piedra vibra suavemente. ¿Qué eco quieres llamar?', ['El eco verde', 'El eco sonoro', 'Ninguno'], { cancel: 2 });
+      if (o === 0) await echo(g, ow, [0, 2, 4], ['tempestra', 'magmaron', 'glaciaris'], { id: 120, lv: 70, flag: 'eterna', minBadges: 8 }, 'el eco verde', 'Quizá deba capturar antes a las criaturas de las tres tormentas: rayos, lava y hielo.');
+      else if (o === 1) await echo(g, ow, [4, 2, 0], ['arkanion', 'lunaria'], { id: 121, lv: 70, flag: 'quimera', minBadges: 8 }, 'el eco sonoro', 'Quizá deba capturar antes a los guardianes de las ruinas: el de metal y el de luna.');
+    } });
     m.object(40, 6, 'crate', { name: 'Caja de la Orden', show: (g) => !g.flag('fusible_tomado'), talk: async (g, e, ow) => {
       if (g.flag('fusible_tomado')) { await g.say('La caja está vacía.'); return; }
       await g.say('Una caja con el sello de la Orden del Eclipse. Dentro, entre cables, hay un fusible industrial grande.');
@@ -50,6 +67,11 @@ defineHouse('ciudad_dinamo', 'casa2', { name: 'Taller de Nicolás', npcs: [{ id:
   await g.say('Sin corriente no puedo soldar nada. Sé que hay fusibles en la Cueva Eco, al norte de la Ruta 3... pero los guarda gente muy desagradable.', { speaker: 'Nicolás' }); } }] });
 defineHouse('ciudad_dinamo', 'casa3', { name: 'Casa de Gala', npcs: [{ id: 'gala', x: 5, y: 3, dir: 'down', look: 'nina', name: 'Gala', text: 'Mi hermano trabaja en la central. Dice que un hombre con una capa gris lleva días allí dentro sin salir. ¡Da mucho miedo!' }] });
 
+interior('int_dinamo_boutique', 12, 9, { name: 'Boutique', title: 'Boutique de Ciudad Dínamo', floor: 'wood', wall: 'wallint2', exit: { to: 'ciudad_dinamo', spawn: 'door_boutique' }, noFly: true }, (m) => {
+  for (const x of [1, 2, 9, 10]) m.put(x, 2, 'shelf'); m.rect(4, 3, 4, 4, 'carpet'); m.put(1, 6, 'plant'); m.put(10, 6, 'plant');
+  m.npc({ id: 'dependienta', x: 6, y: 3, dir: 'down', look: look('nina', { hat: 'ribbon', hatColor: 9 }), name: 'Dependienta', move: 'static', talk: async (g) => { await g.say('¡Bienvenido a la Boutique! Ropa, accesorios, efectos y cápsulas con estilo. Nada afecta al combate: solo es para presumir.', { speaker: 'Dependienta' }); await g.openBoutique(); await g.say('¡Vuelve cuando quieras renovar tu estilo!', { speaker: 'Dependienta' }); } });
+  m.npc({ id: 'cliente_b', x: 9, y: 5, dir: 'left', look: look('jugador_extra'), name: 'Cliente', move: 'static', text: 'Los logros desbloquean cosméticos únicos. ¡La Corona dorada solo la tienen los que ganan las ocho medallas!' });
+});
 interior('int_dinamo_central', 18, 14, { name: 'Central Dínamo', title: 'Central eléctrica de Dínamo', floor: 'metalfloor', wall: 'wallint3', exit: { to: 'ciudad_dinamo', spawn: 'door_central' }, noFly: true, music: 'indoor' }, (m) => {
   for (const x of [2, 4, 6, 11, 13, 15]) m.put(x, 2, 'console');
   m.put(1, 5, 'crate'); m.put(16, 5, 'crate'); m.put(1, 9, 'crate'); m.put(16, 9, 'crate');
@@ -84,12 +106,16 @@ defineCity('ciudad_dinamo', { name: 'Ciudad Dínamo', w: 38, h: 28, fill: 'grass
     { slot: 'U4', kind: 'house', roof: 'orange', wall: 'sand', key: 'casa1', to: 'int_ciudad_dinamo_casa1', w: 5, name: 'Casa de Remedios' },
     { slot: 'L1', kind: 'house', roof: 'blue', wall: 'stone', key: 'casa2', to: 'int_ciudad_dinamo_casa2', w: 5, name: 'Taller de Nicolás' },
     { slot: 'L2', kind: 'gym', roof: 'blue', wall: 'stone', key: 'gym', to: 'gym_ciudad_dinamo', w: 7, name: 'Gimnasio Dínamo', req: (g) => g.flag('central_restaurada'), reqText: 'Una verja eléctrica cierra el gimnasio. Un cartel dice: «CERRADO POR APAGÓN. Solicite información en la Central».' },
+    { slot: 'L3', kind: 'shop', roof: 'purple', wall: 'cream', key: 'boutique', to: 'int_dinamo_boutique', w: 6, name: 'Boutique' },
     { slot: 'L4', kind: 'house', roof: 'green', wall: 'wood', key: 'casa3', to: 'int_ciudad_dinamo_casa3', w: 5, name: 'Casa de Gala' },
   ],
   decor: (m) => {
     m.put(23, 14, 'fountain'); m.put(22, 14, 'flowerbed'); m.put(24, 14, 'flowerbed'); m.put(21, 14, 'lamp'); m.put(25, 14, 'lamp'); m.put(13, 12, 'lamp');
     m.sign(9, 9, 'CIUDAD DÍNAMO\nLa ciudad que nunca duerme... salvo cuando hay apagón.'); m.sign(22, 9, 'CENTRAL ELÉCTRICA'); m.sign(12, 20, 'GIMNASIO DÍNAMO\nLíder: Volta · Tipo: Eléctrico');
-    m.sign(18, 5, '↑ Ruta Granito y Pico Granito'); m.sign(18, 25, '↓ Pantano Niebla'); m.sign(33, 12, '→ Desierto Ámbar y Oasis Zafiro');
+    m.sign(18, 5, '↑ Ruta Granito y Pico Granito (se necesitan 3 medallas)'); m.sign(18, 25, '↓ Pantano Niebla (se necesitan 5 medallas)'); m.sign(33, 12, '→ Desierto Ámbar y Oasis Zafiro (se necesitan 4 medallas)');
+    edgeBlock(m, 'n', (g) => g.badges.length >= 3, 'Un guardia te corta el paso: «La Ruta Granito es peligrosa. Solo entrenadores con 3 medallas o más».');
+    edgeBlock(m, 'e', (g) => g.badges.length >= 4, 'Un guardia te corta el paso: «El Desierto Ámbar es traicionero. Solo entrenadores con 4 medallas o más».');
+    edgeBlock(m, 's', (g) => g.badges.length >= 5, 'Un guardia te corta el paso: «El Pantano Niebla es peligroso. Solo entrenadores con 5 medallas o más».');
   },
   extra: (m) => {
     // Kai (rival 3) esperando tras restaurar la central
@@ -98,6 +124,7 @@ defineCity('ciudad_dinamo', { name: 'Ciudad Dínamo', w: 38, h: 28, fill: 'grass
   },
   npcs: [
     { id: 'guia_dinamo', x: 17, y: 12, dir: 'down', look: 'ayudante', name: 'Guía', text: 'Dínamo es el cruce de caminos de Aurelia: al norte, Pico Granito; al este, el desierto; al sur, el pantano. ¡Elige tu rumbo con tiento!' },
+    { id: 'veterana', x: 9, y: 14, dir: 'down', look: 'karateka', name: 'Veterana', talk: async (g) => { const st = await offerQuest(g, 'side_revancha', 'Veterana', 'Llevo veinte años entrenando y te lo aseguro: los rivales mejoran con el tiempo. Los entrenadores que ya has vencido aceptan revanchas cuando pasan un par de días. ¿Te atreves con tres?'); if (st !== 'active') await g.say('Habla con los entrenadores de las rutas dos días después de vencerlos: ¡vendrán con equipos más fuertes!', { speaker: 'Veterana' }); } },
     { id: 'obrero', x: 30, y: 22, dir: 'down', look: 'minero', name: 'Obrero', text: 'Las minas de Pico Granito proveen casi toda la roca de Aurelia. Y los cristales que cantan salen de allí.' },
   ] });
 

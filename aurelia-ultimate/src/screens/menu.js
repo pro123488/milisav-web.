@@ -10,7 +10,7 @@ import { useMedicine } from '../itemuse.js';
 import { findEvolution } from '../evolution.js';
 import { Save } from '../save.js';
 import { openOptions } from './title.js';
-import { creatureImg, typeChip } from '../ui.js';
+import { creatureImg, creatureImgOf, typeChip } from '../ui.js';
 import { trainerCanvas } from '../gfx/trainer_gfx.js';
 import { GAME } from '../config.js';
 import { BADGES } from '../gyms.js';
@@ -50,7 +50,7 @@ export class GameMenu {
 /** Selector modal de criatura del equipo para usar objetos, etc. Devuelve índice o null. */
 export function pickCreature(g, title, { filter = null, hintFn = null } = {}) {
   return new Promise((resolve) => {
-    const items = g.party.map((c, i) => ({ label: `${displayName(c)} Nv${c.lv}`, value: i, icon: creatureImg(c.sp, 34, c.variant), hint: hintFn ? hintFn(c) : (c.egg ? 'Huevo' : `${c.hp}/${c.maxHp}`), disabled: filter ? !filter(c) : false }));
+    const items = g.party.map((c, i) => ({ label: `${displayName(c)} Nv${c.lv}`, value: i, icon: creatureImgOf(c, 34), hint: hintFn ? hintFn(c) : (c.egg ? 'Huevo' : `${c.hp}/${c.maxHp}`), disabled: filter ? !filter(c) : false }));
     const wrap = el('div', { class: 'panel', style: { position: 'absolute', left: '250px', top: '60px', width: '460px', zIndex: 45 } }, [el('div', { class: 'title' }, title)]);
     g.ui.root.append(wrap);
     g.ui.menu(items, { parent: wrap, cancel: null }).then((r) => { wrap.remove(); resolve(r); });

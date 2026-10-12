@@ -10,7 +10,7 @@ import { QUESTS } from '../src/quests.js';
 import { ITEMS } from '../src/data/items.js';
 import { MAP_DEFS, getMap, reachable, mapExists, tkey } from '../src/world.js';
 
-const fakeG = { count: () => 4, flag: () => false };
+const fakeG = { count: () => 4, flag: () => false, party: [{ lv: 40, egg: false }, { lv: 36, egg: false }] };
 test('Entrenadores: especies, movimientos y niveles válidos', () => {
   assert(Object.keys(TRAINERS).length >= 25, 'pocos entrenadores');
   for (const t of Object.values(TRAINERS)) {

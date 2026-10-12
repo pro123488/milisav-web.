@@ -164,7 +164,7 @@
   }
   function tileCanvas(key, frame = 0) {
     const k = key + "#" + frame;
-    let c = cache2.get(k);
+    let c = cache3.get(k);
     if (!c) {
       const [name, v] = key.split(":");
       const d = defs[name];
@@ -172,7 +172,7 @@
       c = mk();
       const g = c.getContext("2d");
       d.draw(g, new RNG(hashStr(key) + frame * 977), v || "", frame);
-      cache2.set(k, c);
+      cache3.set(k, c);
     }
     return c;
   }
@@ -315,14 +315,14 @@
       rect(g, 3, 12, 1, 2, "#8a5a30");
     }
   }
-  var T16, defs, cache2, mk, px, rect, fillBase, speck, GR, ROOFS, WALLS;
+  var T16, defs, cache3, mk, px, rect, fillBase, speck, GR, ROOFS, WALLS;
   var init_tiles = __esm({
     "src/gfx/tiles.js"() {
       init_rng();
       init_color();
       T16 = 16;
       defs = {};
-      cache2 = /* @__PURE__ */ new Map();
+      cache3 = /* @__PURE__ */ new Map();
       mk = () => {
         const c = document.createElement("canvas");
         c.width = c.height = T16;
@@ -1573,6 +1573,7 @@
             fly: o.fly || null,
             title: o.title || o.name || this.id,
             level: o.level || null,
+            solution: this.solution || null,
             forceWeather: o.forceWeather || null,
             noFly: !!o.noFly,
             ownerHooks: o.hooks || null,
@@ -1611,15 +1612,15 @@
     }
   }
   function getMapRender(map) {
-    let mr = cache4.get(map.id);
+    let mr = cache5.get(map.id);
     if (mr) return mr;
-    if (cache4.size > 5) cache4.delete(cache4.keys().next().value);
+    if (cache5.size > 5) cache5.delete(cache5.keys().next().value);
     mr = buildMapRender(map);
-    cache4.set(map.id, mr);
+    cache5.set(map.id, mr);
     return mr;
   }
   function invalidateMapRender(id) {
-    cache4.delete(id);
+    cache5.delete(id);
   }
   function buildMapRender(map) {
     const W = map.w * T16, H = map.h * T16;
@@ -1702,7 +1703,7 @@
     ctx.imageSmoothingEnabled = false;
     blitLayer(ctx, mr.topC, camX, camY, vw, vh);
   }
-  var mkCanvas, cache4, SIDES, frameOf;
+  var mkCanvas, cache5, SIDES, frameOf;
   var init_maprender = __esm({
     "src/maprender.js"() {
       init_world();
@@ -1715,7 +1716,7 @@
         c.height = h;
         return c;
       };
-      cache4 = /* @__PURE__ */ new Map();
+      cache5 = /* @__PURE__ */ new Map();
       SIDES = [["n", 0, -1], ["s", 0, 1], ["w", -1, 0], ["e", 1, 0]];
       frameOf = (t, frames) => Math.floor(t * (frames >= 4 ? 4 : 2)) % frames;
     }
@@ -4012,6 +4013,14 @@
     }
     return n;
   }
+  if (typeof Element !== "undefined") {
+    for (const m of ["append", "prepend"]) {
+      const orig = Element.prototype[m];
+      Element.prototype[m] = function(...a) {
+        return orig.apply(this, a.filter((x) => x != null && x !== false));
+      };
+    }
+  }
 
   // src/creatures.js
   var N = (id, name, up, down, text) => [id, { id, name, up, down, text }];
@@ -4119,7 +4128,7 @@
     return c;
   }
   var speciesOf = (c) => getSpecies(c.sp);
-  var displayName = (c) => c.nick || getSpecies(c.sp).name;
+  var displayName = (c) => c.egg ? "Huevo" : c.nick || getSpecies(c.sp).name;
   var isFainted = (c) => c.hp <= 0;
   var canFight = (c) => !c.egg && c.hp > 0;
   var hpRatio = (c) => c.maxHp ? c.hp / c.maxHp : 0;
@@ -4248,9 +4257,10 @@
     return t;
   }
   var teamOf = (def, g) => typeof def.team === "function" ? def.team(g) : def.team;
-  function buildTeam(def, g = null) {
+  function buildTeam(def, g = null, { bonus = 0 } = {}) {
     const rng = new RNG(hashStr(def.id));
-    return teamOf(def, g).map((m) => {
+    return teamOf(def, g).map((m0) => {
+      const m = bonus ? { ...m0, lv: Math.min(100, m0.lv + bonus), moves: void 0 } : m0;
       const iv = Object.fromEntries(STAT_KEYS.map((k) => [k, m.iv ?? def.iv ?? 5]));
       const abilitySlot = m.ab ?? 0;
       return createCreature(m.sp, m.lv, { rng, iv, nature: m.nat || "equilibrado", moves: m.moves, abilitySlot, ot: def.name, friendship: 70 });
@@ -5108,6 +5118,43 @@
     return cv;
   }
 
+  // src/gfx/egg.js
+  init_rng();
+  init_color();
+  var cache2 = /* @__PURE__ */ new Map();
+  function eggCanvas(spId) {
+    if (cache2.has(spId)) return cache2.get(spId);
+    const c = document.createElement("canvas");
+    c.width = c.height = SPR;
+    const g = c.getContext("2d");
+    const s = getSpecies(spId);
+    const rng = new RNG(hashStr("egg" + spId));
+    const base = TYPES[s.types[0]].color, accent = TYPES[s.types[1] || s.types[0]].color;
+    const shell = mix(lighten(base, 0.65), "#fffaeb", 0.5), shade = mix(darken(base, 0.15), "#c8beaf", 0.4), spot = mix(accent, "#ffffff", 0.2), line = "#2a1f2e";
+    const cx = 24, cy = 27, rx = 14, ry = 18;
+    const inside = (x, y) => {
+      const dx = (x - cx) / rx, dy = (y - cy) / (y < cy ? ry : ry * 0.9);
+      return dx * dx + dy * dy <= 1;
+    };
+    for (let y = 0; y < SPR; y++) for (let x = 0; x < SPR; x++) {
+      if (!inside(x, y)) continue;
+      const edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
+      g.fillStyle = edge ? line : x + y * 0.6 > cx + cy * 0.6 + 6 ? shade : shell;
+      g.fillRect(x, y, 1, 1);
+    }
+    for (let i = 0; i < 7; i++) {
+      const x = rng.int(cx - 10, cx + 10), y = rng.int(cy - 12, cy + 14), r = rng.int(1, 3);
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + dy * dy <= r * r + 1 && inside(x + dx, y + dy) && inside(x + dx + 1, y + dy) && inside(x + dx - 1, y + dy) && inside(x + dx, y + dy + 1) && inside(x + dx, y + dy - 1)) {
+        g.fillStyle = spot;
+        g.fillRect(x + dx, y + dy, 1, 1);
+      }
+    }
+    g.fillStyle = "#ffffff";
+    for (const [x, y] of [[19, 15], [20, 14], [19, 16], [18, 18]]) g.fillRect(x, y, 1, 1);
+    cache2.set(spId, c);
+    return c;
+  }
+
   // src/ui.js
   var typeChip = (t) => el("span", { class: "chip", style: { background: TYPES[t].color } }, TYPES[t].name);
   var statusBadge = (s) => s ? el("span", { class: "badge-st", style: { background: STATUS[s].color } }, STATUS[s].short) : null;
@@ -5116,7 +5163,7 @@
     return el("div", { class: "hpbar " + (p <= 0.2 ? "low" : p <= 0.5 ? "mid" : "") }, el("i", { style: { width: p * 100 + "%" } }));
   }
   function creatureImg(spId, px2 = 96, variant = null, opts = {}) {
-    const src = creatureCanvas(spId, variant);
+    const src = opts.egg ? eggCanvas(spId) : creatureCanvas(spId, variant);
     const c = document.createElement("canvas");
     c.width = c.height = SPR;
     c.className = "sprite";
@@ -5137,6 +5184,7 @@
     }
     return c;
   }
+  var creatureImgOf = (c, px2 = 96, opts = {}) => creatureImg(c.sp, px2, c.variant, { ...opts, egg: !!c.egg });
   var UI = class {
     constructor(game) {
       this.game = game;
@@ -6264,9 +6312,9 @@
       if (!night && s.types.includes("luz")) w *= 1.5;
       return { e, w };
     });
-    const pick = rng.weighted(weighted, (x) => x.w).e;
-    const lv = rng.int(pick.lv[0], Math.max(pick.lv[0], pick.lv[1]));
-    return { sp: pick.sp, lv };
+    const pick2 = rng.weighted(weighted, (x) => x.w).e;
+    const lv = rng.int(pick2.lv[0], Math.max(pick2.lv[0], pick2.lv[1]));
+    return { sp: pick2.sp, lv };
   }
   function makeWild(rng, enc, opts = {}) {
     return createCreature(enc.sp, enc.lv, { rng, ...opts });
@@ -6496,8 +6544,8 @@
   function defineCave(id, cfg) {
     const w = cfg.w, h = cfg.h;
     const enc = cfg.enc || { cueva: { zone: "cueva", lv: cfg.lv || [10, 14], maxRarity: "R" } };
-    defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: "cavefloor", music: cfg.music || "cave", zone: "cueva", tags: ["cueva", ...cfg.tags || []], cave: true, dark: !!cfg.dark, weather: false, noFly: true, region: cfg.region || "valle", encounters: enc, level: cfg.level }, (m) => {
-      m.putRect(0, 0, w, h, "cavewall");
+    defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: cfg.floor || "cavefloor", music: cfg.music || "cave", zone: cfg.zone || "cueva", tags: ["cueva", ...cfg.tags || []], cave: true, dark: !!cfg.dark, weather: false, noFly: true, region: cfg.region || "valle", encounters: enc, level: cfg.level }, (m) => {
+      m.putRect(0, 0, w, h, cfg.wall || "cavewall");
       const carve = (cx, cy, rx, ry) => {
         for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
           if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue;
@@ -6522,7 +6570,7 @@
         }
         stamp(tx, ty);
       }
-      for (const [k, n] of Object.entries(cfg.objs || { stalagmite: Math.round(w * h / 90), crystal: Math.round(w * h / 160), mushroom: Math.round(w * h / 220) })) m.scatter(k, n, { rect: [2, 2, w - 4, h - 4], on: ["cavefloor"], layer: "obj" });
+      for (const [k, n] of Object.entries(cfg.objs || { stalagmite: Math.round(w * h / 90), crystal: Math.round(w * h / 160), mushroom: Math.round(w * h / 220) })) m.scatter(k, n, { rect: [2, 2, w - 4, h - 4], on: [cfg.floor || "cavefloor"], layer: "obj" });
       for (const ex of cfg.exits || []) {
         const up = ex.dir === "up";
         for (let j = 0; j <= 2; j++) for (let i = -1; i <= 1; i++) m.clear(ex.x + i, up ? ex.y + j : ex.y - j);
@@ -6550,6 +6598,25 @@
       for (const npc of cfg.npcs || []) m.npc({ move: "static", ...npc, look: typeof npc.look === "string" ? look(npc.look) : npc.look });
       if (cfg.extra) cfg.extra(m, { w, h });
     });
+  }
+  var walkable = (m, x, y) => m.inb(x, y) && !/^(lava|void)$/.test(m.get(x, y)) && !m.getObj(x, y).match(/^(tree|pine|snowpine|palm|dead|swamptree|autumn|rock|boulder|cactus|lavarock|cavewall|rockwall|hedge|wallint|bldg|stalagmite|crystal|mushroom|fence)/) && !(m.get(x, y) === "water" || m.get(x, y) === "deepwater" || m.get(x, y) === "swampwater");
+  function edgeBlock(m, side, cond, text, opts = {}) {
+    const cells = [];
+    const len = side === "w" || side === "e" ? m.h : m.w;
+    for (let i = 0; i < len; i++) {
+      const [x, y] = side === "w" ? [0, i] : side === "e" ? [m.w - 1, i] : side === "n" ? [i, 0] : [i, m.h - 1];
+      if (walkable(m, x, y)) cells.push([x, y]);
+    }
+    return roadBlock(m, cells, cond, text, opts);
+  }
+  function lineBlock(m, axis, at, cond, text, opts = {}) {
+    const cells = [];
+    const len = axis === "row" ? m.w : m.h;
+    for (let i = 0; i < len; i++) {
+      const [x, y] = axis === "row" ? [i, at] : [at, i];
+      if (walkable(m, x, y)) cells.push([x, y]);
+    }
+    return roadBlock(m, cells, cond, text, opts);
   }
 
   // src/maps/gyms.js
@@ -6728,13 +6795,13 @@
       const stop = inner[Math.min(inner.length - 1, Math.floor((i + 1) * inner.length / (trainerSpecs.length + 1)))];
       if (!stop) break;
       const opts = [[0, -1, "down"], [1, 0, "left"], [0, 1, "up"], [-1, 0, "right"]].map(([dx, dy, dir]) => ({ x: stop[0] + dx, y: stop[1] + dy, dir })).filter((o) => field(o.x, o.y) && !used.has(o.x + "," + o.y) && !platform(o.x, o.y));
-      const pick = opts[0] || null;
-      if (!pick) {
+      const pick2 = opts[0] || null;
+      if (!pick2) {
         cells.push(null);
         continue;
       }
-      used.add(pick.x + "," + pick.y);
-      cells.push(pick);
+      used.add(pick2.x + "," + pick2.y);
+      cells.push(pick2);
     }
     addTrainers(cells.map((c0, i) => c0 || { x: 1, y: y0 + i, dir: "right" }));
     m.solution = sol.stops;
@@ -6743,13 +6810,12 @@
   function padsLayout(m, c) {
     const { id, w, h, exitX, addTrainers } = c;
     for (let y = 4; y <= h - 2; y++) for (let x = 0; x < w; x++) m.set(x, y, "void");
-    for (let x = 0; x < w; x++) m.put(x, h - 1, "wallint");
     const room = (x, y, rw, rh, tile = "floor") => m.rect(x, y, rw, rh, tile);
     const A3 = { x: exitX - 3, y: h - 6, w: 7, h: 5 }, B = { x: 1, y: 8, w: 8, h: 5 }, C3 = { x: w - 9, y: 8, w: 8, h: 5 };
     room(A3.x, A3.y, A3.w, A3.h);
     room(B.x, B.y, B.w, B.h);
     room(C3.x, C3.y, C3.w, C3.h);
-    room(exitX - 4, 2, 9, 3, "marble");
+    room(1, 2, w - 2, 3, "marble");
     m.set(exitX, h - 1, "mat");
     const pad = (x, y, tx, ty, label) => {
       m.set(x, y, "pad");
@@ -6812,6 +6878,7 @@
     const tids = [];
     interior(id, w, h, { name: spec.name, title: spec.title || spec.name, floor: spec.floor || "floor", wall: spec.wallTile || "wallint", exit: { to: cityId, spawn: "door_gym" }, exitX: spec.exitX ?? 9, noFly: true, music: "gym", noSave: false }, (m, ctx) => {
       let gateXY = [9, 4], leaderPos = [9, 2], noGate = false;
+      for (let x = 0; x < w; x++) if (x !== (spec.exitX ?? 9)) m.put(x, h - 1, "wallint");
       const exitX = spec.exitX ?? 9;
       const trainerSpecs = spec.trainers || [];
       const addTrainers = (cells) => {
@@ -6952,6 +7019,16 @@
     }
     ow.refreshEntities();
   }
+  async function offerQuest(g, id, speaker, text) {
+    const st = g.questStatus(id);
+    if (st !== "none") return st;
+    await g.say(text, { speaker });
+    if (await g.yesNo("\xBFAceptas la misi\xF3n?")) {
+      await g.startQuest(id);
+      return "active";
+    }
+    return "none";
+  }
 
   // src/maps/valle.js
   rec("eclipse_museo1", "Recluta", "recluta", [{ sp: 27, lv: 8 }, { sp: 67, lv: 8 }], { reward: 240, intro: "\xA1Qu\xE9date quieto! \xA1Nos llevamos el Prisma y nadie dir\xE1 nada!", win: "\xA1Aaah! \xA1Retirada!" });
@@ -6977,7 +7054,10 @@
     signs: [[4, 13, "BOSQUE UMBRA\nLos \xE1rboles filtran la luz: \xA1no te desv\xEDes del camino!\n\u2190 Ruta 1    Ciudad Roble \u2192"], [44, 8, "CIUDAD ROBLE\nA 10 minutos a pie. Museo, gimnasio y Centro de Curaci\xF3n."]],
     npcs: [
       { id: "guarda", x: 11, y: 12, dir: "down", look: "excursionista", name: "Guardabosques", text: "La niebla del bosque se cierra al caer la noche. Si te pierdes, sigue el camino de tierra: siempre vuelve a alg\xFAn lado." },
-      { id: "lucero", x: 24, y: 10, dir: "left", look: "nina", name: "Ni\xF1a curiosa", text: "Por la noche, los pastizales brillan con luci\xE9rnagas. \xA1Son criaturas peque\xF1itas que parpadean! \xBFLas has visto?" }
+      { id: "lucero", x: 24, y: 10, dir: "left", look: "nina", name: "Ni\xF1a curiosa", talk: async (g) => {
+        const st = await offerQuest(g, "side_noche", "Ni\xF1a curiosa", "Por la noche, los pastizales brillan con luci\xE9rnagas. \xA1Son criaturas peque\xF1itas que parpadean! Me encantar\xEDa ver una de cerca... \xBFme ayudas?");
+        if (st !== "active") await g.say("Solo salen de noche, en la hierba alta. \xA1Paciencia!", { speaker: "Ni\xF1a curiosa" });
+      } }
     ],
     extra: (m) => {
       m.building(36, 15, 5, 4, { kind: "house", roof: "green", wall: "wood", to: "int_bosque_invernadero", tx: "door", key: "inv", name: "Invernadero abandonado" });
@@ -7184,6 +7264,17 @@
   });
 
   // src/maps/costa.js
+  interior("int_ruta2_guarderia", 12, 9, { name: "Guarder\xEDa Girasol", title: "Guarder\xEDa Girasol", floor: "wood", wall: "wallint2", exit: { to: "ruta2", spawn: "door_guarderia" }, noFly: true }, (m) => {
+    m.put(1, 2, "bed");
+    m.put(2, 2, "bed");
+    m.put(9, 2, "shelf");
+    m.put(10, 2, "plant");
+    m.rect(4, 3, 4, 3, "rug");
+    m.put(1, 6, "plant");
+    m.put(10, 6, "plant");
+    m.npc({ id: "cuidadora", x: 6, y: 3, dir: "down", look: look("abuela"), name: "Cuidadora", move: "static", talk: async (g) => g.daycare() });
+    m.object(8, 2, "crate", { name: "Cesta", text: "Una cesta con mantas. Aqu\xED descansan los huevos antes de que los recojan." });
+  });
   defineRoute("ruta2", {
     name: "Lago Espejo",
     title: "Ruta 2 \xB7 Lago Espejo",
@@ -7205,7 +7296,11 @@
     npcs: [
       { id: "pescador_viejo", x: 29, y: 18, dir: "right", look: "pescador", name: "Pescador", text: "Llevo a\xF1os aqu\xED y nunca he pescado nada. Pero el lago es tan bonito que no me importa. \xA1Dicen que con una barca se llega a una isla al sur del puerto!" },
       { id: "excursionista_lago", x: 12, y: 22, dir: "right", look: "excursionista", name: "Excursionista", text: "Por la noche, la hierba de aqu\xED brilla con luci\xE9rnagas. Con lluvia salen m\xE1s criaturas de agua. \xA1Merece la pena venir en un d\xEDa gris!" }
-    ]
+    ],
+    extra: (m) => {
+      m.building(22, 12, 5, 4, { kind: "house", roof: "orange", wall: "cream", to: "int_ruta2_guarderia", tx: "door", key: "guarderia", name: "Guarder\xEDa Girasol" });
+      m.sign(20, 15, "GUARDER\xCDA GIRASOL\nCuidamos de tus criaturas. \xA1Quiz\xE1 aparezca un huevo!");
+    }
   });
   rec("eclipse_muelle1", "Recluta", "recluta", [{ sp: 27, lv: 14 }, { sp: 67, lv: 14 }], { reward: 420, intro: "\xA1Eh, t\xFA! \xA1Este barco ya es nuestro! \xA1L\xE1rgate!", win: "\xA1Se acab\xF3! \xA1Nos vamos!" });
   rec("eclipse_muelle2", "Recluta", "recluta2", [{ sp: 57, lv: 15 }, { sp: 15, lv: 14 }, { sp: 27, lv: 15 }], { reward: 480, intro: "\xA1El capit\xE1n no se enterar\xE1! \xA1Un paso m\xE1s y te hundo!", win: "\xA1Maldici\xF3n! \xA1Abortamos!" });
@@ -7229,7 +7324,10 @@
     if (!g.hasItem("mapa") && g.badges.length >= 1) {
       await g.say("Veo que ya has empezado tu viaje. Toma: un mapa de Aurelia. Te ayudar\xE1 a orientarte.", { speaker: "Nilo" });
       await g.giveItem("mapa");
-    } else await g.say("Cartografiar Aurelia es mi vida. Cada ciudad, cada gruta... \xA1y cada leyenda!", { speaker: "Nilo" });
+    } else {
+      const st = await offerQuest(g, "side_explorador", "Nilo", "Cartografiar Aurelia es mi vida... pero no puedo recorrerla entera. \xBFMe ayudas a completar el mapa? Cuantos m\xE1s lugares visites, mejor.");
+      if (st !== "active") await g.say("Cada ciudad, cada gruta... \xA1y cada leyenda! Vuelve cuando hayas visto m\xE1s mundo.", { speaker: "Nilo" });
+    }
   } }] });
   interior("int_puerto_capitania", 14, 10, { name: "Capitan\xEDa", title: "Capitan\xEDa de Puerto Marea", floor: "wood", wall: "wallint2", exit: { to: "puerto_marea", spawn: "door_capitania" }, noFly: true }, (m) => {
     m.put(1, 2, "bookcase");
@@ -7436,7 +7534,7 @@
     extra: (m) => {
       m.path([[26, 18], [26, 6]], "path", 2);
       caveMouth(m, 26, 4, "cueva_eco", "entrada_ruta3", { key: "ruta3" });
-      roadBlock(m, [[43, 10], [43, 11]], (g) => g.badges.length >= 2, "Un guardia te corta el paso: \xABLa Ruta 3 est\xE1 cerrada a entrenadores con menos de dos medallas. Los apagones de D\xEDnamo han vuelto agresivas a las criaturas de la zona\xBB.");
+      edgeBlock(m, "e", (g) => g.badges.length >= 2, "Un guardia te corta el paso: \xABLa Ruta 3 est\xE1 cerrada a entrenadores con menos de dos medallas. Los apagones de D\xEDnamo han vuelto agresivas a las criaturas de la zona\xBB.");
     }
   });
   rec("eclipse_eco1", "Recluta", "recluta", [{ sp: 27, lv: 20 }, { sp: 67, lv: 21 }], { reward: 600 });
@@ -7456,10 +7554,40 @@
     items: [[34, 26, "super_pocion"], [10, 8, "caramelo_raro"], [40, 9, "hiper_pocion"]],
     hidden: [[5, 24, "polvo_cristal"], [22, 29, "pepita"]],
     signs: [[9, 28, "CUEVA ECO\nCualquier grito rebota... \xA1y a veces te responden!"]],
-    npcs: [{ id: "eco_viejo", x: 12, y: 24, dir: "right", look: "abuelo", name: "Eremita", text: "Llevo a\xF1os escuchando el eco. Cuentan que, para despertarlo, hay que reunir a las tres criaturas que guardan los ecos del mundo y... bueno, ya sabes. Yo solo escucho." }],
+    npcs: [{ id: "eco_viejo", x: 12, y: 24, dir: "right", look: "abuelo", name: "Eremita", talk: async (g) => {
+      if (!g.flag("league_done")) {
+        await g.say("Llevo a\xF1os escuchando el eco. Dicen que, para despertarlo, hay que ser campe\xF3n de la Liga y haber hablado con las criaturas que guardan los extremos de Aurelia. Yo solo escucho.", { speaker: "Eremita" });
+        return;
+      }
+      await scene(g, [["Eremita", "Eres campe\xF3n: el eco ya te escucha. En la Piedra del Eco, al noroeste, puedes llamarlo con una melod\xEDa."], ["Eremita", "El eco verde, el de la vida, acude si has capturado a las tres criaturas de las tormentas \u2014la de rayos, la de lava y la de hielo\u2014 y tocas: Do, Mi, Sol."], ["Eremita", "El eco sonoro acude si has capturado a los dos guardianes de las ruinas \u2014el de metal y el de luna\u2014 y tocas: Sol, Mi, Do."]]);
+    } }],
     extra: (m) => {
       m.trainer({ id: "eco_r1", trainer: "eclipse_eco1", x: 34, y: 21, dir: "down", look: look("recluta"), name: "Recluta", sight: 3, show: (g) => !g.state.trainers.eclipse_eco1?.beaten });
       m.trainer({ id: "eco_r2", trainer: "eclipse_eco2", x: 36, y: 8, dir: "left", look: look("recluta2"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_eco2?.beaten });
+      const NOTES = ["Do", "Re", "Mi", "Fa", "Sol", "La"];
+      const echo = async (g, ow, tune, need, spec, label, hint) => {
+        const missing = need.filter((f) => !g.flag(f + "_done"));
+        if (missing.length) {
+          await g.say(`La Piedra no responde todav\xEDa. ${hint}`);
+          return;
+        }
+        await g.say(`Pones las manos sobre la Piedra del Eco. Un coro de voces lejanas te pide una melod\xEDa de tres notas para ${label}.`);
+        for (let i = 0; i < 3; i++) {
+          const a = await g.ask(`Nota ${i + 1} de 3:`, NOTES, { cancel: -1 });
+          if (a !== tune[i]) {
+            g.audio.sfx("error");
+            await g.say("El eco se apaga con un murmullo. No era la melod\xEDa.");
+            return;
+          }
+          g.audio.sfx("select");
+        }
+        await legendary(g, ow, spec, { text: "La cueva entera vibra. Las notas se multiplican, rebotan, se funden... y, de entre el eco, algo antiguo responde." });
+      };
+      m.object(7, 9, "crystal", { name: "Piedra del Eco", show: (g) => g.flag("league_done"), talk: async (g, e, ow) => {
+        const o = await g.ask("La Piedra vibra suavemente. \xBFQu\xE9 eco quieres llamar?", ["El eco verde", "El eco sonoro", "Ninguno"], { cancel: 2 });
+        if (o === 0) await echo(g, ow, [0, 2, 4], ["tempestra", "magmaron", "glaciaris"], { id: 120, lv: 70, flag: "eterna", minBadges: 8 }, "el eco verde", "Quiz\xE1 deba capturar antes a las criaturas de las tres tormentas: rayos, lava y hielo.");
+        else if (o === 1) await echo(g, ow, [4, 2, 0], ["arkanion", "lunaria"], { id: 121, lv: 70, flag: "quimera", minBadges: 8 }, "el eco sonoro", "Quiz\xE1 deba capturar antes a los guardianes de las ruinas: el de metal y el de luna.");
+      } });
       m.object(40, 6, "crate", { name: "Caja de la Orden", show: (g) => !g.flag("fusible_tomado"), talk: async (g, e, ow) => {
         if (g.flag("fusible_tomado")) {
           await g.say("La caja est\xE1 vac\xEDa.");
@@ -7484,6 +7612,18 @@
     await g.say("Sin corriente no puedo soldar nada. S\xE9 que hay fusibles en la Cueva Eco, al norte de la Ruta 3... pero los guarda gente muy desagradable.", { speaker: "Nicol\xE1s" });
   } }] });
   defineHouse("ciudad_dinamo", "casa3", { name: "Casa de Gala", npcs: [{ id: "gala", x: 5, y: 3, dir: "down", look: "nina", name: "Gala", text: "Mi hermano trabaja en la central. Dice que un hombre con una capa gris lleva d\xEDas all\xED dentro sin salir. \xA1Da mucho miedo!" }] });
+  interior("int_dinamo_boutique", 12, 9, { name: "Boutique", title: "Boutique de Ciudad D\xEDnamo", floor: "wood", wall: "wallint2", exit: { to: "ciudad_dinamo", spawn: "door_boutique" }, noFly: true }, (m) => {
+    for (const x of [1, 2, 9, 10]) m.put(x, 2, "shelf");
+    m.rect(4, 3, 4, 4, "carpet");
+    m.put(1, 6, "plant");
+    m.put(10, 6, "plant");
+    m.npc({ id: "dependienta", x: 6, y: 3, dir: "down", look: look("nina", { hat: "ribbon", hatColor: 9 }), name: "Dependienta", move: "static", talk: async (g) => {
+      await g.say("\xA1Bienvenido a la Boutique! Ropa, accesorios, efectos y c\xE1psulas con estilo. Nada afecta al combate: solo es para presumir.", { speaker: "Dependienta" });
+      await g.openBoutique();
+      await g.say("\xA1Vuelve cuando quieras renovar tu estilo!", { speaker: "Dependienta" });
+    } });
+    m.npc({ id: "cliente_b", x: 9, y: 5, dir: "left", look: look("jugador_extra"), name: "Cliente", move: "static", text: "Los logros desbloquean cosm\xE9ticos \xFAnicos. \xA1La Corona dorada solo la tienen los que ganan las ocho medallas!" });
+  });
   interior("int_dinamo_central", 18, 14, { name: "Central D\xEDnamo", title: "Central el\xE9ctrica de D\xEDnamo", floor: "metalfloor", wall: "wallint3", exit: { to: "ciudad_dinamo", spawn: "door_central" }, noFly: true, music: "indoor" }, (m) => {
     for (const x of [2, 4, 6, 11, 13, 15]) m.put(x, 2, "console");
     m.put(1, 5, "crate");
@@ -7551,6 +7691,7 @@
       { slot: "U4", kind: "house", roof: "orange", wall: "sand", key: "casa1", to: "int_ciudad_dinamo_casa1", w: 5, name: "Casa de Remedios" },
       { slot: "L1", kind: "house", roof: "blue", wall: "stone", key: "casa2", to: "int_ciudad_dinamo_casa2", w: 5, name: "Taller de Nicol\xE1s" },
       { slot: "L2", kind: "gym", roof: "blue", wall: "stone", key: "gym", to: "gym_ciudad_dinamo", w: 7, name: "Gimnasio D\xEDnamo", req: (g) => g.flag("central_restaurada"), reqText: "Una verja el\xE9ctrica cierra el gimnasio. Un cartel dice: \xABCERRADO POR APAG\xD3N. Solicite informaci\xF3n en la Central\xBB." },
+      { slot: "L3", kind: "shop", roof: "purple", wall: "cream", key: "boutique", to: "int_dinamo_boutique", w: 6, name: "Boutique" },
       { slot: "L4", kind: "house", roof: "green", wall: "wood", key: "casa3", to: "int_ciudad_dinamo_casa3", w: 5, name: "Casa de Gala" }
     ],
     decor: (m) => {
@@ -7563,9 +7704,12 @@
       m.sign(9, 9, "CIUDAD D\xCDNAMO\nLa ciudad que nunca duerme... salvo cuando hay apag\xF3n.");
       m.sign(22, 9, "CENTRAL EL\xC9CTRICA");
       m.sign(12, 20, "GIMNASIO D\xCDNAMO\nL\xEDder: Volta \xB7 Tipo: El\xE9ctrico");
-      m.sign(18, 5, "\u2191 Ruta Granito y Pico Granito");
-      m.sign(18, 25, "\u2193 Pantano Niebla");
-      m.sign(33, 12, "\u2192 Desierto \xC1mbar y Oasis Zafiro");
+      m.sign(18, 5, "\u2191 Ruta Granito y Pico Granito (se necesitan 3 medallas)");
+      m.sign(18, 25, "\u2193 Pantano Niebla (se necesitan 5 medallas)");
+      m.sign(33, 12, "\u2192 Desierto \xC1mbar y Oasis Zafiro (se necesitan 4 medallas)");
+      edgeBlock(m, "n", (g) => g.badges.length >= 3, "Un guardia te corta el paso: \xABLa Ruta Granito es peligrosa. Solo entrenadores con 3 medallas o m\xE1s\xBB.");
+      edgeBlock(m, "e", (g) => g.badges.length >= 4, "Un guardia te corta el paso: \xABEl Desierto \xC1mbar es traicionero. Solo entrenadores con 4 medallas o m\xE1s\xBB.");
+      edgeBlock(m, "s", (g) => g.badges.length >= 5, "Un guardia te corta el paso: \xABEl Pantano Niebla es peligroso. Solo entrenadores con 5 medallas o m\xE1s\xBB.");
     },
     extra: (m) => {
       m.npc({ id: "kai_dinamo", x: 20, y: 12, dir: "left", look: look("kai"), name: "Kai", move: "static", show: (g) => g.flag("central_restaurada") && !g.flag("rival3_done"), talk: async (g, e, ow) => {
@@ -7578,6 +7722,10 @@
     },
     npcs: [
       { id: "guia_dinamo", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "D\xEDnamo es el cruce de caminos de Aurelia: al norte, Pico Granito; al este, el desierto; al sur, el pantano. \xA1Elige tu rumbo con tiento!" },
+      { id: "veterana", x: 9, y: 14, dir: "down", look: "karateka", name: "Veterana", talk: async (g) => {
+        const st = await offerQuest(g, "side_revancha", "Veterana", "Llevo veinte a\xF1os entrenando y te lo aseguro: los rivales mejoran con el tiempo. Los entrenadores que ya has vencido aceptan revanchas cuando pasan un par de d\xEDas. \xBFTe atreves con tres?");
+        if (st !== "active") await g.say("Habla con los entrenadores de las rutas dos d\xEDas despu\xE9s de vencerlos: \xA1vendr\xE1n con equipos m\xE1s fuertes!", { speaker: "Veterana" });
+      } },
       { id: "obrero", x: 30, y: 22, dir: "down", look: "minero", name: "Obrero", text: "Las minas de Pico Granito proveen casi toda la roca de Aurelia. Y los cristales que cantan salen de all\xED." }
     ]
   });
@@ -7753,7 +7901,7 @@
       m.sign(18, 5, "\u2191 Ruta Nevada (se necesitan 6 medallas)");
       m.sign(18, 25, "\u2193 Ruta Granito y Ciudad D\xEDnamo");
       caveMouth(m, 32, 20, "mina_granito", "entrada_pico", { key: "pico" });
-      roadBlock(m, [[18, 1], [19, 1]], (g) => g.badges.length >= 6, "Un guardia de monta\xF1a te corta el paso: \xABLa Ruta Nevada es peligrosa. Solo entrenadores con 6 medallas o m\xE1s pueden subir\xBB.");
+      edgeBlock(m, "n", (g) => g.badges.length >= 6, "Un guardia de monta\xF1a te corta el paso: \xABLa Ruta Nevada es peligrosa. Solo entrenadores con 6 medallas o m\xE1s pueden subir\xBB.");
     },
     npcs: [
       { id: "guia_pico", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Pico Granito vive de las minas. Si tienes linterna, la galer\xEDa de Roc\xEDo es una buena ruta entre D\xEDnamo y aqu\xED." },
@@ -7870,6 +8018,7 @@
     m.object(8, 2, "crystal", { name: "Maqueta de los dragones", text: "Una maqueta luminosa: un drag\xF3n de luz y otro de sombra, enroscados uno en torno al otro, y cuatro joyas en las esquinas." });
     m.npc({ id: "astronoma", x: 7, y: 5, dir: "down", look: look("cientifico"), name: "Dra. Lira", move: "static", talk: async (g) => {
       await scene(g, [["Dra. Lira", "Observo el cielo y observo la historia. Hace mil a\xF1os, Aurelion \u2014el drag\xF3n de luz\u2014 y Umbraxis \u2014el drag\xF3n de sombra\u2014 se disputaron el amanecer. Los antiguos los sellaron con cuatro Prismas: Esmeralda, Zafiro, \xC1mbar y N\xE1car."], ["Dra. Lira", "Cada eclipse solar, los sellos tiemblan un poco. El pr\xF3ximo ser\xE1 dentro de poco... y el Maestro Vesper lo sabe."]]);
+      await offerQuest(g, "side_leyenda", "Dra. Lira", "Estudio a las criaturas legendarias de Aurelia: Tempestra, Magmaron, Glaciaris... Si consigues capturar a una, mi investigaci\xF3n dar\xEDa un salto enorme. \xBFMe ayudas?");
       if (g.hasItem("prisma_esmeralda") && g.hasItem("prisma_nacar")) await g.say("\xA1T\xFA ya tienes dos Prismas! Re\xFAne los otros dos y ll\xE9valos al Santuario del Alba antes del eclipse. Solo as\xED evitar\xE1s que Vesper libere a Umbraxis.", { speaker: "Dra. Lira" });
     } });
   });
@@ -7906,7 +8055,8 @@
       m.sign(9, 9, "CIMA ESCARCHA\nLa ciudad m\xE1s alta de Aurelia: 2.300 m.");
       m.sign(22, 9, "OBSERVATORIO");
       m.sign(12, 20, "GIMNASIO ESCARCHA\nL\xEDder: Boreal \xB7 Tipo: Hielo");
-      m.sign(33, 12, "\u2192 Ruinas Antiguas");
+      m.sign(33, 12, "\u2192 Ruinas Antiguas (se necesitan 7 medallas)");
+      edgeBlock(m, "e", (g) => g.badges.length >= 7, "Una barrera de hielo cierra el camino a las Ruinas: \xABSolo entrenadores con 7 medallas\xBB. \xA1Vence al l\xEDder del gimnasio!");
     },
     npcs: [
       { id: "guia_cima", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Bienvenido a Cima Escarcha. Aqu\xED arriba el aire es tan puro que oyes cantar a las criaturas de hielo." },
@@ -7934,6 +8084,797 @@
       await g.startQuest("main_17");
       chapter(g, "Cap\xEDtulo 7 \xB7 Las Ruinas Antiguas");
     }
+  });
+
+  // src/maps/sureste.js
+  defineRoute("desierto_ambar", {
+    name: "Desierto \xC1mbar",
+    title: "Desierto \xC1mbar",
+    w: 52,
+    h: 34,
+    style: "desierto",
+    zone: "desierto",
+    tags: ["desierto"],
+    music: "desert",
+    climate: "desierto",
+    region: "este",
+    waypoints: [[0, 10], [14, 10], [14, 22], [34, 22], [34, 10], [51, 10]],
+    width: 2,
+    conn: { w: { map: "ciudad_dinamo", rows: [10, 11], off: 0 }, e: { map: "oasis_zafiro", rows: [10, 11], off: 0 } },
+    enc: { desierto: { zone: "desierto", lv: [30, 35], maxRarity: "R" }, hierba: { zone: "desierto", lv: [30, 35], maxRarity: "R" } },
+    trainers: [{ cls: "karateka", x: 8, y: 13, dir: "up", lv: [31, 33], n: 3, sight: 3 }, { cls: "excursionista", x: 20, y: 25, dir: "up", lv: [32, 34], n: 3, sight: 3 }, { cls: "domador", x: 28, y: 19, dir: "down", lv: [33, 35], n: 3, sight: 3 }, { cls: "cientifico", x: 38, y: 13, dir: "left", lv: [33, 35], n: 3, sight: 3 }, { cls: "karateka", x: 44, y: 7, dir: "down", lv: [34, 36], n: 3, sight: 3 }],
+    items: [[6, 6, "hiper_pocion"], [22, 28, "caramelo_raro"], [40, 18, "revivir"], [47, 28, "eter"]],
+    hidden: [[16, 4, "pepita"], [30, 30, "perla"], [48, 4, "perla_grande"]],
+    signs: [[2, 9, "DESIERTO \xC1MBAR\n\u2190 Ciudad D\xEDnamo    Oasis Zafiro \u2192\nLleva agua. El calor aprieta de d\xEDa; de noche, helada."]],
+    npcs: [{ id: "caravana", x: 24, y: 13, dir: "down", look: "excursionista", name: "Caravanero", text: "Cruzo este desierto con mi caravana desde hace treinta a\xF1os. Dos consejos: viaja de noche y desconf\xEDa de los espejismos... y de la gente con capa oscura." }]
+  });
+  rec("eclipse_oasis1", "Recluta", "recluta", [{ sp: 33, lv: 33 }, { sp: 70, lv: 33 }, { sp: 59, lv: 34 }], { reward: 1e3, intro: "\xA1Aqu\xED no hay nada que ver! \xA1Fuera del templo!" });
+  rec("eclipse_oasis2", "Recluta", "recluta2", [{ sp: 94, lv: 34 }, { sp: 58, lv: 34 }, { sp: 28, lv: 35 }], { reward: 1100, intro: "\xA1Nadie nos quita el Prisma Zafiro!", win: "\xA1Imposible! \xA1Retirada!" });
+  var avgLv = (g) => {
+    const p = g.party.filter((c) => !c.egg);
+    return Math.max(10, Math.round(p.reduce((a, c) => a + c.lv, 0) / Math.max(1, p.length)));
+  };
+  var scaled = (sps, off) => (g) => sps.map((sp, i) => ({ sp, lv: Math.max(5, Math.min(100, avgLv(g) + off + i)) }));
+  var COLISEO = [
+    ["coliseo1", "Gladiador Tito", "karateka", [53, 21, 12], -3, "Entrenador de arena", "\xA1La arena premia al valiente! \xA1Adelante!", "\xA1Buen golpe, forastero!"],
+    ["coliseo2", "Gladiadora Rea", "domador", [43, 81, 59], -1, "Domadora de arena", "\xA1Mis criaturas rugen en el Coliseo! \xA1Escucha!", "\xA1Me has superado! \xA1Qu\xE9 temple!"],
+    ["coliseo3", "Campe\xF3n Cassio", "campeon", [54, 83, 62, 78], 1, "Campe\xF3n del Coliseo", "Todos los a\xF1os gano la copa... \xBFTe atreves a quit\xE1rmela?", "\xA1La copa es tuya! \xA1Qu\xE9 combate!"]
+  ];
+  for (const [id, name, lookName, team, off, cls, intro, win] of COLISEO) defineTrainer(id, { name, cls, look: look(lookName), team: scaled(team, off), ai: "smart", iv: 10, reward: 0, intro, win, lose: "\xA1La arena no perdona!", gym: false });
+  defineCenter("oasis_zafiro", "Oasis Zafiro");
+  defineShopInterior("oasis_zafiro", "discos", { name: "Tienda de Discos del Oasis" });
+  defineHouse("oasis_zafiro", "casa1", { name: "Casa de Yasm\xEDn", npcs: [{ id: "yasmin", x: 4, y: 3, dir: "down", look: "nina", name: "Yasm\xEDn", text: "Mi abuela guarda el Prisma Zafiro en el templo, pero hay un grupo de hombres con capas oscuras rondando... Dicen que el agua del oasis brilla m\xE1s cuando se acerca el eclipse." }] });
+  defineHouse("oasis_zafiro", "casa2", { name: "Casa de Omar", npcs: [{ id: "omar", x: 5, y: 4, dir: "left", look: "tendero", name: "Omar", text: "Vendo discos t\xE9cnicos: \xA1cada uno ense\xF1a un movimiento nuevo a tu criatura! Eso s\xED, solo funcionan si la criatura puede aprenderlo." }] });
+  interior("int_oasis_templo", 14, 11, { name: "Templo del Oasis", title: "Templo del Oasis Zafiro", floor: "marble", wall: "wallint2", exit: { to: "oasis_zafiro", spawn: "door_templo" }, noFly: true, music: "ruins" }, (m) => {
+    m.put(1, 2, "statue");
+    m.put(12, 2, "statue");
+    m.put(4, 2, "bookcase");
+    m.put(9, 2, "bookcase");
+    m.rect(4, 4, 6, 4, "carpet");
+    m.object(7, 2, "altar", { name: "Altar del Zafiro", show: () => true, text: "Un altar de piedra azul. En el centro, un hueco con forma de joya donde descansaba el Prisma Zafiro." });
+    m.trainer({ id: "oasis_r1", trainer: "eclipse_oasis1", x: 4, y: 7, dir: "right", look: look("recluta"), name: "Recluta", sight: 6, show: (g) => !g.state.trainers.eclipse_oasis1?.beaten && g.flag("zafira_hablo") });
+    m.trainer({ id: "oasis_r2", trainer: "eclipse_oasis2", x: 9, y: 6, dir: "left", look: look("recluta2"), name: "Recluta", sight: 6, show: (g) => !g.state.trainers.eclipse_oasis2?.beaten && g.flag("zafira_hablo") });
+    m.npc({ id: "zafira", x: 7, y: 3, dir: "down", look: look("abuela"), name: "Anciana Zafira", move: "static", talk: async (g, e, ow) => {
+      const T2 = "Zafira";
+      if (g.flag("prisma_zafiro")) {
+        await g.say("Que el Zafiro te gu\xEDe, entrenador. Ll\xE9valo al Santuario del Alba cuando tengas los cuatro.", { speaker: T2 });
+        return;
+      }
+      if (!g.flag("zafira_hablo")) {
+        await scene(g, [[T2, "Soy Zafira, guardiana del Prisma Zafiro. Hace una hora, unos hombres con capas oscuras entraron sin permiso y me lo han pedido a la fuerza."], [T2, "Dicen que un ritual necesita los cuatro. Si no es por las buenas, ser\xE1 por las malas... \xA1Ay\xFAdame a echarlos! Est\xE1n ah\xED al fondo."]]);
+        g.setFlag("zafira_hablo");
+        ow.refreshEntities();
+        await g.startQuest("main_13");
+        return;
+      }
+      if (!(g.state.trainers.eclipse_oasis1?.beaten && g.state.trainers.eclipse_oasis2?.beaten)) {
+        await g.say("Los reclutas siguen aqu\xED. \xA1Derr\xF3talos!", { speaker: T2 });
+        return;
+      }
+      await scene(g, [[T2, "Gracias, joven. El Zafiro es tuyo: ya no estar\xE1 a salvo aqu\xED. T\xFA sabr\xE1s protegerlo mejor que yo."]]);
+      await g.giveItem("prisma_zafiro");
+      g.setFlag("prisma_zafiro");
+      chapter(g, "Cap\xEDtulo 5 \xB7 El Prisma Zafiro");
+    } });
+  });
+  interior("int_oasis_coliseo", 18, 14, { name: "Coliseo del Oasis", title: "Coliseo del Oasis", floor: "arenafloor", wall: "wallint", exit: { to: "oasis_zafiro", spawn: "door_coliseo" }, noFly: true, music: "league" }, (m) => {
+    m.rect(2, 3, 14, 8, "arenafloor");
+    for (const x of [1, 3, 5, 12, 14, 16]) m.put(x, 2, "banner");
+    m.put(1, 12, "plant");
+    m.put(16, 12, "plant");
+    m.npc({ id: "arbitro", x: 9, y: 4, dir: "down", look: look("ayudante"), name: "\xC1rbitro", move: "static", talk: async (g, e, ow) => {
+      const T2 = "\xC1rbitro";
+      const tour = g.state.tournament;
+      await offerQuest(g, "side_torneo", T2, "\xA1Un nuevo aspirante! \xBFTe atreves a ganar el Gran Torneo? Es un reto que solo los mejores completan.");
+      if (!g.badges.length) {
+        await g.say("El Coliseo solo admite a entrenadores con al menos una medalla.", { speaker: T2 });
+        return;
+      }
+      if (g.now.day - tour.lastDay < 3) {
+        await g.say(`El torneo se celebra cada tres d\xEDas. Vuelve en ${3 - (g.now.day - tour.lastDay)} d\xEDa(s) de juego.`, { speaker: T2 });
+        return;
+      }
+      await g.say("\xA1Bienvenido al Gran Torneo del Oasis! Tres combates seguidos, sin pausas. Al final, premio... \xA1si ganas!", { speaker: T2 });
+      if (!await g.yesNo("\xBFQuieres participar? (Entre rondas se curan tus criaturas)")) return;
+      tour.lastDay = g.now.day;
+      for (let i = 1; i <= 3; i++) {
+        await g.say(`Ronda ${i} de 3.`, { speaker: T2 });
+        const r = await g.battleTrainer("coliseo" + i, { entity: null, rematch: true });
+        if (r.result !== "win") {
+          await g.say?.("...");
+          return;
+        }
+        if (i < 3) {
+          healParty(g.party);
+          g.audio.sfx("heal");
+          await g.say("El \xE1rbitro cura a tu equipo entre rondas.");
+        }
+      }
+      g.state.stats.tournaments++;
+      tour.wins++;
+      g.emit("tournament_won", {});
+      const prize = 4e3 + 800 * Math.min(8, g.badges.length);
+      g.addMoney(prize);
+      g.audio.sfx("coin");
+      await g.say(`\xA1Campe\xF3n del torneo! Premio: ${prize} \xE1ureos.`, { speaker: T2 });
+      await g.giveItem(["revivir", "hiper_pocion", "caramelo_raro"][tour.wins % 3], 2);
+    } });
+    m.npc({ id: "espectador", x: 3, y: 12, dir: "right", look: look("excursionista"), name: "Espectador", move: "static", text: "El torneo se celebra cada tres d\xEDas. Los oponentes se adaptan al nivel de tu equipo... \xA1y el campe\xF3n es duro!" });
+    m.npc({ id: "vendedor_arena", x: 14, y: 12, dir: "left", look: look("tendero"), name: "Vendedor", move: "static", talk: async (g) => {
+      await g.say("\xA1Refrescos para los espectadores!", { speaker: "Vendedor" });
+      await g.openShop("general");
+    } });
+  });
+  defineCity("oasis_zafiro", {
+    name: "Oasis Zafiro",
+    w: 38,
+    h: 28,
+    fill: "sand",
+    path: "cobble",
+    tree: "palm",
+    music: "desert",
+    zone: "ciudad",
+    tags: ["ciudad", "desierto"],
+    climate: "desierto",
+    region: "este",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { w: { map: "desierto_ambar", rows: [10, 11], off: 0 }, e: { map: "ruta_ceniza", rows: [10, 11], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "sand", key: "centro", to: "int_oasis_zafiro_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "blue", wall: "sand", key: "tienda", to: "int_oasis_zafiro_tienda", w: 6, name: "Tienda de Discos" },
+      { slot: "U3", kind: "hall", roof: "blue", wall: "stone", key: "templo", to: "int_oasis_templo", w: 7, h: 5, name: "Templo del Zafiro" },
+      { slot: "U4", kind: "house", roof: "orange", wall: "sand", key: "casa1", to: "int_oasis_zafiro_casa1", w: 5, name: "Casa de Yasm\xEDn" },
+      { slot: "L1", kind: "house", roof: "brown", wall: "sand", key: "casa2", to: "int_oasis_zafiro_casa2", w: 5, name: "Casa de Omar" },
+      { slot: "L2", kind: "hall", roof: "red", wall: "stone", key: "coliseo", to: "int_oasis_coliseo", w: 7, h: 6, name: "Coliseo del Oasis" }
+    ],
+    decor: (m) => {
+      m.blob(19, 14, 4, 2.5, "water");
+      m.blob(19, 14, 5.4, 3.6, "beach", { only: ["sand"] });
+      m.blob(19, 14, 3.4, 1.8, "water");
+      m.clear(17, 14);
+      m.clear(21, 14);
+      m.sign(9, 9, "OASIS ZAFIRO\nLa perla del desierto.");
+      m.sign(22, 9, "TEMPLO DEL ZAFIRO");
+      m.sign(12, 20, "COLISEO DEL OASIS\nTorneo cada tres d\xEDas. Premio en \xE1ureos.");
+      m.sign(33, 12, "\u2192 Ruta Ceniza y Ciudad Brasa");
+      m.sign(3, 12, "\u2190 Desierto \xC1mbar");
+      m.put(14, 13, "palm_b");
+      m.put(14, 12, "palm_t");
+      m.put(24, 13, "palm_b");
+      m.put(24, 12, "palm_t");
+    },
+    npcs: [
+      { id: "guia_oasis", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "\xA1Bienvenido a Oasis Zafiro! En el Coliseo se celebra un torneo cada tres d\xEDas. Y el templo guarda un tesoro muy antiguo." },
+      { id: "viajero_oasis", x: 30, y: 22, dir: "down", look: "marinero", name: "Viajero", text: "Dicen que al este, tras la Ruta Ceniza, hay una ciudad donde cada a\xF1o se prende un fuego que nunca se apaga. Y un volc\xE1n donde duerme algo enorme." }
+    ]
+  });
+  defineRoute("ruta_ceniza", {
+    name: "Ruta Ceniza",
+    title: "Ruta Ceniza",
+    w: 40,
+    h: 40,
+    style: "volcan",
+    zone: "volcan",
+    tags: ["volcan"],
+    music: "volcano",
+    climate: "volcan",
+    region: "este",
+    waypoints: [[0, 10], [14, 10], [14, 22], [26, 22], [26, 30], [18, 30], [18, 39]],
+    width: 2,
+    conn: { w: { map: "oasis_zafiro", rows: [10, 11], off: 0 }, s: { map: "ciudad_brasa", cols: [18, 19], off: 0 } },
+    enc: { volcan: { zone: "volcan", lv: [33, 38], maxRarity: "V" }, hierba: { zone: "volcan", lv: [33, 38], maxRarity: "V" } },
+    trainers: [{ cls: "domador", x: 8, y: 13, dir: "up", lv: [34, 36], n: 3, sight: 3 }, { cls: "karateka", x: 20, y: 25, dir: "up", lv: [35, 37], n: 3, sight: 3 }, { cls: "excursionista", x: 30, y: 25, dir: "left", lv: [35, 37], n: 3, sight: 3 }, { cls: "domador", x: 22, y: 34, dir: "right", lv: [36, 38], n: 3, sight: 4 }],
+    items: [[8, 6, "hiper_pocion"], [30, 16, "caramelo_raro"], [10, 28, "revivir"], [32, 36, "eter"]],
+    hidden: [[20, 6, "pepita"], [4, 34, "polvo_cristal"]],
+    signs: [[2, 9, "RUTA CENIZA\n\u2190 Oasis Zafiro    Ciudad Brasa \u2193\nSuelo de ceniza: \xA1cuidado con las criaturas de fuego!"]],
+    npcs: [{ id: "volcanologo", x: 22, y: 20, dir: "down", look: "cientifico", name: "Vulcan\xF3logo", text: "El Cr\xE1ter Ignis lleva siglos dormido... pero este \xFAltimo mes el suelo tiembla cada noche. \xA1Ojal\xE1 no sea nada!" }]
+  });
+  rec("eclipse_crater1", "Recluta", "recluta", [{ sp: 33, lv: 36 }, { sp: 59, lv: 36 }, { sp: 68, lv: 37 }], { reward: 1400, intro: "\xA1Aqu\xED no puedes pasar! El cr\xE1ter es territorio de la Orden.", win: "\xA1Aaah! \xA1Ceniza en los ojos!" });
+  rec("eclipse_crater2", "Recluta", "recluta2", [{ sp: 94, lv: 37 }, { sp: 70, lv: 37 }, { sp: 59, lv: 38 }], { reward: 1500, intro: "\xA1La teniente Cinder no quiere visitas!", win: "\xA1No es posible!" });
+  var MAGMARON = { id: 114, lv: 58, flag: "magmaron", minBadges: 5 };
+  defineCrater();
+  function defineCrater() {
+    defineCave("crater_ignis", {
+      name: "Cr\xE1ter Ignis",
+      title: "Cr\xE1ter Ignis",
+      w: 50,
+      h: 38,
+      lv: [36, 40],
+      floor: "ash",
+      wall: "cavewall",
+      zone: "volcan",
+      music: "volcano",
+      region: "este",
+      dark: false,
+      enc: { volcan: { zone: "volcan", lv: [36, 40], maxRarity: "V" }, cueva: { zone: "volcan", lv: [36, 40], maxRarity: "V" } },
+      objs: { lavarock: 22, boulder: 10 },
+      rooms: [[8, 32, 5, 3], [22, 28, 6, 4], [38, 30, 5, 3], [12, 18, 5, 4], [28, 16, 6, 4], [42, 10, 4, 3], [24, 6, 4, 3]],
+      passages: [[[8, 32], [8, 28], [22, 28]], [[22, 28], [38, 28], [38, 30]], [[22, 28], [22, 18], [12, 18]], [[22, 18], [28, 18], [28, 16]], [[28, 16], [28, 10], [42, 10], [46, 10], [46, 6]], [[28, 10], [24, 10], [24, 6]]],
+      exits: [{ x: 8, y: 35, to: "ciudad_brasa", spawn: "cueva_brasa", key: "brasa" }],
+      trainers: [{ cls: "domador", x: 22, y: 23, dir: "down", lv: [36, 38], n: 3, sight: 4 }, { cls: "karateka", x: 16, y: 18, dir: "right", lv: [37, 39], n: 3, sight: 4 }],
+      items: [[8, 30, "hiper_pocion"], [40, 31, "revivir"], [24, 4, "elixir"], [12, 16, "caramelo_raro"]],
+      hidden: [[5, 33, "pepita"], [44, 11, "perla_grande"]],
+      extra: (m) => {
+        m.rect(18, 26, 9, 3, "lava");
+        m.rect(24, 15, 4, 2, "lava");
+        m.rect(36, 29, 3, 2, "lava");
+        for (const [x, y] of [[22, 28], [22, 27], [22, 26]]) m.set(x, y, "ash");
+        m.trainer({ id: "crater_r1", trainer: "eclipse_crater1", x: 38, y: 27, dir: "down", look: look("recluta"), name: "Recluta", sight: 4, show: (g) => !g.state.trainers.eclipse_crater1?.beaten });
+        m.trainer({ id: "crater_r2", trainer: "eclipse_crater2", x: 36, y: 10, dir: "left", look: look("recluta2"), name: "Recluta", sight: 5, show: (g) => !g.state.trainers.eclipse_crater2?.beaten });
+        m.npc({ id: "cinder2", x: 42, y: 11, dir: "down", look: look("teniente"), name: "Teniente Cinder", move: "static", show: (g) => !g.state.trainers.cinder2?.beaten, talk: async (g, e, ow) => {
+          if (!(g.state.trainers.eclipse_crater1?.beaten && g.state.trainers.eclipse_crater2?.beaten)) {
+            await g.say("Primero mis reclutas. \xA1Sube si puedes!", { speaker: "Teniente Cinder" });
+            return;
+          }
+          if (await fight(g, "cinder2", { entity: e })) {
+            ow.refreshEntities();
+            g.setFlag("prisma_ambar");
+            await g.giveItem("prisma_ambar");
+            await scene(g, [["Teniente Cinder", "Maldici\xF3n... Ll\xE9vatelo. Pero Vesper ya conoce el Santuario. Tres Prismas no abren nada... y nosotros no los necesitamos todos."], [null, "Cinder salta a una cornisa y desaparece entre el humo."]]);
+            chapter(g, "Cap\xEDtulo 6 \xB7 El Prisma \xC1mbar");
+          }
+        } });
+        m.object(46, 6, "altar", { name: "Altar del Cr\xE1ter", talk: async (g, e, ow) => legendary(g, ow, MAGMARON, { text: "Un altar de roca fundida en el coraz\xF3n del cr\xE1ter. El suelo late como un coraz\xF3n enorme. Algo ardiente despierta bajo tus pies..." }) });
+      }
+    });
+  }
+  defineCenter("ciudad_brasa", "Ciudad Brasa");
+  defineShopInterior("ciudad_brasa", "grandes", { name: "Almac\xE9n de Brasa" });
+  defineHouse("ciudad_brasa", "casa1", { name: "Casa de Soledad", npcs: [{ id: "soledad", x: 4, y: 3, dir: "down", look: "abuela", name: "Soledad", text: "Cada invierno encendemos la Hoguera de Brasa y no se apaga hasta la primavera. Este a\xF1o el humo del cr\xE1ter ha ennegrecido el cielo..." }] });
+  defineHouse("ciudad_brasa", "casa2", { name: "Casa de Fran", npcs: [{ id: "fran", x: 5, y: 4, dir: "left", look: "nino", name: "Fran", text: "El gimnasio est\xE1 rodeado de lava. \xA1Solo hay pasarelas de piedra! Si te caes... bueno, no te cuesta el gimnasio, solo te quemas el orgullo." }] });
+  defineCity("ciudad_brasa", {
+    name: "Ciudad Brasa",
+    w: 38,
+    h: 28,
+    fill: "ash",
+    path: "gravel",
+    tree: "dead",
+    music: "volcano",
+    zone: "ciudad",
+    tags: ["ciudad", "volcan"],
+    climate: "volcan",
+    region: "este",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { n: { map: "ruta_ceniza", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "stone", key: "centro", to: "int_ciudad_brasa_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "orange", wall: "stone", key: "tienda", to: "int_ciudad_brasa_tienda", w: 6, name: "Almac\xE9n" },
+      { slot: "U4", kind: "house", roof: "brown", wall: "stone", key: "casa1", to: "int_ciudad_brasa_casa1", w: 5, name: "Casa de Soledad" },
+      { slot: "L1", kind: "house", roof: "red", wall: "stone", key: "casa2", to: "int_ciudad_brasa_casa2", w: 5, name: "Casa de Fran" },
+      { slot: "L2", kind: "gym", roof: "red", wall: "stone", key: "gym", to: "gym_ciudad_brasa", w: 7, name: "Gimnasio Brasa" }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "bonfire");
+      m.put(22, 14, "lavarock");
+      m.put(24, 14, "lavarock");
+      m.put(21, 14, "torch");
+      m.put(25, 14, "torch");
+      m.put(13, 12, "torch");
+      m.sign(9, 9, "CIUDAD BRASA\nLa ciudad del fuego que no se apaga.");
+      m.sign(12, 20, "GIMNASIO BRASA\nL\xEDder: Ignacio \xB7 Tipo: Fuego");
+      m.sign(23, 16, "HOGUERA DE BRASA\nSe enciende cada invierno y no se apaga hasta la primavera.");
+      caveMouth(m, 33, 20, "crater_ignis", "entrada_brasa", { key: "brasa" });
+      m.sign(31, 19, "CR\xC1TER IGNIS\nAcceso peligroso. Se recomienda ropa resistente al calor.");
+    },
+    npcs: [
+      { id: "guia_brasa", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Bienvenido a Ciudad Brasa. Detr\xE1s de la ciudad, al este, la boca del Cr\xE1ter Ignis. \xA1Ni se te ocurra entrar sin ropa de abrigo... \xA1de verano!" },
+      { id: "bombero", x: 28, y: 22, dir: "left", look: "excursionista", name: "Bombero", text: "Este a\xF1o el cr\xE1ter ha escupido humo dos veces. Si ves lava donde no deber\xEDa... \xA1corre!" }
+    ]
+  });
+  defineGym("ciudad_brasa", {
+    name: "Gimnasio Brasa",
+    title: "Gimnasio de Ciudad Brasa",
+    badge: "ascua",
+    leader: "lider_ignacio",
+    layout: "maze",
+    zone: { zone: "volcan" },
+    floor: "floor",
+    wall: { layer: "ground", tile: "lava" },
+    mazeFloor: "cavefloor",
+    w: 23,
+    h: 20,
+    exitX: 11,
+    barriers: 1,
+    barrierTile: "lavarock",
+    barrierName: "Muro de lava",
+    barrierText: "Un muro de lava solidificada bloquea la pasarela. Quiz\xE1 haya un mecanismo para enfriarlo.",
+    switchText: "Presionas el interruptor: un chorro de agua enfr\xEDa la lava y el muro se resquebraja.",
+    trainers: [{ cls: "domador", types: ["fuego"], lv: [33, 35], n: 3 }, { cls: "karateka", types: ["fuego", "lucha"], lv: [34, 36], n: 3 }, { cls: "domador", types: ["fuego", "tierra"], lv: [35, 36], n: 3 }],
+    rewards: { tm: "dt09", items: { hiper_pocion: 3 } },
+    after: "Cuando el fuego arde bien, todo lo dem\xE1s parece fr\xEDo. \xA1Sigue ardiendo, entrenador!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_ascua");
+      await g.completeQuest("main_14");
+      await g.startQuest("main_15");
+      chapter(g, "Cap\xEDtulo 6 \xB7 Rumbo al pantano");
+    }
+  });
+
+  // src/maps/sur.js
+  defineRoute("pantano_niebla", {
+    name: "Pantano Niebla",
+    title: "Pantano Niebla",
+    w: 44,
+    h: 40,
+    style: "pantano",
+    zone: "pantano",
+    tags: ["pantano"],
+    music: "swamp",
+    climate: "pantano",
+    region: "sur",
+    waypoints: [[18, 0], [18, 12], [10, 12], [10, 24], [26, 24], [26, 34], [18, 34], [18, 39]],
+    width: 2,
+    conn: { n: { map: "ciudad_dinamo", cols: [18, 19], off: 0 }, s: { map: "aldea_niebla", cols: [18, 19], off: 0 } },
+    water: [[32, 10, 6, 4, "swampwater"], [8, 32, 5, 3, "swampwater"], [34, 28, 4, 3, "swampwater"]],
+    enc: { pantano: { zone: "pantano", lv: [33, 38], maxRarity: "V" }, hierba: { zone: "pantano", lv: [33, 38], maxRarity: "V" } },
+    trainers: [{ cls: "bruja", x: 14, y: 15, dir: "up", lv: [34, 36], n: 3, sight: 3 }, { cls: "cientifico", x: 20, y: 27, dir: "up", lv: [35, 37], n: 3, sight: 3 }, { cls: "bruja", x: 30, y: 26, dir: "left", lv: [35, 37], n: 3, sight: 4 }, { cls: "excursionista", x: 22, y: 36, dir: "right", lv: [36, 38], n: 3, sight: 4 }],
+    items: [[8, 8, "hiper_pocion"], [30, 16, "antiparalizador"], [6, 28, "revivir"], [34, 34, "eter"]],
+    hidden: [[36, 22, "diario_perdido"], [14, 4, "pepita"], [24, 14, "polvo_cristal"]],
+    signs: [[16, 3, "PANTANO NIEBLA\n\u2190 D\xEDnamo (norte)    Aldea Niebla (sur) \u2193\nLa niebla t\xF3xica empieza m\xE1s al sur: sin amuleto, no se pasa."], [38, 21, "CHARCA GRANDE\n(Alguien ha perdido un diario por aqu\xED...)"]],
+    npcs: [{ id: "ermitano", x: 13, y: 9, dir: "down", look: "abuelo", name: "Ermita\xF1o Tob\xEDas", talk: async (g) => {
+      const T2 = "Tob\xEDas";
+      if (g.flag("amuleto_recibido")) {
+        await g.say("El Amuleto del Pantano te proteger\xE1 de la niebla. \xA1Y recuerda: nunca discutas con una rana!", { speaker: T2 });
+        return;
+      }
+      if (g.flag("diario_entregado") || g.hasItem("diario_perdido")) {
+        g.takeItem("diario_perdido");
+        g.setFlag("diario_entregado");
+        await scene(g, [[T2, "\xA1Mi diario! Cuarenta a\xF1os de notas sobre el pantano... Gracias, forastero. Toma: el Amuleto del Pantano. Con \xE9l, la niebla t\xF3xica no te har\xE1 nada."]]);
+        await g.giveItem("amuleto_pantano");
+        g.setFlag("amuleto_recibido");
+        return;
+      }
+      await scene(g, [[T2, "Soy Tob\xEDas, guardi\xE1n del pantano. Al sur la niebla se vuelve t\xF3xica: solo se puede cruzar con el Amuleto del Pantano, y yo lo guardo."], [T2, "Te lo dar\xE9 a cambio de algo: perd\xED mi diario junto a la Charca Grande, al este. Tr\xE1emelo y el amuleto ser\xE1 tuyo."]]);
+      if (!g.flag("tobias_hablo")) {
+        g.setFlag("tobias_hablo");
+        await g.startQuest("main_15");
+      }
+    } }, { id: "rana", x: 30, y: 30, dir: "left", look: "nino", name: "Ni\xF1o", text: "Mi pap\xE1 dice que en el pantano, cuanto m\xE1s oscuro, m\xE1s raras las criaturas. \xA1Yo solo he visto sapos!" }],
+    extra: (m) => {
+      m.put(12, 10, "tent");
+      m.put(11, 10, "bonfire");
+      lineBlock(m, "row", 30, (g) => g.hasItem("amuleto_pantano") || g.flag("amuleto_recibido"), "Una niebla verdosa y t\xF3xica cubre el camino. Sin el Amuleto del Pantano, ni lo intentes: el ermita\xF1o del norte lo guarda.", { name: "Niebla t\xF3xica" });
+    }
+  });
+  defineCenter("aldea_niebla", "Aldea Niebla");
+  defineShopInterior("aldea_niebla", "general", { name: "Botica de la Aldea" });
+  defineHouse("aldea_niebla", "casa1", { name: "Casa de Brisa", npcs: [{ id: "brisa", x: 4, y: 3, dir: "down", look: "nina", name: "Brisa", text: "En el gimnasio de Morgana hay plataformas que te teletransportan... \xA1pero no todas a donde quieres! Mi consejo: f\xEDjate en el color de cada una." }] });
+  defineHouse("aldea_niebla", "casa2", { name: "Casa de Casimiro", npcs: [{ id: "casimiro", x: 5, y: 4, dir: "left", look: "abuelo", name: "Casimiro", text: "La niebla cubre la aldea por la noche y de d\xEDa. Vamos a tientas por costumbre, pero conocemos cada piedra." }] });
+  defineHouse("aldea_niebla", "casa3", { name: "Casa de la curandera", npcs: [{ id: "curandera", x: 4, y: 3, dir: "down", look: "bruja", name: "Curandera Lupe", talk: async (g) => {
+    await g.say("Preparo ant\xEDdotos y ung\xFCentos con hierbas del pantano. Toma una muestra: te vendr\xE1 bien.", { speaker: "Lupe" });
+    if (!g.flag("lupe_regalo")) {
+      g.setFlag("lupe_regalo");
+      await g.giveItem("antidoto", 5);
+      await g.giveItem("cura_estados", 2);
+    } else await g.say("Vuelve cuando te hagan falta m\xE1s hierbas.", { speaker: "Lupe" });
+  } }] });
+  defineCity("aldea_niebla", {
+    name: "Aldea Niebla",
+    w: 38,
+    h: 28,
+    fill: "bog",
+    path: "path",
+    tree: "swamptree",
+    music: "swamp",
+    zone: "ciudad",
+    tags: ["ciudad", "pantano"],
+    climate: "pantano",
+    region: "sur",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { n: { map: "pantano_niebla", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "wood", key: "centro", to: "int_aldea_niebla_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "purple", wall: "wood", key: "tienda", to: "int_aldea_niebla_tienda", w: 6, name: "Botica" },
+      { slot: "U4", kind: "house", roof: "brown", wall: "wood", key: "casa1", to: "int_aldea_niebla_casa1", w: 5, name: "Casa de Brisa" },
+      { slot: "L1", kind: "house", roof: "purple", wall: "wood", key: "casa2", to: "int_aldea_niebla_casa2", w: 5, name: "Casa de Casimiro" },
+      { slot: "L2", kind: "gym", roof: "purple", wall: "stone", key: "gym", to: "gym_aldea_niebla", w: 7, name: "Gimnasio Niebla" },
+      { slot: "L4", kind: "house", roof: "green", wall: "wood", key: "casa3", to: "int_aldea_niebla_casa3", w: 5, name: "Casa de la curandera" }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "cauldron");
+      m.put(22, 14, "mushroom");
+      m.put(24, 14, "mushroom");
+      m.put(21, 14, "lamp");
+      m.put(25, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.sign(9, 9, "ALDEA NIEBLA\nLas casas sobre el barro: aqu\xED la niebla nunca se va.");
+      m.sign(12, 20, "GIMNASIO NIEBLA\nL\xEDder: Morgana \xB7 Tipo: Veneno");
+      m.sign(18, 5, "\u2191 Pantano Niebla y Ciudad D\xEDnamo");
+    },
+    npcs: [
+      { id: "guia_aldea", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Bienvenido a Aldea Niebla. Si buscas el gimnasio, ve al sur; la l\xEDder, Morgana, prefiere recibir de noche." },
+      { id: "bruja_aldea", x: 28, y: 22, dir: "left", look: "bruja", name: "Bruja", text: "Los visitantes dicen que damos miedo. Es la niebla, no nosotras. Aunque... un poco s\xED." }
+    ]
+  });
+  defineGym("aldea_niebla", {
+    name: "Gimnasio Niebla",
+    title: "Gimnasio de Aldea Niebla",
+    badge: "bruma",
+    leader: "lider_morgana",
+    layout: "pads",
+    zone: { zone: "pantano" },
+    w: 23,
+    h: 20,
+    exitX: 11,
+    trainers: [{ cls: "bruja", types: ["veneno", "espiritu"], lv: [33, 35], n: 3 }, { cls: "cientifico", types: ["veneno", "insecto"], lv: [34, 36], n: 3 }, { cls: "bruja", types: ["veneno", "sombra"], lv: [35, 36], n: 3 }, { cls: "bruja", types: ["veneno", "mental"], lv: [35, 37], n: 3 }],
+    rewards: { tm: "dt05", items: { hiper_pocion: 3, cura_total: 1 } },
+    after: "La niebla guarda secretos... y t\xFA acabas de descubrir uno. \xA1Buen viaje!",
+    afterWin: async (g) => {
+      g.setFlag("medalla_bruma");
+      await g.completeQuest("main_15");
+      await g.startQuest("main_16");
+      chapter(g, "Cap\xEDtulo 6 \xB7 Cima Escarcha");
+    }
+  });
+
+  // src/maps/liga.js
+  var ARKANION = { id: 116, lv: 62, flag: "arkanion", minBadges: 7 };
+  var LUNARIA = { id: 119, lv: 62, flag: "lunaria", minBadges: 7 };
+  defineRoute("ruinas_antiguas", {
+    name: "Ruinas Antiguas",
+    title: "Ruinas Antiguas",
+    w: 48,
+    h: 36,
+    style: "ruinas",
+    zone: "ruinas",
+    tags: ["ruinas"],
+    music: "ruins",
+    climate: "montana",
+    region: "este",
+    waypoints: [[0, 10], [14, 10], [14, 20], [30, 20], [30, 10], [47, 10]],
+    width: 2,
+    conn: { w: { map: "cima_escarcha", rows: [10, 11], off: 0 }, e: { map: "ciudad_arcana", rows: [10, 11], off: 0 } },
+    enc: { hierba: { zone: "ruinas", lv: [44, 50], maxRarity: "E" }, ruinas: { zone: "ruinas", lv: [44, 50], maxRarity: "E" } },
+    trainers: [{ cls: "bruja", x: 8, y: 13, dir: "up", lv: [44, 46], n: 3, sight: 3 }, { cls: "cientifico", x: 20, y: 17, dir: "down", lv: [45, 47], n: 3, sight: 3 }, { cls: "domador", x: 24, y: 23, dir: "up", lv: [46, 48], n: 3, sight: 3 }, { cls: "artista", x: 36, y: 13, dir: "left", lv: [46, 48], n: 3, sight: 3 }, { cls: "bruja", x: 42, y: 7, dir: "down", lv: [47, 49], n: 3, sight: 3 }],
+    items: [[6, 5, "hiper_pocion"], [22, 28, "caramelo_raro"], [40, 22, "revivir"], [32, 4, "elixir"]],
+    hidden: [[22, 4, "llave_ruinas"], [10, 24, "perla_grande"], [44, 28, "pepita"]],
+    signs: [[2, 9, "RUINAS ANTIGUAS\n\u2190 Cima Escarcha    Ciudad Arcana \u2192\nSe dice que en la plaza del este duerme un guardi\xE1n de metal. Y que la luna invoca a otro..."]],
+    npcs: [{ id: "arqueologa", x: 18, y: 8, dir: "down", look: "cientifico", name: "Arque\xF3loga", text: "Estas ruinas son de antes de los Dos Dragones. En la plaza del este hay una puerta sellada que solo abre la Llave de las Ruinas, que se perdi\xF3 entre las columnas... pero de noche, el altar lunar del oeste responde a quien lo llama." }],
+    extra: (m) => {
+      m.rect(36, 24, 9, 7, "ruinfloor");
+      m.putRect(36, 24, 9, 1, "pillar");
+      m.putRect(36, 30, 9, 1, "pillar");
+      m.putRect(36, 25, 1, 5, "pillar");
+      m.putRect(44, 25, 1, 5, "pillar");
+      m.clear(40, 24);
+      m.clear(40, 30);
+      m.gate(40, 30, "gate_iron", { name: "Puerta sellada", show: (g) => !g.hasKey("llave_ruinas") && !g.hasItem("llave_ruinas"), text: "Una puerta de piedra sellada con un s\xEDmbolo de llave. Quiz\xE1 haya una llave perdida entre las ruinas." });
+      m.path([[30, 20], [40, 20], [40, 31]], "ruinfloor", 2);
+      m.object(40, 27, "altar", { name: "Altar de metal", talk: async (g, e, ow) => legendary(g, ow, ARKANION, { text: "Un altar de metal bru\xF1ido. Sobre \xE9l se levanta la sombra de un centinela de acero, inm\xF3vil como una estatua... hasta que sus ojos se encienden." }) });
+      m.object(8, 26, "altar", { name: "Altar lunar", show: (g) => g.isNight, talk: async (g, e, ow) => legendary(g, ow, LUNARIA, { text: "Un altar blanco ba\xF1ado en luz de luna. El aire se vuelve fr\xEDo y suave. Algo observa desde la oscuridad..." }) });
+      m.object(8, 26, "statue", { name: "Altar lunar", show: (g) => !g.isNight, text: "Un altar de piedra blanca con una luna tallada. De d\xEDa no ocurre nada. Quiz\xE1 solo funcione de noche." });
+    }
+  });
+  defineCenter("ciudad_arcana", "Ciudad Arcana");
+  defineShopInterior("ciudad_arcana", "atlas", { name: "Emporio de Arcana" });
+  defineHouse("ciudad_arcana", "casa1", { name: "Casa de Elara", npcs: [{ id: "elara", x: 4, y: 3, dir: "down", look: "bruja", name: "Elara", text: "Aqu\xED se estudia la magia antigua de Aurelia: los Prismas, los sellos, los eclipses... Muchos creen que solo es leyenda. Yo prefiero no apostar." }] });
+  defineHouse("ciudad_arcana", "casa2", { name: "Casa de Orestes", npcs: [{ id: "orestes", x: 5, y: 4, dir: "left", look: "abuelo", name: "Orestes", text: "En la Calzada Victoria hay un puesto de control. Para pasar necesitas ocho medallas... y que la amenaza del Eclipse haya terminado, dicen." }] });
+  interior("int_arcana_biblioteca", 14, 10, { name: "Biblioteca arcana", title: "Biblioteca arcana de Arcana", floor: "floor", wall: "wallint2", exit: { to: "ciudad_arcana", spawn: "door_biblioteca" }, noFly: true }, (m) => {
+    for (const x of [1, 2, 4, 5, 8, 9, 11, 12]) m.put(x, 2, "bookcase");
+    m.put(1, 5, "bookcase");
+    m.put(12, 5, "bookcase");
+    m.rect(4, 4, 6, 3, "carpet");
+    m.put(1, 7, "plant");
+    m.put(12, 7, "plant");
+    m.npc({ id: "bibliotecario", x: 7, y: 5, dir: "down", look: look("abuelo"), name: "Bibliotecario", move: "static", talk: async (g) => {
+      await scene(g, [["Bibliotecario", "Los cuatro Prismas \u2014Esmeralda, Zafiro, \xC1mbar y N\xE1car\u2014 sellan el poder de Aurelion y Umbraxis. Colocados juntos en el altar del Santuario del Alba, mantienen el equilibrio: d\xEDa y noche, luz y sombra."], ["Bibliotecario", "Si alguien los reuniera para romper el sello, Umbraxis despertar\xEDa. Y entonces... la noche no acabar\xEDa."]]);
+      if (g.flag("vesper_done")) await g.say("Y t\xFA has impedido eso. Aurelia te lo agradece.", { speaker: "Bibliotecario" });
+    } });
+    m.object(10, 2, "bookcase", { name: "Estanter\xEDa", text: "Un tomo abierto: \xABLas Criaturas Legendarias de Aurelia: Tempestra, Magmaron, Glaciaris, Arkanion y Lunaria guardan los extremos del mundo. Eterna y Quimera, que solo se muestran al que escucha el Eco, completan el ciclo.\xBB" });
+  });
+  defineCity("ciudad_arcana", {
+    name: "Ciudad Arcana",
+    w: 38,
+    h: 28,
+    fill: "gravel",
+    path: "marble",
+    tree: "pine",
+    music: "town",
+    zone: "ciudad",
+    tags: ["ciudad", "arcana"],
+    climate: "montana",
+    region: "este",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { w: { map: "ruinas_antiguas", rows: [10, 11], off: 0 }, n: { map: "calzada_victoria", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "stone", key: "centro", to: "int_ciudad_arcana_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "purple", wall: "stone", key: "tienda", to: "int_ciudad_arcana_tienda", w: 6, name: "Emporio" },
+      { slot: "U3", kind: "hall", roof: "purple", wall: "stone", key: "biblioteca", to: "int_arcana_biblioteca", w: 7, h: 5, name: "Biblioteca arcana" },
+      { slot: "U4", kind: "house", roof: "blue", wall: "stone", key: "casa1", to: "int_ciudad_arcana_casa1", w: 5, name: "Casa de Elara" },
+      { slot: "L1", kind: "house", roof: "purple", wall: "cream", key: "casa2", to: "int_ciudad_arcana_casa2", w: 5, name: "Casa de Orestes" },
+      { slot: "L2", kind: "gym", roof: "purple", wall: "stone", key: "gym", to: "gym_ciudad_arcana", w: 7, name: "Gimnasio Arcano" }
+    ],
+    decor: (m) => {
+      m.put(23, 14, "dragonstatue");
+      m.put(22, 14, "flowerbed");
+      m.put(24, 14, "flowerbed");
+      m.put(21, 14, "lamp");
+      m.put(25, 14, "lamp");
+      m.put(13, 12, "lamp");
+      m.sign(9, 9, "CIUDAD ARCANA\nSabidur\xEDa, magia y dragones.");
+      m.sign(22, 9, "BIBLIOTECA ARCANA");
+      m.sign(12, 20, "GIMNASIO ARCANO\nL\xEDder: Draconia \xB7 Tipo: Drag\xF3n");
+      m.sign(18, 5, "\u2191 Calzada Victoria (se necesitan 8 medallas)");
+      edgeBlock(m, "n", (g) => g.badges.length >= 8, "Un guardia te corta el paso: \xABLa Calzada Victoria solo est\xE1 abierta a entrenadores con las 8 medallas\xBB.");
+    },
+    npcs: [
+      { id: "guia_arcana", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "Bienvenido a Ciudad Arcana. Al norte, la Calzada Victoria lleva a la Meseta Aurora y su Liga. \xA1Pero antes, el gimnasio de Draconia!" },
+      { id: "estudiante", x: 28, y: 22, dir: "left", look: "nina", name: "Estudiante", text: "Los acertijos del gimnasio no son dif\xEDciles si has le\xEDdo: la historia de Aurelia est\xE1 en la biblioteca." }
+    ]
+  });
+  defineGym("ciudad_arcana", {
+    name: "Gimnasio Arcano",
+    title: "Gimnasio de Ciudad Arcana",
+    badge: "dragon",
+    leader: "lider_draconia",
+    layout: "riddle",
+    zone: { zone: "ruinas" },
+    riddleFloor: "marble",
+    floor: "marble",
+    w: 23,
+    h: 20,
+    exitX: 11,
+    trainers: [{ cls: "domador", types: ["dragon"], lv: [44, 46], n: 3 }, { cls: "domador", types: ["dragon", "fuego"], lv: [45, 47], n: 3 }, { cls: "domador", types: ["dragon", "aire"], lv: [46, 48], n: 3 }],
+    riddles: [
+      { q: "\xBFC\xF3mo se llaman los dos dragones que, seg\xFAn la leyenda, comparten el cielo de Aurelia?", options: ["Aurelion y Umbraxis", "Tempestra y Magmaron", "Arkanion y Lunaria"], answer: 0, hint: "Piensa en la luz del d\xEDa y en la oscuridad de la noche.", npc: { x: 18, text: "Los dragones de la leyenda: uno enciende el d\xEDa; el otro lo apaga. Sus nombres suenan a \xABdorado\xBB y a \xABumbral\xBB." } },
+      { q: "\xBFCu\xE1ntos Prismas sellan el poder de esos dragones?", options: ["Dos", "Cuatro", "Ocho"], answer: 1, hint: "Esmeralda, Zafiro, \xC1mbar... y uno m\xE1s.", npc: { x: 4, text: "Cuatro joyas, cuatro colores: verde, azul, naranja y blanco nacarado." } },
+      { q: "\xBFDe qu\xE9 tipo es Aurelion, el drag\xF3n que enciende el d\xEDa?", options: ["Sombra y Drag\xF3n", "Luz y Drag\xF3n", "Fuego y Drag\xF3n"], answer: 1, hint: "Si enciende el d\xEDa, es la criatura de la luz.", npc: { x: 18, text: "Aurelion es el drag\xF3n de la luz y Umbraxis el de la sombra. Los dos son drag\xF3n." } }
+    ],
+    rewards: { tm: "dt01", items: { hiper_pocion: 3, pocion_maxima: 2 } },
+    after: "Los dragones respetan a quien responde con sabidur\xEDa y combate con honor. Ve a la Calzada Victoria: tu destino te espera.",
+    afterWin: async (g) => {
+      g.setFlag("medalla_dragon");
+      await g.completeQuest("main_17");
+      await g.startQuest("main_18");
+      chapter(g, "Cap\xEDtulo 8 \xB7 La Calzada Victoria");
+    }
+  });
+  interior("int_calzada_puesto", 14, 10, { name: "Puesto de control", title: "Puesto de control de la Calzada", floor: "floor", wall: "wallint2", exit: { to: "calzada_victoria", spawn: "door_puesto" }, noFly: true }, (m) => {
+    m.put(1, 2, "bookcase");
+    m.put(12, 2, "shelf");
+    m.rect(4, 4, 6, 3, "carpet");
+    m.put(1, 6, "plant");
+    m.npc({ id: "comandante", x: 6, y: 3, dir: "down", look: look("ayudante", { hat: "cap" }), name: "Comandante", move: "static", talk: async (g) => {
+      const T2 = "Comandante";
+      if (g.hasItem("pase_liga")) {
+        await g.say("Tienes el Pase de la Liga. \xA1Adelante, campe\xF3n en potencia!", { speaker: T2 });
+        return;
+      }
+      if (g.badges.length < 8) {
+        await g.say(`Para recibir el Pase de la Liga hacen falta las 8 medallas. Tienes ${g.badges.length}.`, { speaker: T2 });
+        return;
+      }
+      if (!g.flag("vesper_done")) {
+        await scene(g, [[T2, "Tienes las ocho medallas, pero la Liga permanece cerrada mientras la Orden del Eclipse amenace el Santuario del Alba. Su l\xEDder, Vesper, est\xE1 all\xED."], [T2, "El Santuario est\xE1 en una cueva al oeste de la calzada. Det\xE9n a Vesper y te dar\xE9 el pase."]]);
+        return;
+      }
+      await scene(g, [[T2, "\xA1Lo has conseguido! Aurelia est\xE1 a salvo gracias a ti. Aqu\xED tienes el Pase de la Liga: la Liga Aurora te espera en la Meseta."]]);
+      await g.giveItem("pase_liga");
+      chapter(g, "Cap\xEDtulo 9 \xB7 La Liga Aurora");
+    } });
+  });
+  defineRoute("calzada_victoria", {
+    name: "Calzada Victoria",
+    title: "Calzada Victoria",
+    w: 40,
+    h: 44,
+    style: "victoria",
+    zone: "montana",
+    tags: ["victoria"],
+    music: "league",
+    climate: "montana",
+    region: "este",
+    waypoints: [[18, 43], [18, 30], [26, 30], [26, 14], [18, 14], [18, 0]],
+    width: 2,
+    conn: { s: { map: "ciudad_arcana", cols: [18, 19], off: 0 }, n: { map: "meseta_aurora", cols: [18, 19], off: 0 } },
+    enc: {},
+    trainers: [{ cls: "domador", x: 22, y: 36, dir: "left", lv: [52, 54], n: 4, sight: 4, ai: "smart" }, { cls: "karateka", x: 22, y: 26, dir: "right", lv: [53, 55], n: 4, sight: 4, ai: "smart" }, { cls: "artista", x: 30, y: 22, dir: "left", lv: [54, 56], n: 4, sight: 4, ai: "smart" }, { cls: "cientifico", x: 22, y: 12, dir: "down", lv: [55, 57], n: 4, sight: 3, ai: "smart" }, { cls: "bruja", x: 14, y: 8, dir: "right", lv: [55, 57], n: 4, sight: 4, ai: "smart" }],
+    items: [[10, 38, "pocion_maxima"], [30, 30, "revivir_max"], [8, 16, "cura_total"], [30, 6, "caramelo_raro", 2]],
+    hidden: [[34, 18, "perla_grande"], [6, 28, "pepita"]],
+    signs: [[16, 40, "CALZADA VICTORIA\n\u2191 Meseta Aurora (Liga)    \u2193 Ciudad Arcana\nPuesto de control: a la derecha del camino."]],
+    extra: (m) => {
+      m.building(26, 36, 5, 4, { kind: "hall", roof: "blue", wall: "stone", to: "int_calzada_puesto", tx: "door", key: "puesto", name: "Puesto de control" });
+      caveMouth(m, 8, 22, "santuario_alba", "entrada_calzada", { key: "calzada" });
+      m.sign(10, 21, "SANTUARIO DEL ALBA\nAcceso restringido.");
+      m.npc({ id: "kai_calzada", x: 11, y: 24, dir: "left", look: look("kai"), name: "Kai", move: "static", show: (g) => g.badges.includes("dragon") && !g.flag("rival4_done"), talk: async (g, e, ow) => {
+        if (await fight(g, "rival4", { entity: e })) {
+          g.setFlag("rival4_done");
+          ow.refreshEntities();
+          await scene(g, [["Kai", "Hemos llegado hasta aqu\xED... Ten\xEDas raz\xF3n. Si Vesper libera a Umbraxis, nadie estar\xE1 a salvo. Entra t\xFA: yo vigilar\xE9 la entrada."]]);
+        }
+      } });
+      edgeBlock(m, "n", (g) => g.hasItem("pase_liga"), "Un guardia te detiene: \xABLa Meseta Aurora solo admite a quien tenga el Pase de la Liga. El comandante del puesto lo concede a los entrenadores con las 8 medallas\xBB.");
+    }
+  });
+  var AURELION = { id: 117, lv: 70, flag: "aurelion", minBadges: 8 };
+  var UMBRAXIS = { id: 118, lv: 70, flag: "umbraxis", minBadges: 8 };
+  defineCave("santuario_alba", {
+    name: "Santuario del Alba",
+    title: "Santuario del Alba",
+    w: 34,
+    h: 38,
+    floor: "lightfloor",
+    wall: "wallint3",
+    zone: "ruinas",
+    music: "legend",
+    region: "este",
+    enc: {},
+    objs: { statue: 0 },
+    rooms: [[17, 31, 7, 3], [17, 20, 4, 3], [17, 9, 9, 5]],
+    passages: [[[17, 31], [17, 8]]],
+    width: 3,
+    exits: [{ x: 17, y: 35, to: "calzada_victoria", spawn: "cueva_calzada", key: "calzada" }],
+    signs: [[16, 33, "SANTUARIO DEL ALBA\nAqu\xED duermen Aurelion y Umbraxis, sellados por cuatro Prismas."]],
+    extra: (m) => {
+      for (const x of [10, 24]) for (const y of [27, 30, 33]) m.put(x, y, "pillar");
+      for (const x of [9, 25]) {
+        m.put(x, 8, "statue");
+        m.put(x, 12, "statue");
+      }
+      for (const x of [16, 17, 18]) m.gate(x, 17, "gate_iron", { name: "Sello", show: (g) => !g.flag("sello_abierto"), text: "Un sello de piedra con cuatro hendiduras para joyas bloquea el paso. Junto a \xE9l hay un altar." });
+      m.object(14, 19, "altar", { name: "Altar de los cuatro sellos", talk: async (g, e, ow) => {
+        if (g.flag("sello_abierto")) {
+          await g.say("El sello est\xE1 abierto: las cuatro joyas brillan en sus hendiduras.");
+          return;
+        }
+        const have = ["prisma_esmeralda", "prisma_zafiro", "prisma_ambar", "prisma_nacar"].filter((p) => g.hasItem(p));
+        if (have.length < 4) {
+          await g.say(`Cuatro hendiduras con forma de joya: verde, azul, naranja y blanca. Tienes ${have.length} de los 4 Prismas. Los otros est\xE1n repartidos por Aurelia.`);
+          return;
+        }
+        await g.say("Colocas los cuatro Prismas en sus hendiduras. Un resplandor dorado recorre el sello y la puerta se abre con un largo suspiro.");
+        g.setFlag("sello_abierto");
+        g.audio.sfx("thunder");
+        ow.refreshEntities();
+      } });
+      m.npc({ id: "vesper", x: 17, y: 11, dir: "down", look: look("vesper"), name: "Maestro Vesper", move: "static", show: (g) => !g.flag("vesper_done"), talk: async (g, e, ow) => {
+        if (!g.flag("sello_abierto")) {
+          await g.say("No puedes atravesar el sello sin los cuatro Prismas.");
+          return;
+        }
+        if (await fight(g, "vesper1", { entity: e })) {
+          for (const p of ["prisma_esmeralda", "prisma_zafiro", "prisma_ambar", "prisma_nacar"]) g.takeItem(p);
+          g.setFlag("vesper_done");
+          ow.refreshEntities();
+          await scene(g, [["Maestro Vesper", "No... puedo... ser derrotado. Quise liberar a las criaturas de las cadenas de los entrenadores... pero t\xFA me has ense\xF1ado que el lazo entre una criatura y su compa\xF1ero no es una cadena."], [null, "Colocas los cuatro Prismas sobre el altar. Un resplandor dorado cubre el santuario y el sello se restaura."], ["Maestro Vesper", "El eclipse pasar\xE1. Aurelion y Umbraxis seguir\xE1n durmiendo... pero quiz\xE1 alg\xFAn d\xEDa les dej\xE9is ser libres, cuando est\xE9is listos."], [null, "Vesper baja la cabeza y se retira. En el altar, una luz dorada te llama."]]);
+          await g.completeQuest("main_18");
+          await g.startQuest("main_19");
+          chapter(g, "Cap\xEDtulo 9 \xB7 La Liga Aurora");
+        }
+      } });
+      m.object(13, 9, "altar", { name: "Altar del Alba", show: (g) => g.flag("vesper_done"), talk: async (g, e, ow) => legendary(g, ow, AURELION, { text: "El altar del drag\xF3n de luz. Un resplandor dorado envuelve la sala. Una criatura enorme, hecha de amanecer, abre los ojos..." }) });
+      m.object(21, 9, "altar", { name: "Altar del Ocaso", show: (g) => g.flag("vesper_done"), talk: async (g, e, ow) => {
+        if (!g.flag("league_done")) {
+          await g.say("El altar del drag\xF3n de sombra. Est\xE1 fr\xEDo y dormido. A\xFAn no es el momento: vuelve cuando seas campe\xF3n de la Liga.");
+          return;
+        }
+        await legendary(g, ow, UMBRAXIS, { text: "El altar del drag\xF3n de sombra. La oscuridad se arremolina. Una criatura inmensa, hecha de crep\xFAsculo, te mira..." });
+      } });
+    }
+  });
+  var LEAGUE = [["elite1", "Noctis", "darkfloor", "wallint3", "Sala de la Sombra"], ["elite2", "Brann", "metalfloor", "wallint", "Sala del Acero"], ["elite3", "Lumi", "lightfloor", "wallint2", "Sala de la Luz"], ["elite4", "Aria", "marble", "wallint2", "Sala del Eco"], ["campeona", "Solara", "marble", "wallint2", "Sala de la Campeona"]];
+  function resetLeague(g) {
+    for (const [id] of LEAGUE) delete g.state.trainers[id];
+  }
+  async function hallOfFame(g, ow) {
+    g.audio.stopMusic();
+    await g.ui.fade(true, 500);
+    g.audio.playMusic("victory");
+    await g.ui.fade(false, 500);
+    await scene(g, [["Solara", "\xA1Incre\xEDble! Has derrotado al Alto Mando y a m\xED. Eres, desde este momento, el nuevo campe\xF3n o campeona de Aurelia."], ["Solara", "Mira: ah\xED est\xE1n tus compa\xF1eros. Hoy entran en el Sal\xF3n de la Fama."]]);
+    const rec2 = { day: g.now.day, playtime: g.state.player.playtime, name: g.playerName, party: g.party.filter((c) => !c.egg).map((c) => ({ sp: c.sp, lv: c.lv, nick: c.nick || null })) };
+    g.state.hall.push(rec2);
+    g.setFlag("league_done");
+    g.emit("league_won", {});
+    await g.completeQuest("main_19");
+    await scene(g, [[null, `SAL\xD3N DE LA FAMA \u2014 ${g.playerName}`], [null, "Gracias por jugar. Aurelia es tuya: a\xFAn quedan legendarias por encontrar (la Cueva Eco, el Santuario), torneos en el Oasis Zafiro, entrenadores con revancha y un Atlas por completar."]]);
+    g.save(g.slot, { quiet: false });
+    await g.ui.fade(true, 500);
+    const sp = ow.map;
+    await ow.loadMap("meseta_aurora", 18, 12, "down", { announce: true });
+    await g.ui.fade(false, 500);
+  }
+  LEAGUE.forEach(([id, name, floor, wall, title], i) => {
+    const rid = `int_liga_${i + 1}`, next = i < 4 ? `int_liga_${i + 2}` : null, prev = i === 0 ? "int_liga_hall" : `int_liga_${i}`;
+    interior(rid, 13, 12, { name: title, title: `Liga Aurora \xB7 ${title}`, floor, wall, exit: { to: prev, spawn: "door_fwd" }, noFly: true, music: "league" }, (m, { cx }) => {
+      for (const x of [1, 11]) {
+        m.put(x, 3, "banner");
+        m.put(x, 7, "statue");
+      }
+      m.rect(cx - 1, 4, 3, 7, "carpet");
+      m.spawn("door_fwd", cx, 3, "down");
+      if (next) {
+        m.clear(cx, 1);
+        m.set(cx, 1, "mat");
+        m.warp(cx, 1, next, "door", 0, "up", { sfx: "door" });
+        m.gate(cx, 2, "barrier_e", { name: "Barrera de luz", show: (g) => !g.state.trainers[id]?.beaten, text: `Una barrera de luz bloquea el acceso a la siguiente sala hasta que venzas a ${name}.` });
+      }
+      m.npc({ id: "elite", x: cx, y: next ? 4 : 3, dir: "down", look: TRAINERS[id].look, name, move: "static", talk: async (g, e, ow) => {
+        if (g.state.trainers[id]?.beaten) {
+          await g.say(next ? "Has demostrado tu val\xEDa. Sigue adelante." : "\xA1Eres el campe\xF3n! Disfruta de tu victoria.", { speaker: name });
+          return;
+        }
+        const r = await g.battleTrainer(id, { entity: e });
+        if (r.result !== "win") {
+          resetLeague(g);
+          return;
+        }
+        g.audio.sfx("achievement");
+        ow.refreshEntities();
+        if (next) await g.say("\xA1La barrera se disipa! Puedes avanzar a la siguiente sala.");
+        else await hallOfFame(g, ow);
+      } });
+    });
+  });
+  interior("int_liga_hall", 14, 10, { name: "Liga Aurora", title: "Liga Aurora \xB7 Vest\xEDbulo", floor: "marble", wall: "wallint2", exit: { to: "meseta_aurora", spawn: "door_liga" }, noFly: true, music: "league" }, (m, { cx }) => {
+    for (const x of [1, 12]) {
+      m.put(x, 3, "banner");
+      m.put(x, 6, "statue");
+    }
+    m.rect(cx - 1, 3, 3, 6, "carpet");
+    m.spawn("door_fwd", cx, 3, "down");
+    m.clear(cx, 1);
+    m.set(cx, 1, "mat");
+    m.warp(cx, 1, "int_liga_1", "door", 0, "up", { sfx: "door" });
+    m.object(2, 2, "console", { name: "Sal\xF3n de la Fama", talk: async (g) => {
+      const h = g.state.hall;
+      if (!h.length) {
+        await g.say("El registro del Sal\xF3n de la Fama est\xE1 vac\xEDo. \xA1A\xFAn nadie ha vencido a la campeona!");
+        return;
+      }
+      const last = h[h.length - 1];
+      await g.say(`\xDAltima entrada: ${last.name}, d\xEDa ${last.day + 1} del viaje. Equipo: ${last.party.map((p) => `Nv${p.lv} ${p.nick || "#" + p.sp}`).join(", ")}. Victorias totales: ${h.length}.`);
+    } });
+    m.npc({ id: "recepcion", x: 4, y: 5, dir: "right", look: look("enfermera"), name: "Recepcionista", move: "static", talk: async (g) => {
+      await g.say("\xA1Bienvenido a la Liga Aurora! Aqu\xED se enfrentan los cinco rivales m\xE1s duros de Aurelia, uno tras otro, sin descanso. Si pierdes, empezar\xE1s de nuevo desde la primera sala.", { speaker: "Recepcionista" });
+      if (await g.yesNo("\xBFQuieres que cure a tu equipo antes de empezar?")) {
+        g.healAll();
+        await g.say("\xA1Listo! \xA1Mucha suerte!", { speaker: "Recepcionista" });
+      }
+      if (g.flag("league_done") && await g.yesNo("\xBFQuieres desafiar de nuevo a la Liga? (se reinician las salas)")) {
+        resetLeague(g);
+        await g.say("Las salas se han reiniciado.", { speaker: "Recepcionista" });
+      }
+    } });
+  });
+  defineCenter("meseta_aurora", "Meseta Aurora");
+  defineShopInterior("meseta_aurora", "atlas", { name: "Tienda de la Meseta" });
+  defineCity("meseta_aurora", {
+    name: "Meseta Aurora",
+    w: 38,
+    h: 28,
+    fill: "gravel",
+    path: "marble",
+    tree: "pine",
+    music: "league",
+    zone: "ciudad",
+    tags: ["ciudad", "liga"],
+    climate: "montana",
+    region: "este",
+    fly: true,
+    slotX: { 1: 3, 2: 11, 3: 21, 4: 29 },
+    conn: { s: { map: "calzada_victoria", cols: [18, 19], off: 0 } },
+    buildings: [
+      { slot: "U1", kind: "center", roof: "red", wall: "stone", key: "centro", to: "int_meseta_aurora_centro", w: 6, name: "Centro de Curaci\xF3n" },
+      { slot: "U2", kind: "shop", roof: "purple", wall: "stone", key: "tienda", to: "int_meseta_aurora_tienda", w: 6, name: "Tienda" },
+      { slot: "U3", kind: "hall", roof: "gold", wall: "stone", key: "liga", to: "int_liga_hall", w: 9, h: 6, name: "Liga Aurora", req: (g) => g.hasItem("pase_liga"), reqText: "Las puertas de la Liga Aurora est\xE1n cerradas. Un guardia: \xABSolo con el Pase de la Liga\xBB." }
+    ],
+    decor: (m) => {
+      m.sign(9, 9, "MESETA AURORA\nLa casa de la Liga: donde se corona al campe\xF3n de Aurelia.");
+      m.sign(22, 9, "LIGA AURORA");
+      m.put(14, 14, "statue");
+      m.put(24, 14, "statue");
+      m.put(19, 14, "dragonstatue");
+    },
+    npcs: [
+      { id: "guia_meseta", x: 17, y: 12, dir: "down", look: "ayudante", name: "Gu\xEDa", text: "\xA1Bienvenido a la Meseta Aurora! Aqu\xED empieza la Liga: Noctis, Brann, Lumi, Aria... \xA1y la campeona Solara!" },
+      { id: "periodista", x: 28, y: 22, dir: "left", look: "nina", name: "Periodista", text: "Soy reportera de la Gaceta de Aurelia. Quien llega hasta aqu\xED ya es una leyenda... \xA1aunque falte ganar!" }
+    ]
   });
 
   // src/quests.js
@@ -8050,6 +8991,19 @@
   defineQuest("main_10", { kind: "main", name: "Rumbo a Pico Granito", desc: "Kai se dirige a las minas de Pico Granito, al norte de Ciudad D\xEDnamo. Hay un gimnasio de roca esperando.", objectives: [{ text: "Llega a Pico Granito", state: (g) => g.state.fastTravel.includes("pico_granito") ? 1 : 0 }], reward: { money: 600 } });
   defineQuest("main_11", { kind: "main", name: "El mineral estrella", desc: "La Orden del Eclipse ocupa la Mina Granito en busca del mineral estrella. Petra no abrir\xE1 su gimnasio hasta que se recupere.", objectives: [{ text: "Recupera el mineral estrella en la Mina Granito", state: flag("mineral_estrella_tomado") }, { text: "Entr\xE9gaselo a Petra en la Oficina minera", state: flag("mineral_entregado") }, { text: "Obt\xE9n la Medalla Cantera", state: (g) => g.state.badges.includes("cantera") ? 1 : 0 }], reward: { money: 1500, items: { hiper_pocion: 2 } } });
   defineQuest("main_16", { kind: "main", name: "La Medalla Cristal", desc: "En Cima Escarcha, el gimnasio de Hielo te espera. Sus pasillos de hielo exigen planificar cada deslizamiento.", objectives: [{ text: "Obt\xE9n el Prisma N\xE1car en la Cueva Hielo", state: flag("prisma_nacar") }, { text: "Obt\xE9n la Medalla Cristal", state: (g) => g.state.badges.includes("cristal") ? 1 : 0 }], reward: { money: 3e3 } });
+  defineQuest("main_12", { kind: "main", name: "Desierto \xC1mbar", desc: "La Orden del Eclipse busca los Prismas. Cruza el Desierto \xC1mbar hasta el Oasis Zafiro, donde se guarda el Prisma Zafiro.", objectives: [{ text: "Llega a Oasis Zafiro", state: (g) => g.state.fastTravel.includes("oasis_zafiro") ? 1 : 0 }], reward: { money: 800 } });
+  defineQuest("main_13", { kind: "main", name: "El Prisma Zafiro", desc: "Unos reclutas han irrumpido en el templo del Oasis. Ayuda a Zafira a echarlos y recibe el Prisma Zafiro.", objectives: [{ text: "Derrota a los reclutas del templo", state: (g) => g.state.trainers.eclipse_oasis1?.beaten && g.state.trainers.eclipse_oasis2?.beaten ? 1 : 0 }, { text: "Recibe el Prisma Zafiro", state: flag("prisma_zafiro") }], reward: { money: 2e3, items: { revivir: 2 } } });
+  defineQuest("main_14", { kind: "main", name: "Fuego bajo el cr\xE1ter", desc: "La Teniente Cinder se esconde en el Cr\xE1ter Ignis con el Prisma \xC1mbar. Y el gimnasio de Brasa te espera.", objectives: [{ text: "Obt\xE9n el Prisma \xC1mbar en el Cr\xE1ter Ignis", state: flag("prisma_ambar") }, { text: "Obt\xE9n la Medalla Ascua", state: (g) => g.state.badges.includes("ascua") ? 1 : 0 }], reward: { money: 3500 } });
+  defineQuest("main_15", { kind: "main", name: "La niebla del pantano", desc: "El Pantano Niebla es peligroso: su niebla t\xF3xica solo se cruza con el Amuleto del Pantano, que guarda el ermita\xF1o Tob\xEDas a cambio de su diario perdido (cerca de la Charca Grande). Al otro lado est\xE1 Aldea Niebla y su gimnasio de Veneno.", objectives: [{ text: "Encuentra el diario perdido del ermita\xF1o (Charca Grande)", state: (g) => g.flag("diario_entregado") || bagCount(g.bag, "diario_perdido") > 0 ? 1 : 0 }, { text: "Entr\xE9gaselo a Tob\xEDas y recibe el Amuleto del Pantano", state: flag("amuleto_recibido") }, { text: "Llega a Aldea Niebla", state: (g) => g.state.fastTravel.includes("aldea_niebla") ? 1 : 0 }, { text: "Obt\xE9n la Medalla Bruma", state: (g) => g.state.badges.includes("bruma") ? 1 : 0 }], reward: { money: 3800, items: { cura_total: 2 } } });
+  defineQuest("main_17", { kind: "main", name: "Las Ruinas Antiguas", desc: "Cruza las Ruinas Antiguas, al este de Cima Escarcha, hasta Ciudad Arcana y desaf\xEDa al gimnasio de Drag\xF3n.", objectives: [{ text: "Llega a Ciudad Arcana", state: (g) => g.state.fastTravel.includes("ciudad_arcana") ? 1 : 0 }, { text: "Obt\xE9n la Medalla Drag\xF3n", state: (g) => g.state.badges.includes("dragon") ? 1 : 0 }], reward: { money: 5e3, items: { pocion_maxima: 3 } } });
+  defineQuest("main_18", { kind: "main", name: "El Santuario del Alba", desc: "Tienes los ocho medallas. Vesper, l\xEDder de la Orden del Eclipse, intenta liberar a Umbraxis en el Santuario del Alba (cueva al oeste de la Calzada Victoria). Necesitas los cuatro Prismas para abrir el sello.", objectives: [{ text: "Re\xFAne los cuatro Prismas (Esmeralda, Zafiro, \xC1mbar, N\xE1car)", state: (g) => ["prisma_esmeralda", "prisma_zafiro", "prisma_ambar", "prisma_nacar"].filter((p) => bagCount(g.bag, p) > 0 || g.flag("vesper_done")).length, n: 4 }, { text: "Abre el sello del Santuario", state: flag("sello_abierto") }, { text: "Derrota al Maestro Vesper", state: flag("vesper_done") }], reward: { money: 1e4, items: { cura_total: 3, revivir_max: 2 } } });
+  defineQuest("main_19", { kind: "main", name: "La Liga Aurora", desc: "Recibe el Pase de la Liga en el puesto de control de la Calzada Victoria y vence al Alto Mando y a la campeona Solara en la Meseta Aurora.", objectives: [{ text: "Consigue el Pase de la Liga", state: (g) => bagCount(g.bag, "pase_liga") > 0 || g.flag("league_done") ? 1 : 0 }, { text: "Vence al Alto Mando y a Solara", state: flag("league_done") }], reward: { money: 2e4 } });
+  defineQuest("side_huevo", { kind: "side", name: "El primer huevo", desc: "La cuidadora de la Guarder\xEDa Girasol quiere que ayudes a que nazca una cr\xEDa: deja dos criaturas compatibles, recoge el huevo y camina hasta que eclosione.", objectives: [{ text: "Eclosiona un huevo", ev: "hatch" }], reward: { money: 800, items: { caramelo_raro: 3 } } });
+  defineQuest("side_torneo", { kind: "side", name: "Gran Torneo del Oasis", desc: "El \xE1rbitro del Coliseo del Oasis Zafiro te reta a ganar el torneo: tres combates seguidos contra rivales que se adaptan a tu nivel.", objectives: [{ text: "Gana un torneo en el Coliseo", ev: "tournament_won" }], reward: { money: 3e3, items: { revivir_max: 2 } } });
+  defineQuest("side_explorador", { kind: "side", name: "Cart\xF3grafo de Aurelia", desc: "Nilo quiere completar su mapa: visita lugares distintos de Aurelia (ciudades, rutas, cuevas e interiores).", objectives: [{ text: "Visita 40 lugares distintos", n: 40, state: (g) => Object.keys(g.state.flags).filter((k) => k.startsWith("v_")).length }], reward: { money: 2500, items: { super_capsula: 5, repelente: 5 } } });
+  defineQuest("side_revancha", { kind: "side", name: "Revancha de campeones", desc: "Una veterana de Ciudad D\xEDnamo asegura que los entrenadores mejoran con el tiempo. Pide revanchas a entrenadores que ya derrotaste (esperan 2 d\xEDas de juego).", objectives: [{ text: "Gana 3 revanchas", n: 3, ev: "defeat", match: (d) => d.rematch && d.trainer && !String(d.trainer).startsWith("coliseo") }], reward: { money: 2500, items: { hiper_pocion: 5, caramelo_raro: 2 } } });
+  defineQuest("side_noche", { kind: "side", name: "Luci\xE9rnagas del bosque", desc: "Una ni\xF1a del Bosque Umbra quiere ver de cerca una criatura que solo sale de noche. Captura una criatura nocturna (las luci\xE9rnagas de la hierba).", objectives: [{ text: "Captura una criatura que solo salga de noche", ev: "capture", match: (d) => getSpecies(d.sp).timeOnly === "n" }], reward: { money: 600, items: { capsula_noche: 5 } } });
+  defineQuest("side_leyenda", { kind: "side", name: "Rastreador de leyendas", desc: "La doctora Lira estudia a las criaturas legendarias de Aurelia. Si consigues capturar una, su ciencia dar\xE1 un gran salto.", objectives: [{ text: "Captura una criatura legendaria", ev: "legendary" }], reward: { money: 8e3, items: { ultra_capsula: 10, pocion_maxima: 3 } } });
 
   // src/input.js
   var KEYMAP = {
@@ -8484,7 +9438,7 @@
   var HATS = [["none", "Sin sombrero"], ["cap", "Gorra"], ["beanie", "Gorro"], ["hat", "Sombrero"], ["headband", "Cinta"], ["goggles", "Gafas de aviador"], ["ribbon", "Lazo"], ["crown", "Corona"], ["laurel", "Laurel"], ["tophat", "Chistera"]];
   var STYLES = [["a", "Aventurero/a"], ["b", "Explorador/a"], ["c", "Estratega"]];
   var DEFAULT_LOOK = { skin: 1, hair: "short", hairColor: 1, outfit: "jacket", top: 0, bottom: 0, shoes: "#3a2a22", hat: "none", hatColor: 0, glasses: false, scarf: null, bag: null, style: "a" };
-  var cache3 = /* @__PURE__ */ new Map();
+  var cache4 = /* @__PURE__ */ new Map();
   function resolve(look2) {
     const L3 = { ...DEFAULT_LOOK, ...look2 };
     const col = (v, arr) => typeof v === "number" ? arr[v % arr.length] : v;
@@ -8501,10 +9455,10 @@
   }
   function trainerCanvas(look2, dir = "down", frame = 0) {
     const key = JSON.stringify(look2) + dir + frame;
-    let c = cache3.get(key);
+    let c = cache4.get(key);
     if (!c) {
       c = draw(resolve(look2), dir, frame);
-      cache3.set(key, c);
+      cache4.set(key, c);
     }
     return c;
   }
@@ -8906,6 +9860,8 @@
       wardrobe: { unlocked: [] },
       stats: { battles: 0, wins: 0, captures: 0, evolutions: 0, kos: 0, steps: 0, items: 0, tournaments: 0, hatched: 0, trades: 0 },
       tournament: { lastDay: -99, wins: 0 },
+      hall: [],
+      // Salón de la Fama: [{day, playtime, name, party:[{sp,lv,nick}]}]
       repel: 0,
       rng: seed >>> 0,
       seed: seed >>> 0,
@@ -10049,6 +11005,18 @@
         await d.talk(g, e, this);
         return;
       }
+      const t = this.state.trainers[d.trainer], def = getTrainer(d.trainer);
+      if (t?.beaten && def.rematchable) {
+        const wait = 2 - (g.now.day - (t.day || 0));
+        if (wait > 0) {
+          await g.battleTrainer(d.trainer, { entity: e });
+          return;
+        }
+        await g.say(`\xA1Has vuelto! \xBFTe apetece una revancha? Mi equipo ha entrenado.`, { speaker: def.name });
+        if (!await g.yesNo("\xBFAceptas la revancha?")) return;
+        await g.battleTrainer(d.trainer, { entity: e, rematch: true, lvBonus: Math.min(15, 3 + 2 * (t.rematchDone || 0)) });
+        return;
+      }
       await g.battleTrainer(d.trainer, { entity: e });
     }
     async checkEncounter() {
@@ -10417,26 +11385,26 @@
           { label: "Controles", value: "controls" },
           { label: "Cr\xE9ditos", value: "credits" }
         ];
-        const pick = await g.ui.menu(items, { parent: this.root, panel: true, cancel: void 0, index: latest ? 1 : 0, style: { position: "absolute", left: "350px", top: "215px", width: "260px", background: "linear-gradient(180deg,rgba(38,37,82,.92),rgba(27,26,56,.92))" } });
-        if (pick === "new") {
+        const pick2 = await g.ui.menu(items, { parent: this.root, panel: true, cancel: void 0, index: latest ? 1 : 0, style: { position: "absolute", left: "350px", top: "215px", width: "260px", background: "linear-gradient(180deg,rgba(38,37,82,.92),rgba(27,26,56,.92))" } });
+        if (pick2 === "new") {
           const slot = await this.pickSlot("Nueva partida: elige una ranura", { mode: "new" });
           if (slot) return { type: "new", slot };
-        } else if (pick === "continue") {
+        } else if (pick2 === "continue") {
           const r = g.loadSlot(latest.slot);
           if (r.ok) return { type: "load", slot: latest.slot, recovered: r.recovered };
           await g.say(r.error);
-        } else if (pick === "load") {
+        } else if (pick2 === "load") {
           const slot = await this.pickSlot("Cargar partida", { mode: "load" });
           if (slot) {
             const r = g.loadSlot(slot);
             if (r.ok) return { type: "load", slot, recovered: r.recovered };
             await g.ui.say(r.error);
           }
-        } else if (pick === "select") {
+        } else if (pick2 === "select") {
           await this.pickSlot("Seleccionar ranura activa", { mode: "select" });
-        } else if (pick === "options") await openOptions(g);
-        else if (pick === "controls") await openControls(g);
-        else if (pick === "credits") await openCredits(g);
+        } else if (pick2 === "options") await openOptions(g);
+        else if (pick2 === "controls") await openControls(g);
+        else if (pick2 === "credits") await openCredits(g);
       }
     }
     /** Lista de ranuras. mode: new | load | select. Devuelve el nº de ranura elegido (o null). */
@@ -10458,7 +11426,7 @@
           wrap.append(hint);
           const del = el("button", { class: "btn", style: { marginTop: "8px" } }, "Borrar ranura");
           wrap.append(del);
-          const pick = g.ui.listPick(list, nodes, { index: Math.max(0, g.slot - 1), onSelect: (it) => activate(it.slot) });
+          const pick2 = g.ui.listPick(list, nodes, { index: Math.max(0, g.slot - 1), onSelect: (it) => activate(it.slot) });
           const activate = async (s) => {
             if (mode === "select") {
               g.slot = s.slot;
@@ -10494,7 +11462,7 @@
             resolve2(s.slot);
           };
           const doDelete = async () => {
-            const s = pick.current().slot;
+            const s = pick2.current().slot;
             if (s.empty) return;
             off();
             const ok = await g.ui.yesNo(`\xBFBorrar definitivamente la ranura ${s.slot}? Esta acci\xF3n no se puede deshacer.`, {});
@@ -10511,9 +11479,9 @@
           };
           del.addEventListener("click", doDelete);
           handler = (a) => {
-            if (a === "up") pick.move(-1);
-            else if (a === "down") pick.move(1);
-            else if (a === "confirm") activate(pick.current().slot);
+            if (a === "up") pick2.move(-1);
+            else if (a === "down") pick2.move(1);
+            else if (a === "confirm") activate(pick2.current().slot);
             else if (a === "cancel") {
               cleanup();
               resolve2(null);
@@ -10752,7 +11720,7 @@
 
   // src/screens/creature_view.js
   function creatureCard(c, { size = 56, showHp = true } = {}) {
-    if (c.egg) return el("div", { class: "row" }, [creatureImg(c.sp, size), el("div", {}, [el("b", {}, "Huevo"), el("div", { class: "small dim" }, "Algo se mueve dentro...")])]);
+    if (c.egg) return el("div", { class: "row" }, [creatureImg(c.sp, size, null, { egg: true }), el("div", {}, [el("b", {}, "Huevo"), el("div", { class: "small dim" }, "Algo se mueve dentro...")])]);
     return el("div", { class: "row", style: { width: "100%" } }, [
       creatureImg(c.sp, size, c.variant),
       el("div", { class: "grow" }, [
@@ -10782,7 +11750,7 @@
     ]);
   }
   function creatureDetail(c) {
-    if (c.egg) return el("div", { class: "col center" }, [creatureImg(c.sp, 160), el("div", { class: "title" }, "Huevo"), el("div", { class: "dim" }, `Eclosionar\xE1 tras ${Math.max(0, c.egg.steps)} pasos m\xE1s. Camina para incubarlo.`)]);
+    if (c.egg) return el("div", { class: "col center" }, [creatureImg(c.sp, 160, null, { egg: true }), el("div", { class: "title" }, "Huevo"), el("div", { class: "dim" }, `Eclosionar\xE1 tras ${Math.max(0, c.hatch ?? 0)} pasos m\xE1s. Camina para incubarlo.`)]);
     const s = getSpecies(c.sp), ab = ABILITIES[c.ability], nat = NATURES[c.nature];
     const bar = el("div", { class: "xpbar" }, el("i", { style: { width: xpProgress(c) * 100 + "%" } }));
     return el("div", { class: "col", style: { gap: "8px" } }, [
@@ -11239,7 +12207,7 @@
       const cur = g.ow?.map?.id;
       const curNode = NODES.find((n) => n.maps.includes(cur));
       const canFly = g.hasKey("pase_viaje") && !g.ow?.map?.indoor && !g.ow?.map?.cave && !g.ow?.map?.noFly;
-      let hover = null, pick = curNode ? NODES.indexOf(curNode) : 0;
+      let hover = null, pick2 = curNode ? NODES.indexOf(curNode) : 0;
       const draw2 = () => {
         if (!cv.isConnected) {
           clearInterval(timer);
@@ -11300,8 +12268,8 @@
           }
           const r = n.type === "city" || n.type === "town" || n.type === "league" ? 11 : 7;
           ctx.fillStyle = COLORS[n.type] || "#fff";
-          ctx.strokeStyle = i === pick ? "#fff" : "#1a1226";
-          ctx.lineWidth = i === pick ? 4 : 2;
+          ctx.strokeStyle = i === pick2 ? "#fff" : "#1a1226";
+          ctx.lineWidth = i === pick2 ? 4 : 2;
           ctx.beginPath();
           ctx.arc(n.x * W, n.y * H, r, 0, 7);
           ctx.fill();
@@ -11365,21 +12333,21 @@
         const r = cv.getBoundingClientRect();
         const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
         const i = NODES.findIndex((n) => Math.hypot(n.x * W - x, n.y * H - y) < 14);
-        if (i >= 0 && i !== pick) {
-          pick = i;
+        if (i >= 0 && i !== pick2) {
+          pick2 = i;
           describe(NODES[i]);
         }
       });
-      cv.addEventListener("click", () => describe(NODES[pick]));
+      cv.addEventListener("click", () => describe(NODES[pick2]));
       if (curNode) describe(curNode);
       scr._wm = { timer, move: (d) => {
         const vis = NODES.map((n, i) => [n, i]).filter(([n]) => nodeVisited(g, n));
-        const k = vis.findIndex(([, i]) => i === pick);
+        const k = vis.findIndex(([, i]) => i === pick2);
         const nx = vis[(k + d + vis.length) % vis.length];
-        pick = nx[1];
+        pick2 = nx[1];
         describe(nx[0]);
       }, go: () => {
-        const n = NODES[pick];
+        const n = NODES[pick2];
         if (canFly && n.fly && g.state.fastTravel.includes(n.fly) && n.maps.some(mapExists) && nodeVisited(g, n)) travel(n);
       } };
     }, { onAction: (a) => {
@@ -11605,6 +12573,24 @@
       return false;
     } });
   }
+  async function openBoutique(g) {
+    for (; ; ) {
+      const stock = Object.values(COSMETICS).filter((c2) => c2.price && !c2.start);
+      const items = stock.map((c2) => ({ label: c2.name, value: c2.id, hint: hasCosmetic(g, c2.id) ? "\u2714 comprado" : fmtMoney(c2.price), disabled: hasCosmetic(g, c2.id) || g.money < c2.price }));
+      items.push({ label: "Salir", value: null });
+      const id = await g.ui.menu(items, { panel: true, title: `Boutique \xB7 ${fmtMoney(g.money)}`, cancel: null, style: { position: "absolute", left: "280px", top: "40px", width: "400px", maxHeight: "460px", overflow: "auto" } });
+      if (!id) return;
+      const c = COSMETICS[id];
+      if (await g.yesNo(`\xBFComprar ${c.name} por ${fmtMoney(c.price)}?`)) {
+        if (!g.spend(c.price)) {
+          await g.say("No tienes suficiente dinero.");
+          continue;
+        }
+        g.audio.sfx("coin");
+        unlockCosmetic(g, id);
+      }
+    }
+  }
 
   // src/screens/menu.js
   var GameMenu = class {
@@ -11626,22 +12612,22 @@
           { label: "\u2699 Opciones", value: "options" },
           { label: "\u{1F6AA} Salir al t\xEDtulo", value: "quit" }
         ];
-        const pick = await g.ui.menu(items, { panel: true, cancel: null, style: { position: "absolute", right: "24px", top: "24px", width: "270px" } });
-        if (pick == null) return;
-        if (pick === "dex") await openDex(g);
-        else if (pick === "party") await openParty(g);
-        else if (pick === "bag") {
+        const pick2 = await g.ui.menu(items, { panel: true, cancel: null, style: { position: "absolute", right: "24px", top: "24px", width: "270px" } });
+        if (pick2 == null) return;
+        if (pick2 === "dex") await openDex(g);
+        else if (pick2 === "party") await openParty(g);
+        else if (pick2 === "bag") {
           const r = await openBag(g);
           if (r === "closeAll") return;
-        } else if (pick === "profile") await openProfile(g);
-        else if (pick === "quests") await openQuests(g);
-        else if (pick === "map") {
+        } else if (pick2 === "profile") await openProfile(g);
+        else if (pick2 === "quests") await openQuests(g);
+        else if (pick2 === "map") {
           const r = await openWorldMap(g);
           if (r === "closeAll") return;
-        } else if (pick === "wardrobe") await openWardrobe(g);
-        else if (pick === "save") await openSave(g);
-        else if (pick === "options") await openOptions(g);
-        else if (pick === "quit") {
+        } else if (pick2 === "wardrobe") await openWardrobe(g);
+        else if (pick2 === "save") await openSave(g);
+        else if (pick2 === "options") await openOptions(g);
+        else if (pick2 === "quit") {
           if (await g.yesNo("\xBFSalir al t\xEDtulo? Se perder\xE1 el progreso no guardado.")) {
             g.quitRequested = true;
             return;
@@ -11652,7 +12638,7 @@
   };
   function pickCreature(g, title, { filter = null, hintFn = null } = {}) {
     return new Promise((resolve2) => {
-      const items = g.party.map((c, i) => ({ label: `${displayName(c)} Nv${c.lv}`, value: i, icon: creatureImg(c.sp, 34, c.variant), hint: hintFn ? hintFn(c) : c.egg ? "Huevo" : `${c.hp}/${c.maxHp}`, disabled: filter ? !filter(c) : false }));
+      const items = g.party.map((c, i) => ({ label: `${displayName(c)} Nv${c.lv}`, value: i, icon: creatureImgOf(c, 34), hint: hintFn ? hintFn(c) : c.egg ? "Huevo" : `${c.hp}/${c.maxHp}`, disabled: filter ? !filter(c) : false }));
       const wrap = el("div", { class: "panel", style: { position: "absolute", left: "250px", top: "60px", width: "460px", zIndex: 45 } }, [el("div", { class: "title" }, title)]);
       g.ui.root.append(wrap);
       g.ui.menu(items, { parent: wrap, cancel: null }).then((r) => {
@@ -11700,19 +12686,19 @@
           return;
         }
         const items = [{ label: "Cambiar de posici\xF3n", value: "swap" }, { label: "Ordenar movimientos", value: "moves", disabled: !!c.egg }, { label: "Ponerle mote", value: "nick", disabled: !!c.egg }, { label: "Cuidar (ver amistad)", value: "info", disabled: true }, { label: "Liberar", value: "release", disabled: !!c.egg }, { label: "Volver", value: null }].filter((x) => x.value !== "info");
-        const pick = await g.ui.menu(items, { panel: true, cancel: null, style: { position: "absolute", left: "360px", top: "120px", width: "240px", zIndex: 50 } });
-        if (pick === "swap") {
+        const pick2 = await g.ui.menu(items, { panel: true, cancel: null, style: { position: "absolute", left: "360px", top: "120px", width: "240px", zIndex: 50 } });
+        if (pick2 === "swap") {
           swapFrom = sel;
           render2();
           g.ui.toast("Elige la posici\xF3n de destino");
-        } else if (pick === "moves") {
+        } else if (pick2 === "moves") {
           await reorderMoves(g, c);
           render2();
-        } else if (pick === "nick") {
+        } else if (pick2 === "nick") {
           const n = await g.ui.prompt("Mote (vac\xEDo para quitarlo)", c.nick || "", 12);
           if (n !== null) c.nick = n || null;
           render2();
-        } else if (pick === "release") {
+        } else if (pick2 === "release") {
           const usable = g.party.filter((x) => canFight(x)).length;
           if (g.party.length <= 1 || canFight(c) && usable <= 1) {
             await g.ui.say("No puedes liberar a tu \xFAltima criatura en condiciones de luchar.");
@@ -12069,13 +13055,13 @@
   async function openSave(g) {
     const slots = Save.list();
     const items = slots.map((s2) => ({ label: `Ranura ${s2.slot}${g.slot === s2.slot ? " (activa)" : ""}`, value: s2.slot, hint: s2.empty ? "vac\xEDa" : s2.corrupt ? "da\xF1ada" : `${s2.summary.name} \xB7 ${fmtTime(s2.summary.playtime)}` }));
-    const pick = await g.ui.menu(items, { title: "Guardar partida", panel: true, cancel: null, index: g.slot - 1, style: { position: "absolute", left: "240px", top: "130px", width: "480px", zIndex: 50 } });
-    if (pick == null) return;
-    const s = slots[pick - 1];
-    if (!s.empty && pick !== g.slot) {
-      if (!await g.ui.yesNo(`La ranura ${pick} contiene otra partida. \xBFSobrescribirla?`)) return;
+    const pick2 = await g.ui.menu(items, { title: "Guardar partida", panel: true, cancel: null, index: g.slot - 1, style: { position: "absolute", left: "240px", top: "130px", width: "480px", zIndex: 50 } });
+    if (pick2 == null) return;
+    const s = slots[pick2 - 1];
+    if (!s.empty && pick2 !== g.slot) {
+      if (!await g.ui.yesNo(`La ranura ${pick2} contiene otra partida. \xBFSobrescribirla?`)) return;
     }
-    const ok = g.save(pick);
+    const ok = g.save(pick2);
     if (ok) await g.ui.say("\xA1Partida guardada!");
   }
 
@@ -12221,11 +13207,11 @@
     const st = g.state;
     return g.ui.openScreen("Almacenamiento de criaturas", (close, scr) => {
       let box = 0, area = "box", cur = 0, held = null;
-      const partyEl = el("div", { class: "col", style: { gap: "4px", width: "200px" } }), gridEl = el("div", { style: { display: "grid", gridTemplateColumns: `repeat(${COLS},64px)`, gap: "4px" } });
+      const partyEl = el("div", { class: "col", style: { gap: "4px", width: "176px" } }), gridEl = el("div", { style: { display: "grid", gridTemplateColumns: `repeat(${COLS},58px)`, gap: "4px" } });
       const boxName = el("div", { class: "title", style: { margin: 0, flex: 1, textAlign: "center", cursor: "pointer" } });
       const nav = el("div", { class: "row" }, [el("button", { class: "btn", onclick: () => chBox(-1) }, "\u25C0"), boxName, el("button", { class: "btn", onclick: () => chBox(1) }, "\u25B6")]);
-      const info = el("div", { class: "panel scroll", style: { width: "330px" } }), hint = el("div", { class: "small dim", style: { marginTop: "4px" } }, "Enter: coger/soltar \xB7 Esc: devolver/cerrar \xB7 Tab: caja siguiente \xB7 Shift: caja anterior \xB7 clic en el nombre: renombrar");
-      scr.body.append(el("div", { class: "panel col", style: { width: "224px" } }, [el("div", { class: "title", style: { fontSize: "16px" } }, "Equipo"), partyEl]), el("div", { class: "panel col grow", style: { alignItems: "center" } }, [nav, gridEl, hint]), info);
+      const info = el("div", { class: "panel scroll compact", style: { width: "250px" } }), hint = el("div", { class: "small dim", style: { marginTop: "4px" } }, "Enter: coger/soltar \xB7 Esc: devolver/cerrar \xB7 Tab: caja siguiente \xB7 Shift: caja anterior \xB7 clic en el nombre: renombrar");
+      scr.body.append(el("div", { class: "panel col", style: { width: "200px" } }, [el("div", { class: "title", style: { fontSize: "16px" } }, "Equipo"), partyEl]), el("div", { class: "panel col grow", style: { alignItems: "center" } }, [nav, gridEl, hint]), info);
       const chBox = (d) => {
         box = (box + d + BOX_COUNT) % BOX_COUNT;
         g.audio.sfx("select");
@@ -12246,10 +13232,10 @@
         } else st.boxes[b][i] = c;
       };
       const mk2 = (c, sel, a, i) => {
-        const d = el("div", { class: "card" + (sel ? " sel" : ""), style: { width: a === "party" ? "100%" : "64px", height: a === "party" ? "52px" : "64px", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", opacity: held && held.from.area === a && held.from.idx === i && (a === "party" || held.from.box === box) ? 0.35 : 1 } });
+        const d = el("div", { class: "card" + (sel ? " sel" : ""), style: { width: a === "party" ? "100%" : "58px", height: a === "party" ? "52px" : "58px", padding: "2px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", opacity: held && held.from.area === a && held.from.idx === i && (a === "party" || held.from.box === box) ? 0.35 : 1 } });
         if (c) {
-          d.append(creatureImg(c.sp, a === "party" ? 44 : 54, c.variant));
-          if (a === "party") d.append(el("div", { class: "small" }, [el("b", {}, displayName(c)), el("div", { class: "dim" }, c.egg ? "Huevo" : `Nv${c.lv} \xB7 ${c.hp}/${c.maxHp}`)]));
+          d.append(creatureImgOf(c, a === "party" ? 44 : 48));
+          if (a === "party") d.append(el("div", { class: "small" }, [el("b", {}, c.egg ? "Huevo" : displayName(c)), el("div", { class: "dim" }, c.egg ? "Algo se mueve..." : `Nv${c.lv} \xB7 ${c.hp}/${c.maxHp}`)]));
           else if (c.hp === 0 && !c.egg) d.style.filter = "grayscale(.8)";
         }
         d.addEventListener("mouseenter", () => {
@@ -14456,20 +15442,20 @@
       if (b.canCapture) items.push({ label: "\u25D3 Capturar", value: "capture" });
       items.push({ label: "\u{1F392} Mochila", value: "bag" }, { label: "\u{1F43E} Equipo", value: "party" }, { label: "\u{1F3C3} Huir", value: "flee" });
       for (; ; ) {
-        const pick = await g.ui.menu(items, { parent: this.textBox, panel: true, cols: 3, cancel: void 0, style: { right: "12px", top: "10px", bottom: "10px", left: "46%", gridTemplateColumns: "repeat(3,1fr)", display: "grid", gap: "4px 8px", minWidth: "0", maxHeight: "none", padding: "4px 6px" } });
-        if (pick === "fight") {
+        const pick2 = await g.ui.menu(items, { parent: this.textBox, panel: true, cols: 3, cancel: void 0, style: { right: "12px", top: "10px", bottom: "10px", left: "46%", gridTemplateColumns: "repeat(3,1fr)", display: "grid", gap: "4px 8px", minWidth: "0", maxHeight: "none", padding: "4px 6px" } });
+        if (pick2 === "fight") {
           const a = await this.chooseMove();
           if (a) return a;
-        } else if (pick === "capture") {
+        } else if (pick2 === "capture") {
           const a = await this.chooseBall();
           if (a) return a;
-        } else if (pick === "bag") {
+        } else if (pick2 === "bag") {
           const a = await this.chooseItem();
           if (a) return a;
-        } else if (pick === "party") {
+        } else if (pick2 === "party") {
           const a = await this.chooseSwitch(false);
           if (a) return a;
-        } else if (pick === "flee") {
+        } else if (pick2 === "flee") {
           if (!b.canFlee) {
             g.audio.sfx("error");
             await this.say(b.wild ? "\xA1No puedes huir!" : "\xA1No puedes huir de un combate contra un entrenador!", { hold: 400 });
@@ -14817,7 +15803,7 @@
       }
       const ow = g.ow;
       if (def.intro) await g.say(def.intro, { speaker: def.name });
-      const team = buildTeam(def, g);
+      const team = buildTeam(def, g, { bonus: opts.rematch ? opts.lvBonus || 0 : 0 });
       const sum = await runBattle(g, { foe: { name: def.name, party: team, wild: false, trainer: def, ai: def.ai, items: def.items }, terrain: terrainFor(ow.map, null), trainerLook: def.look, isGym: !!def.gym, music: def.music, canFlee: false, trainerDef: def, rematch: !!opts.rematch });
       if (sum.result === "win") {
         if (def.win) await g.say(def.win, { speaker: def.name });
@@ -14993,6 +15979,164 @@
     return true;
   }
 
+  // src/breeding.js
+  init_rng();
+  init_config();
+  var EGG_STEPS = (sp) => Math.max(120, Math.round(getSpecies(sp).hatch / 20));
+  var canBreed = (c) => !!c && !c.egg && !getSpecies(c.sp).legendary && !getSpecies(c.sp).egg.includes("sin");
+  function compatible(a, b) {
+    if (!canBreed(a) || !canBreed(b)) return false;
+    const ea = getSpecies(a.sp).egg, eb = getSpecies(b.sp).egg;
+    return ea.some((g) => eb.includes(g));
+  }
+  var compatibility = (a, b) => !compatible(a, b) ? 0 : getSpecies(a.sp).root === getSpecies(b.sp).root ? 70 : 50;
+  function makeEgg(a, b, rng) {
+    const sa = getSpecies(a.sp), sb = getSpecies(b.sp);
+    const root = sa.root === sb.root ? sa.root : rng.chance(0.5) ? sa.root : sb.root;
+    const baby = createCreature(root, 1, { rng, ot: null });
+    const keys = rng.shuffle([...STAT_KEYS]).slice(0, 2);
+    for (const k of keys) baby.iv[k] = (rng.chance(0.5) ? a : b).iv[k];
+    const learn = new Set(getSpecies(root).learnset.map(([, id]) => id));
+    const shared = a.moves.map((m) => m.id).filter((id) => b.moves.some((m) => m.id === id) && learn.has(id));
+    for (const id of shared.slice(0, 2)) learnMove(baby, id, 3);
+    baby.egg = true;
+    baby.hatch = EGG_STEPS(root);
+    baby.eggSteps = baby.hatch;
+    return baby;
+  }
+  function hatch(g, c) {
+    delete c.egg;
+    delete c.hatch;
+    delete c.eggSteps;
+    c.friendship = 120;
+    c.lv = 5;
+    c.xp = xpForLevel(getSpecies(c.sp).xpGroup, 5);
+    recalcStats(c, false);
+    for (const id of movesAtLevel(c.sp, 5)) if (c.moves.length < 4 && !c.moves.some((m) => m.id === id)) c.moves.push(makeMove(id));
+    healCreature(c);
+    c.caught = { map: g.ow?.map?.id || null, lv: 1, how: "egg", night: !!g.isNight };
+    g.state.stats.hatched++;
+    g.registerCaught(c.sp);
+    g.emit("hatch", { sp: c.sp });
+    return c;
+  }
+  async function breedingStep(g) {
+    const d = g.state.daycare;
+    for (const c of g.party) {
+      if (!c.egg) continue;
+      c.hatch = Math.max(0, (c.hatch ?? 0) - (g.party.some((p) => !p.egg && getSpecies(p.sp).abilities.includes("cuerpo_ardiente")) ? 2 : 1));
+      if (c.hatch === 0) {
+        g.audio.sfx("select");
+        await g.say("\xA1Oh! \xA1El huevo se mueve!");
+        hatch(g, c);
+        g.audio.sfx("caught");
+        await g.say(`\xA1El huevo ha eclosionado! \xA1Ha nacido ${getSpecies(c.sp).name}!`);
+        if (await g.yesNo(`\xBFQuieres ponerle un mote a ${getSpecies(c.sp).name}?`)) {
+          const n = await g.ui.prompt("Mote", "", 12);
+          if (n) c.nick = n;
+        }
+      }
+    }
+    const [a, b] = d.slots;
+    if (a && b) {
+      d.steps++;
+      d.total = (d.total || 0) + 1;
+      if (!d.egg && d.steps % 256 === 0) {
+        const chance = compatibility(a.mon, b.mon) / 100;
+        const rng = new RNG((g.state.seed ^ d.total * 2654435761) >>> 0);
+        if (rng.chance(chance)) {
+          d.egg = makeEgg(a.mon, b.mon, rng);
+          g.ui.toast("\u{1F95A} En la guarder\xEDa hay un huevo esperando.");
+        }
+      }
+    }
+    return false;
+  }
+  function installBreeding(g) {
+    g.stepHooks = (ow) => breedingStep(g);
+  }
+  var levelsGained = (slot) => Math.max(0, slot.mon.lv - slot.lv0);
+  var cost = (slot) => 100 + 100 * levelsGained(slot);
+  async function pick(g, text, filter) {
+    const items = g.party.map((c, i) => ({ label: `${displayName(c)} Nv${c.lv}${c.egg ? " (huevo)" : ""}`, value: i, disabled: !filter(c, i) }));
+    items.push({ label: "Cancelar", value: -1 });
+    g.ui.closeDialog?.();
+    await g.say(text);
+    return g.ui.menu(items, { panel: true, title: text, cancel: -1 });
+  }
+  async function daycareTalk(g) {
+    const T2 = "Cuidadora", d = g.state.daycare;
+    if (g.questStatus?.("side_huevo") === "none") {
+      await g.say("\xBFSab\xEDas que dos criaturas compatibles pueden tener un huevo? Si consigues que eclosione uno, te dar\xE9 un regalo.", { speaker: T2 });
+      if (await g.yesNo("\xBFAceptas el reto del primer huevo?")) await g.startQuest("side_huevo");
+    }
+    await g.say("\xA1Bienvenido a la Guarder\xEDa Girasol! Cuidamos de tus criaturas. Si dejas dos compatibles, quiz\xE1 aparezca un huevo.", { speaker: T2 });
+    for (; ; ) {
+      const hasEgg = !!d.egg, n = d.slots.filter(Boolean).length;
+      const opts = ["Dejar una criatura", "Recoger una criatura", hasEgg ? "\xA1Recoger el huevo!" : "Ver c\xF3mo van", "Salir"];
+      const r = await g.ask("\xBFQu\xE9 deseas hacer?", opts, { speaker: T2, cancel: 3 });
+      if (r === 0) {
+        if (n >= 2) {
+          await g.say("La guarder\xEDa est\xE1 llena: solo caben dos criaturas.", { speaker: T2 });
+          continue;
+        }
+        const alive = g.party.filter((c) => !c.egg).length;
+        const i = await pick(g, "\xBFA qui\xE9n quieres dejar?", (c) => !c.egg && alive > 1);
+        if (i < 0) continue;
+        const mon = g.party.splice(i, 1)[0];
+        const slot = d.slots[0] ? 1 : 0;
+        d.slots[slot] = { mon, lv0: mon.lv, steps0: d.total || 0 };
+        await g.say(`Cuidaremos de ${displayName(mon)}.`, { speaker: T2 });
+      } else if (r === 1) {
+        if (!n) {
+          await g.say("No hay ninguna criatura en la guarder\xEDa.", { speaker: T2 });
+          continue;
+        }
+        if (g.party.length >= PARTY_MAX) {
+          await g.say("Tu equipo est\xE1 lleno. Libera un hueco primero.", { speaker: T2 });
+          continue;
+        }
+        const items = d.slots.map((s2, i2) => ({ label: s2 ? `${displayName(s2.mon)} Nv${s2.mon.lv} \u2014 ${cost(s2)} \xE1ureos` : "\u2014 vac\xEDo \u2014", value: i2, disabled: !s2 }));
+        items.push({ label: "Cancelar", value: -1 });
+        const i = await g.ui.menu(items, { panel: true, title: "\xBFA qui\xE9n recoges?", cancel: -1 });
+        if (i < 0) continue;
+        const s = d.slots[i];
+        const gain = (d.total || 0) - s.steps0;
+        if (gain > 0) gainXp(s.mon, gain);
+        const price = cost(s);
+        if (g.money < price) {
+          await g.say(`Cuesta ${price} \xE1ureos y no tienes suficiente.`, { speaker: T2 });
+          s.mon.lv = Math.max(s.mon.lv, s.lv0);
+          continue;
+        }
+        g.spend(price);
+        d.slots[i] = null;
+        g.party.push(s.mon);
+        if (!d.slots[0] || !d.slots[1]) d.steps = 0;
+        await g.say(`Aqu\xED tienes a ${displayName(s.mon)}. \xA1Han sido ${price} \xE1ureos!`, { speaker: T2 });
+        if (s.mon.pendingMoves?.length) await g.learnMoves(s.mon);
+      } else if (r === 2) {
+        if (hasEgg) {
+          if (g.party.length >= PARTY_MAX) {
+            await g.say("Tu equipo est\xE1 lleno. Libera un hueco antes de coger el huevo.", { speaker: T2 });
+            continue;
+          }
+          g.party.push(d.egg);
+          d.egg = null;
+          g.audio.sfx("item");
+          g.ui.toast("\u{1F95A} \xA1Has recibido un huevo! Camina para que eclosione.");
+          await g.say("\xA1Ten mucho cuidado con \xE9l! Tardar\xE1 un buen rato en eclosionar: camina con \xE9l en tu equipo.", { speaker: T2 });
+        } else if (!n) await g.say("A\xFAn no hay nadie en la guarder\xEDa.", { speaker: T2 });
+        else if (n === 1) await g.say("Tu criatura se lo pasa en grande. Para un huevo hacen falta dos compatibles.", { speaker: T2 });
+        else {
+          const [a, b] = d.slots;
+          const p = compatibility(a.mon, b.mon);
+          await g.say(p ? p >= 70 ? "Se llevan de maravilla. \xA1Pronto habr\xE1 novedades!" : "Se llevan bien, aunque no son muy parecidas." : "No parecen muy compatibles... no creo que haya un huevo.", { speaker: T2 });
+        }
+      } else return;
+    }
+  }
+
   // src/main.js
   init_world();
   init_world();
@@ -15004,9 +16148,12 @@
     installQuests(g);
     installAchievements(g);
     installCosmetics(g);
+    installBreeding(g);
+    g.daycare = () => daycareTalk(g);
     g.menu = new GameMenu(g);
     g.openShop = (id) => openShop(g, id);
     g.openPC = () => openPC(g);
+    g.openBoutique = () => openBoutique(g);
     g.start();
     const boot2 = document.getElementById("boot");
     if (boot2) boot2.remove();

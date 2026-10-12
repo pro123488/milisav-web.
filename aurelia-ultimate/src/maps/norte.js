@@ -1,9 +1,9 @@
 // Norte de Aurelia: Ruta Granito, Mina Granito, Pico Granito (gimnasio de Roca), Ruta Nevada, Cueva Hielo, Cima Escarcha (gimnasio de Hielo).
-import { defineRoute, defineCity, defineCave, caveMouth, roadBlock } from './archetypes.js';
+import { defineRoute, defineCity, defineCave, caveMouth, roadBlock, edgeBlock } from './archetypes.js';
 import { defineCenter, defineShopInterior, defineHouse, interior } from './helpers.js';
 import { defineGym } from './gyms.js';
 import { look } from './looks.js';
-import { rec, scene, fight, chapter, legendary } from '../story.js';
+import { rec, scene, fight, chapter, legendary, offerQuest } from '../story.js';
 
 // ============================ RUTA GRANITO ============================
 defineRoute('ruta_granito', { name: 'Ruta Granito', title: 'Ruta Granito', w: 44, h: 40, style: 'montana', zone: 'montana', tags: ['montana'], music: 'route', region: 'norte',
@@ -86,7 +86,7 @@ defineCity('pico_granito', { name: 'Pico Granito', w: 38, h: 28, fill: 'grass', 
     m.sign(9, 9, 'PICO GRANITO\nLa ciudad de las minas. 1.200 m sobre el valle.'); m.sign(22, 9, 'OFICINA MINERA'); m.sign(12, 20, 'GIMNASIO CANTERA\nLíder: Petra · Tipo: Roca');
     m.sign(18, 5, '↑ Ruta Nevada (se necesitan 6 medallas)'); m.sign(18, 25, '↓ Ruta Granito y Ciudad Dínamo');
     caveMouth(m, 32, 20, 'mina_granito', 'entrada_pico', { key: 'pico' });
-    roadBlock(m, [[18, 1], [19, 1]], (g) => g.badges.length >= 6, 'Un guardia de montaña te corta el paso: «La Ruta Nevada es peligrosa. Solo entrenadores con 6 medallas o más pueden subir».');
+    edgeBlock(m, 'n', (g) => g.badges.length >= 6, 'Un guardia de montaña te corta el paso: «La Ruta Nevada es peligrosa. Solo entrenadores con 6 medallas o más pueden subir».');
   },
   npcs: [
     { id: 'guia_pico', x: 17, y: 12, dir: 'down', look: 'ayudante', name: 'Guía', text: 'Pico Granito vive de las minas. Si tienes linterna, la galería de Rocío es una buena ruta entre Dínamo y aquí.' },
@@ -144,6 +144,7 @@ interior('int_cima_observatorio', 14, 10, { name: 'Observatorio', title: 'Observ
   m.object(8, 2, 'crystal', { name: 'Maqueta de los dragones', text: 'Una maqueta luminosa: un dragón de luz y otro de sombra, enroscados uno en torno al otro, y cuatro joyas en las esquinas.' });
   m.npc({ id: 'astronoma', x: 7, y: 5, dir: 'down', look: look('cientifico'), name: 'Dra. Lira', move: 'static', talk: async (g) => {
     await scene(g, [['Dra. Lira', 'Observo el cielo y observo la historia. Hace mil años, Aurelion —el dragón de luz— y Umbraxis —el dragón de sombra— se disputaron el amanecer. Los antiguos los sellaron con cuatro Prismas: Esmeralda, Zafiro, Ámbar y Nácar.'], ['Dra. Lira', 'Cada eclipse solar, los sellos tiemblan un poco. El próximo será dentro de poco... y el Maestro Vesper lo sabe.']]);
+    await offerQuest(g, 'side_leyenda', 'Dra. Lira', 'Estudio a las criaturas legendarias de Aurelia: Tempestra, Magmaron, Glaciaris... Si consigues capturar a una, mi investigación daría un salto enorme. ¿Me ayudas?');
     if (g.hasItem('prisma_esmeralda') && g.hasItem('prisma_nacar')) await g.say('¡Tú ya tienes dos Prismas! Reúne los otros dos y llévalos al Santuario del Alba antes del eclipse. Solo así evitarás que Vesper libere a Umbraxis.', { speaker: 'Dra. Lira' });
   } });
 });
@@ -161,7 +162,8 @@ defineCity('cima_escarcha', { name: 'Cima Escarcha', w: 38, h: 28, fill: 'snow',
   decor: (m) => {
     m.put(23, 14, 'fountain'); m.put(22, 14, 'flowerbed'); m.put(24, 14, 'flowerbed'); m.put(21, 14, 'lamp'); m.put(25, 14, 'lamp'); m.put(13, 12, 'lamp');
     m.sign(9, 9, 'CIMA ESCARCHA\nLa ciudad más alta de Aurelia: 2.300 m.'); m.sign(22, 9, 'OBSERVATORIO'); m.sign(12, 20, 'GIMNASIO ESCARCHA\nLíder: Boreal · Tipo: Hielo');
-    m.sign(33, 12, '→ Ruinas Antiguas');
+    m.sign(33, 12, '→ Ruinas Antiguas (se necesitan 7 medallas)');
+    edgeBlock(m, 'e', (g) => g.badges.length >= 7, 'Una barrera de hielo cierra el camino a las Ruinas: «Solo entrenadores con 7 medallas». ¡Vence al líder del gimnasio!');
   },
   npcs: [
     { id: 'guia_cima', x: 17, y: 12, dir: 'down', look: 'ayudante', name: 'Guía', text: 'Bienvenido a Cima Escarcha. Aquí arriba el aire es tan puro que oyes cantar a las criaturas de hielo.' },

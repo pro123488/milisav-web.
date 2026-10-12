@@ -45,7 +45,7 @@ export async function driveBattle(page, { max = 600, onTurn = null, keepPP = tru
     const inB = await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene');
     if (!inB) return true;
     if (onTurn) await onTurn(i);
-    await page.keyboard.press('Enter'); await sleep(130);
+    await page.keyboard.press('Enter'); await sleep(80);
   }
   return false;
 }
@@ -91,22 +91,26 @@ export async function bootWith(page, setup, arg = null) {
   await sleep(900);
 }
 
-/** Siguiente paso (BFS) hacia (tx,ty) ignorando personajes (los entrenadores se activan solos por su línea de visión); las verjas sí bloquean. */
+/** Siguiente paso (BFS) hacia (tx,ty). Ignora personajes (los entrenadores se activan solos) y verjas; sigue las plataformas de teletransporte locales. */
 export function nextStep(page, tx, ty, { adjacent = false } = {}) {
   return page.evaluate(({ tx, ty, adjacent }) => {
     const g = window.__game, ow = g.ow, m = ow.map, W = window.__au.World, p = ow.player;
     if (p.x === tx && p.y === ty) return 'arrived';
-    const gates = new Set(ow.ents.filter((e) => e.kind === 'gate').map((e) => e.x + ',' + e.y));
     const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-    const free = (x, y) => W.inBounds(m, x, y) && !W.terrainSolid(m, x, y) && !gates.has(x + ',' + y) && !(W.groundProps(m, x, y).water && !g.state.player.surfing);
+    const free = (x, y) => W.inBounds(m, x, y) && !W.terrainSolid(m, x, y) && !(W.groundProps(m, x, y).water && !g.state.player.surfing);
     const goal = (x, y) => (adjacent ? Math.abs(x - tx) + Math.abs(y - ty) === 1 : x === tx && y === ty);
+    if (adjacent && goal(p.x, p.y)) return 'arrived';
     const q = [[p.x, p.y, null]]; const seen = new Set([p.x + ',' + p.y]);
     while (q.length) {
       const [x, y, first] = q.shift();
       if (goal(x, y) && first) return first;
       for (const [d, [dx, dy]] of Object.entries(dirs)) {
-        const nx = x + dx, ny = y + dy, k = nx + ',' + ny;
-        if (seen.has(k) || !free(nx, ny)) continue;
+        let nx = x + dx, ny = y + dy; const k0 = nx + ',' + ny;
+        if (!free(nx, ny)) continue;
+        const w = m.warps.get(k0);
+        if (w && w.to === m.id && typeof w.tx === 'number') { nx = w.tx; ny = w.ty; }
+        const k = nx + ',' + ny;
+        if (seen.has(k)) continue;
         seen.add(k); q.push([nx, ny, first || d]);
       }
     }
@@ -117,9 +121,11 @@ export function nextStep(page, tx, ty, { adjacent = false } = {}) {
 export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log = null } = {}) {
   let stuck = 0, last = null;
   for (let i = 0; i < maxSteps; i++) {
-    if (await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene')) { if (log) log('combate'); await driveBattle(page); await advance(page, { max: 80, quiet: 900 }); continue; }
+    if (process.env.E2E_VERBOSE) { await page.screenshot({ path: 'tests/out/gdbg.png' }); console.log('   · estado', await page.evaluate(() => `${window.__game.scene?.constructor.name} busy=${window.__game.ow?.busy} dlg=${!!document.getElementById('dialog')}`)); }
+    if (await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene')) { if (log) log('combate'); if (process.env.E2E_VERBOSE) console.log('   · combate...'); await driveBattle(page); await advance(page, { max: 80, quiet: 900 }); continue; }
     await advance(page, { max: 40, quiet: 250 });
     const d = await nextStep(page, tx, ty, { adjacent });
+    if (process.env.E2E_VERBOSE) console.log('   · goTo', i, JSON.stringify(await pos(page)), d);
     if (d === 'arrived' || (adjacent && d === null && last === 'adj')) return true;
     if (d === null) return false;
     const before = await pos(page);
@@ -131,3 +137,56 @@ export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log
   return false;
 }
 export async function face(page, dir) { await key(page, DIRK[dir], 1, 120); }
+
+/** Sentido hacia una casilla adyacente */
+export function dirTo(page, tx, ty) {
+  return page.evaluate(({ tx, ty }) => { const p = window.__game.ow.player; const dx = tx - p.x, dy = ty - p.y; return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'); }, { tx, ty });
+}
+/** Interactúa con la casilla (tx,ty) estando junto a ella */
+export async function interactWith(page, tx, ty) {
+  if (!(await goTo(page, tx, ty, { adjacent: true }))) return false;
+  await face(page, await dirTo(page, tx, ty)); await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 700 });
+  return true;
+}
+/**
+ * Resuelve un gimnasio hasta quedar junto al líder: laberintos (con interruptores), hielo (sigue la solución verificada),
+ * plataformas (BFS con teletransportes) o acertijos (responde los altares con `answers`).
+ */
+export async function solveGym(page, { leader, answers = [], log = null }) {
+  const info = await page.evaluate(() => { const ow = window.__game.ow, m = ow.map; return { solution: m.solution, w: m.w, h: m.h }; });
+  if (info.solution) {                                  // hielo: de parada en parada
+    for (let i = 1; i < info.solution.length; i++) {
+      const [px, py] = info.solution[i - 1], [x, y] = info.solution[i];
+      const d = x > px ? 'right' : x < px ? 'left' : y > py ? 'down' : 'up';
+      await page.keyboard.down(DIRK[d]); const t0 = Date.now(); let moved = false;
+      while (Date.now() - t0 < 1500) { const mv = await page.evaluate(() => !!window.__game.ow.player.move); if (mv) { moved = true; break; } await sleep(10); }
+      await page.keyboard.up(DIRK[d]);
+      for (let k = 0; k < 400; k++) {
+        const st = await page.evaluate(() => { const o = window.__game.ow; return { busy: !!(o.player.move || o.busy), battle: window.__game.scene?.constructor.name === 'BattleScene' }; });
+        if (st.battle) { if (log) log('combate'); await driveBattle(page); await advance(page, { max: 80, quiet: 900 }); }
+        else if (!st.busy) break; else await sleep(30);
+      }
+      await advance(page, { max: 40, quiet: 250 });
+    }
+    return goTo(page, leader[0], leader[1], { adjacent: true, log });
+  }
+  const riddles = await page.evaluate(() => window.__game.ow.ents.filter((e) => e.kind === 'object' && e.def.name === 'Altar del acertijo').map((e) => [e.x, e.y]));
+  if (riddles.length) {                                 // acertijos: del primero (abajo) al último
+    riddles.sort((a, b) => b[1] - a[1]);
+    for (let i = 0; i < riddles.length; i++) {
+      const [ax, ay] = riddles[i];
+      if (!(await goTo(page, ax, ay, { adjacent: true, log }))) return false;
+      await face(page, await dirTo(page, ax, ay)); await key(page, 'Enter', 1, 300);
+      for (let k = 0; k < (answers[i] ?? 0); k++) await key(page, 'ArrowDown', 1, 120);
+      await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 700 });
+    }
+    return goTo(page, leader[0], leader[1], { adjacent: true, log });
+  }
+  for (let round = 0; round < 14; round++) {            // laberinto/plataformas: el BFS atraviesa verjas; si una barrera detiene, se busca el interruptor
+    if (await goTo(page, leader[0], leader[1], { adjacent: true, log })) return true;
+    const sw = await page.evaluate(() => window.__game.ow.ents.filter((e) => e.kind === 'gate' && e.def.tile === 'switch_off').map((e) => [e.x, e.y]));
+    if (!sw.length) return false;
+    for (const [sx, sy] of sw) await interactWith(page, sx, sy);
+  }
+  return false;
+}

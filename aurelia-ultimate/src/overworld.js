@@ -10,6 +10,7 @@ import { rollEncounter, makeWild, ENCOUNTER_RATE } from './encounters.js';
 import { weatherAt, battleWeather } from './weather.js';
 import { WeatherFX, drawAmbient, drawDarkness } from './fx.js';
 import { getItem } from './data/items.js';
+import { getTrainer } from './trainers.js';
 
 const TS = TILE * SCALE;          // tile en pantalla (48)
 const OPP = { up: 'down', down: 'up', left: 'right', right: 'left' };
@@ -334,6 +335,15 @@ export class Overworld {
   async talkTrainer(e) {
     const g = this.g; const d = e.def;
     if (d.talk) { await d.talk(g, e, this); return; }
+    const t = this.state.trainers[d.trainer], def = getTrainer(d.trainer);
+    if (t?.beaten && def.rematchable) {                       // revancha: pasados 2 días de juego, con equipo más fuerte y la mitad de recompensa
+      const wait = 2 - (g.now.day - (t.day || 0));
+      if (wait > 0) { await g.battleTrainer(d.trainer, { entity: e }); return; }
+      await g.say(`¡Has vuelto! ¿Te apetece una revancha? Mi equipo ha entrenado.`, { speaker: def.name });
+      if (!(await g.yesNo('¿Aceptas la revancha?'))) return;
+      await g.battleTrainer(d.trainer, { entity: e, rematch: true, lvBonus: Math.min(15, 3 + 2 * (t.rematchDone || 0)) });
+      return;
+    }
     await g.battleTrainer(d.trainer, { entity: e });
   }
   async checkEncounter() {

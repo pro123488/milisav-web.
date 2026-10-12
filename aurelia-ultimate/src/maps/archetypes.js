@@ -206,8 +206,8 @@ export function caveMouth(m, x, y, to, spawn, { key = null, sfx = 'door' } = {})
 export function defineCave(id, cfg) {
   const w = cfg.w, h = cfg.h;
   const enc = cfg.enc || { cueva: { zone: 'cueva', lv: cfg.lv || [10, 14], maxRarity: 'R' } };
-  defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: 'cavefloor', music: cfg.music || 'cave', zone: 'cueva', tags: ['cueva', ...(cfg.tags || [])], cave: true, dark: !!cfg.dark, weather: false, noFly: true, region: cfg.region || 'valle', encounters: enc, level: cfg.level }, (m) => {
-    m.putRect(0, 0, w, h, 'cavewall');
+  defineMap(id, w, h, { name: cfg.name, title: cfg.title || cfg.name, fill: cfg.floor || 'cavefloor', music: cfg.music || 'cave', zone: cfg.zone || 'cueva', tags: ['cueva', ...(cfg.tags || [])], cave: true, dark: !!cfg.dark, weather: false, noFly: true, region: cfg.region || 'valle', encounters: enc, level: cfg.level }, (m) => {
+    m.putRect(0, 0, w, h, cfg.wall || 'cavewall');
     const carve = (cx, cy, rx, ry) => { for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) { if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) continue; if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.02) m.clear(x, y); } };
     for (const [cx, cy, rx, ry] of cfg.rooms || []) carve(cx, cy, rx, ry);
     const wd = cfg.width || 3;
@@ -217,7 +217,7 @@ export function defineCave(id, cfg) {
       while (x !== tx || y !== ty) { stamp(x, y); if (x !== tx) x += Math.sign(tx - x); else y += Math.sign(ty - y); }
       stamp(tx, ty);
     }
-    for (const [k, n] of Object.entries(cfg.objs || { stalagmite: Math.round(w * h / 90), crystal: Math.round(w * h / 160), mushroom: Math.round(w * h / 220) })) m.scatter(k, n, { rect: [2, 2, w - 4, h - 4], on: ['cavefloor'], layer: 'obj' });
+    for (const [k, n] of Object.entries(cfg.objs || { stalagmite: Math.round(w * h / 90), crystal: Math.round(w * h / 160), mushroom: Math.round(w * h / 220) })) m.scatter(k, n, { rect: [2, 2, w - 4, h - 4], on: [cfg.floor || 'cavefloor'], layer: 'obj' });
     for (const ex of cfg.exits || []) {
       const up = ex.dir === 'up';      // 'up': la alfombrilla está en el borde superior y se entra hacia el sur
       for (let j = 0; j <= 2; j++) for (let i = -1; i <= 1; i++) m.clear(ex.x + i, up ? ex.y + j : ex.y - j);
@@ -234,4 +234,20 @@ export function defineCave(id, cfg) {
     for (const npc of cfg.npcs || []) m.npc({ move: 'static', ...npc, look: typeof npc.look === 'string' ? look(npc.look) : npc.look });
     if (cfg.extra) cfg.extra(m, { w, h });
   });
+}
+
+const walkable = (m, x, y) => m.inb(x, y) && !/^(lava|void)$/.test(m.get(x, y)) && !m.getObj(x, y).match(/^(tree|pine|snowpine|palm|dead|swamptree|autumn|rock|boulder|cactus|lavarock|cavewall|rockwall|hedge|wallint|bldg|stalagmite|crystal|mushroom|fence)/) && !(m.get(x, y) === 'water' || m.get(x, y) === 'deepwater' || m.get(x, y) === 'swampwater');
+/** Cierra todo el borde de un lado ('n'|'s'|'e'|'w') con una verja que desaparece cuando cond(g) es verdadero (no se puede rodear). */
+export function edgeBlock(m, side, cond, text, opts = {}) {
+  const cells = [];
+  const len = side === 'w' || side === 'e' ? m.h : m.w;
+  for (let i = 0; i < len; i++) { const [x, y] = side === 'w' ? [0, i] : side === 'e' ? [m.w - 1, i] : side === 'n' ? [i, 0] : [i, m.h - 1]; if (walkable(m, x, y)) cells.push([x, y]); }
+  return roadBlock(m, cells, cond, text, opts);
+}
+/** Cierra una fila ('row') o columna ('col') completa del mapa, salvo casillas sólidas. */
+export function lineBlock(m, axis, at, cond, text, opts = {}) {
+  const cells = [];
+  const len = axis === 'row' ? m.w : m.h;
+  for (let i = 0; i < len; i++) { const [x, y] = axis === 'row' ? [i, at] : [at, i]; if (walkable(m, x, y)) cells.push([x, y]); }
+  return roadBlock(m, cells, cond, text, opts);
 }

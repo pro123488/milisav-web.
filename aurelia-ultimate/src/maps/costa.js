@@ -3,9 +3,14 @@ import { defineRoute, defineCity } from './archetypes.js';
 import { defineCenter, defineShopInterior, defineHouse, interior } from './helpers.js';
 import { defineGym } from './gyms.js';
 import { look } from './looks.js';
-import { rec, scene, fight, chapter, legendary } from '../story.js';
+import { rec, scene, fight, chapter, legendary, offerQuest } from '../story.js';
 
 // ============================ RUTA 2 · LAGO ESPEJO ============================
+interior('int_ruta2_guarderia', 12, 9, { name: 'Guardería Girasol', title: 'Guardería Girasol', floor: 'wood', wall: 'wallint2', exit: { to: 'ruta2', spawn: 'door_guarderia' }, noFly: true }, (m) => {
+  m.put(1, 2, 'bed'); m.put(2, 2, 'bed'); m.put(9, 2, 'shelf'); m.put(10, 2, 'plant'); m.rect(4, 3, 4, 3, 'rug'); m.put(1, 6, 'plant'); m.put(10, 6, 'plant');
+  m.npc({ id: 'cuidadora', x: 6, y: 3, dir: 'down', look: look('abuela'), name: 'Cuidadora', move: 'static', talk: async (g) => g.daycare() });
+  m.object(8, 2, 'crate', { name: 'Cesta', text: 'Una cesta con mantas. Aquí descansan los huevos antes de que los recojan.' });
+});
 defineRoute('ruta2', { name: 'Lago Espejo', title: 'Ruta 2 · Lago Espejo', w: 44, h: 36, style: 'lago', zone: 'lago', tags: ['lago'], music: 'route',
   waypoints: [[18, 0], [18, 9], [10, 9], [10, 20], [26, 20], [26, 28], [18, 28], [18, 35]], width: 2,
   conn: { n: { map: 'ciudad_roble', cols: [18, 19], off: 0 }, s: { map: 'puerto_marea', cols: [18, 19], off: 0 } },
@@ -15,7 +20,8 @@ defineRoute('ruta2', { name: 'Lago Espejo', title: 'Ruta 2 · Lago Espejo', w: 4
   items: [[13, 6, 'pocion'], [30, 17, 'super_capsula'], [8, 24, 'antidoto'], [24, 33, 'repelente']], hidden: [[36, 18, 'concha_rara'], [4, 27, 'perla'], [16, 14, 'baya_amistad']],
   signs: [[16, 3, 'RUTA 2 · LAGO ESPEJO\n↑ Ciudad Roble    ↓ Puerto Marea\nEl lago refleja el cielo como un espejo.']],
   npcs: [{ id: 'pescador_viejo', x: 29, y: 18, dir: 'right', look: 'pescador', name: 'Pescador', text: 'Llevo años aquí y nunca he pescado nada. Pero el lago es tan bonito que no me importa. ¡Dicen que con una barca se llega a una isla al sur del puerto!' },
-    { id: 'excursionista_lago', x: 12, y: 22, dir: 'right', look: 'excursionista', name: 'Excursionista', text: 'Por la noche, la hierba de aquí brilla con luciérnagas. Con lluvia salen más criaturas de agua. ¡Merece la pena venir en un día gris!' }] });
+    { id: 'excursionista_lago', x: 12, y: 22, dir: 'right', look: 'excursionista', name: 'Excursionista', text: 'Por la noche, la hierba de aquí brilla con luciérnagas. Con lluvia salen más criaturas de agua. ¡Merece la pena venir en un día gris!' }],
+  extra: (m) => { m.building(22, 12, 5, 4, { kind: 'house', roof: 'orange', wall: 'cream', to: 'int_ruta2_guarderia', tx: 'door', key: 'guarderia', name: 'Guardería Girasol' }); m.sign(20, 15, 'GUARDERÍA GIRASOL\nCuidamos de tus criaturas. ¡Quizá aparezca un huevo!'); } });
 
 // ============================ PUERTO MAREA ============================
 rec('eclipse_muelle1', 'Recluta', 'recluta', [{ sp: 27, lv: 14 }, { sp: 67, lv: 14 }], { reward: 420, intro: '¡Eh, tú! ¡Este barco ya es nuestro! ¡Lárgate!', win: '¡Se acabó! ¡Nos vamos!' });
@@ -31,7 +37,7 @@ defineHouse('puerto_marea', 'casa1', { name: 'Casa del farero', title: 'Casa del
 defineHouse('puerto_marea', 'casa2', { name: 'Casa de Lía', npcs: [{ id: 'lia', x: 3, y: 4, dir: 'right', look: 'nina', name: 'Lía', text: 'Mi padre es marinero. Dice que, antes de la Medalla Marea, ni se acerca uno a la isla del sur. ¡Ahí siempre hay tormenta!' }] });
 defineHouse('puerto_marea', 'casa3', { name: 'Casa del cartógrafo', npcs: [{ id: 'cartografo', x: 5, y: 3, dir: 'down', look: 'cientifico', name: 'Cartógrafo Nilo', talk: async (g) => {
   if (!g.hasItem('mapa') && g.badges.length >= 1) { await g.say('Veo que ya has empezado tu viaje. Toma: un mapa de Aurelia. Te ayudará a orientarte.', { speaker: 'Nilo' }); await g.giveItem('mapa'); }
-  else await g.say('Cartografiar Aurelia es mi vida. Cada ciudad, cada gruta... ¡y cada leyenda!', { speaker: 'Nilo' }); } }] });
+  else { const st = await offerQuest(g, 'side_explorador', 'Nilo', 'Cartografiar Aurelia es mi vida... pero no puedo recorrerla entera. ¿Me ayudas a completar el mapa? Cuantos más lugares visites, mejor.'); if (st !== 'active') await g.say('Cada ciudad, cada gruta... ¡y cada leyenda! Vuelve cuando hayas visto más mundo.', { speaker: 'Nilo' }); } } }] });
 
 interior('int_puerto_capitania', 14, 10, { name: 'Capitanía', title: 'Capitanía de Puerto Marea', floor: 'wood', wall: 'wallint2', exit: { to: 'puerto_marea', spawn: 'door_capitania' }, noFly: true }, (m) => {
   m.put(1, 2, 'bookcase'); m.put(2, 2, 'bookcase'); m.put(11, 2, 'shelf'); m.put(12, 2, 'shelf'); m.put(5, 2, 'table'); m.put(6, 2, 'table'); m.rect(4, 4, 6, 3, 'carpet'); m.put(1, 6, 'plant'); m.put(12, 6, 'plant');

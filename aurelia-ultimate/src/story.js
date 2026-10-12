@@ -33,3 +33,12 @@ export async function legendary(g, ow, spec, { text = null } = {}) {
   else if (r.result === 'fled' || r.result === 'run') { g.state.counters[flag + '_day'] = g.now.day; }
   ow.refreshEntities();
 }
+
+/** Ofrece una misión secundaria una sola vez. Devuelve el estado resultante ('none' si se rechaza). */
+export async function offerQuest(g, id, speaker, text) {
+  const st = g.questStatus(id);
+  if (st !== 'none') return st;
+  await g.say(text, { speaker });
+  if (await g.yesNo('¿Aceptas la misión?')) { await g.startQuest(id); return 'active'; }
+  return 'none';
+}

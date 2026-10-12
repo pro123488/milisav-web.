@@ -41,6 +41,7 @@ export function newState({ name = 'Aldo', look = DEFAULT_LOOK, seed = Date.now()
     wardrobe: { unlocked: [] },
     stats: { battles: 0, wins: 0, captures: 0, evolutions: 0, kos: 0, steps: 0, items: 0, tournaments: 0, hatched: 0, trades: 0 },
     tournament: { lastDay: -99, wins: 0 },
+    hall: [],                      // Salón de la Fama: [{day, playtime, name, party:[{sp,lv,nick}]}]
     repel: 0, rng: seed >>> 0, seed: seed >>> 0,
     cosmetic: { ballDesign: 'normal', effect: null },
   };

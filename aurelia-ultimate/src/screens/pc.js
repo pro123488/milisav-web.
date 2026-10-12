@@ -1,7 +1,7 @@
 // Terminal de almacenamiento: 12 cajas de 30 huecos + equipo de 6. Mover, intercambiar, ver ficha, liberar y renombrar cajas.
 import { el } from '../util.js';
 import { BOX_COUNT, BOX_SIZE, PARTY_MAX } from '../config.js';
-import { creatureImg } from '../ui.js';
+import { creatureImg, creatureImgOf } from '../ui.js';
 import { creatureDetail, creatureCard } from './creature_view.js';
 import { displayName, canFight } from '../creatures.js';
 
@@ -10,18 +10,18 @@ export function openPC(g) {
   const st = g.state;
   return g.ui.openScreen('Almacenamiento de criaturas', (close, scr) => {
     let box = 0, area = 'box', cur = 0, held = null; // held: {c, from:{area,box,idx}}
-    const partyEl = el('div', { class: 'col', style: { gap: '4px', width: '200px' } }), gridEl = el('div', { style: { display: 'grid', gridTemplateColumns: `repeat(${COLS},64px)`, gap: '4px' } });
+    const partyEl = el('div', { class: 'col', style: { gap: '4px', width: '176px' } }), gridEl = el('div', { style: { display: 'grid', gridTemplateColumns: `repeat(${COLS},58px)`, gap: '4px' } });
     const boxName = el('div', { class: 'title', style: { margin: 0, flex: 1, textAlign: 'center', cursor: 'pointer' } });
     const nav = el('div', { class: 'row' }, [el('button', { class: 'btn', onclick: () => chBox(-1) }, '◀'), boxName, el('button', { class: 'btn', onclick: () => chBox(1) }, '▶')]);
-    const info = el('div', { class: 'panel scroll', style: { width: '330px' } }), hint = el('div', { class: 'small dim', style: { marginTop: '4px' } }, 'Enter: coger/soltar · Esc: devolver/cerrar · Tab: caja siguiente · Shift: caja anterior · clic en el nombre: renombrar');
-    scr.body.append(el('div', { class: 'panel col', style: { width: '224px' } }, [el('div', { class: 'title', style: { fontSize: '16px' } }, 'Equipo'), partyEl]), el('div', { class: 'panel col grow', style: { alignItems: 'center' } }, [nav, gridEl, hint]), info);
+    const info = el('div', { class: 'panel scroll compact', style: { width: '250px' } }), hint = el('div', { class: 'small dim', style: { marginTop: '4px' } }, 'Enter: coger/soltar · Esc: devolver/cerrar · Tab: caja siguiente · Shift: caja anterior · clic en el nombre: renombrar');
+    scr.body.append(el('div', { class: 'panel col', style: { width: '200px' } }, [el('div', { class: 'title', style: { fontSize: '16px' } }, 'Equipo'), partyEl]), el('div', { class: 'panel col grow', style: { alignItems: 'center' } }, [nav, gridEl, hint]), info);
     const chBox = (d) => { box = (box + d + BOX_COUNT) % BOX_COUNT; g.audio.sfx('select'); render(); };
     boxName.addEventListener('click', async () => { const n = await g.ui.prompt('Nombre de la caja', st.boxNames[box], 12); if (n) { st.boxNames[box] = n; render(); } });
     const slotOf = (a, b, i) => (a === 'party' ? g.party[i] : st.boxes[b][i]);
     const setSlot = (a, b, i, c) => { if (a === 'party') { if (c) g.party[i] = c; else g.party.splice(i, 1); } else st.boxes[b][i] = c; };
     const mk = (c, sel, a, i) => {
-      const d = el('div', { class: 'card' + (sel ? ' sel' : ''), style: { width: a === 'party' ? '100%' : '64px', height: a === 'party' ? '52px' : '64px', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: held && held.from.area === a && held.from.idx === i && (a === 'party' || held.from.box === box) ? 0.35 : 1 } });
-      if (c) { d.append(creatureImg(c.sp, a === 'party' ? 44 : 54, c.variant)); if (a === 'party') d.append(el('div', { class: 'small' }, [el('b', {}, displayName(c)), el('div', { class: 'dim' }, c.egg ? 'Huevo' : `Nv${c.lv} · ${c.hp}/${c.maxHp}`)])); else if (c.hp === 0 && !c.egg) d.style.filter = 'grayscale(.8)'; }
+      const d = el('div', { class: 'card' + (sel ? ' sel' : ''), style: { width: a === 'party' ? '100%' : '58px', height: a === 'party' ? '52px' : '58px', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: held && held.from.area === a && held.from.idx === i && (a === 'party' || held.from.box === box) ? 0.35 : 1 } });
+      if (c) { d.append(creatureImgOf(c, a === 'party' ? 44 : 48)); if (a === 'party') d.append(el('div', { class: 'small' }, [el('b', {}, c.egg ? 'Huevo' : displayName(c)), el('div', { class: 'dim' }, c.egg ? 'Algo se mueve...' : `Nv${c.lv} · ${c.hp}/${c.maxHp}`)])); else if (c.hp === 0 && !c.egg) d.style.filter = 'grayscale(.8)'; }
       d.addEventListener('mouseenter', () => { area = a; cur = i; render(false); }); d.addEventListener('click', () => { area = a; cur = i; act(); });
       return d;
     };

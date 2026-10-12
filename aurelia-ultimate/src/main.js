@@ -11,7 +11,8 @@ import { openPC } from './screens/pc.js';
 import { installFlows } from './flows.js';
 import { installQuests } from './quests.js';
 import { installAchievements } from './achievements.js';
-import { installCosmetics } from './screens/wardrobe.js';
+import { installCosmetics, openBoutique } from './screens/wardrobe.js';
+import { installBreeding, daycareTalk } from './breeding.js';
 import { mapExists } from './world.js';
 import { START_MAP } from './state.js';
 import { Save } from './save.js';
@@ -23,10 +24,10 @@ async function boot() {
   const g = new Game();
   window.__game = g;                       // útil para depuración y pruebas automatizadas
   window.__au = { Creatures, Species, World, Save };
-  installFlows(g); installQuests(g); installAchievements(g); installCosmetics(g);
+  installFlows(g); installQuests(g); installAchievements(g); installCosmetics(g); installBreeding(g); g.daycare = () => daycareTalk(g);
   g.menu = new GameMenu(g);
   g.openShop = (id) => openShop(g, id);
-  g.openPC = () => openPC(g);
+  g.openPC = () => openPC(g); g.openBoutique = () => openBoutique(g);
   g.start();
   const boot = document.getElementById('boot'); if (boot) boot.remove();
   setupTouch(g);

@@ -102,3 +102,9 @@ table.t th{color:var(--edge);font-size:12px}
 .movegrid .mi { white-space: nowrap; padding: 6px 8px; min-width: 0; }
 .movegrid .mi > span:not(.chip):not(.hint) { overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
 .movegrid .mi .hint { margin-left: auto; padding-left: 6px; }
+
+/* paneles estrechos (p. ej. el detalle en el PC): la cabecera de la ficha se apila para no desbordar */
+.compact { overflow-x: hidden; }
+.compact > .col > .row:first-child { flex-direction: column; align-items: center; }
+.compact .grow { width: 100%; }
+.compact .sprite { width: 110px !important; height: 110px !important; }

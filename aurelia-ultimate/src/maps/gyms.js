@@ -108,10 +108,9 @@ function iceLayout(m, c) {
 function padsLayout(m, c) {
   const { id, w, h, exitX, addTrainers } = c;
   for (let y = 4; y <= h - 2; y++) for (let x = 0; x < w; x++) m.set(x, y, 'void');
-  for (let x = 0; x < w; x++) m.put(x, h - 1, 'wallint');
   const room = (x, y, rw, rh, tile = 'floor') => m.rect(x, y, rw, rh, tile);
   const A = { x: exitX - 3, y: h - 6, w: 7, h: 5 }, B = { x: 1, y: 8, w: 8, h: 5 }, C = { x: w - 9, y: 8, w: 8, h: 5 };
-  room(A.x, A.y, A.w, A.h); room(B.x, B.y, B.w, B.h); room(C.x, C.y, C.w, C.h); room(exitX - 4, 2, 9, 3, 'marble');
+  room(A.x, A.y, A.w, A.h); room(B.x, B.y, B.w, B.h); room(C.x, C.y, C.w, C.h); room(1, 2, w - 2, 3, 'marble');
   m.set(exitX, h - 1, 'mat');
   const pad = (x, y, tx, ty, label) => { m.set(x, y, 'pad'); m.warp(x, y, id, tx, ty, 'down', { sfx: 'warp', label }); };
   const startX = exitX, startY = h - 3;
@@ -166,6 +165,7 @@ export function defineGym(cityId, spec) {
   const tids = [];
   interior(id, w, h, { name: spec.name, title: spec.title || spec.name, floor: spec.floor || 'floor', wall: spec.wallTile || 'wallint', exit: { to: cityId, spawn: 'door_gym' }, exitX: spec.exitX ?? 9, noFly: true, music: 'gym', noSave: false }, (m, ctx) => {
     let gateXY = [9, 4], leaderPos = [9, 2], noGate = false;
+    for (let x = 0; x < w; x++) if (x !== (spec.exitX ?? 9)) m.put(x, h - 1, 'wallint');
     const exitX = spec.exitX ?? 9;
     const trainerSpecs = (spec.trainers || []);
     const addTrainers = (cells) => {

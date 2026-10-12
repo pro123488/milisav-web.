@@ -4,7 +4,7 @@ import { defineRoute, defineCity, routeTrainer } from './archetypes.js';
 import { defineCenter, defineShopInterior, defineHouse, interior, setRespawn } from './helpers.js';
 import { defineGym } from './gyms.js';
 import { look } from './looks.js';
-import { rec, scene, fight, chapter } from '../story.js';
+import { rec, scene, fight, chapter, offerQuest } from '../story.js';
 import { defineTrainer } from '../trainers.js';
 
 // ============================ BOSQUE UMBRA ============================
@@ -21,7 +21,7 @@ defineRoute('bosque_umbra', { name: 'Bosque Umbra', w: 48, h: 30, style: 'bosque
   items: [[8, 17, 'pocion'], [20, 6, 'antidoto'], [28, 22, 'capsula', 2], [40, 5, 'super_pocion']], hidden: [[12, 24, 'concha_rara'], [38, 20, 'polvo_cristal'], [5, 6, 'baya_amistad']],
   signs: [[4, 13, 'BOSQUE UMBRA\nLos árboles filtran la luz: ¡no te desvíes del camino!\n← Ruta 1    Ciudad Roble →'], [44, 8, 'CIUDAD ROBLE\nA 10 minutos a pie. Museo, gimnasio y Centro de Curación.']],
   npcs: [{ id: 'guarda', x: 11, y: 12, dir: 'down', look: 'excursionista', name: 'Guardabosques', text: 'La niebla del bosque se cierra al caer la noche. Si te pierdes, sigue el camino de tierra: siempre vuelve a algún lado.' },
-    { id: 'lucero', x: 24, y: 10, dir: 'left', look: 'nina', name: 'Niña curiosa', text: 'Por la noche, los pastizales brillan con luciérnagas. ¡Son criaturas pequeñitas que parpadean! ¿Las has visto?' }],
+    { id: 'lucero', x: 24, y: 10, dir: 'left', look: 'nina', name: 'Niña curiosa', talk: async (g) => { const st = await offerQuest(g, 'side_noche', 'Niña curiosa', 'Por la noche, los pastizales brillan con luciérnagas. ¡Son criaturas pequeñitas que parpadean! Me encantaría ver una de cerca... ¿me ayudas?'); if (st !== 'active') await g.say('Solo salen de noche, en la hierba alta. ¡Paciencia!', { speaker: 'Niña curiosa' }); } }],
   extra: (m) => {
     m.building(36, 15, 5, 4, { kind: 'house', roof: 'green', wall: 'wood', to: 'int_bosque_invernadero', tx: 'door', key: 'inv', name: 'Invernadero abandonado' });
     // Kai (rival 2)

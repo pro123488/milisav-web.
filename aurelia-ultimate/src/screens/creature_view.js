@@ -9,7 +9,7 @@ import { NATURES, displayName, xpProgress, xpToNext } from '../creatures.js';
 import { TYPES } from '../data/types.js';
 
 export function creatureCard(c, { size = 56, showHp = true } = {}) {
-  if (c.egg) return el('div', { class: 'row' }, [creatureImg(c.sp, size), el('div', {}, [el('b', {}, 'Huevo'), el('div', { class: 'small dim' }, 'Algo se mueve dentro...')])]);
+  if (c.egg) return el('div', { class: 'row' }, [creatureImg(c.sp, size, null, { egg: true }), el('div', {}, [el('b', {}, 'Huevo'), el('div', { class: 'small dim' }, 'Algo se mueve dentro...')])]);
   return el('div', { class: 'row', style: { width: '100%' } }, [
     creatureImg(c.sp, size, c.variant),
     el('div', { class: 'grow' }, [
@@ -37,7 +37,7 @@ export function movesTable(c) {
 
 /** Ficha completa de una criatura */
 export function creatureDetail(c) {
-  if (c.egg) return el('div', { class: 'col center' }, [creatureImg(c.sp, 160), el('div', { class: 'title' }, 'Huevo'), el('div', { class: 'dim' }, `Eclosionará tras ${Math.max(0, c.egg.steps)} pasos más. Camina para incubarlo.`)]);
+  if (c.egg) return el('div', { class: 'col center' }, [creatureImg(c.sp, 160, null, { egg: true }), el('div', { class: 'title' }, 'Huevo'), el('div', { class: 'dim' }, `Eclosionará tras ${Math.max(0, c.hatch ?? 0)} pasos más. Camina para incubarlo.`)]);
   const s = getSpecies(c.sp), ab = ABILITIES[c.ability], nat = NATURES[c.nature];
   const bar = el('div', { class: 'xpbar' }, el('i', { style: { width: xpProgress(c) * 100 + '%' } }));
   return el('div', { class: 'col', style: { gap: '8px' } }, [

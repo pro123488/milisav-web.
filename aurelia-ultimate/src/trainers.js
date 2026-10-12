@@ -12,9 +12,10 @@ export function getTrainer(id) { const t = TRAINERS[id]; if (!t) throw new Error
 
 /** Construye las criaturas del entrenador (determinista por id). */
 export const teamOf = (def, g) => (typeof def.team === 'function' ? def.team(g) : def.team);
-export function buildTeam(def, g = null) {
+export function buildTeam(def, g = null, { bonus = 0 } = {}) {
   const rng = new RNG(hashStr(def.id));
-  return teamOf(def, g).map((m) => {
+  return teamOf(def, g).map((m0) => {
+    const m = bonus ? { ...m0, lv: Math.min(100, m0.lv + bonus), moves: undefined } : m0;   // en revancha suben de nivel y aprenden lo propio de su nuevo nivel
     const iv = Object.fromEntries(STAT_KEYS.map((k) => [k, m.iv ?? def.iv ?? 5]));
     const abilitySlot = m.ab ?? 0;
     return createCreature(m.sp, m.lv, { rng, iv, nature: m.nat || 'equilibrado', moves: m.moves, abilitySlot, ot: def.name, friendship: 70 });

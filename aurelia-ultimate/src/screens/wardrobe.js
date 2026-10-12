@@ -74,3 +74,16 @@ export function openWardrobe(g) {
     scr._w = { move: (d) => { const n = items().length; sel = (sel + d + n) % n; render(); }, tab: (d) => { const i = KINDS.findIndex(([k]) => k === kind); kind = KINDS[(i + d + KINDS.length) % KINDS.length][0]; sel = 0; render(); }, pick: () => { choose(items()[sel]); render(); } };
   }, { onAction: (a) => { const s = [...document.querySelectorAll('.screen')].pop(); const b = s?._w; if (!b) return false; if (a === 'up') { b.move(-1); return true; } if (a === 'down') { b.move(1); return true; } if (a === 'left') { b.tab(-1); return true; } if (a === 'right') { b.tab(1); return true; } if (a === 'confirm') { b.pick(); return true; } return false; } });
 }
+
+/** Boutique de Ciudad Dínamo: compra de cosméticos con precio. Son opcionales y no afectan al combate. */
+export async function openBoutique(g) {
+  for (;;) {
+    const stock = Object.values(COSMETICS).filter((c) => c.price && !c.start);
+    const items = stock.map((c) => ({ label: c.name, value: c.id, hint: hasCosmetic(g, c.id) ? '✔ comprado' : fmtMoney(c.price), disabled: hasCosmetic(g, c.id) || g.money < c.price }));
+    items.push({ label: 'Salir', value: null });
+    const id = await g.ui.menu(items, { panel: true, title: `Boutique · ${fmtMoney(g.money)}`, cancel: null, style: { position: 'absolute', left: '280px', top: '40px', width: '400px', maxHeight: '460px', overflow: 'auto' } });
+    if (!id) return;
+    const c = COSMETICS[id];
+    if (await g.yesNo(`¿Comprar ${c.name} por ${fmtMoney(c.price)}?`)) { if (!g.spend(c.price)) { await g.say('No tienes suficiente dinero.'); continue; } g.audio.sfx('coin'); unlockCosmetic(g, id); }
+  }
+}

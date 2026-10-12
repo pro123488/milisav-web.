@@ -240,7 +240,7 @@ export class MapBuilder {
       zone: o.zone || null, tags: o.tags || [], weather: o.weather !== undefined ? o.weather : !o.indoor, climate: o.climate || 'templado', cave: !!o.cave,
       ground: this.ground, obj: this.obj, top: this.topL, entities: this.entities, warps: this.warps, connections: this.connections, spawns: this.spawns,
       triggers: this.triggers, enc: this.enc, buildings: this.buildings, fly: o.fly || null, title: o.title || o.name || this.id, level: o.level || null,
-      forceWeather: o.forceWeather || null, noFly: !!o.noFly, ownerHooks: o.hooks || null, onEnter: o.onEnter || null, bg: o.bg || null,
+      solution: this.solution || null, forceWeather: o.forceWeather || null, noFly: !!o.noFly, ownerHooks: o.hooks || null, onEnter: o.onEnter || null, bg: o.bg || null,
     };
     return map;
   }

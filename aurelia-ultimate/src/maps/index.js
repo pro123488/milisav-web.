@@ -6,3 +6,6 @@ import './valle.js';
 import './costa.js';
 import './este.js';
 import './norte.js';
+import './sureste.js';
+import './sur.js';
+import './liga.js';
