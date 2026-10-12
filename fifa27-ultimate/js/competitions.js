@@ -15,7 +15,13 @@
     store() { const s = G.state; if (!s.comps) s.comps = {}; return s.comps; },
     get(id) { return this.store()[id]; },
     /** Mundo sobre el que opera la competición: el de la carrera o el base. */
-    worldFor(c) { return c && c.meta && c.meta.career && G.state.career && G.state.career.world ? G.state.career.world : G.state.world; },
+    worldFor(c) {
+      if (c && c.meta && c.meta.career) {
+        const cc = c.meta.kind === 'player' ? G.state.playerCareer : G.state.career;
+        if (cc && cc.world) return cc.world;
+      }
+      return G.state.world;
+    },
     put(c) { this.store()[c.id] = c; return c; },
     remove(id) { delete this.store()[id]; },
     list() { return Object.values(this.store()); },
@@ -169,7 +175,7 @@
       const h = { mode: c.meta.mode, name: c.name, season: c.season, champion, runnerUp: c.runnerUp, third: c.third, boot: awards.boot ? { name: awards.boot.name, g: awards.boot.g, team: awards.boot.team } : null, mvp: awards.mvp ? { name: awards.mvp.name, team: awards.mvp.team } : null, date: Date.now(), id: c.id };
       G.state.history = G.state.history || []; G.state.history.push(h);
       c.awardsFinal = awards;
-      if (ui.includes(champion)) {
+      if (ui.includes(champion) && !c.meta.career) {          // las carreras otorgan sus propios trofeos
         const prize = c.meta.prize || 1e6;
         const coins = Math.round(prize / 1500);
         prof.trophies.push({ name: c.name, mode: { league: 'Liga', cup: 'Copa', world: 'Mundial', custom: 'Torneo' }[c.meta.mode] || 'Torneo', season: `${c.season}/${String(c.season + 1).slice(2)}`, color: c.meta.color || '#ffd23f', team: champion, date: Date.now() });

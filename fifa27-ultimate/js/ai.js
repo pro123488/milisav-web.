@@ -119,7 +119,7 @@
     const roles = sh.roles = {};
     if (m.phase !== 'play') return;
     const opp = m.teams[1 - team.idx];
-    const field = team.players.filter(p => p.role !== 'GK' && p.state !== 'fall' && p.state !== 'slide' && p.onPitch);
+    const field = team.players.filter(p => p.role !== 'GK' && p.state !== 'fall' && p.state !== 'slide' && p.onPitch && p.id !== m.lockId);
     const traj = AI.trajectory(m);
     const dir = team.dir, ownX = -dir * PI.HL;
 

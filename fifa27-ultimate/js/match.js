@@ -66,6 +66,8 @@
       this.humans = cfg.humans || [];
       this.isHuman = [this.humans.includes(0), this.humans.includes(1)];
       this.humanTeam = this.humans.length ? this.humans[0] : -1;
+      this.lockId = cfg.lockId || null;
+      this.lockPlan = cfg.lockPlan ? Object.assign({}, cfg.lockPlan) : null;       // { inAt, outAt }: minutos en que el míster te mete o te saca          // modo «un solo jugador»: el usuario solo controla a este jugador
       this.stadium = cfg.stadium || { cat: 'mid', cap: 25000 };
       this.minutes = cfg.minutes || 5;
       this.realHalf = this.minutes * 60 / 2;             // segundos reales por parte
@@ -206,7 +208,10 @@
         t.controlled = this.defaultControlled(t);
       }
     }
+    /** ¿Este jugador está controlado por una persona? (con lockId solo lo está ese jugador) */
+    humanPlayer(p) { return this.isHuman[p.team] && (!this.lockId || p.id === this.lockId); }
     defaultControlled(t) {
+      if (this.lockId) { const lp = t.players.find(x => x.id === this.lockId); return lp && lp.onPitch ? lp : null; }
       // el jugador más cercano al balón (fuera del portero)
       let best = null, bd = 1e9;
       for (const p of t.players) {
@@ -620,7 +625,7 @@
         gk.holding = true; gk.holdT = 0; gk.holdMax = 1.1 + this.rng.next() * 1.6;
         b.vx = b.vy = b.vz = 0; b.z = 1.1; b.shotBy = null; b.shotOnTarget = false;
         this.setOwner(gk); this.touch(gk, 'catch');
-        if (this.isHuman[gk.team]) this.teams[gk.team].controlled = gk;
+        if (this.humanPlayer(gk)) this.teams[gk.team].controlled = gk;
         gk.state = gk.state === 'dive' ? 'dive' : 'idle';
         this.emit('save', { p: gk, caught: true, shot: shotOn });
         if (shotOn) this.log_('save', gk, this.teams[gk.team]);
@@ -774,7 +779,7 @@
       const wasOwner = this.ball.owner === c;
       A.pass(this, c, tx, ty, kind, power, r);
       if (this.ball.owner === c) this.setOwner(null);
-      if (r && this.isHuman[team.idx]) team.preSwitch = { target: r, t: this.time };
+      if (r && this.isHuman[team.idx] && !this.lockId) team.preSwitch = { target: r, t: this.time };
     }
 
     humanShoot(team, c, inp, dx, dy, charge, aerial, strikeable) {
@@ -796,6 +801,7 @@
     }
 
     manualSwitch(team, inp) {
+      if (this.lockId) return;
       const b = this.ball, c = team.controlled;
       let best = null, bd = 1e9;
       const refx = b.owner && b.owner.team === team.idx ? b.owner.x : b.x, refy = b.owner && b.owner.team === team.idx ? b.owner.y : b.y;
@@ -813,12 +819,12 @@
     /** Cambio automático de jugador controlado. */
     autoSwitchTo(p) {
       const t = this.teams[p.team];
-      if (!this.isHuman[t.idx] || p.role === 'GK') return;
+      if (this.lockId || !this.isHuman[t.idx] || p.role === 'GK') return;
       if (this.time - t.lastHumanSwitch < 0.6) return;
       t.controlled = p;
     }
     autoSwitchLogic(t) {
-      if (!this.isHuman[t.idx] || this.phase !== 'play') return;
+      if (this.lockId || !this.isHuman[t.idx] || this.phase !== 'play') return;
       const b = this.ball, c = t.controlled;
       if (this.time - t.lastHumanSwitch < 1.1) return;
       if (c && c.hasBall) return;

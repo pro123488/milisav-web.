@@ -67,6 +67,7 @@
       // pausa
       const pr = G.Input.state[0].btn.pause.pressed || (G.Input.state[1].btn.pause.pressed);
       if (pr) { if (this.overlayKind === 'pause') this.resume(); else if (!this.overlayKind && m.phase !== 'fulltime') this.pause(); }
+      if (m.lockId) { const lt = m.teams[m.humans[0]]; m.timeScale = (lt && !lt.controlled && m.phase === 'play' && !m.ended) ? 5 : 1; }   // en el banquillo: avance rápido
       if (!m.paused) m.update(dt, inputs);
       G.Input.endFrame();
       const evs = m.drainEvents();
@@ -214,7 +215,7 @@
         html = `<kbd>W A S D</kbd> mover · ${kn('sprint')} correr · ${kn('pass')} pase · ${kn('long')} largo · ${kn('through')} espacio · ${kn('shoot')} disparo · ${kn('switch')} cambiar · ${kn('tackle')} robar · <kbd>Esc</kbd> pausa`;
       } else if (m.phase === 'play' && m.humans.length) {
         const t = m.teams[m.humans[0]];
-        if (t.controlled && !m.ball.owner && false) html = '';
+        if (m.lockId && !t.controlled) html = 'Estás fuera del campo: avance rápido hasta que el míster te dé entrada (o hasta el final).';
       }
       if (this.hudCache.hint !== html) { this.hudCache.hint = html; hint.innerHTML = html; hint.classList.toggle('on', !!html); }
       if (setEl) {
@@ -255,9 +256,10 @@
     renderOverlay() {
       const m = this.m, o = $('mu-overlay'); if (!m || !o) return;
       const ti = this.ti, t = m.teams[ti];
-      const tabs = this.overlayKind === 'break'
+      let tabs = this.overlayKind === 'break'
         ? [['break', 'Descanso'], ['subs', 'Cambios'], ['tactics', 'Táctica'], ['controls', 'Controles']]
         : [['main', 'Pausa'], ['subs', 'Cambios'], ['tactics', 'Táctica'], ['stats', 'Estadísticas'], ['controls', 'Controles'], ['options', 'Opciones']];
+      if (m.lockId) { tabs = tabs.filter(([id]) => id !== 'subs' && id !== 'tactics'); if (this.tab === 'subs' || this.tab === 'tactics') this.tab = this.overlayKind === 'break' ? 'break' : 'main'; }
       const tabBar = `<div class="tabs">${tabs.map(([id, n]) => `<button class="tab ${this.tab === id ? 'on' : ''}" data-act="mu_tab" data-id="${id}">${n}</button>`).join('')}</div>`;
       let body = '';
       switch (this.tab) {
@@ -267,8 +269,8 @@
             <div class="pm-score">${esc(m.teams[0].name)} <b>${m.score[0]} - ${m.score[1]}</b> ${esc(m.teams[1].name)}</div>
             <div class="pm-btns">
               <button class="btn primary big" data-act="mu_resume" autofocus>${ico('play', 20)}<span>Continuar</span></button>
-              <button class="btn" data-act="mu_tab" data-id="subs">${ico('sub', 18)}<span>Cambios</span></button>
-              <button class="btn" data-act="mu_tab" data-id="tactics">${ico('manager', 18)}<span>Formación y tácticas</span></button>
+              ${m.lockId ? '' : `<button class="btn" data-act="mu_tab" data-id="subs">${ico('sub', 18)}<span>Cambios</span></button>
+              <button class="btn" data-act="mu_tab" data-id="tactics">${ico('manager', 18)}<span>Formación y tácticas</span></button>`}
               <button class="btn" data-act="mu_tab" data-id="controls">${ico('gamepad', 18)}<span>Controles</span></button>
               <button class="btn" data-act="mu_tab" data-id="options">${ico('settings', 18)}<span>Opciones</span></button>
               ${m.meta.allowQuit ? `<button class="btn danger" data-act="mu_quit">${ico('close', 18)}<span>Abandonar partido</span></button>` : ''}

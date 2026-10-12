@@ -161,7 +161,8 @@
       const m = new G.Match({
         home, away, humans: opts.humans !== undefined ? opts.humans : [0], minutes: opts.minutes || set.minutes, difficulty: opts.difficulty || set.difficulty,
         rules, seed: opts.seed, stadium, assist: opts.assist !== undefined ? opts.assist : set.assist,
-        lighting: opts.lighting || (set.lighting === 'auto' ? undefined : set.lighting), autoBreak: !!opts.autoBreak, introTime: opts.introTime
+        lighting: opts.lighting || (set.lighting === 'auto' ? undefined : set.lighting), autoBreak: !!opts.autoBreak, introTime: opts.introTime,
+        lockId: opts.lockId || null, lockPlan: opts.lockPlan || null
       });
       m.meta = { title: opts.title || 'Partido amistoso', homeTeam: opts.home, awayTeam: opts.away, world: w, onFinish: opts.onFinish, noRematch: !!opts.noRematch, allowQuit: opts.allowQuit !== false };
       return m;

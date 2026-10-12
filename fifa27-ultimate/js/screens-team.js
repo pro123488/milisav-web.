@@ -13,8 +13,10 @@
   const CAREER_SCREENS = new Set(['manager', 'mgrseason', 'transfers', 'academy', 'training', 'mgrnew']);
   G.UIx = G.UIx || {};
   G.UIx.world = () => {
-    const s = G.state, c = s.career;
+    const s = G.state, c = s.career, pc = s.playerCareer;
+    if (UI.current === 'playercareer' || UI.current === 'pcseason') return pc && pc.world ? pc.world : s.world;
     if (c && c.world && (CAREER_SCREENS.has(UI.current) || (UI.current === 'lineup' && UI.ctx.lineup && UI.ctx.lineup.career))) return c.world;
+    if (pc && pc.world && !c && (UI.current === 'training')) return pc.world;
     return s.world;
   };
   const W = () => G.UIx.world();

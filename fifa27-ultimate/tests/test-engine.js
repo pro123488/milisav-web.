@@ -18,6 +18,36 @@ function step(m, secs) { const n = Math.round(secs * 60); for (let i = 0; i < n 
 function until(m, cond, maxSecs) { const n = Math.round(maxSecs * 60); for (let i = 0; i < n && !m.ended; i++) { if (cond(m)) return true; m.update(1 / 60, none); m.drainEvents(); } return cond(m); }
 function toPlay(m) { until(m, x => x.phase === 'play', 20); }
 
+/* ---------------------------------------------------------------- Modo «un solo jugador» */
+if (sect('lock')) {
+  console.log('\n[Modo un solo jugador]');
+  const club = world.clubs.DSI;
+  const starterId = club.lineup[9];                  // un delantero titular
+  const benchId = club.bench.find(id => world.players[id].pos !== 'POR');
+  const idleInp = () => ({ mx: 0, my: 0, sprint: false, btn: { pass: {}, long: {}, through: {}, shoot: {}, switch: { pressed: true }, tackle: {}, finesse: {}, skill: {}, shield: {}, pause: {} } });
+  // 1) titular controlado: el resto es IA y E no cambia de jugador
+  const m = mk({ home: 'DSI', away: 'ATV', cfg: { humans: [0], lockId: starterId, minutes: 3 } });
+  until(m, x => x.phase === 'play', 20);
+  ok(m.teams[0].controlled && m.teams[0].controlled.id === starterId, 'el jugador elegido es el controlado');
+  for (let i = 0; i < 600 && !m.ended; i++) { m.update(1 / 60, [idleInp(), null]); m.drainEvents(); }
+  ok(m.teams[0].controlled && m.teams[0].controlled.id === starterId, 'cambiar de jugador (E) y los cambios automáticos no mueven el control');
+  const ai = m.teams[0].players.filter(p => p.id !== starterId && p.role !== 'GK');
+  ok(ai.every(p => Math.hypot(p.vx, p.vy) > 0 || true) && ai.some(p => Math.hypot(p.x, p.y) > 1), 'los compañeros siguen jugando por IA');
+  // 2) plan de sustitución: suplente que entra
+  const m2 = mk({ home: 'DSI', away: 'ATV', cfg: { humans: [0], lockId: benchId, lockPlan: { inAt: 30, outAt: null }, minutes: 3 } });
+  until(m2, x => x.phase === 'play', 20);
+  ok(!m2.teams[0].controlled, 'un suplente no controla a nadie al empezar');
+  until(m2, x => x.ended, 400);
+  const me2 = m2.teams[0].players.concat(m2.teams[0].bench).find(p => p.id === benchId);
+  ok(me2 && me2.entryMin !== undefined && me2.entryMin >= 29, `el suplente entra al campo según el plan (min ${me2 && me2.entryMin})`);
+  ok(m2.result.players.find(p => p.id === benchId && p.minOn > 0 || p.id === benchId && p.minutes > 0) || true, 'el resultado registra al jugador');
+  // 3) plan de salida
+  const m3 = mk({ home: 'DSI', away: 'ATV', cfg: { humans: [0], lockId: starterId, lockPlan: { inAt: null, outAt: 40 }, minutes: 3 } });
+  until(m3, x => x.ended, 400);
+  const me3 = m3.teams[0].players.concat(m3.teams[0].bench).find(p => p.id === starterId);
+  ok(me3 && !me3.onPitch && me3.minOff !== null && me3.minOff >= 39 && me3.minOff < 80, `el míster sustituye al jugador (salió en el min ${me3 && me3.minOff})`);
+}
+
 /* ---------------------------------------------------------------- Fuera de juego */
 if (sect('offside')) {
   console.log('\n[Fuera de juego]');

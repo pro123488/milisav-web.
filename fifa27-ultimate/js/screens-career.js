@@ -11,7 +11,8 @@
   const UI = G.UI, { esc, money, num } = G.U;
   const ico = UI.ico, Cr = G.Career, TR = G.Transfers, E = G.Economy, T = G.Tactics, P = G.Players, Tn = G.Tournaments;
 
-  const C = () => G.state.career;
+  let ACTIVE = null;                       // permite reutilizar las vistas con la carrera de futbolista
+  const C = () => ACTIVE || G.state.career;
   const cw = () => C().world;
   const myClub = () => cw().clubs[C().club];
   const tchip = (id, size = 24, cls = '') => {
@@ -502,5 +503,9 @@
   });
 
   /* ---------- exposición para pruebas y otras pantallas ---------- */
-  G.UIx.career = { playRef, weekAdvance, renewModal, releaseModal, loanOutModal };
+  const withCareer = (c, fn) => { const prev = ACTIVE; ACTIVE = c; try { return fn(); } finally { ACTIVE = prev; } };
+  G.UIx.career = {
+    playRef, weekAdvance, renewModal, releaseModal, loanOutModal,
+    helpers: { miniTable: c => withCareer(c, () => miniTable(c)), calendar: c => withCareer(c, () => tabCalendario(c)), form: c => withCareer(c, () => formHtml(c)), tchip: (c, id, size, cls) => withCareer(c, () => tchip(id, size, cls)), userRow: c => withCareer(c, userRow), strengthOf: (c, id) => withCareer(c, () => strengthOf(id)) }
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

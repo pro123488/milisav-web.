@@ -18,6 +18,8 @@
   const LEAGUE_CUP = { LAU: 'AUR', LAP: 'AUR', LBO: 'BOR' };
   const WINTER_WEEK = 8;
 
+  /** ¿Es este club el que dirige el usuario? (en la carrera de futbolista el club lo dirige la IA) */
+  const isU = (c, id) => c.mode !== 'player' && id === c.club;
   const rngFor = (c, salt) => new G.U.RNG((G.U.hashString(c.id + ':' + c.season + ':' + c.week + ':' + (salt || '')) ^ 0x9e3779b9) >>> 0);
 
   const Career = {
@@ -72,19 +74,19 @@
       c.comps = { leagues: {}, cups: {} };
       for (const lid of Object.keys(world.leagues)) {
         const lg = world.leagues[lid];
-        const comp = T.createLeague(lg.clubs, { name: lg.name, season: world.seasonYear, rules: { legs: 2 }, meta: { mode: 'career', career: true, full: true, careerId: c.id, leagueId: lid, userTeams: lg.clubs.includes(c.club) ? [c.club] : [], minutes: this.matchMinutes(c), difficulty: c.difficulty, prize: lg.prize, label: lg.name } });
+        const comp = T.createLeague(lg.clubs, { name: lg.name, season: world.seasonYear, rules: { legs: 2 }, meta: { mode: 'career', career: true, kind: c.mode === 'player' ? 'player' : 'manager', full: true, careerId: c.id, leagueId: lid, userTeams: lg.clubs.includes(c.club) ? [c.club] : [], minutes: this.matchMinutes(c), difficulty: c.difficulty, prize: lg.prize, label: lg.name } });
         G.Comp.put(comp); c.comps.leagues[lid] = comp.id;
       }
       const cupDefs = { AUR: { name: 'Copa de Aurelia', leagues: ['LAU', 'LAP'], prize: 6e6, color: '#ffd23f' }, BOR: { name: 'Copa Boreal', leagues: ['LBO'], prize: 3e6, color: '#7df9ff' } };
       for (const k in cupDefs) {
         const d = cupDefs[k]; const ids = d.leagues.flatMap(l => world.leagues[l].clubs);
         const strength = G.Comp.strengthMap(world, ids);
-        const cup = T.createKnockout(ids, { name: d.name, season: world.seasonYear, rules: { legs: 1 }, seeding: 'seeded', strength, meta: { mode: 'career', career: true, full: true, careerId: c.id, cup: k, userTeams: ids.includes(c.club) ? [c.club] : [], minutes: this.matchMinutes(c), difficulty: c.difficulty, prize: d.prize, label: d.name, color: d.color } });
+        const cup = T.createKnockout(ids, { name: d.name, season: world.seasonYear, rules: { legs: 1 }, seeding: 'seeded', strength, meta: { mode: 'career', career: true, kind: c.mode === 'player' ? 'player' : 'manager', full: true, careerId: c.id, cup: k, userTeams: ids.includes(c.club) ? [c.club] : [], minutes: this.matchMinutes(c), difficulty: c.difficulty, prize: d.prize, label: d.name, color: d.color } });
         G.Comp.put(cup); c.comps.cups[k] = cup.id;
       }
       c.week = 0; world.week = 0; c.phase = 'pre'; c.expiring = [];
       c.leagueId = world.clubs[c.club].league;
-      this.makeObjectives(c);
+      if (c.mode === 'player') G.PlayerCareer.makeObjectives(c); else this.makeObjectives(c);
       return c;
     },
     matchMinutes(c) { return G.state.settings.minutes; },
@@ -216,9 +218,9 @@
       if (c.phase !== 'pre') return;
       // tras la ventana de verano los clubes de la IA completan sus plantillas
       TR.fixSquads(c.world, rngFor(c, 'start'));
-      this.ensureSquad(c);
+      if (c.mode !== 'player') this.ensureSquad(c);
       c.phase = 'season'; c.week = 1; c.world.week = 1;
-      this.evalObjectives(c, false);
+      if (c.mode === 'player') G.PlayerCareer.pickSquad(c); else this.evalObjectives(c, false);
     },
     /**
      * Garantiza una plantilla mínima jugable (18 jugadores, 2 porteros): si faltan, la directiva ficha agentes libres
@@ -290,26 +292,28 @@
         for (const id of club.squad) {
           const p = w.players[id]; if (!p) continue;
           const injBefore = !!(p.inj && p.inj.games > 0);
-          if (p.inj) { const healed = P.healTick(p); if (healed && club.id === c.club) this.msg(c, 'injury', `${P.fullName(p)} se ha recuperado`, 'Vuelve a estar disponible.'); }
+          if (p.inj) { const healed = P.healTick(p); if (healed && isU(c, club.id)) this.msg(c, 'injury', `${P.fullName(p)} se ha recuperado`, 'Vuelve a estar disponible.'); }
           const played = p.lw === wk;
-          P.recoverCond(p, played ? 3 : 4, 0.5 + (club.id === c.club ? this.trainingMedical(c) : 0));
+          P.recoverCond(p, played ? 3 : 4, 0.5 + (isU(c, club.id) ? this.trainingMedical(c) : 0));
           if (p.susp > 0 && !played) p.susp--;
           // moral: titulares contentos, suplentes se enfrían
-          if (club.id === c.club) { const inLu = club.lineup.includes(id); p.morale = clamp(p.morale + (played ? 0.6 : (inLu ? 0 : -0.9)), 15, 100); if (p.morale < 32 && !p.askedOut) { p.askedOut = true; this.msg(c, 'news', `${P.fullName(p)} pide salir`, 'Está descontento por su falta de minutos. Puedes ponerlo en venta, cederlo o mejorar su situación.'); } if (p.morale > 55) p.askedOut = false; }
+          if (isU(c, club.id)) { const inLu = club.lineup.includes(id); p.morale = clamp(p.morale + (played ? 0.6 : (inLu ? 0 : -0.9)), 15, 100); if (p.morale < 32 && !p.askedOut) { p.askedOut = true; this.msg(c, 'news', `${P.fullName(p)} pide salir`, 'Está descontento por su falta de minutos. Puedes ponerlo en venta, cederlo o mejorar su situación.'); } if (p.morale > 55) p.askedOut = false; }
         }
-        if (club.id !== c.club) G.World.autoPick(w, club);
+        if (!isU(c, club.id)) G.World.autoPick(w, club);
       }
+      if (c.mode === 'player') G.PlayerCareer.pickSquad(c);
       // lesiones nuevas del usuario
-      this.club(c).squad.forEach(id => { const p = w.players[id]; if (p && p.inj && p.inj.games > 0 && p.inj.games === p.inj.total && p.lw === wk) { this.msg(c, 'injury', `Lesión: ${P.fullName(p)}`, `${p.inj.type} (${p.inj.sev}). Baja ${p.inj.games} partido(s).`); report.injuries.push(p.id); } });
+      this.club(c).squad.forEach(id => { if (c.mode === 'player' && id !== c.pid) return; const p = w.players[id]; if (p && p.inj && p.inj.games > 0 && p.inj.games === p.inj.total && p.lw === wk) { this.msg(c, 'injury', `Lesión: ${P.fullName(p)}`, `${p.inj.type} (${p.inj.sev}). Baja ${p.inj.games} partido(s).`); report.injuries.push(p.id); } });
       // 3) entrenamiento y cantera del usuario
-      if (G.Training) { const tr = G.Training.weekly(w, this.club(c), c.training, rng, c.coach); report.training = { gains: tr.gains.length, injuries: tr.injuries.length, top: tr.gains.slice(0, 5) }; tr.injuries.forEach(id => { const p = w.players[id]; if (p) { this.msg(c, 'injury', `Lesión en el entrenamiento: ${P.fullName(p)}`, `${p.inj.type}. Baja ${p.inj.games} partido(s).`); report.injuries.push(id); } }); }
-      if (G.Youth) G.Youth.weekly(w, this.club(c), rng, c);
+      if (c.mode !== 'player' && G.Training) { const tr = G.Training.weekly(w, this.club(c), c.training, rng, c.coach); report.training = { gains: tr.gains.length, injuries: tr.injuries.length, top: tr.gains.slice(0, 5) }; tr.injuries.forEach(id => { const p = w.players[id]; if (p) { this.msg(c, 'injury', `Lesión en el entrenamiento: ${P.fullName(p)}`, `${p.inj.type}. Baja ${p.inj.games} partido(s).`); report.injuries.push(id); } }); }
+      if (c.mode !== 'player' && G.Youth) G.Youth.weekly(w, this.club(c), rng, c);
       // 4) mercado: ronda de la IA al abrir la ventana de invierno
       if (wk === WINTER_WEEK - 1) { TR.aiRound(w, rng, { maxNeeds: 2 }); TR.fixSquads(w, rng); this.msg(c, 'news', 'Abre el mercado de invierno', 'Hasta la próxima jornada puedes fichar, vender y renovar. Los clubes ya han movido ficha.'); }
-      if (c.week === WINTER_WEEK || wk === WINTER_WEEK - 1 || wk === 1) { const offers = TR.aiOffersFor(w, rng, this.club(c)); offers.forEach(o => { c.offers.push(o); this.msg(c, 'offer', `Oferta por ${P.fullName(w.players[o.player])}`, `${w.clubs[o.from].name} ofrece ${G.U.money(o.fee)}.`, { offerId: o.id }); report.offers++; }); }
+      if (c.mode !== 'player' && (c.week === WINTER_WEEK || wk === WINTER_WEEK - 1 || wk === 1)) { const offers = TR.aiOffersFor(w, rng, this.club(c)); offers.forEach(o => { c.offers.push(o); this.msg(c, 'offer', `Oferta por ${P.fullName(w.players[o.player])}`, `${w.clubs[o.from].name} ofrece ${G.U.money(o.fee)}.`, { offerId: o.id }); report.offers++; }); }
       c.offers = c.offers.filter(o => o.expires >= wk);
       // 5) mensajes económicos y de directiva
       const club = this.club(c);
+      if (c.mode === 'player') { G.PlayerCareer.afterWeek(c, report, rng); c.week = wk + 1; w.week = c.week; if (c.week > WEEKS) { c.week = WEEKS + 1; this.closeSeason(c); } return report; }
       E.alerts(w, club).filter(a => a.kind === 'danger').forEach(a => { if (!c._lastFinMsg || c._lastFinMsg !== wk) { this.msg(c, 'finance', 'Alerta económica', a.text); c._lastFinMsg = wk; } });
       if (wk === 10) { const exp = club.squad.map(id => w.players[id]).filter(p => p && p.contract.exp <= w.seasonYear + 1 && !p.loan); if (exp.length) this.msg(c, 'contract', `${exp.length} contratos expiran`, 'Revisa la plantilla y renueva a los jugadores importantes antes de final de temporada: ' + exp.slice(0, 6).map(p => P.shortName(p)).join(', ') + '.'); }
       this.evalObjectives(c, false);
@@ -357,6 +361,7 @@
         w.leagues.LAP.clubs = w.leagues.LAP.clubs.filter(id => !up.includes(id)).concat(down);
         report.promoted = up; report.relegated = down;
       }
+      if (c.mode === 'player') { G.PlayerCareer.closeSeason(c, report, pos, cupRound); c.phase = 'closed'; c.lastReport = report; if (G.bus) G.bus.emit('progress', {}); return report; }
       // objetivos y directiva
       this.evalObjectives(c, true);
       report.objectives = c.objectives.map(o => Object.assign({}, o));
@@ -437,7 +442,7 @@
         const cl = p.club ? w.clubs[p.club] : null;
         const minShare = p.st.apps ? clamp(p.st.min / 1260, 0, 1) : 0;     // 14 partidos × 90
         const coach = cl && cl.coach ? clamp((cl.coach.rep || 40) / 100 + (cl.coach.specs && cl.coach.specs.includes('Desarrollo juvenil') && p.age <= 21 ? 0.15 : 0), 0, 1) : 0.4;
-        const trn = cl && cl.id === c.club ? (c.training.intensity === 'alta' ? 0.7 : c.training.intensity === 'baja' ? 0.35 : 0.5) : 0.5;
+        const trn = cl && isU(c, cl.id) ? (c.training.intensity === 'alta' ? 0.7 : c.training.intensity === 'baja' ? 0.35 : 0.5) : 0.5;
         const bonus = (cl && cl.coach && cl.coach.specs ? this.specBonus(cl.coach.specs, p) : 0);
         // archivar estadísticas de la temporada
         P.addStats(p.cs, p.st); p.cs.seasons++;
@@ -446,20 +451,22 @@
         p.cond = 100; p.morale = clamp(p.morale * 0.5 + 35, 40, 85); p.form = 50;
         if (p.inj) { p.inj.games = Math.max(0, p.inj.games - 8); if (p.inj.games <= 0) p.inj = null; }
         // retiradas
-        if (p.age >= 35 && rng.chance(0.3 + (p.age - 35) * 0.2 + (p.ovr < 65 ? 0.2 : 0))) retired.push(p);
+        if (c.mode === 'player' && p.id === c.pid) { /* el jugador del usuario decide cuándo retirarse */ }
+        else if (p.age >= 35 && rng.chance(0.3 + (p.age - 35) * 0.2 + (p.ovr < 65 ? 0.2 : 0))) retired.push(p);
         else if (p.age >= 33 && p.ovr < 60 && rng.chance(0.35)) retired.push(p);
       }
       retired.forEach(p => {
         const cl = p.club ? w.clubs[p.club] : null;
-        if (cl) { TR.removeFromClub(w, cl, p.id); if (cl.id === c.club && p.ovr >= 70) this.msg(c, 'news', `${P.fullName(p)} se retira`, `Cuelga las botas con ${p.age} años.`); }
+        if (cl) { TR.removeFromClub(w, cl, p.id); if (isU(c, cl.id) && p.ovr >= 70) this.msg(c, 'news', `${P.fullName(p)} se retira`, `Cuelga las botas con ${p.age} años.`); }
         delete w.players[p.id];
       });
       // 3) contratos: la IA renueva a los importantes; el usuario pierde a los no renovados
       for (const cl of Object.values(w.clubs)) {
         for (const id of cl.squad.slice()) {
           const p = w.players[id]; if (!p) continue;
+          if (c.mode === 'player' && p.id === c.pid) continue;
           if (p.contract.exp > w.seasonYear + 1) continue;
-          if (cl.id === c.club) { TR.release(w, cl, p); this.msg(c, 'contract', `${P.fullName(p)} deja el club`, 'Su contrato expiró sin renovar.'); continue; }
+          if (isU(c, cl.id)) { TR.release(w, cl, p); this.msg(c, 'contract', `${P.fullName(p)} deja el club`, 'Su contrato expiró sin renovar.'); continue; }
           const rank = TR.rankInClub(w, p);
           if (rng.chance(rank <= 12 ? 0.92 : 0.4)) { const d = TR.wageDemand(w, p, cl); TR.renew(w, cl, p, d.wage, d.years); } else TR.release(w, cl, p);
         }
@@ -470,10 +477,10 @@
       w.seasonYear++; G.state.seasonYear = w.seasonYear; c.season++;
       // 5) nueva generación: canteras de la IA y agentes libres
       this.refreshPopulation(c, rng);
-      if (G.Youth) G.Youth.seasonEnd(w, club, rng, c);
+      if (G.Youth) G.Youth.seasonEnd(w, c.mode === 'player' ? { id: '', academy: null } : club, rng, c.mode === 'player' ? null : c);
       // 6) reajustes de plantillas y mercado de verano de la IA
       TR.aiRound(w, rng, { maxNeeds: 3 }); TR.aiRound(w, rng, { maxNeeds: 2 }); TR.fixSquads(w, rng);
-      for (const cl of Object.values(w.clubs)) { if (cl.id !== c.club) G.World.autoPick(w, cl); else TR.refill(w, cl); }
+      for (const cl of Object.values(w.clubs)) { if (!isU(c, cl.id)) G.World.autoPick(w, cl); else TR.refill(w, cl); }
       // valor y precios actualizados
       for (const p of Object.values(w.players)) P.recalc(p);
       // 7) nuevas competiciones y objetivos

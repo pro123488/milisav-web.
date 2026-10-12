@@ -273,13 +273,30 @@
   };
 
   /* ---------- Sustituciones de la IA ---------- */
+  /** Modo «un solo jugador»: el entrenador te sustituye o te da entrada según el plan del partido. */
+  AI.lockPlan = function (m) {
+    const plan = m.lockPlan; if (!plan) return;
+    const team = m.teams[m.humans[0]]; if (!team) return;
+    const gmin = m.gameMinutes();
+    const me = team.players.find(p => p.id === m.lockId) || team.bench.find(p => p.id === m.lockId);
+    if (!me) return;
+    if (!me.onPitch && plan.inAt != null && !plan.inDone && gmin >= plan.inAt && team.subsUsed < team.subsMax && !me.sentOff && !me.injured) {
+      // sale el compañero de su misma línea más cansado
+      const mates = team.players.filter(p => p.onPitch && p.role === me.role && p.id !== me.id).sort((a, b) => a.stamina - b.stamina);
+      const out = mates[0] || team.players.filter(p => p.onPitch && p.role !== 'GK').sort((a, b) => a.stamina - b.stamina)[0];
+      if (out && out.role !== 'GK' && m.substitute(team.idx, out, me)) { plan.inDone = true; m.emit('lockIn', { p: me }); }
+    } else if (me.onPitch && plan.outAt != null && !plan.outDone && gmin >= plan.outAt && team.subsUsed < team.subsMax && me.role !== 'GK') {
+      const cands = team.bench.filter(b => !b.sentOff && !b.onPitch && !b.injured && b.data.pos !== 'POR' && b.id !== me.id).sort((a, b) => T.ratingAt(b.data, me.pos) - T.ratingAt(a.data, me.pos));
+      if (cands[0] && m.substitute(team.idx, me, cands[0])) { plan.outDone = true; m.emit('lockOut', { p: me }); }
+    }
+  };
   AI.autoSubs = function (m, team) {
     if (team.subsUsed >= team.subsMax || !team.bench.length) return;
     const gmin = m.gameMinutes();
     const line = p => (p.role === 'GK' ? 'GK' : p.role);
     const benchFor = (out) => {
       const slotPos = out.pos;
-      const cands = team.bench.filter(b => !b.sentOff && !b.onPitch && !b.injured && (out.role === 'GK' ? b.data.pos === 'POR' : b.data.pos !== 'POR'));
+      const cands = team.bench.filter(b => !b.sentOff && !b.onPitch && !b.injured && !(m.lockId && b.id === m.lockId && m.lockPlan && m.lockPlan.outDone) && (out.role === 'GK' ? b.data.pos === 'POR' : b.data.pos !== 'POR'));
       cands.sort((a, b) => T.ratingAt(b.data, slotPos) - T.ratingAt(a.data, slotPos));
       return cands[0];
     };

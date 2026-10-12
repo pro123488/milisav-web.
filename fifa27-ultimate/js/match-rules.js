@@ -102,7 +102,7 @@
     // en saques desde fuera del terreno, las camisetas no se ajustan; la IA asigna ejecutor
     r.taker = G.AI.chooseTaker(this, r);
     const team = this.teams[teamIdx];
-    if (this.isHuman[teamIdx]) team.controlled = r.taker;
+    if (this.isHuman[teamIdx] && (!this.lockId || (r.taker && r.taker.id === this.lockId))) team.controlled = r.taker;
     for (const t of this.teams) {
       for (const p of t.players) { p.shielding = false; p.charging = false; p.charge = 0; if (p.holding) { p.holding = false; } }
     }
@@ -112,7 +112,8 @@
     // IA propia: si el equipo humano defiende, selección automática del jugador
     for (const t of this.teams) if (this.isHuman[t.idx] && t.idx !== teamIdx) t.controlled = this.defaultControlled(t);
     // sustituciones automáticas de la IA durante las paradas
-    for (const t of this.teams) if (!this.isHuman[t.idx]) G.AI.autoSubs(this, t);
+    if (this.lockId) G.AI.lockPlan(this);
+    for (const t of this.teams) if (!this.isHuman[t.idx] || this.lockId) G.AI.autoSubs(this, t);
   };
 
   M.stepRestart = function (dt) {
@@ -403,6 +404,7 @@
     if (!force) t.subsUsed++; else t.subsUsed++;
     if (t.gk === out) t.gk = inn;
     if (t.controlled === out) t.controlled = inn.role === 'GK' ? this.defaultControlled(t) : inn;
+    if (this.lockId && this.isHuman[teamIdx]) { if (inn.id === this.lockId) t.controlled = inn; else if (out.id === this.lockId) t.controlled = null; }
     this.players = this.teams[0].players.concat(this.teams[1].players);
     this.stoppageTally += 0.4;
     t.used.push(inn);
@@ -496,8 +498,8 @@
       gk.x = PI.HL - 0.6; gk.y = 0; gk.vx = gk.vy = 0; gk.ang = Math.PI; gk.state = 'idle'; gk.dive = null; gk.holding = false;
       gk.penaltyDive = null;
       for (const t of this.teams) t.controlled = null;
-      if (this.isHuman[shooterTeam.idx]) shooterTeam.controlled = tk;
-      else if (this.isHuman[keeperTeam.idx]) keeperTeam.controlled = gk;
+      if (this.humanPlayer(tk)) shooterTeam.controlled = tk;
+      else if (this.humanPlayer(gk)) keeperTeam.controlled = gk;
       so.stage = 'wait'; so.t = 0; so.charge = 0; so.charging = false;
       this.emit('shootoutKick', { team: so.turn, taker: tk });
       return;
@@ -508,7 +510,7 @@
       so.taker.cmd.mx = so.taker.cmd.my = 0;
       so.keeper.cmd.mx = so.keeper.cmd.my = 0;
       // portero humano elige lado con A/D (y arriba/abajo) mientras espera
-      const hk = this.isHuman[keeperTeam.idx], hs = this.isHuman[shooterTeam.idx];
+      const hk = this.humanPlayer(so.keeper), hs = this.humanPlayer(so.taker);
       const inp = this.lastInputs || [];
       let kick = false, spec = null;
       if (hs) {

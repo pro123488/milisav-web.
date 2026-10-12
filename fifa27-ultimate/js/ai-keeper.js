@@ -60,7 +60,7 @@
     if (gk.holding && b.owner === gk) {
       gk.holdT += dt; stop(gk);
       gk.cmd.face = team.dir > 0 ? 0 : Math.PI;
-      const human = m.isHuman[team.idx];
+      const human = m.humanPlayer(gk);
       const wait = human ? 4.2 : gk.holdMax;
       if (human && team.controlled !== gk) team.controlled = gk;
       if (gk.holdT >= wait) AI.distribute(m, gk, team, D);

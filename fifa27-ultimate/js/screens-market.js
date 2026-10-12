@@ -185,6 +185,13 @@
   /* ===================================================================
      Entrenamiento: plan semanal y ejercicios
      =================================================================== */
+  /** Quién entrena: el jugador elegido de la carrera de entrenador, o tu futbolista si solo tienes esa carrera. */
+  const PCr = () => G.state.playerCareer;
+  const traineeOf = (ctx) => {
+    if (C()) return { player: ctx.player ? cw().players[ctx.player] : null, career: C() };
+    if (PCr() && PCr().world) return { player: PCr().world.players[PCr().pid], career: PCr() };
+    return { player: null, career: null };
+  };
   const tctx = () => UI.ctxOf('trn', () => ({ tab: 'ejercicios', drill: null, phase: 'menu', player: '', res: null, rew: null }));
   let loop = null;      // estado del bucle del ejercicio en marcha
 
@@ -192,7 +199,7 @@
     const ctx = tctx();
     if (p && p.tab) { ctx.tab = p.tab; delete p.tab; }
     const tabs = [{ id: 'ejercicios', t: 'Ejercicios jugables', icon: 'training' }, { id: 'plan', t: 'Plan semanal del club', icon: 'manager' }];
-    const head = UI.header('Entrenamiento', { sub: C() ? esc(myClub().name) : 'Practica con 9 ejercicios con puntuación' });
+    const head = UI.header('Entrenamiento', { sub: C() ? esc(myClub().name) : PCr() ? esc(G.Players.fullName(PCr().world.players[PCr().pid])) : 'Practica con 9 ejercicios con puntuación' });
     if (ctx.tab === 'plan') return `${head}${UI.tabs(tabs, ctx.tab, 'tn_tab')}${planHtml()}`;
     if (ctx.phase === 'help') return `${head}${helpHtml(ctx)}`;
     if (ctx.phase === 'run') return { html: `${head}${runHtml(ctx)}`, mount: el => startDrill(el, ctx) };
@@ -202,6 +209,7 @@
   UI.on('tn_tab', el => { const c = tctx(); c.tab = el.dataset.id; c.phase = 'menu'; UI.refresh(); });
 
   function planHtml() {
+    if (!C() && PCr()) return `<div class="panel center"><h2>Plan semanal</h2><p>Tu plan de entrenamiento personal se ajusta en el panel de tu carrera de futbolista.</p><button class="btn primary" data-go="playercareer" data-p='{"tab":"entreno"}'>${ico('player', 18)}<span>Ir a mi carrera</span></button></div>`;
     if (!C()) return `<div class="panel center"><h2>Plan semanal</h2><p>El plan de entrenamiento del club (tipo e intensidad) se aplica cada jornada en la carrera de entrenador.</p><button class="btn primary" data-go="manager">${ico('manager', 18)}<span>Iniciar carrera</span></button></div>`;
     const c = C(), tp = c.training;
     const plans = Object.entries(Tr.PLANS).map(([k, v]) => `<label class="opt ${tp.plan === k ? 'on' : ''}"><input type="radio" name="tn-plan" data-bind="tn_plan" value="${k}" ${tp.plan === k ? 'checked' : ''}><span><b>${v.name}</b><small>${v.desc}</small></span></label>`).join('');
@@ -218,7 +226,8 @@
   function drillsHtml(ctx) {
     const st = D.stats();
     const players = C() ? myClub().squad.map(id => cw().players[id]).filter(Boolean).sort((a, b) => b.ovr - a.ovr) : [];
-    const playerSel = C() ? `<div class="panel"><label class="field"><span>Jugador que entrena</span>${UI.select('tn-player', [{ v: '', t: 'Sin jugador concreto (nivel medio)' }].concat(players.map(p => ({ v: p.id, t: `${p.pos} · ${P.fullName(p)} (${p.ovr})` }))), ctx.player, { bind: 'tn_player' })}</label>
+    const pcOnly = !C() && PCr();
+    const playerSel = pcOnly ? `<div class="panel"><b>Entrenas con tu jugador: ${esc(G.Players.fullName(PCr().world.players[PCr().pid]))}</b><br><small class="muted">Si rindes bien, puedes mejorar uno de sus atributos (como mucho una vez por semana y dentro de su tope anual).</small></div>` : C() ? `<div class="panel"><label class="field"><span>Jugador que entrena</span>${UI.select('tn-player', [{ v: '', t: 'Sin jugador concreto (nivel medio)' }].concat(players.map(p => ({ v: p.id, t: `${p.pos} · ${P.fullName(p)} (${p.ovr})` }))), ctx.player, { bind: 'tn_player' })}</label>
       <small class="muted">Con un jugador elegido la dificultad se ajusta a sus atributos y, si rindes bien, puede mejorar uno de ellos (como mucho una vez por semana y dentro de su tope anual).</small></div>` : `<div class="panel"><small class="muted">Sin carrera: practicas con nivel medio. Ganas monedas y XP del perfil (con tope diario por ejercicio). Para mejorar atributos de un jugador, inicia una carrera.</small></div>`;
     const cards = D.list().map(d => {
       const r = st[d.id] || { best: 0, plays: 0, dayPlays: 0, day: '' };
@@ -258,7 +267,7 @@
     stopLoop();
     const cv = el.querySelector('#drill-cv'); if (!cv) return;
     const g = cv.getContext('2d');
-    const pl = ctx.player && C() ? cw().players[ctx.player] : null;
+    const pl = traineeOf(ctx).player;
     const s = D.start(ctx.drill, D.skillFor(ctx.drill, pl));
     const L = loop = { s, paused: false, stopped: false, last: performance.now(), raf: 0 };
     G.Game.inMatch = true; G.Input.matchActive = true; G.Input.releaseAll();
@@ -286,9 +295,9 @@
   }
   function finishDrill(ctx, s) {
     stopLoop();
-    const res = D.result(s), pl = ctx.player && C() ? cw().players[ctx.player] : null;
-    ctx.res = res; ctx.rew = D.reward(ctx.drill, res, { player: pl, career: C() });
-    if (C()) persist();
+    const res = D.result(s), tr = traineeOf(ctx);
+    ctx.res = res; ctx.rew = D.reward(ctx.drill, res, { player: tr.player, career: tr.career });
+    if (tr.career) persist();
     ctx.phase = 'done'; UI.refresh();
   }
   function doneHtml(ctx) {

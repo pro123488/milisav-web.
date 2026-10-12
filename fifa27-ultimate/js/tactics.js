@@ -192,7 +192,7 @@
     // Orden de asignación: portero primero, luego por línea
     const order = f.slots.map((s, i) => i).sort((a, b) => POSITIONS[f.slots[a].pos].order - POSITIONS[f.slots[b].pos].order);
     // el condicionante de forma física reduce ligeramente la elección de agotados
-    const score = (p, pos) => ratingAt(p, pos) - (p.cond !== undefined ? Math.max(0, 70 - p.cond) * 0.12 : 0);
+    const score = (p, pos) => ratingAt(p, pos) - (p.cond !== undefined ? Math.max(0, 70 - p.cond) * 0.12 : 0) + (p.pickBias || 0);
     // portero
     for (const i of order) {
       const pos = f.slots[i].pos;
@@ -214,7 +214,7 @@
     const bench = [];
     const gk = rest.filter(p => p.pos === 'POR').sort((a, b) => b.ovr - a.ovr)[0];
     if (gk) bench.push(gk);
-    rest.filter(p => p !== gk).sort((a, b) => b.ovr - a.ovr).slice(0, (opts.benchSize || 7) - bench.length).forEach(p => bench.push(p));
+    rest.filter(p => p !== gk).sort((a, b) => (b.ovr + (b.pickBias || 0)) - (a.ovr + (a.pickBias || 0))).slice(0, (opts.benchSize || 7) - bench.length).forEach(p => bench.push(p));
     return { lineup, bench };
   }
 
