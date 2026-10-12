@@ -58,7 +58,7 @@
       const o = p.obj; o.counters = o.counters || {}; o.claimed = o.claimed || {};
       return o;
     },
-    bump(stat, n = 1) { const o = this.state(); o.counters[stat] = (o.counters[stat] || 0) + n; this._dirty = true; clearTimeout(this._t); this._t = setTimeout(() => { if (G.Game && G.Game.saveProfile) G.Game.saveProfile(); }, 400); },
+    bump(stat, n = 1) { if (!G.state || !G.state.profile) return; const o = this.state(); o.counters[stat] = (o.counters[stat] || 0) + n; this._dirty = true; clearTimeout(this._t); this._t = setTimeout(() => { if (G.Game && G.Game.saveProfile) G.Game.saveProfile(); }, 400); },
     pick(pool, key, n) {
       const rng = new G.U.RNG(G.U.hashString(key) >>> 0), list = pool.slice(); const out = [];
       while (out.length < n && list.length) out.push(list.splice(rng.int(0, list.length - 1), 1)[0].id);

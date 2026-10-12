@@ -8,7 +8,7 @@ const N = parseInt(process.argv[2] || '24', 10);
 function play(seed, opts) {
   const A = world.clubs[opts.a || 'DSI'], B = world.clubs[opts.b || 'FCA'];
   const sa = G.World.matchSetup(world, A, A.kits.home), sb = G.World.matchSetup(world, B, G.Teams.pickKits(A.kits, B.kits)[1]);
-  if (opts.tacA) sa.tactics = opts.tacA; if (opts.tacB) sb.tactics = opts.tacB; if (opts.formA) sa.formation = opts.formA;
+  if (opts.tacA) sa.tactics = opts.tacA.slice(); if (opts.formA) sa.formation = opts.formA;
   const m = new G.Match({ home: sa, away: sb, humans: [], minutes: 3, difficulty: 3, diffs: opts.diffs, seed, autoBreak: true, introTime: 0.05 });
   let n = 0; while (!m.ended && n++ < 60 * 3000) { m.update(1 / 30, [null, null]); m.drainEvents(); }
   return m.result;
@@ -25,7 +25,7 @@ function sample(opts) {
 }
 const f = x => x.toFixed(2);
 const t0 = Date.now();
-const base = sample({});
+const base = sample({ tacA: [] });
 console.log(`  base (sin tácticas): goles ${f(base.gf)}-${f(base.ga)} · posesión ${f(base.poss)}% · tiros ${f(base.shots)} · xG ${f(base.xg)} · entradas+int ${f(base.tkl + base.itc)} · pases ${f(base.passes)} · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 const tests = [
   ['possession', 'posesión', s => s.poss > base.poss + 1.0, 'más posesión que sin táctica'],

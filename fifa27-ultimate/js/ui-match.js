@@ -24,6 +24,7 @@
       this.m = m; this.ti = m.humans.length ? m.humans[0] : 0;
       G.Game.inMatch = true; G.Input.matchActive = true;
       document.body.classList.add('in-match');
+      if (G.Touch && m.humans.length) G.Touch.show();
       $('match').classList.remove('hidden');
       $('screen').classList.add('hidden');
       UI.closeModal();
@@ -31,7 +32,7 @@
       this.r.quality = G.state.settings.quality;
       this.r.resize();
       this.r.setMatch(m);
-      this.r.showMinimap = G.state.settings.showMinimap;
+      this.r.showMinimap = G.state.settings.showMinimap && !(G.Touch && G.Touch.isEnabled() && m.humans.length);
       this.r.showOffsideLine = G.state.settings.showOffsideLine;
       this.buildHud(m);
       this.feedItems = []; this.hudCache = {}; this.bannerT = 0; this.hintT = m.humans.length && G.state.settings.hints ? 14 : 0;
@@ -46,6 +47,7 @@
       cancelAnimationFrame(this.raf);
       G.Audio.stopCrowd();
       G.Game.inMatch = false; G.Input.matchActive = false; G.Input.releaseAll();
+      if (G.Touch) G.Touch.hide();
       document.body.classList.remove('in-match');
       $('match').classList.add('hidden');
       $('screen').classList.remove('hidden');

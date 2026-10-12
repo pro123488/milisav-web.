@@ -18,6 +18,33 @@ function step(m, secs) { const n = Math.round(secs * 60); for (let i = 0; i < n 
 function until(m, cond, maxSecs) { const n = Math.round(maxSecs * 60); for (let i = 0; i < n && !m.ended; i++) { if (cond(m)) return true; m.update(1 / 60, none); m.drainEvents(); } return cond(m); }
 function toPlay(m) { until(m, x => x.phase === 'play', 20); }
 
+/* ---------------------------------------------------------------- Regate (skill move) */
+if (sect('skill')) {
+  console.log('\n[Regate / skill move]');
+  const run = (useSkill, seed) => {
+    const m = mk({ home: 'ATV', away: 'DSI', cfg: { humans: [0], seed, minutes: 3 } });
+    until(m, x => x.phase === 'play', 20);
+    const t = m.teams[0], dir = t.dirX || t.dir;
+    const c = t.controlled; c.x = -10 * dir; c.y = 0; c.vx = c.vy = 0;
+    m.teams[1].players.forEach((p, i) => { p.x = 20 * dir; p.y = -20 + i * 4; if (p.role === 'GK') { p.x = 50 * dir; p.y = 0; } });
+    m.setOwner(c); m.ball.x = c.x + 0.5 * dir; m.ball.y = 0; m.ball.owner = c; m.ball.dead = false; m.phase = 'play'; m.restart = null;
+    const mkInp = (skill) => ({ mx: dir, my: 0, sprint: true, btn: { pass: {}, long: {}, through: {}, shoot: {}, switch: {}, tackle: {}, finesse: {}, skill: skill ? { pressed: true, down: true } : {}, shield: {}, pause: {} } });
+    let maxLat = 0, skillsBefore = c.st.skills || 0;
+    for (let i = 0; i < 40; i++) { m.update(1 / 60, [mkInp(useSkill && i === 5), null]); m.drainEvents(); maxLat = Math.max(maxLat, Math.abs(c.y)); }
+    return { lat: maxLat, skills: (c.st.skills || 0) - skillsBefore, owner: m.ball.owner === c, fwd: Math.abs(c.x + 10 * dir) };
+  };
+  const a = run(false, 3), b = run(true, 3);
+  ok(b.skills === 1 && a.skills === 0, 'pulsar regate cuenta una acción de regate');
+  ok(b.lat > a.lat + 0.5, `el regate produce un desplazamiento lateral real (${b.lat.toFixed(2)} m contra ${a.lat.toFixed(2)} m sin regate)`);
+  ok(b.fwd > a.fwd * 0.7, `durante el regate el jugador sigue avanzando (${b.fwd.toFixed(1)} m contra ${a.fwd.toFixed(1)} m sin regate)`);
+  // enfriamiento: dos pulsaciones seguidas solo cuentan una vez
+  const m = mk({ home: 'ATV', away: 'DSI', cfg: { humans: [0], seed: 4, minutes: 3 } }); until(m, x => x.phase === 'play', 20);
+  const c = m.teams[0].controlled; m.setOwner(c); m.ball.dead = false; m.phase = 'play'; m.restart = null; m.ball.x = c.x + 0.4; m.ball.y = c.y;
+  const pressInp = () => ({ mx: 1, my: 0, sprint: false, btn: { pass: {}, long: {}, through: {}, shoot: {}, switch: {}, tackle: {}, finesse: {}, skill: { pressed: true, down: true }, shield: {}, pause: {} } });
+  const s0 = c.st.skills || 0; for (let i = 0; i < 12; i++) { m.update(1 / 60, [pressInp(), null]); m.drainEvents(); }
+  ok((c.st.skills || 0) - s0 <= 1, 'el regate tiene enfriamiento (no se encadena en 0,2 s)');
+}
+
 /* ---------------------------------------------------------------- Modo «un solo jugador» */
 if (sect('lock')) {
   console.log('\n[Modo un solo jugador]');

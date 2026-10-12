@@ -36,6 +36,7 @@
     gamepadEnabled: true,
     lastPadActivity: 0,
     listeners: [],
+    touch: { active: false, x: 0, y: 0, sprint: false },
     onAnyKey: null,
 
     init() {
@@ -72,6 +73,12 @@
       const s = this.state[0];
       for (const a of acts) { if (s.btn[a] && s.btn[a].down) { s.btn[a].down = false; s.btn[a].released = true; } }
     },
+    /** Acción virtual (botones táctiles): equivale a pulsar o soltar la tecla de esa acción. */
+    virtual(a, down) {
+      if (a === 'sprint') { this.touch.sprint = down; return; }
+      const b = this.state[0].btn[a]; if (!b) return;
+      if (down) { if (!b.down) b.pressed = true; b.down = true; } else if (b.down) { b.down = false; b.released = true; }
+    },
     isGameKey(code) { return !!this.reverse()[code] && this.matchActive; },
     releaseAll() {
       this.held.clear();
@@ -88,8 +95,9 @@
       if (h.has(k.up) || h.has(ALT_MOVE.up)) my += 1;       // arriba en pantalla = +y (lado lejano)
       if (h.has(k.down) || h.has(ALT_MOVE.down)) my -= 1;
       if (mx && my) { mx *= Math.SQRT1_2; my *= Math.SQRT1_2; }
+      if (!mx && !my && this.touch.active) { mx = this.touch.x; my = this.touch.y; }
       s.mx = mx; s.my = my;
-      s.sprint = h.has(k.sprint) || h.has('ShiftRight');
+      s.sprint = h.has(k.sprint) || h.has('ShiftRight') || this.touch.sprint;
       s.pad = false;
       this.pollGamepads();
     },

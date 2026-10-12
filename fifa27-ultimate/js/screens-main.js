@@ -336,6 +336,7 @@
       const cams = Object.keys(G.Render.CAM_MODES).map(k => `<option value="${k}" ${s.camera === k ? 'selected' : ''}>${G.Render.CAM_MODES[k].name}</option>`).join('');
       body = `<div class="panel">
         <label class="field">Cámara <select data-bind="set_sel" data-id="camera">${cams}</select></label>
+        <label class="field">Controles táctiles <select data-bind="set_sel" data-id="touch">${[['auto', 'Automático (pantallas táctiles)'], ['on', 'Siempre visibles'], ['off', 'Desactivados']].map(([v, t]) => `<option value="${v}" ${(s.touch || 'auto') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="field">Iluminación <select data-bind="set_sel" data-id="lighting">${[['auto', 'Automática'], ['day', 'Día'], ['night', 'Noche']].map(([v, t]) => `<option value="${v}" ${s.lighting === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="field">Calidad gráfica <select data-bind="set_sel_num" data-id="quality">${[[1, 'Alta'], [0.75, 'Media'], [0.55, 'Baja (más rendimiento)']].map(([v, t]) => `<option value="${v}" ${s.quality === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="field">Tamaño del texto <input type="range" min="0.9" max="1.4" step="0.05" value="${s.textScale}" data-live="set_text"><span>${Math.round(s.textScale * 100)}%</span></label>
@@ -462,12 +463,12 @@
   });
 
   G.PHASES = [
-    { t: 'Fase 1 · Partido jugable', d: 'Campo en perspectiva, física del balón, jugadores con atributos, porteros, IA, marcador, cronómetro.', done: 'ok' },
-    { t: 'Fase 2 · Motor futbolístico', d: 'Faltas, tarjetas, fuera de juego, saques, penaltis y tandas, tácticas, cambios, fatiga.', done: 'ok' },
-    { t: 'Fase 3 · Equipos y competiciones', d: 'Clubes, ligas, calendarios, clasificaciones, torneos, estadísticas, guardado.', done: 'todo' },
-    { t: 'Fase 4 · Carrera y fichajes', d: 'Entrenador, futbolista, contratos, transferencias, academia, economía, lesiones.', done: 'todo' },
-    { t: 'Fase 5 · Modos especiales', d: 'Ultimate Team, cartas, Mundial, copas, objetivos, editores.', done: 'todo' },
-    { t: 'Fase 6 · Mejoras visuales', d: 'Estadios, animaciones, cámara, efectos, sonido.', done: 'todo' },
-    { t: 'Fase 7 · Pulido final', d: 'Pruebas, optimización, accesibilidad, documentación.', done: 'todo' }
+    { t: 'Fase 1 · Partido jugable', d: 'Campo en perspectiva, física del balón, jugadores con atributos, porteros, IA, marcador, cronómetro, controles y mando.', done: 'ok' },
+    { t: 'Fase 2 · Motor futbolístico', d: 'Faltas, tarjetas, fuera de juego, saques, penaltis y tandas, 7 formaciones, 10 tácticas, cambios, fatiga, lesiones, 5 dificultades.', done: 'ok' },
+    { t: 'Fase 3 · Equipos y competiciones', d: 'Mundo ficticio de 32 selecciones y 24 clubes, ligas, copas, Mundial, torneos, estadísticas y guardado con 6 ranuras.', done: 'ok' },
+    { t: 'Fase 4 · Carrera y fichajes', d: 'Carrera de entrenador y de futbolista, mercado, cesiones, contratos, academia, entrenamiento con 9 ejercicios, economía y lesiones.', done: 'ok' },
+    { t: 'Fase 5 · Modos especiales', d: 'Ultimate Team, objetivos, Club profesional, editores y creación de clubes (sin juego online).', done: 'ok' },
+    { t: 'Fase 6 · Mejoras visuales', d: 'Estadios en 4 categorías, 5 cámaras, sonido sintetizado. Pendiente: 3D, repeticiones y celebraciones personalizadas.', done: 'partial' },
+    { t: 'Fase 7 · Pulido final', d: 'Pruebas automáticas, documentación, accesibilidad básica. Controles táctiles y pantallas adaptables a móvil. Pendiente: pruebas con lectores de pantalla y en dispositivos físicos.', done: 'partial' }
   ];
 })(typeof window !== 'undefined' ? window : globalThis);
