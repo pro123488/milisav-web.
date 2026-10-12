@@ -8,7 +8,7 @@
   const G = root.G = root.G || {};
   const UI = G.UI, { esc, money, num } = G.U;
   const ico = UI.ico, T = G.Tournaments, C = G.Comp;
-  const W = () => G.state.world;
+  const W = () => { const cc = UI.ctx.comp && UI.ctx.comp.id ? C.get(UI.ctx.comp.id) : null; return cc ? C.worldFor(cc) : G.state.world; };
   const team = id => G.World.teamById(W(), id);
   const tchip = (id, size = 26, cls = '') => { const t = team(id); return t ? `<span class="tchip ${cls}">${UI.crest(t, size)}<b>${esc(t.name)}</b></span>` : esc(id || '—'); };
 
@@ -91,7 +91,10 @@
     const elim = C.isUserEliminated(c);
     // tarjeta del siguiente partido
     let nextHtml = '';
-    if (fin) {
+    if (c.meta && c.meta.career) {
+      nextHtml = `<div class="nextm"><small>Competición de tu carrera de entrenador</small><div class="nm-btns"><button class="btn primary" data-go="manager" data-p='{"tab":"inicio"}'>${ico('manager', 18)}<span>Volver al panel de la carrera</span></button></div></div>`;
+      if (fin) nextHtml = `<div class="champ"><div class="champ-t">${G.Art.trophySVG((c.meta && c.meta.color) || '#ffd23f', 80)}<div><small>CAMPEÓN</small><h2>${esc(C.teamName(W(), c.winner))}</h2><div>${tchip(c.winner, 44)}</div><small>Subcampeón: ${esc(C.teamName(W(), c.runnerUp))}</small></div></div></div>`;
+    } else if (fin) {
       nextHtml = `<div class="champ"><div class="champ-t">${G.Art.trophySVG((c.meta && c.meta.color) || '#ffd23f', 80)}<div><small>CAMPEÓN</small><h2>${esc(C.teamName(W(), c.winner))}</h2><div>${tchip(c.winner, 44)}</div><small>Subcampeón: ${esc(C.teamName(W(), c.runnerUp))}${c.third ? ' · Tercero: ' + esc(C.teamName(W(), c.third)) : ''}</small></div></div>
         ${c.reward ? `<div class="rewards"><span class="chip good">¡Has ganado el torneo!</span><span class="chip coin">${ico('coin', 16)} +${num(c.reward.coins)}</span><span class="chip">+${c.reward.xp} XP</span></div>` : (ui.length ? `<p class="muted c">Tu equipo no ha ganado esta vez.</p>` : '')}</div>`;
     } else if (next) {

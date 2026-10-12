@@ -45,6 +45,9 @@
     staffCost(club) { return Math.pow(club.rep / 100, 2) * 5.5e6 + (club.coach ? club.coach.rep * 4e4 : 0); },
     academyCost(club) { const a = club.academy; return a ? a.level * 6e5 + (a.scouts || []).reduce((s, x) => s + x.wage, 0) : 3e5; },
 
+    /** Precio de referencia y límites del precio de entrada (evita fijar precios absurdos). */
+    ticketRef(club) { return Math.round(18 + club.rep * 0.42); },
+    ticketRange(club) { const r = this.ticketRef(club); return [Math.max(4, Math.round(r * 0.5)), Math.round(r * 1.5)]; },
     /** Aficionados que acuden: depende de reputación, forma, rival, precio y capacidad. */
     attendance(club, opp, form = 50) {
       const rep = club.rep / 100, orep = (opp ? opp.rep : 50) / 100;
@@ -61,6 +64,7 @@
      */
     applyMatchday(world, club, ctx) {
       const f = this.ensure(club), week = ctx.week || 0;
+      { const [lo, hi] = this.ticketRange(club); f.ticket = clamp(f.ticket, lo, hi); }
       const out = { tickets: 0, sponsor: 0, merch: 0, wages: 0, stadium: 0, staff: 0, academy: 0, att: 0 };
       if (ctx.home) {
         out.att = this.attendance(club, ctx.opp, ctx.form);

@@ -9,7 +9,15 @@
   const UI = G.UI, { esc, money, num } = G.U;
   const ico = UI.ico;
   const T = G.Tactics;
-  const W = () => G.state.world;
+  /** Mundo activo de la interfaz: el de la carrera mientras se está en pantallas de carrera. */
+  const CAREER_SCREENS = new Set(['manager', 'mgrseason', 'transfers', 'academy', 'training', 'mgrnew']);
+  G.UIx = G.UIx || {};
+  G.UIx.world = () => {
+    const s = G.state, c = s.career;
+    if (c && c.world && (CAREER_SCREENS.has(UI.current) || (UI.current === 'lineup' && UI.ctx.lineup && UI.ctx.lineup.career))) return c.world;
+    return s.world;
+  };
+  const W = () => G.UIx.world();
 
   /* ---------- ficha de jugador ---------- */
   const attrColor = v => v >= 85 ? '#3ddc84' : v >= 70 ? '#a8e61e' : v >= 55 ? '#ffd23f' : v >= 40 ? '#ffa23a' : '#ff5d5d';
@@ -47,6 +55,7 @@
 
   /* ---------- persistencia de personalizaciones (alineaciones, ediciones) ---------- */
   G.UIx.saveTeamCustom = function (team) {
+    if (G.UIx.world() !== G.state.world) return;          // en la carrera el club vive dentro del mundo de la carrera
     const c = G.state.custom;
     c.clubs[team.id] = Object.assign(c.clubs[team.id] || {}, { formation: team.formation, tactics: team.tactics.slice(), lineup: team.lineup.slice(), bench: team.bench.slice() });
     G.Game.saveCustom();
@@ -87,7 +96,7 @@
 
   UI.register('lineup', (p) => {
     const ctx = ctxL();
-    if (p && p.team && ctx.team !== p.team) { ctx.team = p.team; ctx.sel = null; ctx.back = p.back; }
+    if (p && p.team) { if (ctx.team !== p.team) ctx.sel = null; ctx.team = p.team; ctx.back = p.back; ctx.career = !!p.career; }
     const w = W();
     const team = G.World.teamById(w, ctx.team);
     if (!team) return `${UI.header('Alineación')}${UI.empty('Equipo no encontrado')}`;
@@ -112,13 +121,13 @@
     <div class="lineup">
       <div class="panel lu-board"><div class="lu-top"><label class="field">Formación <select data-bind="ln_form">${forms}</select></label>
         <button class="btn" data-act="ln_auto">${ico('star', 18)}<span>Alineación automática</span></button>
-        <button class="btn ghost" data-act="ln_pick">${ico('teams', 18)}<span>Otro equipo</span></button></div>
+        ${ctx.career ? '' : `<button class="btn ghost" data-act="ln_pick">${ico('teams', 18)}<span>Otro equipo</span></button>`}</div>
         <p class="muted">${hint}</p>${boardSVG(team, ctx)}
         <div class="lu-bars">${[['ATA', s.att], ['MED', s.mid], ['DEF', s.def], ['POR', s.gk]].map(([n, v]) => `<div><b>${n}</b>${UI.bar(v - 40, 60)}<em>${Math.round(v)}</em></div>`).join('')}</div></div>
       <div class="panel lu-lists"><h3>Banquillo (${bench.length})</h3>${bench.map(x => row(x, 'bench')).join('') || '<p class="muted">Vacío</p>'}
         <h3>Reserva (${reserves.length})</h3><div class="reserve">${reserves.map(x => row(x, 'res')).join('')}</div></div>
       <div class="panel lu-tac"><h3>Tácticas</h3>${tac}<p class="muted">Entrenador: <b>${esc(team.coach ? team.coach.name : '—')}</b> · ${esc(team.coach ? team.coach.phil : '')}</p>
-        <button class="btn" data-act="ln_coach">${ico('manager', 18)}<span>Aplicar estilo del entrenador</span></button></div>
+        ${ctx.career ? '' : `<button class="btn" data-act="ln_coach">${ico('manager', 18)}<span>Aplicar estilo del entrenador</span></button>`}</div>
     </div>
     <div class="res-btns"><button class="btn primary big" data-act="ln_done">${ico('check', 20)}<span>Listo</span></button></div>`;
   });

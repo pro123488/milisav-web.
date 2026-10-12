@@ -302,7 +302,7 @@
       // lesiones nuevas del usuario
       this.club(c).squad.forEach(id => { const p = w.players[id]; if (p && p.inj && p.inj.games > 0 && p.inj.games === p.inj.total && p.lw === wk) { this.msg(c, 'injury', `Lesión: ${P.fullName(p)}`, `${p.inj.type} (${p.inj.sev}). Baja ${p.inj.games} partido(s).`); report.injuries.push(p.id); } });
       // 3) entrenamiento y cantera del usuario
-      if (G.Training) G.Training.weekly(w, this.club(c), c.training, rng, c.coach);
+      if (G.Training) { const tr = G.Training.weekly(w, this.club(c), c.training, rng, c.coach); report.training = { gains: tr.gains.length, injuries: tr.injuries.length, top: tr.gains.slice(0, 5) }; tr.injuries.forEach(id => { const p = w.players[id]; if (p) { this.msg(c, 'injury', `Lesión en el entrenamiento: ${P.fullName(p)}`, `${p.inj.type}. Baja ${p.inj.games} partido(s).`); report.injuries.push(id); } }); }
       if (G.Youth) G.Youth.weekly(w, this.club(c), rng, c);
       // 4) mercado: ronda de la IA al abrir la ventana de invierno
       if (wk === WINTER_WEEK - 1) { TR.aiRound(w, rng, { maxNeeds: 2 }); TR.fixSquads(w, rng); this.msg(c, 'news', 'Abre el mercado de invierno', 'Hasta la próxima jornada puedes fichar, vender y renovar. Los clubes ya han movido ficha.'); }
