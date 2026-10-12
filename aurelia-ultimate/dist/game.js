@@ -3436,6 +3436,15 @@
   });
 
   // src/data/moves.js
+  var moves_exports = {};
+  __export(moves_exports, {
+    EXCLUSIVE_MOVES: () => EXCLUSIVE_MOVES,
+    MOVES: () => MOVES,
+    MOVES_BY_TYPE: () => MOVES_BY_TYPE,
+    getMove: () => getMove,
+    moveList: () => moveList,
+    moveTier: () => moveTier
+  });
   var MOVES = {};
   var MOVES_BY_TYPE = {};
   function M(id, name, type, cat, pow, acc, pp, fx = {}, pri = 0, desc = "") {
@@ -3636,6 +3645,7 @@
   M("espina_planta", "Espina Venenosa", "planta", "fis", 60, 100, 20, { st: ["envenenado", 30] }, 0, "Una espina cargada de toxina.");
   var EXCLUSIVE_MOVES = /* @__PURE__ */ new Set(["lluvia_estelar", "juicio_alba", "eclipse_total", "tormenta_primordial", "erupcion_ancestral", "glaciar_eterno", "colosal_golpe", "lamento_eterno", "sinfonia_final", "vida_primigenia", "forma_quimerica", "lucha_final", "onda_nivel"]);
   for (const t of Object.keys(MOVES_BY_TYPE)) MOVES_BY_TYPE[t] = MOVES_BY_TYPE[t].filter((m) => !EXCLUSIVE_MOVES.has(m.id));
+  var moveList = () => Object.values(MOVES);
   function getMove(id) {
     const m = MOVES[id];
     if (!m) throw new Error("Movimiento desconocido: " + id);
@@ -3656,6 +3666,16 @@
   init_rng();
 
   // src/data/types.js
+  var types_exports = {};
+  __export(types_exports, {
+    CHART: () => CHART,
+    TYPES: () => TYPES,
+    TYPE_IDS: () => TYPE_IDS,
+    effectLabel: () => effectLabel,
+    effectiveness: () => effectiveness,
+    resistances: () => resistances,
+    weaknesses: () => weaknesses
+  });
   var TYPE_IDS = ["fuego", "agua", "planta", "electrico", "tierra", "roca", "aire", "hielo", "lucha", "veneno", "mental", "sombra", "luz", "metal", "insecto", "dragon", "sonido", "espiritu"];
   var TYPES = {
     fuego: { name: "Fuego", color: "#ef5b2a", dark: "#8f2a0c", light: "#ffb27a", alt: "#ffd24a" },
@@ -3706,6 +3726,7 @@
     for (const d of c.NVE) MUL[a][d] = 0.5;
     for (const d of c.NO || []) MUL[a][d] = 0;
   }
+  var CHART = MUL;
   function effectiveness(atk, defTypes) {
     let m = 1;
     for (const d of defTypes) m *= MUL[atk][d] ?? 1;
@@ -16172,7 +16193,7 @@
   async function boot() {
     const g = new Game();
     window.__game = g;
-    window.__au = { Creatures: creatures_exports, Species: species_exports, World: world_exports, Save };
+    window.__au = { Creatures: creatures_exports, Species: species_exports, World: world_exports, Save, Moves: moves_exports, Types: types_exports };
     installFlows(g);
     installQuests(g);
     installAchievements(g);

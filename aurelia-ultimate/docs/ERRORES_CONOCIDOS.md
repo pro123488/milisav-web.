@@ -11,14 +11,17 @@ Este documento es deliberadamente honesto: lista lo que **no** está hecho o no 
 * **Sonido**: la música y los efectos son sintetizados con Web Audio (sin archivos). No hay doblaje ni mezcla fina; no se han hecho pruebas auditivas.
 
 ## Verificado en navegador real (Chromium + Playwright) — ver `PROGRESO.md`
-Ciclo de Fase 1; historia del Valle (rival, museo, robo del Prisma, invernadero, Cinder, gimnasio de Roble, medalla); mochila/tienda/PC/evolución;
-recorrido de todos los gimnasios; recorrido del mundo por los bordes; revisión visual de las pantallas.
+Ciclo de Fase 1 (23/23); historia del Valle (rival, museo, robo del Prisma, invernadero, Cinder, gimnasio de Roble, medalla); mochila/tienda/PC/evolución;
+recorrido de los 8 gimnasios; recorrido del mundo por los bordes; revisión visual de las pantallas; Santuario del Alba (sello, Vesper, inicio del combate
+con Aurelion); **Liga Aurora completa** (5 salas, Salón de la Fama, misión final, regreso a la Meseta); **guardería** (dejar, recoger, cobro), **boutique**,
+**revancha** de un entrenador y **torneo del Coliseo** (3 rondas, premio, bloqueo de 3 días).
 
 ## Probado solo con pruebas en Node (sin pasar por el navegador)
-* Crianza (huevos, herencia, eclosión por pasos): lógica probada; la interfaz de la guardería no se ha recorrido en el navegador.
-* Revanchas de entrenadores y Coliseo: la lógica de escalado está probada; el torneo completo (3 combates + premio) no se ha jugado de extremo a extremo.
-* Liga Aurora, Salón de la Fama, Santuario del Alba, Desafío del Eco, legendarias: los mapas y guiones están validados estáticamente
-  (conexiones, objetos y misiones existen, alcanzabilidad), pero **no se han jugado de principio a fin** en el navegador.
+* Crianza: la eclosión por pasos y la herencia se prueban con la lógica pura; en el navegador solo se ha recorrido el menú de la guardería (dejar/recoger),
+  no la eclosión de un huevo caminando.
+* Captura completa de una legendaria (Aurelion/Umbraxis y las demás) y el Desafío del Eco: en el navegador solo se ha comprobado que el altar inicia el
+  combate con la criatura correcta; la captura y el resto de las legendarias se validan con pruebas de Node y de datos.
+* Equilibrio de dificultad: las pruebas con bot demuestran que cada combate se puede ganar, no que sea justo para un jugador humano.
 
 ## Defectos conocidos
 * Los combates de depuración (bot que pulsa Enter) tardan: cada combate de entrenador ronda 20–30 s por las animaciones. No afecta al juego real.

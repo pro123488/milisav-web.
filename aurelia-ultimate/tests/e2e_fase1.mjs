@@ -42,13 +42,14 @@ ok('el dinero y la experiencia aumentan tras ganar', s.money > 1500 && s.party[0
 await sleep(1200);
 console.log('5) Encontrar una criatura salvaje en la hierba alta y combatir');
 const route = await pathToGround(page, 'tallgrass'); for (const d of route || []) await walk(page, d, 1);
+await G(() => { const g = window.__game, o = g.battleWild; window.__wr = []; g.battleWild = async (...a) => { const r = await o(...a); window.__wr.push(r.result); return r; }; });
 let inB = false; const xp0 = (await S()).party[0].xp;
 for (let i = 0; i < 120 && !inB; i++) { await walk(page, i % 2 ? 'left' : 'right', 1); inB = await G(() => window.__game.scene?.constructor.name === 'BattleScene'); if (await G(() => window.__game.ow.map.id !== 'ruta1')) break; }
 ok('aparece una criatura salvaje al pisar hierba alta', inB, JSON.stringify(await pos(page)));
 await sleep(1500); await shot('battle_wild');
 // luchar hasta ganar
 await driveBattle(page); await advance(page, { max: 100, quiet: 1200 }); await sleep(800);
-s = await S(); ok('la criatura gana experiencia al derrotar a la salvaje', s.party[0].xp > xp0 || s.party[0].lv > 5, `xp ${xp0} -> ${s.party[0].xp}`);
+s = await S(); ok('la criatura gana experiencia al derrotar a la salvaje', s.party[0].xp > xp0, `xp ${xp0} -> ${s.party[0].xp} · resultados ${JSON.stringify(await G(() => window.__wr))}`);
 console.log('6) Capturar una criatura y añadirla al equipo');
 inB = false; await sleep(500);
 for (let i = 0; i < 120 && !inB; i++) { await walk(page, i % 2 ? 'left' : 'right', 1); inB = await G(() => window.__game.scene?.constructor.name === 'BattleScene'); }

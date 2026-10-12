@@ -38,13 +38,38 @@ export async function advance(page, { max = 80, quiet = 500 } = {}) {
   }
 }
 
-/** Conduce un combate pulsando Enter (primera opción de cada menú) hasta que termine. */
-export async function driveBattle(page, { max = 600, onTurn = null, keepPP = true } = {}) {
+/**
+ * Conduce un combate pulsando Enter (primera opción de cada menú) hasta que termine.
+ * Con `smart`, cuando el menú de movimientos está abierto elige (con las flechas) el de mayor daño esperado
+ * (potencia × eficacia de tipo × mismo tipo × precisión) contra la criatura rival.
+ */
+export async function driveBattle(page, { max = 600, onTurn = null, keepPP = true, smart = false } = {}) {
   for (let i = 0; i < max; i++) {
     if (keepPP) await page.evaluate(() => { for (const c of window.__game.party) for (const m of c.moves || []) m.pp = m.max; });
     const inB = await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene');
     if (!inB) return true;
     if (onTurn) await onTurn(i);
+    if (smart) {
+      const pick = await page.evaluate(() => {
+        const s = window.__game.scene, grid = document.querySelector('.movegrid'), A = window.__au;
+        if (!s?.b || !grid) return null;
+        const me = s.b.active(0), foe = s.b.active(1), ft = A.Species.getSpecies(foe.sp).types, mt = A.Species.getSpecies(me.sp).types;
+        let best = -1, bi = 0;
+        me.moves.forEach((m, k) => {
+          const mv = A.Moves.getMove(m.id); if (m.pp <= 0) return;
+          const sc = mv.cat === 'est' ? 0 : (mv.pow || 0) * A.Types.effectiveness(mv.type, ft) * (mt.includes(mv.type) ? 1.5 : 1) * ((mv.acc || 100) / 100);
+          if (sc > best) { best = sc; bi = k; }
+        });
+        return { bi, sel: [...grid.querySelectorAll('.mi')].findIndex((x) => x.classList.contains('sel')) };
+      });
+      if (pick && pick.sel !== pick.bi) {
+        const [r0, c0, r1, c1] = [pick.sel >> 1, pick.sel & 1, pick.bi >> 1, pick.bi & 1];
+        if (c0 !== c1) await page.keyboard.press(c1 > c0 ? 'ArrowRight' : 'ArrowLeft');
+        for (let k = r0; k < r1; k++) await page.keyboard.press('ArrowDown');
+        for (let k = r0; k > r1; k--) await page.keyboard.press('ArrowUp');
+        await sleep(60);
+      }
+    }
     await page.keyboard.press('Enter'); await sleep(80);
   }
   return false;

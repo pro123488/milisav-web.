@@ -18,7 +18,7 @@ async function script(entityId, picks = []) {
   for (let i = 0; i < 400; i++) {
     if (await G(() => window.__done)) return true;
     const st = await G(() => { const g = window.__game; const items = [...document.querySelectorAll('.mi')].map((x) => x.textContent.trim()); const sel = [...document.querySelectorAll('.mi')].findIndex((x) => x.classList.contains('sel')); return { items, sel, dlg: !!document.getElementById('dialog'), scene: g.scene?.constructor.name }; });
-    if (st.scene === 'BattleScene') { await driveBattle(page, { max: 800 }); continue; }
+    if (st.scene === 'BattleScene') { await driveBattle(page, { max: 800, smart: true }); continue; }
     if (st.items.length) {
       const re = picks[n++]; let target = re ? st.items.findIndex((t) => re.test(t)) : 0; if (target < 0) target = 0;
       for (let k = st.sel; k < target; k++) await key(page, 'ArrowDown', 1, 80);
@@ -56,6 +56,8 @@ await driveBattle(page, { max: 800 }); await advance(page, { max: 60, quiet: 120
 s = await S(); ok('la revancha se juega y queda registrada (rematchDone=1)', foeLv && s.trainers[tid].rematchDone === 1, `${tid}: foe Nv${foeLv}, ${JSON.stringify(s.trainers[tid])}`);
 
 console.log('4) Coliseo: torneo de 3 rondas con premio');
+// Los rivales escalan con el nivel medio del equipo y el bot (Enter sin estrategia) pierde combates parejos: se pone al frente un dúo muy superior.
+await G(() => { const g = window.__game, C = window.__au.Creatures; for (const sp of [118, 117]) g.state.party.unshift(C.createCreature(sp, 100, { moves: ['meteoro_dragon', 'fuerza_bruta', 'sismo', 'rayo_corto'] })); });
 await G(async () => { const ow = window.__game.ow; const sp = window.__au.World.getMap('int_oasis_coliseo').spawns.door; await ow.loadMap('int_oasis_coliseo', sp.x, sp.y, 'up', { announce: false }); }); await sleep(500);
 const m1 = (await S()).money; const t0 = (await S()).tour;
 r = await script('arbitro', [/^Sí/, /^Sí/]);

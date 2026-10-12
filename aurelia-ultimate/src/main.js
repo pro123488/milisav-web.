@@ -19,11 +19,13 @@ import { Save } from './save.js';
 import * as Creatures from './creatures.js';
 import * as Species from './data/species.js';
 import * as World from './world.js';
+import * as Moves from './data/moves.js';
+import * as Types from './data/types.js';
 
 async function boot() {
   const g = new Game();
   window.__game = g;                       // útil para depuración y pruebas automatizadas
-  window.__au = { Creatures, Species, World, Save };
+  window.__au = { Creatures, Species, World, Save, Moves, Types };
   installFlows(g); installQuests(g); installAchievements(g); installCosmetics(g); installBreeding(g); g.daycare = () => daycareTalk(g);
   g.menu = new GameMenu(g);
   g.openShop = (id) => openShop(g, id);
