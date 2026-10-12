@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#222">
+<canvas id="c" width="1200" height="620" style="image-rendering:pixelated"></canvas>
+<script type="module">
+import { tileCanvas, ALL_TILES, tileFrames } from '../src/gfx/tiles.js';
+const c = document.getElementById('c').getContext('2d'); c.imageSmoothingEnabled = false;
+const S = 3; let x = 0, y = 0;
+const keys = [];
+for (const n of ALL_TILES()) { if (n==='bldg'||n==='gate') continue; keys.push(n); }
+for (const k of keys) { const f=tileFrames(k); for (let i=0;i<f;i++) { c.drawImage(tileCanvas(k,i), x, y, 16*S, 16*S); x += 16*S+2; if (x > 1180) { x = 0; y += 16*S+2; } } }
+const bs = ['center_red_cream','shop_blue_cream','gym_gold_stone','lab_white_white','house_green_wood','hall_grey_stone'];
+x=0; y+=16*S+10;
+for (const b of bs) { for (const [row,parts] of [[0,['rl','rm','rr']],[1,['r2l','r2s','r2r']],[2,['wl','door','wr']]]) {} 
+  const rows=[['rl','rm','rr'],['r2l','r2s','r2r'],['wl','door','wr']];
+  rows.forEach((rw,ri)=>rw.forEach((p,ci)=>c.drawImage(tileCanvas('bldg:'+b+'_'+p,0), x+ci*16*S, y+ri*16*S,16*S,16*S)));
+  x += 16*S*3+8; }
+document.title='listo';
+</script>

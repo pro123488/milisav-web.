@@ -57,7 +57,7 @@ export class Battle {
     this.xpBonus = o.xpBonus ?? 1;
     this.turnNo = 0; this.fleeAttempts = 0;
     this.result = null; this.awaiting = null; this.captured = null; this.events = [];
-    this.stats = { dealt: 0, taken: 0, kos: 0, xp: 0, evolveReady: [] };
+    this.stats = { dealt: 0, taken: 0, kos: 0, xp: 0, evolveReady: [], defeated: [] };
     this.started = false;
   }
 
@@ -307,8 +307,7 @@ export class Battle {
       }
     }
     v.lastMove = move.id;
-    this._emit({ t: 'move', side: si, move: move.id, name: move.name, type: move.type, cat: move.cat });
-    this._msg(`¡${this.label(si)} usó ${move.name}!`);
+    this._emit({ t: 'move', side: si, move: move.id, name: move.name, type: move.type, cat: move.cat, text: `¡${this.label(si)} usó ${move.name}!`, self: !targetsFoe(move) });
     if (move.fx.charge && !second && !(move.id === 'rayo_clorofila' && this.weather?.id === 'soleado')) {
       v.charging = move.id; this._msg(`¡${this.label(si)} acumula energía!`); return;
     }
@@ -581,7 +580,7 @@ export class Battle {
     this._emit({ t: 'faint', side: si, name: displayName(mon) });
     this._msg(`¡${this.nameOf(si, mon)} se debilitó!`);
     this.sides[si].v = freshVolatile();
-    if (si === 1) { this.stats.kos++; this._awardXp(mon); const ab = abilityOf(this.active(0)); if (ab?.onKo && canFight(this.active(0))) { this._emit({ t: 'ability', side: 0, name: ab.name }); this._changeStat(0, ab.onKo.stat[0], ab.onKo.stat[1], 0); } }
+    if (si === 1) { this.stats.kos++; this.stats.defeated.push(mon.sp); this._awardXp(mon); const ab = abilityOf(this.active(0)); if (ab?.onKo && canFight(this.active(0))) { this._emit({ t: 'ability', side: 0, name: ab.name }); this._changeStat(0, ab.onKo.stat[0], ab.onKo.stat[1], 0); } }
     else { mon.kos = mon.kos || 0; changeFriendship(mon, -1); }
   }
 

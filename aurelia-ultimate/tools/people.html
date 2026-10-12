@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#4a7a50">
+<canvas id="c" width="1100" height="420"></canvas>
+<script type="module">
+import { trainerCanvas, HAIR_STYLES, OUTFITS, HATS } from '../src/gfx/trainer_gfx.js';
+const c = document.getElementById('c').getContext('2d'); c.imageSmoothingEnabled = false;
+const S=4; let x=4;
+const looks = [
+ {skin:1,hair:'short',hairColor:1,outfit:'jacket',top:0,bottom:0},
+ {skin:3,hair:'long',hairColor:0,outfit:'dress',top:5,bottom:1,hat:'ribbon',hatColor:9},
+ {skin:0,hair:'spiky',hairColor:5,outfit:'hoodie',top:1,bottom:2,hat:'goggles',glasses:false,bag:3},
+ {skin:4,hair:'ponytail',hairColor:8,outfit:'overalls',top:3,bottom:6,hat:'cap',hatColor:2,scarf:5},
+ {skin:2,hair:'bun',hairColor:2,outfit:'coat',top:8,bottom:1,glasses:true},
+ {skin:5,hair:'curly',hairColor:0,outfit:'tshirt',top:6,bottom:3,hat:'headband',hatColor:0},
+ {skin:1,hair:'mohawk',hairColor:6,outfit:'uniform',top:8,bottom:1,hat:'beanie',hatColor:4},
+ {skin:0,hair:'bob',hairColor:3,outfit:'jacket',top:4,bottom:5,hat:'hat',hatColor:7,bag:1},
+];
+for (const l of looks) { let y=4; for (const d of ['down','up','left','right']) { c.drawImage(trainerCanvas(l,d,d==='down'?0:1),x,y,16*S,24*S); y+=24*S+2; if (y>300) break; } 
+  c.drawImage(trainerCanvas(l,'down',2), x+0, 4+ (24*S+2)*3, 16*S, 24*S); x+=16*S+10; }
+document.title='listo';
+</script>

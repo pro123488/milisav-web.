@@ -1,0 +1,99 @@
+:root{
+  --bg:#0d0b1a; --panel:#1b1a38; --panel2:#262552; --edge:#f2d060; --edge2:#7a6a2a; --ink:#f4f1ff; --dim:#a9a6d0; --acc:#6ad8ff; --good:#5fe08a; --bad:#ff6a7a; --warn:#ffd24a;
+  --font:"Trebuchet MS","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;font-family:var(--font);color:var(--ink);user-select:none;-webkit-user-select:none}
+#boot{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--edge);font-size:22px;z-index:99}
+#stage{position:absolute;left:50%;top:50%;width:960px;height:540px;transform-origin:center center;background:#000;overflow:hidden;box-shadow:0 0 60px rgba(0,0,0,.8)}
+#game{position:absolute;inset:0;width:960px;height:540px;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+#ui{position:absolute;inset:0;pointer-events:none}
+#ui>*{pointer-events:auto}
+.layer{position:absolute;inset:0;pointer-events:none}
+.layer>*{pointer-events:auto}
+
+/* ---- paneles ---- */
+.panel{background:linear-gradient(180deg,var(--panel2),var(--panel));border:3px solid var(--edge);border-radius:10px;box-shadow:0 0 0 3px #0a0818,0 6px 24px rgba(0,0,0,.55),inset 0 0 0 2px var(--edge2);padding:12px 16px}
+.panel.flat{border-width:2px;box-shadow:0 0 0 2px #0a0818,inset 0 0 0 1px var(--edge2)}
+.title{font-size:22px;font-weight:700;color:var(--edge);letter-spacing:.5px;margin:0 0 8px;text-shadow:0 2px 0 #000}
+.sub{color:var(--dim);font-size:13px}
+.row{display:flex;align-items:center;gap:10px}
+.col{display:flex;flex-direction:column;gap:6px}
+.grow{flex:1}
+.spacer{height:8px}
+.hr{height:2px;background:linear-gradient(90deg,transparent,var(--edge2),transparent);margin:8px 0;border:0}
+.dim{color:var(--dim)}
+.good{color:var(--good)} .bad{color:var(--bad)} .warn{color:var(--warn)} .gold{color:var(--edge)}
+.small{font-size:12px} .big{font-size:20px} .center{text-align:center}
+
+/* ---- botones y menús ---- */
+.btn,.mi{cursor:pointer;border:2px solid transparent;border-radius:6px;padding:6px 12px;font-size:17px;color:var(--ink);background:transparent;font-family:inherit;display:flex;align-items:center;gap:8px;transition:background .08s}
+.btn{background:linear-gradient(180deg,#3a3880,#2a2860);border-color:var(--edge2);justify-content:center;font-weight:700}
+.btn:hover,.btn.sel,.mi:hover,.mi.sel{background:linear-gradient(180deg,#5a56c0,#3e3a96);border-color:var(--edge)}
+.mi.sel::before{content:"▶";color:var(--edge);font-size:13px;margin-right:-2px}
+.mi:not(.sel)::before{content:"";width:13px;margin-right:-2px}
+.mi.off,.btn.off{opacity:.45;cursor:not-allowed}
+.mi .hint{margin-left:auto;color:var(--dim);font-size:13px}
+.menu{display:flex;flex-direction:column;gap:2px;min-width:200px;max-height:420px;overflow:auto}
+.menu::-webkit-scrollbar{width:8px}.menu::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:4px}
+input[type=text]{font-family:inherit;font-size:20px;background:#0d0c24;color:var(--ink);border:2px solid var(--edge2);border-radius:6px;padding:6px 10px;outline:none;width:100%}
+input[type=text]:focus{border-color:var(--edge)}
+input[type=range]{accent-color:var(--edge);width:180px}
+
+/* ---- diálogo ---- */
+#dialog{position:absolute;left:30px;right:30px;bottom:22px;min-height:120px;padding:14px 20px;font-size:21px;line-height:1.4;z-index:30}
+#dialog .who{position:absolute;top:-18px;left:18px;background:var(--edge);color:#1a1020;font-weight:700;font-size:15px;padding:2px 14px;border-radius:6px 6px 6px 0;box-shadow:0 2px 0 #0a0818}
+#dialog .txt{min-height:60px;white-space:pre-wrap}
+#dialog .next{position:absolute;right:20px;bottom:8px;color:var(--edge);animation:bob .7s infinite alternate}
+@keyframes bob{to{transform:translateY(5px)}}
+#dialog .ch{position:absolute;right:20px;bottom:100%;margin-bottom:10px}
+
+/* ---- barras ---- */
+.hpbar{height:10px;background:#0b0a1c;border:2px solid #0a0818;border-radius:6px;overflow:hidden;position:relative;min-width:80px}
+.hpbar>i{display:block;height:100%;background:linear-gradient(180deg,#8ff0a0,#3dc060);transition:width .45s linear}
+.hpbar.mid>i{background:linear-gradient(180deg,#ffe88a,#e0b020)}
+.hpbar.low>i{background:linear-gradient(180deg,#ff9a9a,#e03a4a)}
+.xpbar{height:6px;background:#0b0a1c;border-radius:4px;overflow:hidden;border:1px solid #0a0818}
+.xpbar>i{display:block;height:100%;background:linear-gradient(180deg,#9ae8ff,#3aa0e0);transition:width .6s linear}
+.chip{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.6);border:1px solid rgba(0,0,0,.35);margin-right:4px}
+.badge-st{display:inline-block;padding:0 6px;border-radius:4px;font-size:11px;font-weight:700;color:#10101a;margin-left:6px}
+.rar{font-size:12px;font-weight:700}
+
+/* ---- pantallas completas ---- */
+.screen{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,#2a2866,#0d0b1a 70%);z-index:20;display:flex;flex-direction:column;padding:18px 26px}
+.screen>.head{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.screen>.head h2{margin:0;font-size:26px;color:var(--edge);text-shadow:0 2px 0 #000}
+.screen>.head .x{margin-left:auto}
+.screen .body{flex:1;min-height:0;display:flex;gap:14px}
+.scroll{overflow:auto;min-height:0}
+.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:var(--edge2);border-radius:4px}
+.tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.tab{padding:4px 12px;border-radius:14px;background:#2a2860;border:2px solid var(--edge2);cursor:pointer;font-size:14px;font-weight:700}
+.tab.on{background:var(--edge);color:#1a1020;border-color:#fff3b0}
+.card{background:rgba(10,8,24,.55);border:2px solid var(--edge2);border-radius:8px;padding:8px 10px}
+.card.sel,.card:hover{border-color:var(--edge);background:rgba(60,56,140,.5)}
+.card{cursor:pointer}
+.sprite{image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+.stat{display:grid;grid-template-columns:78px 1fr 36px;align-items:center;gap:6px;font-size:14px}
+.stat .b{height:8px;background:#0b0a1c;border-radius:4px;overflow:hidden}
+.stat .b>i{display:block;height:100%;background:linear-gradient(90deg,#6ad8ff,#5a7aff)}
+table.t{border-collapse:collapse;width:100%;font-size:14px}
+table.t td,table.t th{padding:3px 6px;text-align:left;border-bottom:1px solid rgba(242,208,96,.15)}
+table.t th{color:var(--edge);font-size:12px}
+
+/* ---- toasts ---- */
+#toasts{position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;z-index:60;pointer-events:none}
+.toast{background:linear-gradient(180deg,#2e2c6a,#1b1a38);border:2px solid var(--edge);border-radius:8px;padding:8px 14px;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.6);animation:tin .25s ease-out;max-width:340px}
+.toast.ach{border-color:#ff9ad8}
+.toast b{color:var(--edge)}
+@keyframes tin{from{transform:translateX(40px);opacity:0}}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:70;transition:opacity .3s}
+#hudloc{position:absolute;left:18px;top:14px;padding:6px 16px;font-size:18px;font-weight:700;z-index:10;animation:locin 3.2s forwards;pointer-events:none}
+@keyframes locin{0%{transform:translateY(-60px);opacity:0}10%,80%{transform:none;opacity:1}100%{transform:translateY(-60px);opacity:0}}
+#hudclock{position:absolute;right:14px;top:12px;padding:3px 10px;font-size:14px;z-index:10;background:rgba(10,8,24,.6);border:2px solid var(--edge2);border-radius:8px;pointer-events:none}
+
+/* ---- táctil ---- */
+#touch{position:fixed;left:0;right:0;bottom:0;height:150px;z-index:50;pointer-events:none}
+#touch button{pointer-events:auto;position:absolute;width:56px;height:56px;border-radius:50%;border:2px solid rgba(255,255,255,.5);background:rgba(20,18,50,.55);color:#fff;font-size:20px;font-weight:700}
+#dpad button[data-a=up]{left:62px;bottom:84px}#dpad button[data-a=down]{left:62px;bottom:8px}#dpad button[data-a=left]{left:6px;bottom:46px}#dpad button[data-a=right]{left:118px;bottom:46px}
+#abtns button[data-a=confirm]{right:12px;bottom:50px}#abtns button[data-a=cancel]{right:76px;bottom:20px}#abtns button[data-a=menu]{right:12px;bottom:112px;width:44px;height:44px}

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="description" content="Aurelia Ultimate: RPG de aventuras y captura de criaturas para el navegador. Gratis, sin instalar nada.">
+<title>Aurelia Ultimate</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23f2d060'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%23c8453f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<noscript>Necesitas activar JavaScript para jugar.</noscript>
+<div id="stage">
+  <canvas id="game" width="960" height="540"></canvas>
+  <div id="ui"></div>
+</div>
+<div id="touch" hidden>
+  <div id="dpad"><button data-a="up">▲</button><button data-a="left">◀</button><button data-a="right">▶</button><button data-a="down">▼</button></div>
+  <div id="abtns"><button data-a="cancel">B</button><button data-a="confirm">A</button><button data-a="menu">☰</button></div>
+</div>
+<div id="boot">Cargando…</div>
+<script src="dist/game.js"></script>
+</body>
+</html>

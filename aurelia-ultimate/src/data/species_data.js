@@ -18,7 +18,7 @@ S(4,'Chispín','fuego',[39,52,43,60,50,65],'R',{cr:45,h:0.5,w:8.5,xp:62,g:'parab
 S(5,'Pirocán','fuego',[58,64,58,80,65,80],'R',{cr:45,h:1.1,w:30,xp:142,g:'parab',ab:['llama_interior','cuerpo_ardiente'],hab:[],egg:['campo'],bh:'agresivo',
   look:'quad ear:point tail:flame ex:mane eye:angry pat:belly sz:.9',desc:'Corre tan rápido que deja un rastro de brasas. Su melena arde con más fuerza cuanto más feliz está.',evo:[[6,36]]});
 S(6,'Infernox','fuego/dragon',[78,84,78,109,85,100],'R',{cr:45,h:1.8,w:90,xp:240,g:'parab',ab:['corazon_volcan','llama_interior'],hab:[],egg:['dragon','monstruo'],bh:'agresivo',
-  look:'drag horn:curve wing:bat tail:flame ex:flame eye:angry sz:1.0',desc:'Un dragón joven que domina las llamas con su aliento. Las leyendas dicen que su cola puede encender un volcán dormido.'});
+  look:'quad horn:big wing:small tail:flame ex:mane eye:angry pat:band c1:#a8283a c2:#f0b868 c4:#f6b040 sz:1.0',desc:'Un dragón joven que domina las llamas con su aliento. Las leyendas dicen que su cola puede encender un volcán dormido.'});
 S(7,'Burbín','agua',[44,48,65,50,64,43],'R',{cr:45,h:0.5,w:9,xp:63,g:'parab',ab:['marea_viva','absorbe_agua'],hab:[],egg:['agua','campo'],bh:'sociable',
   look:'blob ear:fin tail:fin eye:big mouth:smile pat:belly ex:bubbles sz:.72',desc:'Siempre rodeado de burbujas. Las usa para jugar, esconderse y, si hace falta, para atontar a un rival.',evo:[[8,16]]});
 S(8,'Marejo','agua',[59,63,80,65,80,58],'R',{cr:45,h:1.1,w:32,xp:142,g:'parab',ab:['marea_viva','absorbe_agua'],hab:[],egg:['agua','campo'],bh:'sociable',
@@ -52,11 +52,11 @@ S(20,'Sapín','agua',[40,45,40,50,40,55],'C',{cr:230,h:0.4,w:5,xp:52,g:'medio',a
 S(21,'Ranazo','agua/lucha',[75,92,72,68,62,76],'U',{cr:75,h:1.3,w:60,xp:150,g:'medio',ab:['nado_veloz','impulso'],hab:['lago','pantano'],egg:['agua','campo'],bh:'terco',
   look:'bip eye:angry mouth:smile arm:big pat:spots ear:fin sz:.95',desc:'Campeón de los estanques. Lanza puñetazos tan rápidos que levantan olas.'});
 S(22,'Voltín','electrico',[35,35,30,55,40,70],'C',{cr:200,h:0.4,w:5,xp:55,g:'medio',ab:['estatica','pararrayos'],hab:['pradera','bosque'],egg:['campo'],bh:'curioso',
-  look:'quad ear:long tail:bolt eye:big mouth:smile pat:cheeks sz:.6',desc:'Acumula electricidad en las mejillas. Un abrazo suyo en invierno da calambre.',evo:[[23,18]]});
+  look:'blob ear:round tail:bolt eye:big mouth:smile ex:sparks c1:#46b8e8 c2:#d8f4ff c3:#ffe24a sz:.62',desc:'Acumula electricidad en las mejillas. Un abrazo suyo en invierno da calambre.',evo:[[23,18]]});
 S(23,'Fulmín','electrico',[55,50,45,80,60,90],'U',{cr:100,h:0.8,w:18,xp:122,g:'medio',ab:['estatica','pararrayos'],hab:['pradera','montana'],egg:['campo'],bh:'curioso',
-  look:'quad ear:long tail:bolt eye:big mouth:smile pat:cheeks ex:sparks sz:.82',desc:'Corre entre las nubes de tormenta absorbiendo rayos. Cuando se carga, su pelaje se eriza.',evo:[[24,0,'item:gema_chispa']]});
+  look:'quad ear:round tail:bolt eye:big mouth:snout ex:mane,sparks c1:#3aa6e0 c2:#e8f8ff c3:#ffe24a pat:belly sz:.82',desc:'Corre entre las nubes de tormenta absorbiendo rayos. Cuando se carga, su pelaje se eriza.',evo:[[24,0,'item:gema_chispa']]});
 S(24,'Fulgurón','electrico',[70,65,60,110,80,105],'R',{cr:45,h:1.4,w:42,xp:215,g:'medio',ab:['chispa_viva','pararrayos'],hab:[],egg:['campo'],bh:'agresivo',
-  look:'quad ear:long tail:bolt eye:angry pat:band ex:sparks sz:1.0',desc:'Un relámpago con patas. Dicen que sus rugidos pueden verse antes de oírse.'});
+  look:'quad horn:big ear:round tail:bolt eye:angry ex:mane,sparks pat:band c1:#2f86d8 c2:#dff4ff c3:#ffe24a sz:1.0',desc:'Un relámpago con patas. Dicen que sus rugidos pueden verse antes de oírse.'});
 S(25,'Esporín','planta',[50,40,55,50,50,30],'C',{cr:200,h:0.3,w:2.5,xp:58,g:'medio',ab:['espesura','aura_sanadora'],hab:['bosque','pantano'],egg:['planta'],bh:'timido',
   look:'plant eye:sleepy mouth:smile pat:spots sz:.6',desc:'Una seta pequeña que suelta esporas inofensivas cuando duerme. Brilla un poco en la humedad.',evo:[[26,28]]});
 S(26,'Hongarrón','planta/veneno',[85,70,90,85,85,45],'U',{cr:75,h:1.1,w:48,xp:158,g:'medio',ab:['puas_toxicas','aura_sanadora'],hab:['bosque','pantano'],egg:['planta'],bh:'terco',
@@ -82,7 +82,7 @@ S(35,'Cactarrón','planta/tierra',[75,85,95,70,80,45],'U',{cr:75,h:1.5,w:90,xp:1
 S(36,'Pececín','agua',[35,45,40,35,35,65],'C',{cr:255,h:0.3,w:2,xp:44,g:'medio',ab:['nado_veloz','absorbe_agua'],hab:['lago','playa','mar'],egg:['agua'],bh:'timido',
   look:'fish eye:big mouth:smile tail:fin sz:.58',desc:'Viaja en bancos de cientos. Cada uno brilla un poco distinto, como escamas de arcoíris.',evo:[[37,26]]});
 S(37,'Tiburox','agua/sombra',[75,115,70,60,60,85],'U',{cr:60,h:2.0,w:110,xp:165,g:'medio',ab:['intimidar','nado_veloz'],hab:['mar','isla'],egg:['agua'],bh:'agresivo',
-  look:'fish eye:angry mouth:fang tail:fin ex:fin pat:belly sz:1.0 hue:210',desc:'Un cazador veloz de aguas profundas. Se dice que huele una gota de sangre a tres leguas.'});
+  look:'fish eye:angry mouth:fang tail:fin pat:belly c1:#5b78a8 c2:#e8eef6 c4:#33507e sz:1.0',desc:'Un cazador veloz de aguas profundas. Se dice que huele una gota de sangre a tres leguas.'});
 S(38,'Pinzón','agua',[45,65,70,35,40,35],'C',{cr:220,h:0.4,w:7,xp:54,g:'medio',ab:['piel_dura','absorbe_agua'],hab:['playa','mar','lago'],egg:['agua','bicho'],bh:'terco',
   look:'shell arm:claw eye:big sz:.62 hue:-15',desc:'Un cangrejo que no suelta lo que atrapa. Camina de lado y pellizca de frente.',evo:[[39,28]]});
 S(39,'Coralón','agua/roca',[70,100,110,65,70,50],'U',{cr:75,h:1.2,w:90,xp:155,g:'medio',ab:['piel_dura','piel_petrea'],hab:['mar','isla'],egg:['agua','mineral'],bh:'terco',
@@ -90,7 +90,7 @@ S(39,'Coralón','agua/roca',[70,100,110,65,70,50],'U',{cr:75,h:1.2,w:90,xp:155,g
 S(40,'Medusín','agua',[40,25,35,65,65,50],'C',{cr:190,h:0.5,w:4,xp:60,g:'medio',ab:['absorbe_agua','pararrayos'],hab:['lago','playa','mar'],egg:['agua','amorfo'],bh:'curioso',
   look:'float eye:big mouth:smile ex:tentacles sz:.65',desc:'Flota como una campana translúcida. Sus tentáculos pican lo justo para que se aparten.',evo:[[41,30]]});
 S(41,'Medusón','agua/espiritu',[80,40,70,100,95,65],'R',{cr:60,h:1.8,w:46,xp:170,g:'medio',ab:['absorbe_agua','lamento_espiritual'],hab:['mar','isla','pantano'],egg:['agua','amorfo'],bh:'sociable',
-  look:'float eye:wide ex:tentacles pat:spots sz:1.0 hue:260',desc:'Un fantasma del mar que brilla en la noche. Los marineros juran que canta, aunque nadie ha oído su voz.'});
+  look:'float eye:wide ex:tentacles pat:spots sz:1.0 hue:60',desc:'Un fantasma del mar que brilla en la noche. Los marineros juran que canta, aunque nadie ha oído su voz.'});
 S(42,'Magmín','fuego',[40,50,60,50,40,25],'C',{cr:200,h:0.4,w:22,xp:55,g:'medio',ab:['cuerpo_ardiente','robustez'],hab:['volcan','cueva'],egg:['mineral'],bh:'terco',
   look:'shell eye:big mouth:smile ex:flame pat:spots sz:.62 hue:-10',desc:'Un caracol de lava que deja un rastro humeante. Su caparazón es tan caliente que cuece huevos.',evo:[[43,30]]});
 S(43,'Volcarón','fuego/roca',[70,80,110,90,70,35],'U',{cr:75,h:1.4,w:160,xp:165,g:'medio',ab:['cuerpo_ardiente','corazon_volcan'],hab:['volcan'],egg:['mineral'],bh:'terco',
@@ -180,9 +180,9 @@ S(84,'Cantín','sonido/aire',[45,40,40,60,45,60],'C',{cr:220,h:0.3,w:1.6,xp:53,g
 S(85,'Cantor','sonido/aire',[70,55,60,100,70,95],'U',{cr:90,h:0.9,w:9,xp:140,g:'medio',ab:['voz_potente','ojo_critico'],hab:['bosque','montana'],egg:['volador'],bh:'sociable',
   look:'bird wing:feather tail:long eye:big mouth:beak ex:notes pat:belly sz:.82',desc:'Su canto cambia el clima de ánimo del bosque entero. Los animales dejan de pelear cuando lo oyen.'});
 S(86,'Campanín','sonido',[50,45,60,55,50,35],'C',{cr:200,h:0.4,w:6,xp:55,g:'medio',ab:['voz_potente','piel_dura'],hab:['ruinas','montana','cueva'],egg:['mineral'],bh:'timido',
-  look:'golem eye:big mouth:smile ex:bell sz:.6',desc:'Una campana pequeña que suena con el viento. Los antiguos pueblos las colgaban en las puertas.',evo:[[87,32]]});
+  look:'bell eye:big mouth:smile c1:#c99a3c c2:#f2dc8a sz:.6',desc:'Una campana pequeña que suena con el viento. Los antiguos pueblos las colgaban en las puertas.',evo:[[87,32]]});
 S(87,'Campanón','sonido/metal',[85,65,95,90,80,45],'U',{cr:75,h:1.4,w:130,xp:160,g:'medio',ab:['voz_potente','coraza_antigua'],hab:['ruinas'],egg:['mineral'],bh:'terco',
-  look:'golem eye:angry ex:bell arm:big pat:band sz:1.0',desc:'Su repique atraviesa las rocas. Los mineros lo oyen avisar cuando se acerca un derrumbe.'});
+  look:'bell eye:angry arm:big pat:band c1:#c99a3c c2:#f2dc8a sz:1.0',desc:'Su repique atraviesa las rocas. Los mineros lo oyen avisar cuando se acerca un derrumbe.'});
 S(88,'Tamborín','sonido',[55,60,50,45,45,45],'C',{cr:200,h:0.5,w:8,xp:54,g:'medio',ab:['voz_potente','fuerza_pura'],hab:['bosque','montana'],egg:['campo'],bh:'agresivo',
   look:'bip arm:big eye:big mouth:smile ex:drum sz:.65',desc:'Lleva un tambor en la barriga y lo toca cuando está contento. Es muy ruidoso, pero buena compañía.',evo:[[89,34]]});
 S(89,'Tronador','sonido/lucha',[90,98,72,66,68,58],'U',{cr:60,h:1.7,w:95,xp:165,g:'medio',ab:['voz_potente','intimidar'],hab:['montana'],egg:['campo'],bh:'agresivo',
@@ -248,8 +248,8 @@ S(117,'Aurelion','luz/dragon',[105,100,100,130,110,95],'L',{cr:10,h:4.0,w:380,xp
 S(118,'Umbraxis','sombra/dragon',[105,130,100,110,100,95],'L',{cr:10,h:4.2,w:410,xp:350,g:'lento',ab:['aura_eclipse','intimidar'],hab:['final'],egg:['sin'],bh:'agresivo',
   look:'drag wing:bat horn:big tail:spike eye:angry mouth:fang ex:crystal pat:band sz:1.12',desc:'El Dragón del Ocaso, gemelo de Aurelion. Su hambre de oscuridad es solo el reflejo del miedo de quienes lo despertaron.'});
 S(119,'Lunaria','mental/espiritu',[95,70,95,120,125,95],'L',{cr:12,h:2.0,w:90,xp:320,g:'lento',ab:['lamento_espiritual','aura_sanadora'],hab:['ruinas'],egg:['sin'],bh:'timido',tm:'n',
-  look:'float wing:feather tail:long eye:wide ex:halo arm:fin pat:gems sz:1.05',desc:'La Dama de la Luna. Solo aparece en noches claras sobre las ruinas, y desaparece si siente que la persiguen.'});
+  look:'float wing:feather tail:long eye:wide ex:halo arm:fin pat:gems sz:1.05 c1:#a9bcf0 c2:#f0f4ff c3:#ffe58a c4:#7f8fe0',desc:'La Dama de la Luna. Solo aparece en noches claras sobre las ruinas, y desaparece si siente que la persiguen.'});
 S(120,'Eterna','planta/espiritu',[110,80,105,95,115,95],'M',{cr:8,h:1.6,w:35,xp:340,g:'lento',ab:['aura_sanadora','espesura'],hab:[],egg:['sin'],bh:'timido',
-  look:'plant ear:leaf eye:wide mouth:smile ex:flowerhead arm:fin pat:gems wing:leaf sz:1.0',desc:'La Semilla Eterna. Brota una vez cada mil años en un rincón secreto. Quien la cuida recibe su bendición.'});
+  look:'plant ear:leaf eye:wide mouth:smile ex:flowerhead arm:fin pat:gems wing:leaf sz:1.0 c1:#78dca4 c2:#eafff0 c3:#ff9ad0 c4:#4fb88a',desc:'La Semilla Eterna. Brota una vez cada mil años en un rincón secreto. Quien la cuida recibe su bendición.'});
 S(121,'Quimera','sonido/mental',[90,110,85,125,90,100],'M',{cr:8,h:1.9,w:120,xp:340,g:'lento',ab:['voz_potente','mente_clara'],hab:[],egg:['sin'],bh:'curioso',
-  look:'float wing:moth horn:antler eye:three mouth:fang ex:notes pat:gems tail:long sz:1.05',desc:'Un ser cambiante que adopta la forma de lo que oye. Solo se manifiesta ante quien completa el desafío del Eco.'});
+  look:'float wing:moth horn:antler eye:three mouth:fang ex:notes pat:gems tail:long sz:.9',desc:'Un ser cambiante que adopta la forma de lo que oye. Solo se manifiesta ante quien completa el desafío del Eco.'});

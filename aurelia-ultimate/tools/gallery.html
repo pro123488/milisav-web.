@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>Galería</title>
+<body style="margin:0;background:#2a2f45;font:11px sans-serif;color:#fff">
+<div id="g" style="display:flex;flex-wrap:wrap;gap:2px;padding:4px"></div>
+<script type="module">
+import { creatureCanvas } from '../src/gfx/creature_gfx.js';
+import { SPECIES_LIST } from '../src/data/species.js';
+const g = document.getElementById('g');
+const params = new URLSearchParams(location.search);
+const from = +(params.get('from')||1), to = +(params.get('to')||999);
+const scale = +(params.get('s')||3);
+for (const s of SPECIES_LIST) { if (s.id<from||s.id>to) continue;
+  const d = document.createElement('div'); d.style.cssText='width:'+(48*scale)+'px;text-align:center;background:#3a4262';
+  const c = document.createElement('canvas'); c.width=c.height=48*scale; const x=c.getContext('2d'); x.imageSmoothingEnabled=false;
+  try { x.drawImage(creatureCanvas(s.id),0,0,48*scale,48*scale); } catch(e){ x.fillStyle='red'; x.fillText(e.message,2,12); console.log('ERR',s.name,e.message); }
+  d.append(c, document.createTextNode(s.id+' '+s.name)); g.append(d); }
+document.title='listo';
+</script>
