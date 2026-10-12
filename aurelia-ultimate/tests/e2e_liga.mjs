@@ -11,6 +11,7 @@ await bootWith(page, (g, au) => {
 });
 await G(() => { setInterval(() => { for (const c of window.__game.party) for (const m of c.moves || []) m.pp = m.max; }, 300); });
 await G(() => { const g = window.__game; const orig = g.battleTrainer; window.__bt = []; g.battleTrainer = async (...a) => { window.__bt.push(['inicio', a[0], g.party.map((c) => c.hp + '/' + c.maxHp).join(' ')]); const r = await orig(...a); window.__bt.push(['fin', a[0], r.result, g.party.map((c) => c.hp + '/' + c.maxHp).join(' ')]); return r; }; });
+await G(() => { const ow = window.__game.ow; window.__ix = []; const oi = ow.interact.bind(ow); ow.interact = async () => { const p = ow.player; window.__ix.push(['interact', p.x, p.y, p.dir, ow.busy]); return oi(); }; const oa = ow.onAction.bind(ow); ow.onAction = (a, rep) => { window.__ix.push(['action', a, ow.busy]); return oa(a, rep); }; });
 const S = () => G(() => { const g = window.__game; return { map: g.state.player.map, trainers: Object.keys(g.state.trainers).filter((t) => g.state.trainers[t].beaten), hall: g.state.hall.length, league: !!g.state.flags.league_done, q19: g.state.quests.main_19?.status }; });
 const elites = ['elite1', 'elite2', 'elite3', 'elite4', 'campeona'];
 const cx = 6;
@@ -20,7 +21,7 @@ for (let i = 0; i < 5; i++) {
   const e = await G(() => { const x = window.__game.ow.ents.find((q) => q.id === 'elite'); return [x.x, x.y]; });
   await goTo(page, e[0], e[1], { adjacent: true, avoidNpcs: true });
   console.log('   · sala', i + 1, 'elite en', e, 'jugador', await G(() => { const p = window.__game.ow.player; return [p.x, p.y, p.dir, window.__game.ow.busy, window.__game.scene?.constructor.name]; }));
-  await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); await advance(page, { max: 100, quiet: 1500 });
+  await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); console.log('   · tras Enter', JSON.stringify(await G(() => ({ ix: window.__ix.splice(0).slice(-6), dlg: !!document.getElementById('dialog'), busy: window.__game.ow.busy })))); await advance(page, { max: 100, quiet: 1500 });
   await driveBattle(page, { max: 1500 }); await advance(page, { max: 200, quiet: 2500 });
   await page.screenshot({ path: `tests/out/liga_r${i + 1}_b.png` });
   console.log('   · battleTrainer:', JSON.stringify(await G(() => window.__bt.splice(0))));
