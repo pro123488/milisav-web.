@@ -5314,7 +5314,8 @@
           return n;
         });
         (opts.parent || this.root).append(wrap);
-        let sel = Math.min(opts.index ?? 0, items.length - 1);
+        const firstOn = items.findIndex((it) => !it.disabled);
+        let sel = Math.min(opts.index ?? Math.max(0, firstOn), items.length - 1);
         if (sel < 0) sel = 0;
         const setSel = (i, mouse = false) => {
           if (i === sel && nodes[i]?.classList.contains("sel")) return;
@@ -10546,6 +10547,7 @@
       }
       this.player = this._makeEntity({ kind: "player", x, y, dir, solid: true, look: p.look, id: "player" });
       this.player.speed = WALK;
+      this.ents = [];
       this.refreshEntities();
       this.exclaims = [];
       this.updateWeather(true);

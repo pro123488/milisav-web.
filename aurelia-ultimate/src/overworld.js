@@ -42,6 +42,7 @@ export class Overworld {
     if (!this.mr) { const { invalidateMapRender } = await import('./maprender.js'); invalidateMapRender(id); this.mr = getMapRender(map); }
     this.player = this._makeEntity({ kind: 'player', x, y, dir, solid: true, look: p.look, id: 'player' });
     this.player.speed = WALK;
+    this.ents = [];                       // las entidades del mapa anterior no se reutilizan aunque compartan id
     this.refreshEntities();
     this.exclaims = [];
     this.updateWeather(true);

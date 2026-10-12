@@ -21,7 +21,7 @@ for (let i = 0; i < 5; i++) {
   const e = await G(() => { const x = window.__game.ow.ents.find((q) => q.id === 'elite'); return [x.x, x.y]; });
   await goTo(page, e[0], e[1], { adjacent: true, avoidNpcs: true });
   console.log('   · sala', i + 1, 'elite en', e, 'jugador', await G(() => { const p = window.__game.ow.player; return [p.x, p.y, p.dir, window.__game.ow.busy, window.__game.scene?.constructor.name]; }));
-  await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); console.log('   · tras Enter', JSON.stringify(await G(() => ({ ix: window.__ix.splice(0).slice(-6), dlg: !!document.getElementById('dialog'), busy: window.__game.ow.busy })))); await advance(page, { max: 100, quiet: 1500 });
+  await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); console.log('   · tras Enter', JSON.stringify(await G(() => ({ ix: window.__ix.splice(0).slice(-6), dlg: document.getElementById('dialog')?.innerText, busy: window.__game.ow.busy, bt: window.__bt.length, tr: Object.keys(window.__game.state.trainers) })))); await advance(page, { max: 100, quiet: 1500 });
   await driveBattle(page, { max: 1500 }); await advance(page, { max: 200, quiet: 2500 });
   await page.screenshot({ path: `tests/out/liga_r${i + 1}_b.png` });
   console.log('   · battleTrainer:', JSON.stringify(await G(() => window.__bt.splice(0))));

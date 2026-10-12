@@ -99,7 +99,8 @@ export class UI {
         list.append(n); return n;
       });
       (opts.parent || this.root).append(wrap);
-      let sel = Math.min(opts.index ?? 0, items.length - 1); if (sel < 0) sel = 0;
+      const firstOn = items.findIndex((it) => !it.disabled);          // el cursor nace en un elemento utilizable
+      let sel = Math.min(opts.index ?? Math.max(0, firstOn), items.length - 1); if (sel < 0) sel = 0;
       const setSel = (i, mouse = false) => { if (i === sel && nodes[i]?.classList.contains('sel')) return; sel = (i + items.length) % items.length; nodes.forEach((n, k) => n.classList.toggle('sel', k === sel)); if (!mouse) nodes[sel]?.scrollIntoView({ block: 'nearest' }); if (opts.onChange) opts.onChange(items[sel], sel); };
       const finish = (v) => { off(); wrap.remove(); resolve(v); };
       const choose = () => { const it = items[sel]; if (!it) return; if (it.disabled) { this.game.audio.sfx('error'); return; } this.game.audio.sfx('confirm'); if (it.onSelect) it.onSelect(); finish(it.value); };
