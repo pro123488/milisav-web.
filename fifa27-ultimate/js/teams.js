@@ -304,5 +304,5 @@
   };
 
   G.World = World;
-  G.Teams = { SQUAD_PLAN, makeKits, pickKits, colorDist, luminance, contrastText, makeCoach, stadiumCategory, COACH_PHIL, COACH_SPECS };
+  G.Teams = { SHIRT_PREF, SQUAD_PLAN, makeKits, pickKits, colorDist, luminance, contrastText, makeCoach, stadiumCategory, COACH_PHIL, COACH_SPECS };
 })(typeof window !== 'undefined' ? window : globalThis);

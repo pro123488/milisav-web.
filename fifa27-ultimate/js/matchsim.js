@@ -241,7 +241,7 @@
       const p = world.players[pl.id]; if (!p) continue;
       const st = p.st; if (!st) continue;
       const mins = pl.minutes !== undefined ? pl.minutes : Math.max(1, Math.round((pl.minOff !== null && pl.minOff !== undefined ? pl.minOff : result.minutes) - (pl.entryMin || 0)));
-      st.apps++; if (pl.starter) st.starts++; st.min += mins;
+      st.apps++; if (pl.starter) st.starts++; st.min += mins; p.lw = world.week || 0;
       st.g += pl.st.g || 0; st.a += pl.st.a || 0; st.sh += pl.st.sh || 0; st.sot += pl.st.sot || 0; st.pas += pl.st.pas || 0; st.pasOk += pl.st.pasOk || 0;
       st.tkl += pl.st.tkl || 0; st.itc += pl.st.itc || 0; st.sav += pl.st.sav || 0; st.yc += pl.yellow ? 1 : 0; st.rc += pl.red ? 1 : 0;
       if ((pl.role === 'GK') && ((pl.team === 0 ? result.score[1] : result.score[0]) === 0) && mins >= 45) st.cs++;
@@ -279,5 +279,8 @@
     }
   }
 
-  G.QuickSim = { simulate, expected, lambdas, lineStrength, usableLineup, applyToWorld, matchdayRecovery, poisson };
+  const pmfCache = {};
+  function poissonPmf(k, lambda) { let f = 1; for (let i = 2; i <= k; i++) f *= i; return Math.exp(-lambda) * Math.pow(lambda, k) / f; }
+
+  G.QuickSim = { poissonPmf, simulate, expected, lambdas, lineStrength, usableLineup, applyToWorld, matchdayRecovery, poisson };
 })(typeof window !== 'undefined' ? window : globalThis);

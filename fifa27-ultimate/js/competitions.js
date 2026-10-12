@@ -14,6 +14,8 @@
   const Comp = {
     store() { const s = G.state; if (!s.comps) s.comps = {}; return s.comps; },
     get(id) { return this.store()[id]; },
+    /** Mundo sobre el que opera la competición: el de la carrera o el base. */
+    worldFor(c) { return c && c.meta && c.meta.career && G.state.career && G.state.career.world ? G.state.career.world : G.state.world; },
     put(c) { this.store()[c.id] = c; return c; },
     remove(id) { delete this.store()[id]; },
     list() { return Object.values(this.store()); },
@@ -88,7 +90,7 @@
     /* ---------- partidos ---------- */
     /** Inicia el siguiente partido del usuario con el motor completo. */
     playNext(id) {
-      const c = this.get(id), world = G.state.world;
+      const c = this.get(id), world = this.worldFor(c);
       const f = this.nextForUser(c);
       if (!f) { G.UI.toast('No hay partido pendiente para tu equipo', 'info'); return; }
       const home = G.World.teamById(world, f.home), away = G.World.teamById(world, f.away);
@@ -107,7 +109,7 @@
     },
     /** Registra un resultado jugado por el usuario, simula el resto de la ronda y reparte premios si procede. */
     finishFixture(id, fid, result) {
-      const c = this.get(id), world = G.state.world;
+      const c = this.get(id), world = this.worldFor(c);
       const rng = new G.U.RNG((Date.now() ^ G.U.hashString(fid)) >>> 0);
       const f = T.fixOf(c, fid);
       if (f.ko && f.legs > 1 && f.leg === f.legs && !result.shootout) { /* el global se resuelve en tournaments.resolveTie */ }
@@ -118,7 +120,7 @@
       return { go: 'comp', p: { id } };
     },
     simulateOthers(id, exceptFid, rng) {
-      const c = this.get(id), world = G.state.world;
+      const c = this.get(id), world = this.worldFor(c);
       let guard = 0;
       // simula todo lo que no es del usuario en la ronda actual; si el usuario no tiene pendiente, avanza rondas completas
       for (;;) {
@@ -129,20 +131,20 @@
       }
     },
     simulateNext(id) {
-      const c = this.get(id), world = G.state.world, rng = new G.U.RNG((Date.now() >>> 0));
+      const c = this.get(id), world = this.worldFor(c), rng = new G.U.RNG((Date.now() >>> 0));
       const f = this.nextForUser(c);
       if (f) T.simulateFixture(world, c, f, rng);
       this.simulateOthers(id, null, rng);
       this.afterUpdate(c);
     },
     simulateRoundNow(id) {   // simula también el partido del usuario
-      const c = this.get(id), world = G.state.world, rng = new G.U.RNG((Date.now() >>> 0));
+      const c = this.get(id), world = this.worldFor(c), rng = new G.U.RNG((Date.now() >>> 0));
       const cur = T.currentRoundFixtures(c);
       cur.filter(f => !f.played && (!f.tie || f.leg === 1 || T.tieOf(c, f.tie).legs.slice(0, f.leg - 1).every(x => T.fixOf(c, x).played))).forEach(f => { if (!f.played) T.simulateFixture(world, c, f, rng); });
       this.afterUpdate(c);
     },
     simulateAllNow(id) {
-      const c = this.get(id), world = G.state.world, rng = new G.U.RNG((Date.now() >>> 0));
+      const c = this.get(id), world = this.worldFor(c), rng = new G.U.RNG((Date.now() >>> 0));
       T.simulateAll(world, c, rng); this.afterUpdate(c);
     },
 
@@ -161,7 +163,7 @@
     },
     close(c) {
       c.closed = true;
-      const world = G.state.world, prof = G.state.profile, ui = this.userIds(c);
+      const world = this.worldFor(c), prof = G.state.profile, ui = this.userIds(c);
       const awards = this.awards(c);
       const champion = c.winner;
       const h = { mode: c.meta.mode, name: c.name, season: c.season, champion, runnerUp: c.runnerUp, third: c.third, boot: awards.boot ? { name: awards.boot.name, g: awards.boot.g, team: awards.boot.team } : null, mvp: awards.mvp ? { name: awards.mvp.name, team: awards.mvp.team } : null, date: Date.now(), id: c.id };

@@ -16,7 +16,7 @@ function scriptList() {
 }
 
 // Módulos que no tocan DOM y se pueden cargar en Node.
-const LOGIC = ['utils', 'data-names', 'tactics', 'players', 'teams', 'stadiums', 'physics', 'actions', 'ai', 'ai-keeper', 'ai-set', 'match', 'match-rules', 'matchsim', 'tournaments', 'competitions', 'economy', 'training',
+const LOGIC = ['utils', 'data-names', 'tactics', 'players', 'teams', 'stadiums', 'physics', 'actions', 'ai', 'ai-keeper', 'ai-set', 'match', 'match-rules', 'matchsim', 'tournaments', 'competitions', 'economy', 'training', 'youth',
   'transfers', 'tournaments', 'career', 'ultimate-team', 'objectives', 'save-core', 'game', 'players-career'];
 
 function load(opts = {}) {
