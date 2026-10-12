@@ -9,6 +9,7 @@ await bootWith(page, (g, au) => {
   g.state.bag.pase_liga = 1; g.state.flags.vesper_done = true; g.state.quests.main_19 = { status: 'active', prog: [1, 0] };
   const sp = au.World.getMap('int_liga_hall').spawns.door; Object.assign(g.state.player, { map: 'int_liga_hall', x: sp.x, y: sp.y, dir: 'up' });
 });
+await G(() => { setInterval(() => { for (const c of window.__game.party) for (const m of c.moves || []) m.pp = m.max; }, 300); });
 const S = () => G(() => { const g = window.__game; return { map: g.state.player.map, trainers: Object.keys(g.state.trainers).filter((t) => g.state.trainers[t].beaten), hall: g.state.hall.length, league: !!g.state.flags.league_done, q19: g.state.quests.main_19?.status }; });
 const elites = ['elite1', 'elite2', 'elite3', 'elite4', 'campeona'];
 const cx = 6;
@@ -17,6 +18,7 @@ for (let i = 0; i < 5; i++) {
   let s = await S(); ok(`sala ${i + 1}: estamos en int_liga_${i + 1}`, s.map === `int_liga_${i + 1}`, s.map);
   const e = await G(() => { const x = window.__game.ow.ents.find((q) => q.id === 'elite'); return [x.x, x.y]; });
   await goTo(page, e[0], e[1], { adjacent: true, avoidNpcs: true });
+  console.log('   · sala', i + 1, 'elite en', e, 'jugador', await G(() => { const p = window.__game.ow.player; return [p.x, p.y, p.dir, window.__game.ow.busy, window.__game.scene?.constructor.name]; }));
   await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); await advance(page, { max: 100, quiet: 1500 });
   await driveBattle(page, { max: 1500 }); await advance(page, { max: 200, quiet: 2500 });
   await page.screenshot({ path: `tests/out/liga_r${i + 1}_b.png` });
