@@ -148,10 +148,12 @@
       dropBack: 0,           // 0..1 cuánto se repliega
       offsideTrap: 0,        // 0..1
       staminaDrain: 1,
+      keep: 0,               // premio a los pases seguros que conservan el balón (posesión)
+      shootPatience: 0,      // paciencia antes de tirar con poco peligro
       runsAhead: 1           // desmarques en profundidad
     };
-    if (has('possession')) { m.passRisk *= 0.8; m.shortBias += 0.6; m.directness -= 0.25; m.ballShift += 0.05; m.staminaDrain *= 0.97; }
-    if (has('counter'))    { m.passRisk *= 1.2; m.directness += 0.55; m.runsAhead *= 1.35; m.lineShift -= 0.02; m.shortBias -= 0.25; }
+    if (has('possession')) { m.passRisk *= 0.8; m.shortBias += 0.6; m.directness -= 0.25; m.ballShift += 0.05; m.staminaDrain *= 0.97; m.keep += 1; m.shootPatience += 0.3; }
+    if (has('counter'))    { m.passRisk *= 1.2; m.directness += 0.55; m.runsAhead *= 1.35; m.lineShift -= 0.02; m.shortBias -= 0.25; m.keep -= 0.5; }
     if (has('highPress'))  { m.pressRadius += 8; m.pressers += 1; m.pressTrigger += 0.4; m.lineShift += 0.07; m.staminaDrain *= 1.18; m.ballShift += 0.06; }
     if (has('compact'))    { m.widthScale *= 0.8; m.lengthScale *= 0.88; m.pressRadius -= 3; }
     if (has('wings'))      { m.wingBias += 0.8; m.crossBias += 0.7; m.widthScale *= 1.1; }

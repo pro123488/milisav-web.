@@ -18,28 +18,24 @@
   /* ---------- Compresión LZW (UTF-16 seguro: sin sustitutos) ---------- */
   const LZW_MAX = 0xD700;
   function lzwCompress(str) {
-    const dict = new Map(); let next = 256;
-    for (let i = 0; i < 256; i++) dict.set(String.fromCharCode(i), i);
+    // Diccionario con claves numéricas (código del prefijo × 256 + símbolo): mismo resultado que la versión con cadenas, bastante más rápido.
+    let dict = new Map(); let next = 256;
     const out = [];
+    let cur = -1;
+    const feed = (s) => {
+      if (cur < 0) { cur = s; return; }
+      const key = cur * 256 + s, hit = dict.get(key);
+      if (hit !== undefined) { cur = hit; return; }
+      out.push(cur);
+      if (next < LZW_MAX) dict.set(key, next++); else { dict = new Map(); next = 256; }
+      cur = s;
+    };
     // Símbolos de 8 bits: los caracteres > 254 se codifican como 255 + 2 bytes
-    const syms = [];
     for (let i = 0; i < str.length; i++) {
       const c = str.charCodeAt(i);
-      if (c < 255) syms.push(c); else { syms.push(255); syms.push(c >> 8); syms.push(c & 255); }
+      if (c < 255) feed(c); else { feed(255); feed(c >> 8); feed(c & 255); }
     }
-    let cur = '';
-    for (const s of syms) {
-      const ch = String.fromCharCode(s);
-      const wc = cur + ch;
-      if (dict.has(wc)) cur = wc;
-      else {
-        out.push(dict.get(cur));
-        if (next < LZW_MAX) dict.set(wc, next++);
-        else { dict.clear(); next = 256; for (let i = 0; i < 256; i++) dict.set(String.fromCharCode(i), i); }
-        cur = ch;
-      }
-    }
-    if (cur !== '') out.push(dict.get(cur));
+    if (cur >= 0) out.push(cur);
     // +1 para evitar el carácter NUL
     let res = '';
     const CH = 8192;

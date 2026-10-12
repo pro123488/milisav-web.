@@ -27,7 +27,8 @@
 
   /* ---------- Jugador de simulación ---------- */
   let _sid = 0;
-  function makeSim(team, slotIdx, data, slotDef) {
+  function makeSim(team, slotIdx, data, slotDef, rng) {
+    const rnd = rng ? () => rng.next() : Math.random;          // con semilla, el partido es reproducible
     const line = T.POSITIONS[slotDef.pos].line;
     const p = {
       sid: ++_sid, team: team.idx, slot: slotIdx, data, id: data.id, name: G.Players.shortName(data), full: G.Players.fullName(data),
@@ -35,13 +36,13 @@
       num: data.num, a: data.attrs, h: data.h,
       x: 0, y: 0, vx: 0, vy: 0, ang: team.dir > 0 ? 0 : Math.PI,
       stamina: clamp((data.cond !== undefined ? data.cond : 100) / 100, 0.35, 1) , cond0: data.cond !== undefined ? data.cond : 100,
-      state: 'idle', stT: 0, animT: Math.random() * 6, runPhase: 0,
+      state: 'idle', stT: 0, animT: rnd() * 6, runPhase: 0,
       cd: { ctrl: 0, kick: 0, tackle: 0, decide: 0, header: 0, skill: 0 },
       cmd: { mx: 0, my: 0, sprint: false },
       tx: 0, ty: 0, tSprint: false,                  // objetivo de movimiento de la IA
       sprinting: false, shielding: false, hasBall: false, charge: 0, charging: false,
       yellow: 0, red: false, sentOff: false, injured: null, limp: 1,
-      ai: { mode: 'hold', t: 0, lastX: 0, lastY: 0, runT: 0, role: null, target: null, marking: null, decideT: Math.random() * 0.3 },
+      ai: { mode: 'hold', t: 0, lastX: 0, lastY: 0, runT: 0, role: null, target: null, marking: null, decideT: rnd() * 0.3 },
       st: { pas: 0, pasOk: 0, sh: 0, sot: 0, g: 0, a: 0, tkl: 0, tklAtt: 0, itc: 0, fouls: 0, fouled: 0, yc: 0, rc: 0, sav: 0, dist: 0, touches: 0, min: 0, og: 0, conceded: 0, rtAdj: 0, saved: 0 },
       onPitch: true, minOn: 0, minOff: null, started: true, skillT: 0
     };
@@ -59,6 +60,7 @@
     constructor(cfg) {
       this.cfg = cfg;
       this.rng = new RNG(cfg.seed || (Math.random() * 4294967296) >>> 0);
+      this.initRng = new RNG((this.rng.s ^ 0x5bd1e995) >>> 0);          // flujo aparte para los desfases iniciales de los jugadores (no consume el principal)
       this.diff = DIFFICULTY[cfg.difficulty || 3];
       this.diffs = cfg.diffs ? cfg.diffs.map(d => DIFFICULTY[d]) : null;      // dificultad distinta por equipo (pruebas/coop)
       this.diffLevel = cfg.difficulty || 3;
@@ -109,12 +111,12 @@
       team.mods = T.resolveMods(team.tactics);
       setup.lineup.forEach((d, i) => {
         if (!d) return;
-        const sp = makeSim(team, i, d, f.slots[i]);
+        const sp = makeSim(team, i, d, f.slots[i], this.initRng);
         team.players.push(sp); team.used.push(sp);
       });
       team.gk = team.players.find(p => p.role === 'GK') || team.players[0];
       setup.bench.forEach(d => {
-        const sp = makeSim(team, -1, d, { pos: d.pos }); sp.onPitch = false; sp.started = false; sp.minOn = null;
+        const sp = makeSim(team, -1, d, { pos: d.pos }, this.initRng); sp.onPitch = false; sp.started = false; sp.minOn = null;
         team.bench.push(sp);
       });
       return team;

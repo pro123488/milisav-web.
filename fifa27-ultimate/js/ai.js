@@ -428,6 +428,7 @@
     if (d2g < 33 && Math.abs(gx - p.x) < 33) {
       shootU = xg * 9.5 - D.shootXg * 9.5 + 0.55 + noise() * 2;
       if (xg < 0.012) shootU = -9;
+      if (team.mods.shootPatience && xg < 0.1) shootU -= team.mods.shootPatience * (1 - xg / 0.1);
       if (m.phase === 'play' && hold < 0.08 && xg < 0.12) shootU -= 0.4;
       shootU -= clamp((d2g - 19) / 12, 0, 1) * 0.3;          // los tiros lejanos son la última opción
     }
@@ -563,6 +564,7 @@
       const lossCost = (0.55 + 0.75 * clamp(1 - (tu + PI.HL) / PI.L, 0, 1)) / clamp(mods.passRisk, 0.7, 1.4);
       let u = pRec * (gain + 0.3) - (1 - pRec) * lossCost;
       u += mods.shortBias * (kind === 'short' ? 0.14 : -0.1);
+      if (mods.keep && pRec > 0.8) u += mods.keep * 0.14 * (pRec - 0.75) / 0.25;      // posesión: premia el pase seguro
       u += mods.directness * adv * 0.45;
       if (Math.abs(ty) > 20) u += mods.wingBias * 0.1; else u -= mods.wingBias * 0.06;
       if (kind === 'cross') u += mods.crossBias * 0.25;

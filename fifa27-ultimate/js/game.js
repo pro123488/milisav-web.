@@ -96,12 +96,12 @@
       const s = G.state.settings;
       if (G.Input) { G.Input.setKeys(s.keys); G.Input.gamepadEnabled = s.gamepad; }
       if (G.Audio) { G.Audio.vol = Object.assign({}, s.volume); G.Audio.musicOn = s.musicOn; G.Audio.applyVolumes(); }
-      const b = document.body;
+      const b = typeof document !== 'undefined' ? document.body : null;
       if (b) {
         b.classList.toggle('reduce-motion', !!s.reduceMotion);
         b.classList.toggle('high-contrast', !!s.highContrast);
         b.classList.toggle('colorblind', !!s.colorblind);
-        document.documentElement.style.setProperty('--ts', String(s.textScale || 1));
+        if (document.documentElement) document.documentElement.style.setProperty('--ts', String(s.textScale || 1));
       }
     },
 
