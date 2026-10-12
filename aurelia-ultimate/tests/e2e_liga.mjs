@@ -10,6 +10,7 @@ await bootWith(page, (g, au) => {
   const sp = au.World.getMap('int_liga_hall').spawns.door; Object.assign(g.state.player, { map: 'int_liga_hall', x: sp.x, y: sp.y, dir: 'up' });
 });
 await G(() => { setInterval(() => { for (const c of window.__game.party) for (const m of c.moves || []) m.pp = m.max; }, 300); });
+await G(() => { const g = window.__game; const orig = g.battleTrainer; window.__bt = []; g.battleTrainer = async (...a) => { window.__bt.push(['inicio', a[0], g.party.map((c) => c.hp + '/' + c.maxHp).join(' ')]); const r = await orig(...a); window.__bt.push(['fin', a[0], r.result, g.party.map((c) => c.hp + '/' + c.maxHp).join(' ')]); return r; }; });
 const S = () => G(() => { const g = window.__game; return { map: g.state.player.map, trainers: Object.keys(g.state.trainers).filter((t) => g.state.trainers[t].beaten), hall: g.state.hall.length, league: !!g.state.flags.league_done, q19: g.state.quests.main_19?.status }; });
 const elites = ['elite1', 'elite2', 'elite3', 'elite4', 'campeona'];
 const cx = 6;
@@ -22,6 +23,7 @@ for (let i = 0; i < 5; i++) {
   await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); await advance(page, { max: 100, quiet: 1500 });
   await driveBattle(page, { max: 1500 }); await advance(page, { max: 200, quiet: 2500 });
   await page.screenshot({ path: `tests/out/liga_r${i + 1}_b.png` });
+  console.log('   · battleTrainer:', JSON.stringify(await G(() => window.__bt.splice(0))));
   s = await S(); ok(`sala ${i + 1}: se derrota a ${elites[i]}`, s.trainers.includes(elites[i]), JSON.stringify(s.trainers.filter((t) => elites.includes(t))));
   if (i < 4) { const went = await goTo(page, 6, 1, { avoidNpcs: true }); await sleep(600); }
 }
