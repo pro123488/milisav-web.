@@ -55,6 +55,7 @@
         else if (r.type === 'freekick' && Math.abs(r.spot.x) > PI.HL - 36) { vis = 44; fx = r.spot.x * 0.92; }
       }
       if (m.phase === 'shootout') { vis = 28; fx = PI.HL - 8; fy = 0; }
+      if (m.phase === 'replay') { vis = Math.min(vis, 40); look = Math.max(look, 0.4); }
       let tx = fx + b.vx * look;
       let ty = fy * cfg.yk;
       if (this.mode === 'tactic') { tx = 0; ty = 0; }
@@ -214,12 +215,14 @@
     spawn(p) { if (this.fx.length < 400) this.fx.push(p); }
 
     /* ---------- bucle de dibujo ---------- */
-    draw(m, dt, alpha) {
+    draw(m, dt, alpha, view) {
       const ctx = this.ctx, cam = this.cam;
       if (!this.m || this.m !== m) this.setMatch(m);
+      const v = view || m;                           // en una repetición se dibuja la «vista» grabada, no el partido en vivo
+      this.viewM = v;
       this.t += dt;
-      this.excite += ((m.phase === 'goal' ? 1.6 : 0.2 + (m.ball.owner && Math.abs(m.ball.x) > PI.HL - 28 ? 0.35 : 0)) - this.excite) * Math.min(1, dt * 1.5);
-      cam.follow(m, dt);
+      this.excite += ((v.phase === 'goal' ? 1.6 : 0.2 + (v.ball.owner && Math.abs(v.ball.x) > PI.HL - 28 ? 0.35 : 0)) - this.excite) * Math.min(1, dt * 1.5);
+      cam.follow(v, dt);
       cam.prepare();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       this.drawSky(ctx, cam);
@@ -227,12 +230,12 @@
       this.drawBoards(ctx, cam);
       this.drawPitch(ctx, cam);
       this.drawGoal(ctx, cam, -1, true); this.drawGoal(ctx, cam, 1, true);
-      this.drawEntities(ctx, cam, m, alpha);
+      this.drawEntities(ctx, cam, v, alpha);
       this.drawGoal(ctx, cam, -1, false); this.drawGoal(ctx, cam, 1, false);
       if (cam.pitch > 1.05) this.drawStands(ctx, cam, false);
       this.drawFX(ctx, cam, dt);
-      this.drawOverlays(ctx, cam, m);
-      if (this.showMinimap) this.drawMinimap(ctx, cam, m);
+      this.drawOverlays(ctx, cam, v);
+      if (this.showMinimap && !view) this.drawMinimap(ctx, cam, v);
       this.drawVignette(ctx, cam);
       if (this.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${this.flash * 0.45})`; ctx.fillRect(0, 0, cam.W, cam.H); this.flash = Math.max(0, this.flash - dt * 2.5); }
     }
@@ -713,7 +716,7 @@
       this.lastBall = { x: o[0], y: o[1] - r * 0.4, r };
     }
     drawBallTrail(ctx, cam, bq) {
-      const b = this.m.ball, sp = Math.hypot(b.vx, b.vy, b.vz);
+      const b = (this.viewM || this.m).ball, sp = Math.hypot(b.vx, b.vy, b.vz);
       this.trail.push({ x: bq.x, y: bq.y, z: bq.z }); if (this.trail.length > 7) this.trail.shift();
       if (sp < 14 || this.trail.length < 2) return;
       const o = this.tmp;

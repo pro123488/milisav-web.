@@ -340,7 +340,7 @@
         <label class="field">Iluminación <select data-bind="set_sel" data-id="lighting">${[['auto', 'Automática'], ['day', 'Día'], ['night', 'Noche']].map(([v, t]) => `<option value="${v}" ${s.lighting === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="field">Calidad gráfica <select data-bind="set_sel_num" data-id="quality">${[[1, 'Alta'], [0.75, 'Media'], [0.55, 'Baja (más rendimiento)']].map(([v, t]) => `<option value="${v}" ${s.quality === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
         <label class="field">Tamaño del texto <input type="range" min="0.9" max="1.4" step="0.05" value="${s.textScale}" data-live="set_text"><span>${Math.round(s.textScale * 100)}%</span></label>
-        ${tg('showMinimap', 'Minimapa', '', s.showMinimap)}${tg('showOffsideLine', 'Línea de fuera de juego', 'Ayuda visual', s.showOffsideLine)}
+        ${tg('replays', 'Repetición de los goles', 'Tras cada gol, repite la jugada (se puede saltar)', s.replays !== false)}${tg('showMinimap', 'Minimapa', '', s.showMinimap)}${tg('showOffsideLine', 'Línea de fuera de juego', 'Ayuda visual', s.showOffsideLine)}
         ${tg('reduceMotion', 'Reducir animaciones', 'Menos movimiento en menús y efectos', s.reduceMotion)}
         ${tg('highContrast', 'Alto contraste', 'Texto y bordes más marcados', s.highContrast)}
         ${tg('colorblind', 'Modo daltónico', 'Usa formas y patrones además de colores', s.colorblind)}</div>`;
@@ -468,7 +468,7 @@
     { t: 'Fase 3 · Equipos y competiciones', d: 'Mundo ficticio de 32 selecciones y 24 clubes, ligas, copas, Mundial, torneos, estadísticas y guardado con 6 ranuras.', done: 'ok' },
     { t: 'Fase 4 · Carrera y fichajes', d: 'Carrera de entrenador y de futbolista, mercado, cesiones, contratos, academia, entrenamiento con 9 ejercicios, economía y lesiones.', done: 'ok' },
     { t: 'Fase 5 · Modos especiales', d: 'Ultimate Team, objetivos, Club profesional, editores y creación de clubes (sin juego online).', done: 'ok' },
-    { t: 'Fase 6 · Mejoras visuales', d: 'Estadios en 4 categorías, 5 cámaras, sonido sintetizado. Pendiente: 3D, repeticiones y celebraciones personalizadas.', done: 'partial' },
+    { t: 'Fase 6 · Mejoras visuales', d: 'Estadios en 4 categorías, 5 cámaras, sonido sintetizado y repetición de los goles. Pendiente: 3D, repeticiones a demanda y celebraciones personalizadas.', done: 'partial' },
     { t: 'Fase 7 · Pulido final', d: 'Pruebas automáticas, documentación, accesibilidad básica. Controles táctiles y pantallas adaptables a móvil. Pendiente: pruebas con lectores de pantalla y en dispositivos físicos.', done: 'partial' }
   ];
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -32,6 +32,8 @@
       this.r.quality = G.state.settings.quality;
       this.r.resize();
       this.r.setMatch(m);
+      this.replay = null; this.replayWanted = 0; $('hud').classList.remove('replaying');
+      if (G.state.settings.replays !== false && !m.cfg.noReplay) G.Replay.attach(m);
       this.r.showMinimap = G.state.settings.showMinimap && !(G.Touch && G.Touch.isEnabled() && m.humans.length);
       this.r.showOffsideLine = G.state.settings.showOffsideLine;
       this.buildHud(m);
@@ -44,7 +46,7 @@
       this.raf = requestAnimationFrame(t => this.frame(t));
     },
     stop() {
-      cancelAnimationFrame(this.raf);
+      cancelAnimationFrame(this.raf); this.replay = null; this.replayWanted = 0;
       G.Audio.stopCrowd();
       G.Game.inMatch = false; G.Input.matchActive = false; G.Input.releaseAll();
       if (G.Touch) G.Touch.hide();
@@ -63,6 +65,7 @@
       this.raf = requestAnimationFrame(t => this.frame(t));
       let dt = (ts - this.last) / 1000; this.last = ts;
       if (!(dt > 0)) dt = 1 / 60; if (dt > MAXDT) dt = MAXDT;
+      if (this.replay) { this.stepReplay(m, dt); return; }
       G.Input.poll();
       const inputs = G.Input.forMatch(m);
       m.lastInputs = inputs;
@@ -76,6 +79,8 @@
       for (const e of evs) this.onEvent(e);
       this.r.draw(m, dt, clamp(m.acc / G.Match.STEP, 0, 1));
       this.updateHud(m, dt);
+      if (this.replayWanted && m.phase === 'goal' && m.phaseT >= 3.0 && !m.paused && !this.overlayKind) this.startReplay(m);
+      else if (this.replayWanted && m.phase !== 'goal') this.replayWanted = 0;
       // descanso
       if (m.phase === 'break' && !this.overlayKind) this.showBreak();
       if (m.ended && !this.finishing) { this.finishing = true; setTimeout(() => this.finish(), 2400); }
@@ -85,6 +90,36 @@
         G.Audio.crowdLevel(0.25 + 0.4 * near + 0.3 * clamp(Math.hypot(b.vx, b.vy) / 25, 0, 1));
       }
     },
+    /** Repetición del último gol: se congela la simulación y se reproduce lo grabado. */
+    startReplay(m) {
+      const goalTime = this.replayWanted; this.replayWanted = 0;
+      const clip = G.Replay.clip(m, goalTime); if (!clip) return;
+      this.replay = G.Replay.player(m, clip, 0.7);
+      this.r.cam.snap = true; this.r.fx.length = 0; this.r.trail.length = 0;
+      const el = $('h-replay'); if (el) el.classList.remove('hidden');
+      $('hud').classList.add('replaying');
+      const bn = $('h-banner'); if (bn) bn.classList.add('hidden');
+      this.bannerT = 0;
+      G.Audio.crowdLevel(0.45);
+    },
+    stepReplay(m, dt) {
+      const R = this.replay, I = G.Input;
+      I.poll();
+      const b = I.state[0].btn, b1 = I.state[1].btn;
+      if (this.replaySkip || b.shoot.pressed || b.pass.pressed || b.pause.pressed || b1.pause.pressed) R.skip();
+      I.endFrame();
+      R.advance(dt);
+      this.r.draw(m, dt, 1, R.view);
+      const pr = $('h-rprog'); if (pr) pr.style.width = Math.round(R.progress * 100) + '%';
+      if (R.done) this.endReplay(m);
+    },
+    endReplay(m) {
+      this.replay = null; this.replaySkip = false;
+      const el = $('h-replay'); if (el) el.classList.add('hidden');
+      $('hud').classList.remove('replaying');
+      this.r.cam.snap = true; this.r.fx.length = 0; this.r.trail.length = 0;
+      this.last = performance.now();
+    },
     onEvent(e) {
       G.Audio.onEvent(e);
       this.r.onEvent(e);
@@ -93,6 +128,7 @@
       switch (e.type) {
         case 'goal': {
           if (e.shootout) { this.banner(`¡GOL!`, e.scorer ? e.scorer.full : '', m.teams[e.team].c[0]); break; }
+          if (m.rec && m.timeScale <= 1.5 && !this.overlayKind) this.replayWanted = (m.goalInfo && m.goalInfo.time) || m.time;
           const sc = e.scorer ? e.scorer.full : '—';
           this.banner(e.own ? '¡GOL EN PROPIA!' : '¡GOOOL!', `${sc} · ${e.min}'${e.assist ? ' · Asistencia: ' + e.assist.full : ''}`, m.teams[e.team].c[0], 3.6);
           this.feed('⚽', `${e.min}' ${sc} (${tn(e.team)})`, 'goal');
@@ -139,7 +175,10 @@
         <div id="h-feed" class="feed" aria-live="polite"></div>
         <div id="h-who" class="who"></div>
         <div id="h-hint" class="hint"></div>
-        <div id="h-set" class="setp hidden"></div>`;
+        <div id="h-set" class="setp hidden"></div>
+        <div id="h-replay" class="replay hidden" aria-live="polite"><i class="rbar top"></i><i class="rbar bot"></i><div class="rtag"><em></em>REPETICIÓN</div>
+          <div class="rprog"><i id="h-rprog"></i></div>
+          <button class="btn ghost rskip" data-act="mu_skiprep" aria-label="Saltar repetición">Saltar <kbd>${G.Input.keyName(G.Input.keys.shoot)}</kbd></button></div>`;
       this.hudCache = {};
     },
     banner(title, sub, color, secs = 2.2) {
@@ -337,6 +376,7 @@
       return `<div class="pm-opt"><h2>Opciones</h2>
         ${sl('master', 'Volumen general', s.volume.master)}${sl('sfx', 'Efectos', s.volume.sfx)}${sl('crowd', 'Público', s.volume.crowd)}${sl('music', 'Música', s.volume.music)}
         <label class="field">Cámara <select data-bind="mu_cam">${cams}</select></label>
+        <label class="check"><input type="checkbox" data-bind="mu_opt" data-id="replays" ${s.replays !== false ? 'checked' : ''}><span><b>Repetición de los goles</b></span></label>
         <label class="check"><input type="checkbox" data-bind="mu_opt" data-id="showMinimap" ${s.showMinimap ? 'checked' : ''}><span><b>Mostrar minimapa</b></span></label>
         <label class="check"><input type="checkbox" data-bind="mu_opt" data-id="showOffsideLine" ${s.showOffsideLine ? 'checked' : ''}><span><b>Mostrar línea de fuera de juego</b></span></label>
         <label class="check"><input type="checkbox" data-bind="mu_opt" data-id="hints" ${s.hints ? 'checked' : ''}><span><b>Mostrar ayudas de controles</b></span></label></div>`;
@@ -376,6 +416,7 @@
 
   /* ---------- acciones del overlay ---------- */
   UI.on('mu_pause', () => MatchUI.pause());
+  UI.on('mu_skiprep', () => { MatchUI.replaySkip = true; });
   UI.on('mu_resume', () => MatchUI.resume());
   UI.on('mu_cont', () => MatchUI.continueBreak());
   UI.on('mu_tab', (el) => { MatchUI.tab = el.dataset.id; MatchUI.subOut = null; MatchUI.renderOverlay(); });
@@ -404,7 +445,7 @@
   });
   UI.bind('mu_vol', (v, el) => { /* manejado en live */ });
   UI.bind('mu_cam', (v) => { G.state.settings.camera = v; MatchUI.r.cam.mode = v; G.Game.saveSettings(); });
-  UI.bind('mu_opt', (v, el) => { G.state.settings[el.dataset.id] = v; MatchUI.r.showMinimap = G.state.settings.showMinimap; MatchUI.r.showOffsideLine = G.state.settings.showOffsideLine; G.Game.saveSettings(); });
+  UI.bind('mu_opt', (v, el) => { G.state.settings[el.dataset.id] = v; if (el.dataset.id === 'replays') { if (v) G.Replay.attach(MatchUI.m); else { MatchUI.m.rec = null; MatchUI.replayWanted = 0; } } MatchUI.r.showMinimap = G.state.settings.showMinimap; MatchUI.r.showOffsideLine = G.state.settings.showOffsideLine; G.Game.saveSettings(); });
   UI.bind('mu_vol', (v, el) => { G.state.settings.volume[el.dataset.id] = v; G.Audio.setVolumes(G.state.settings.volume); G.Game.saveSettings(); const sp = el.parentElement.querySelector('span'); if (sp) sp.textContent = Math.round(v * 100) + '%'; });
 
   G.MatchUI = MatchUI;

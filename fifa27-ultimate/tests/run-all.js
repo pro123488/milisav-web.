@@ -6,13 +6,13 @@ const path = require('path');
 const args = process.argv.slice(2);
 const fast = args.includes('--rapido'), e2e = args.includes('--e2e');
 const logic = [
-  ['mundo y datos', 'test-world.js'], ['física', 'test-physics.js'], ['motor: reglas', 'test-engine.js'], ['simulación rápida', 'test-quicksim.js'],
+  ['mundo y datos', 'test-world.js'], ['física', 'test-physics.js'], ['motor: reglas', 'test-engine.js'], ['repeticiones de goles', 'test-replay.js'], ['simulación rápida', 'test-quicksim.js'],
   ['torneos', 'test-tournaments.js'], ['guardado', 'test-save.js'], ['guardado con todos los modos', 'test-save-all.js'], ['fichajes y economía', 'test-transfers.js'], ['carrera de entrenador', 'test-career.js', ['DSI', '4']],
   ['carrera de futbolista', 'test-pcareer.js', ['promesa', '5', 'DC']], ['club profesional', 'test-proclub.js'], ['ejercicios de entrenamiento', 'test-drills.js'],
   ['Ultimate Team y objetivos', 'test-ut.js'], ['editores y clubes propios', 'test-editor.js']
 ];
 if (!fast) logic.push(['efectos de tácticas y dificultad (lento)', 'test-effects.js', ['16']]);
-const browser = [['partido básico', 'e2e-basic.js'], ['flujo de partido', 'e2e-flow.js'], ['pantallas', 'e2e-screens.js'], ['competiciones', 'e2e-comp.js'], ['guardado', 'e2e-save.js'], ['carrera de entrenador', 'e2e-career.js'], ['mercado, cantera y entrenamiento', 'e2e-market.js'], ['carrera de futbolista', 'e2e-pcareer.js'], ['club profesional', 'e2e-proclub.js'], ['Ultimate Team', 'e2e-ut.js'], ['editores', 'e2e-editor.js'], ['pantallas pequeñas', 'e2e-responsive.js'], ['accesibilidad', 'e2e-a11y.js'], ['controles táctiles', 'e2e-touch.js'], ['estrés de la interfaz', 'e2e-fuzz.js', ['400', '5']], ['rendimiento (fps)', 'e2e-perf.js', ['5']]];
+const browser = [['partido básico', 'e2e-basic.js'], ['flujo de partido', 'e2e-flow.js'], ['pantallas', 'e2e-screens.js'], ['competiciones', 'e2e-comp.js'], ['guardado', 'e2e-save.js'], ['carrera de entrenador', 'e2e-career.js'], ['mercado, cantera y entrenamiento', 'e2e-market.js'], ['carrera de futbolista', 'e2e-pcareer.js'], ['club profesional', 'e2e-proclub.js'], ['Ultimate Team', 'e2e-ut.js'], ['editores', 'e2e-editor.js'], ['pantallas pequeñas', 'e2e-responsive.js'], ['accesibilidad', 'e2e-a11y.js'], ['controles táctiles', 'e2e-touch.js'], ['repetición de goles', 'e2e-replay.js'], ['estrés de la interfaz', 'e2e-fuzz.js', ['400', '5']], ['rendimiento (fps)', 'e2e-perf.js', ['5']]];
 const all = logic.concat(e2e ? browser : []);
 let failed = 0;
 const t0 = Date.now();

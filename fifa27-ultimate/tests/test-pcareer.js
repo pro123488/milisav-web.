@@ -72,6 +72,8 @@ if (dec && dec.state) ok(dec.state.playerCareer && dec.state.playerCareer.pid ==
 const tc = PC.talkToCoach(c); const tc2 = PC.talkToCoach(c);
 ok((tc.ok || /Solo durante/.test(tc.why)), 'hablar con el míster responde con un resultado coherente');
 { const cc = PC.create({ first: 'L', last: 'M', nat: 'AUR', pos: 'DFC', talent: 'normal', alloc: {}, club: offers0[2].club }); G.state.playerCareer = cc; const r = PC.requestLoan(cc); ok(r.ok && PC.me(cc).loan && cc.club === PC.me(cc).club, 'pedir cesión: el jugador se va cedido y la carrera sigue ese club (' + (r.club || r.why) + ')'); G.state.playerCareer = c; }
+{ const res = []; for (const t of Object.keys(PC.TALENTS)) for (const o of offers0) { const cc = PC.create({ first: 'L', last: 'M', nat: 'AUR', pos: 'DC', talent: t, alloc: {}, club: o.club }); G.state.playerCareer = cc; res.push(PC.requestLoan(cc).ok); } G.state.playerCareer = c;
+  ok(res.every(Boolean), 'pedir cesión funciona para todos los tipos de talento (también «madurez tardía», que empieza por debajo de todos los clubes): ' + res.filter(Boolean).length + '/' + res.length); }
 // retirada
 const rr = PC.retire(c); ok(c.status === 'retired' && rr.seasons === seasons, 'el jugador puede retirarse');
 console.log(fails ? `\n${fails} FALLOS` : '\nTODO OK');

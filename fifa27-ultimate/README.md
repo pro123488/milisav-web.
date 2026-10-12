@@ -33,6 +33,8 @@ navegador. Desde «Guardar y cargar» puedes **exportar e importar** las partida
 | Tiro colocado / regate / proteger | `C` / `X` / `Z` |
 | Pausa (cambios, tácticas, controles) | `Esc` |
 
+Tras cada gol hay una **repetición** de la jugada (se salta con `Espacio`, `J` o el botón «Saltar», y se desactiva en Configuración).
+
 La duración del partido es de **3, 5, 10 o 15 minutos de reloj real**; el reloj del partido muestra 0–90′ (+ tiempo
 añadido) acelerado proporcionalmente, así que 5 minutos reales equivalen a 90 minutos de fútbol.
 

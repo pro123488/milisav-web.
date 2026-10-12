@@ -21,7 +21,7 @@
         volume: { master: 0.8, sfx: 0.9, crowd: 0.7, music: 0.5 }, musicOn: true,
         camera: 'tv', keys: {}, difficulty: 3, minutes: 5, assist: 0.55,
         offside: true, fouls: true, cards: true, injuries: true, extraTime: true,
-        showMinimap: true, showOffsideLine: false, quality: 1, lighting: 'auto', touch: 'auto',
+        showMinimap: true, showOffsideLine: false, replays: true, quality: 1, lighting: 'auto', touch: 'auto',
         reduceMotion: false, highContrast: false, textScale: 1, gamepad: true, autosave: true, hints: true, colorblind: false
       };
     },

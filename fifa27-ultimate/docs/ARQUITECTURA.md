@@ -10,6 +10,7 @@ Datos        data-names · utils · tactics · players · teams (mundo determini
 Simulación   physics · actions · match · match-rules · ai · ai-keeper · ai-set   (paso fijo 60 Hz, sin DOM)
 Modos        matchsim (simulador rápido) · tournaments · competitions · economy · transfers · training · drills
              youth · career · players-career · proclub · ultimate-team · objectives · editor
+Repeticiones replay (graba instantáneas a 20 Hz en el motor y las reproduce con una «vista fantasma» que dibuja el mismo renderizador)
 Presentación art · render (Canvas 2D) · input · audio · ui (router, componentes) · ui-match (HUD y bucle)
 Pantallas    screens-main · -team · -comp · -career · -market · -pcareer · -proclub · -ut · -obj · -editor · -save
 Persistencia save-core (formato, LZW, migraciones) · game (perfil, ajustes, personalizaciones)

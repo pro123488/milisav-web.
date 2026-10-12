@@ -419,3 +419,14 @@ input[type=color] { width: 46px; height: 38px; padding: 2px; border-radius: 8px;
 .tb-tackle { right: 184px; bottom: 22px; width: 56px; height: 56px; } .tb-switch { right: 20px; bottom: 184px; width: 52px; height: 52px; font-size: .7rem; } .tb-skill { right: 110px; bottom: 166px; width: 46px; height: 46px; font-size: .62rem; }
 .tb-sprint { left: 14px; bottom: 150px; width: 60px; height: 60px; }
 @media (pointer: coarse) { #h-hint, #h-who { display: none !important; } }
+
+/* ---------- Repetición de goles ---------- */
+.replay { position: absolute; inset: 0; pointer-events: none; }
+.replay .rbar { position: absolute; left: 0; right: 0; height: 9%; background: rgba(0,0,0,.82); } .replay .rbar.top { top: 0; } .replay .rbar.bot { bottom: 0; }
+.replay .rtag { position: absolute; left: 20px; top: 2.2%; display: flex; align-items: center; gap: 10px; font: 900 clamp(1.1rem, 3vw, 1.8rem) var(--head); font-style: italic; letter-spacing: .12em; color: #fff; text-shadow: 0 2px 10px #000; }
+.replay .rtag em { width: .7em; height: .7em; border-radius: 50%; background: #ff3b3b; animation: rblink 1s infinite; } @keyframes rblink { 50% { opacity: .25; } }
+.replay .rprog { position: absolute; left: 20px; right: 20px; bottom: 9.8%; height: 4px; border-radius: 99px; background: rgba(255,255,255,.22); overflow: hidden; } .replay .rprog i { display: block; height: 100%; width: 0; background: var(--accent); }
+.replay .rskip { position: absolute; right: 20px; bottom: 1.6%; pointer-events: auto; }
+.replay .rskip kbd { margin-left: 6px; }
+@media (prefers-reduced-motion: reduce) { .replay .rtag em { animation: none; } }
+#hud.replaying > :not(.replay) { visibility: hidden; }

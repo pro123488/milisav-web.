@@ -296,8 +296,10 @@
       if (!this.windowOpen(c)) return { ok: false, why: 'Solo con el mercado abierto (pretemporada o jornada ' + WINTER + ').' };
       const w = c.world, p = this.me(c), cl = this.club(c);
       if (p.loan) return { ok: false, why: 'Ya estás cedido.' };
-      const cands = Object.values(w.clubs).filter(x => x.id !== c.club && x.rep <= cl.rep + 4 && x.squad.length < TR.MAX_SQUAD && TR.avgLineup(w, x) <= p.ovr + 8).sort((a, b) => TR.avgLineup(w, b) - TR.avgLineup(w, a));      // el más fuerte donde aún tengas sitio
-      for (const x of cands) { const r = TR.loanOut(w, cl, p, x); if (r.ok) { this.syncClub(c); c.pc.trust = clamp(55, TRUST_MIN, 100); c.offers = []; this.pickSquad(c); this.msg(c, 'news', 'Cesión', `Te marchas cedido a ${x.name} hasta final de temporada para ganar minutos.`); return { ok: true, club: x.name }; } }
+      const pool = Object.values(w.clubs).filter(x => x.id !== c.club && x.rep <= cl.rep + 4 && x.squad.length < TR.MAX_SQUAD);
+      const fit = pool.filter(x => TR.avgLineup(w, x) <= p.ovr + 8).sort((a, b) => TR.avgLineup(w, b) - TR.avgLineup(w, a));      // el más fuerte donde aún tengas sitio
+      const weakest = pool.filter(x => !fit.includes(x)).sort((a, b) => TR.avgLineup(w, a) - TR.avgLineup(w, b)).slice(0, 4);    // si no hay ninguno a tu medida, los más modestos
+      for (const x of fit.concat(weakest)) { const r = TR.loanOut(w, cl, p, x); if (r.ok) { this.syncClub(c); c.pc.trust = clamp(55, TRUST_MIN, 100); c.offers = []; this.pickSquad(c); this.msg(c, 'news', 'Cesión', `Te marchas cedido a ${x.name} hasta final de temporada para ganar minutos.`); return { ok: true, club: x.name }; } }
       return { ok: false, why: 'Ningún club te quiere cedido ahora mismo.' };
     },
     renewal(c) {

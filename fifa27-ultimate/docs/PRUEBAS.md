@@ -41,6 +41,7 @@ mismo resultado (comprobado: dos ejecuciones con la semilla 1234 dan 0-2, 8 tiro
 | `test-drills.js` | Los 9 ejercicios: terminan siempre, no regalan puntos al que no hace nada, un jugador competente puntúa claramente más, tope diario de recompensas y tope anual de mejora. |
 | `test-ut.js` | Ultimate Team y objetivos: probabilidades de los sobres, **valor esperado de un sobre menor que su precio**, garantías, química, plantilla jugable, divisiones, y que cada objetivo solo se cobra una vez. |
 | `test-editor.js` | Editores y clubes propios: las ediciones persisten, se reaplican al reconstruir el mundo y funcionan en liga y carrera. |
+| `test-replay.js` | Repeticiones: grabar no cambia el resultado del partido (3 semillas idénticas con y sin grabación), búfer circular acotado, el recorte contiene el gol, la reproducción no tiene NaN, termina sola, el balón está en la portería en el instante del gol y no se toca el estado real. |
 | `test-effects.js` | Medición estadística de tácticas y dificultad con partidos completos (ver abajo). Solo se ejecuta sin `--rapido`. |
 
 ## Pruebas con navegador real (Playwright + Chromium)
@@ -56,6 +57,7 @@ mismo resultado (comprobado: dos ejecuciones con la semilla 1234 dan 0-2, 8 tiro
 | `e2e-a11y.js` | Botones y campos con nombre accesible, ids únicos, foco visible, navegación con Tab/flechas/Esc; **las 23 opciones del menú abren una pantalla real**. |
 | `e2e-touch.js` | El joystick y los botones táctiles mueven y accionan al jugador igual que el teclado. |
 | `e2e-fuzz.js` | Estrés de la interfaz: ≈ 900 clics al azar por semilla (4 semillas) en todas las pantallas con carreras, pro y Ultimate Team creados; sin errores de JavaScript. No pulsa acciones destructivas ni inicia partidos. |
+| `e2e-replay.js` | Tras un gol aparece la repetición, la simulación queda congelada mientras dura, se salta con Espacio y con el botón, el partido continúa y con la opción desactivada no hay repetición. |
 | `e2e-perf.js` | Fotogramas por segundo durante un partido. |
 
 ## Calibraciones medidas
@@ -118,6 +120,12 @@ escribieron para pasar:
 * `Objectives.bump` y `applySettings` fallaban fuera del navegador (sin `G.state` ni `document`).
 * La táctica «posesión» apenas cambiaba la posesión (+0,7 puntos): se reforzó con una preferencia por conservar el
   balón en el pase y paciencia al disparar, y se subió el umbral de la prueba a +1,5 puntos.
+* La prueba de la carrera de futbolista fallaba una de cada seis veces al pedir una cesión, y al investigarlo resultó ser
+  un fallo real del juego: un jugador de «madurez tardía» (empieza por debajo de todos los clubes) **nunca** encontraba
+  club cedente. Ahora, si ningún club se ajusta, se prueba con los más modestos; la prueba comprueba los 4 tipos de talento.
+* `test-save-all` fallaba una de cada cuatro veces porque la carrera de entrenador en piloto automático a veces acababa
+  despedida (los partidos simulados rápido no llevan semilla): ahora la prueba acepta una oferta para seguir con una
+  carrera activa. Tras corregirlo se repitió 5 veces toda la batería lógica (70 ejecuciones) sin ningún fallo.
 * Los partidos con semilla no eran reproducibles porque dos desfases iniciales de los jugadores usaban
   `Math.random()`: ahora usan un flujo con semilla aparte.
 

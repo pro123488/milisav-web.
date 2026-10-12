@@ -29,7 +29,7 @@ Leyenda: ✅ implementado y probado · 🟡 implementado con límites (se indica
 | 7 formaciones y 10 tácticas combinables con efecto medible en el juego | ✅ (medido: ver `PRUEBAS.md`) |
 | Duración 3 / 5 / 10 / 15 min de **tiempo real**, reloj acelerado a 90′ | ✅ |
 | Cámaras: televisiva, cercana, dinámica, entrenamiento, táctica | ✅ |
-| Repetición de jugadas (replay) | ❌ |
+| Repetición de los goles (tras la celebración, a 0,7×, con barra de progreso; se salta con la tecla de disparo, la de pase, Esc o el botón «Saltar», o se desactiva en Configuración) | ✅ (`test-replay`, `e2e-replay`) 🟡 solo de goles, con la cámara normal; no hay repetición a demanda ni selección de ángulos, y no se activa con el tiempo acelerado |
 | Celebraciones de gol | 🟡 Los jugadores corren/celebran, sin animaciones personalizables. |
 | Estadios en 4 categorías (pequeño, mediano, grande, internacional), día/noche, publicidad, público | ✅ (aspecto 2D) |
 
@@ -52,7 +52,7 @@ Leyenda: ✅ implementado y probado · 🟡 implementado con límites (se indica
 | Economía sin dinero infinito (cada ingreso tiene fuente; valor esperado de sobres < precio) | ✅ (`test-transfers`, `test-ut`) |
 
 ## Cosas que NO se han hecho o se hicieron de forma simplificada
-* Gráficos 3D, repeticiones, entrenadores con lecciones propias, selección nacional jugable en carrera,
+* Gráficos 3D, repeticiones a demanda o de otras jugadas, entrenadores con lecciones propias, selección nacional jugable en carrera,
   online, locución, licencias reales.
 * El equilibrio de goles por partido (~1.4–2.3 según muestra) puede requerir ajuste fino según tu estilo de juego.
 * Las ayudas de accesibilidad cubren alto contraste, modo daltónico (patrones además de colores en barras y

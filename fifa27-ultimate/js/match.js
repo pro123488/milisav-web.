@@ -257,6 +257,7 @@
         case 'shootout': this.stepShootout(dt); break;
         default: break;
       }
+      if (this.rec) G.Replay.record(this, dt);          // grabación para repeticiones (solo si se activó)
     }
 
     stepIntro(dt) {
@@ -927,7 +928,7 @@
       this.goals.push(g);
       this.log_('goal', scorer, scoring, { own, assist });
       this.stoppageTally += 0.9;
-      this.phase = 'goal'; this.phaseT = 0; this.goalInfo = { scorer, scoring, own };
+      this.phase = 'goal'; this.phaseT = 0; this.goalInfo = { scorer, scoring, own, time: this.time };
       b.owner && this.setOwner(null);
       this.emit('goal', { team: scoring.idx, scorer, assist, own, score: this.score.slice(), min });
       // celebración

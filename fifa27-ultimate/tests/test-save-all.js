@@ -7,7 +7,11 @@ G.state = G.Game.newState(); G.Game.buildWorld();
 const w = G.state.world;
 // carrera de entrenador con 2 temporadas
 G.state.career = G.Career.create({ coachName: 'Todo', club: 'DSI', difficulty: 3, ambition: 'realista' });
-G.Career.autoSeason(G.state.career); G.Career.renewKey(G.state.career); G.Career.startNextSeason(G.state.career); G.Career.autoSeason(G.state.career);
+G.Career.autoSeason(G.state.career); G.Career.renewKey(G.state.career);
+// el piloto automático puede acabar despedido (los resultados no llevan semilla): se acepta una oferta para seguir con una carrera activa
+if (G.state.career.status === 'fired') G.Career.switchClub(G.state.career, (G.state.career.jobOffers[0] || {}).club || 'ATV');
+G.Career.startNextSeason(G.state.career); G.Career.autoSeason(G.state.career);
+if (G.state.career.status === 'fired') G.Career.switchClub(G.state.career, (G.state.career.jobOffers[0] || {}).club || 'ATV');
 // carrera de futbolista (1 temporada)
 const offers = G.PlayerCareer.initialOffers(w, new G.U.RNG(2));
 G.state.playerCareer = G.PlayerCareer.create({ first: 'Todo', last: 'Futbolista', nat: 'AUR', pos: 'MC', talent: 'promesa', alloc: { vis: 5 }, club: offers[0].club });
