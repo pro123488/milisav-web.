@@ -138,7 +138,7 @@ export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log
   }
   return false;
 }
-export async function face(page, dir) { await key(page, DIRK[dir], 1, 120); }
+export async function face(page, dir) { await page.keyboard.down(DIRK[dir]); await sleep(260); await page.keyboard.up(DIRK[dir]); await sleep(120); }
 
 /** Sentido hacia una casilla adyacente */
 export function dirTo(page, tx, ty) {
