@@ -47,6 +47,11 @@ export function validateState(raw) {
   s.player.money = Math.max(0, Math.min(999999, Math.floor(s.player.money) || 0));
   for (const k of ['seen', 'caught']) s.dex[k] = Object.fromEntries(Object.entries(s.dex[k] || {}).filter(([id]) => SPECIES[id]));
   if (!Array.isArray(s.badges)) s.badges = [];
+  if (!Array.isArray(s.hall)) s.hall = [];
+  const d = isObj(s.daycare) ? s.daycare : { slots: [null, null], steps: 0, egg: null };      // guardería: criaturas y huevo deben ser válidos
+  d.slots = [0, 1].map((i) => { const x = Array.isArray(d.slots) ? d.slots[i] : null; return x && isObj(x) && validateCreature(x.mon) ? x : null; });
+  if (d.egg && !validateCreature(d.egg)) d.egg = null;
+  s.daycare = d;
   return s;
 }
 

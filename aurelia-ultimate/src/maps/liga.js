@@ -1,7 +1,7 @@
 // Final de Aurelia: Ruinas Antiguas, Ciudad Arcana (gimnasio de Dragón con acertijos), Calzada Victoria, Santuario del Alba,
 // Meseta Aurora y la Liga (Alto Mando + campeona + Salón de la Fama).
 import { defineRoute, defineCity, defineCave, caveMouth, edgeBlock, lineBlock } from './archetypes.js';
-import { defineCenter, defineShopInterior, defineHouse, interior } from './helpers.js';
+import { defineCenter, defineShopInterior, defineHouse, interior, setRespawn } from './helpers.js';
 import { defineGym } from './gyms.js';
 import { look } from './looks.js';
 import { rec, scene, fight, chapter, legendary } from '../story.js';
@@ -171,7 +171,7 @@ interior('int_liga_hall', 14, 10, { name: 'Liga Aurora', title: 'Liga Aurora · 
     await g.say(`Última entrada: ${last.name}, día ${last.day + 1} del viaje. Equipo: ${last.party.map((p) => `Nv${p.lv} ${p.nick || '#' + p.sp}`).join(', ')}. Victorias totales: ${h.length}.`); } });
   m.npc({ id: 'recepcion', x: 4, y: 5, dir: 'right', look: look('enfermera'), name: 'Recepcionista', move: 'static', talk: async (g) => {
     await g.say('¡Bienvenido a la Liga Aurora! Aquí se enfrentan los cinco rivales más duros de Aurelia, uno tras otro, sin descanso. Si pierdes, empezarás de nuevo desde la primera sala.', { speaker: 'Recepcionista' });
-    if (await g.yesNo('¿Quieres que cure a tu equipo antes de empezar?')) { g.healAll(); await g.say('¡Listo! ¡Mucha suerte!', { speaker: 'Recepcionista' }); }
+    if (await g.yesNo('¿Quieres que cure a tu equipo antes de empezar?')) { g.healAll(); setRespawn(g, 'meseta_aurora', 'door_liga'); await g.say('¡Listo! Si pierdes, volverás aquí, a la entrada de la Liga. ¡Mucha suerte!', { speaker: 'Recepcionista' }); }
     if (g.flag('league_done') && await g.yesNo('¿Quieres desafiar de nuevo a la Liga? (se reinician las salas)')) { resetLeague(g); await g.say('Las salas se han reiniciado.', { speaker: 'Recepcionista' }); } } });
 });
 defineCenter('meseta_aurora', 'Meseta Aurora');

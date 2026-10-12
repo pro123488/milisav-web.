@@ -92,12 +92,14 @@ export async function bootWith(page, setup, arg = null) {
 }
 
 /** Siguiente paso (BFS) hacia (tx,ty). Ignora personajes (los entrenadores se activan solos) y verjas; sigue las plataformas de teletransporte locales. */
-export function nextStep(page, tx, ty, { adjacent = false } = {}) {
-  return page.evaluate(({ tx, ty, adjacent }) => {
+export function nextStep(page, tx, ty, { adjacent = false, blockGates = false, avoidNpcs = false } = {}) {
+  return page.evaluate(({ tx, ty, adjacent, blockGates, avoidNpcs }) => {
     const g = window.__game, ow = g.ow, m = ow.map, W = window.__au.World, p = ow.player;
     if (p.x === tx && p.y === ty) return 'arrived';
     const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-    const free = (x, y) => W.inBounds(m, x, y) && !W.terrainSolid(m, x, y) && !(W.groundProps(m, x, y).water && !g.state.player.surfing);
+    const gates = blockGates ? new Set(ow.ents.filter((e) => e.kind === 'gate').map((e) => e.x + ',' + e.y)) : new Set();
+    const npcs = avoidNpcs ? new Set(ow.ents.filter((e) => e.solid && !e.free && e.kind !== 'item' && e.kind !== 'gate' && e !== p).map((e) => e.x + ',' + e.y)) : new Set();
+    const free = (x, y) => W.inBounds(m, x, y) && !W.terrainSolid(m, x, y) && !gates.has(x + ',' + y) && !npcs.has(x + ',' + y) && !(W.groundProps(m, x, y).water && !g.state.player.surfing);
     const goal = (x, y) => (adjacent ? Math.abs(x - tx) + Math.abs(y - ty) === 1 : x === tx && y === ty);
     if (adjacent && goal(p.x, p.y)) return 'arrived';
     const q = [[p.x, p.y, null]]; const seen = new Set([p.x + ',' + p.y]);
@@ -115,16 +117,16 @@ export function nextStep(page, tx, ty, { adjacent = false } = {}) {
       }
     }
     return null;
-  }, { tx, ty, adjacent });
+  }, { tx, ty, adjacent, blockGates, avoidNpcs });
 }
 /** Camina hasta la casilla (o junto a ella) resolviendo combates y diálogos que aparezcan. Devuelve true si llega. */
-export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log = null } = {}) {
+export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log = null, blockGates = false, avoidNpcs = false } = {}) {
   let stuck = 0, last = null;
   for (let i = 0; i < maxSteps; i++) {
     if (process.env.E2E_VERBOSE) { await page.screenshot({ path: 'tests/out/gdbg.png' }); console.log('   · estado', await page.evaluate(() => `${window.__game.scene?.constructor.name} busy=${window.__game.ow?.busy} dlg=${!!document.getElementById('dialog')}`)); }
     if (await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene')) { if (log) log('combate'); if (process.env.E2E_VERBOSE) console.log('   · combate...'); await driveBattle(page); await advance(page, { max: 80, quiet: 900 }); continue; }
     await advance(page, { max: 40, quiet: 250 });
-    const d = await nextStep(page, tx, ty, { adjacent });
+    const d = await nextStep(page, tx, ty, { adjacent, blockGates, avoidNpcs });
     if (process.env.E2E_VERBOSE) console.log('   · goTo', i, JSON.stringify(await pos(page)), d);
     if (d === 'arrived' || (adjacent && d === null && last === 'adj')) return true;
     if (d === null) return false;
@@ -132,7 +134,7 @@ export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log
     await walk(page, d, 1);
     const after = await pos(page);
     if (before[1] === after[1] && before[2] === after[2] && before[0] === after[0]) { if (++stuck > 6) return false; await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 600 }); } else stuck = 0;
-    if (adjacent) { const n = await nextStep(page, tx, ty, { adjacent }); if (n === null) last = 'adj'; }
+    if (adjacent) { const n = await nextStep(page, tx, ty, { adjacent, blockGates, avoidNpcs }); if (n === null) last = 'adj'; }
   }
   return false;
 }
@@ -144,7 +146,7 @@ export function dirTo(page, tx, ty) {
 }
 /** Interactúa con la casilla (tx,ty) estando junto a ella */
 export async function interactWith(page, tx, ty) {
-  if (!(await goTo(page, tx, ty, { adjacent: true }))) return false;
+  if (!(await goTo(page, tx, ty, { adjacent: true, blockGates: true }))) return false;
   await face(page, await dirTo(page, tx, ty)); await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 700 });
   return true;
 }

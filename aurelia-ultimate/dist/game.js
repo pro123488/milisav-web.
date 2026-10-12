@@ -1574,6 +1574,7 @@
             title: o.title || o.name || this.id,
             level: o.level || null,
             solution: this.solution || null,
+            puzzle: this.puzzle || null,
             forceWeather: o.forceWeather || null,
             noFly: !!o.noFly,
             ownerHooks: o.hooks || null,
@@ -6903,28 +6904,48 @@
         }
         addTrainers(cells);
         const nb = spec.barriers || 0;
+        const usedLeaves = /* @__PURE__ */ new Set();
         for (let k = 0; k < nb; k++) {
           const bi = Math.round((k + 1) / (nb + 1) * (L3.path.length - 1)) + 1;
           const bcell = L3.path[Math.min(bi, L3.path.length - 2)];
           const [bx, by] = L3.mz.tile(...bcell);
           const flag2 = `gym_${cityId}_sw${k}`;
-          const onPath = new Set(L3.path.slice(0, bi).map((c) => c.join()));
-          const attach = (cell) => {
-            let c = cell;
-            while (c && !onPath.has(c.join())) c = L3.mz.parent[c.join()];
-            return c;
+          const idx = new Map(L3.path.map((c, i) => [c.join(), i]));
+          const joinIdx = (cell) => {
+            let c = cell, d = 0;
+            while (c && !idx.has(c.join())) {
+              c = L3.mz.parent[c.join()];
+              d++;
+            }
+            return c ? [idx.get(c.join()), d] : [-1, 0];
           };
-          const candidates = L3.mz.leaves.filter((c) => !L3.path.some((p) => p.join() === c.join()) && attach(c)).sort((a, b) => b.length - a.length);
-          const leaf = candidates[k % Math.max(1, candidates.length)] || L3.path[Math.max(1, bi - 2)];
-          const [sx, sy] = L3.mz.tile(...leaf);
-          m.gate(bx, by, spec.barrierTile || "barrier_e", { show: (g) => !g.flag(flag2), name: spec.barrierName || "Barrera el\xE9ctrica", text: spec.barrierText || "Una barrera de energ\xEDa bloquea el paso. Debe de haber un interruptor por alg\xFAn rinc\xF3n del laberinto." });
-          m.gate(sx, sy, "switch_off", { name: "Interruptor", show: (g) => !g.flag(flag2), talk: async (g, e, ow) => {
+          const candidates = L3.mz.leaves.filter((c) => !idx.has(c.join()) && !usedLeaves.has(c.join()) && joinIdx(c)[0] >= 0 && joinIdx(c)[0] < Math.min(bi, L3.path.length - 2)).sort((a, b) => joinIdx(b)[1] - joinIdx(a)[1]);
+          const leaf = candidates[0] || null;
+          const barrierText = spec.barrierText || "Una barrera de energ\xEDa bloquea el paso. Debe de haber un interruptor por alg\xFAn rinc\xF3n del laberinto.";
+          const press = async (g, ow) => {
             g.audio.sfx("item");
             g.setFlag(flag2);
             ow.refreshEntities();
             await g.say(spec.switchText || "\xA1Clic! Una barrera se ha desactivado.");
-          }, free: false });
-          m.gate(sx, sy, "switch_on", { name: "Interruptor", show: (g) => g.flag(flag2), text: "El interruptor ya est\xE1 activado." });
+          };
+          (m.puzzle || (m.puzzle = [])).push({ barrier: [bx, by], switch: null, plate: null });
+          const entry = m.puzzle[m.puzzle.length - 1];
+          m.gate(bx, by, spec.barrierTile || "barrier_e", { show: (g) => !g.flag(flag2), name: spec.barrierName || "Barrera el\xE9ctrica", text: barrierText });
+          if (leaf) {
+            usedLeaves.add(leaf.join());
+            const [sx, sy] = L3.mz.tile(...leaf);
+            entry.switch = [sx, sy];
+            m.gate(sx, sy, "switch_off", { name: "Interruptor", show: (g) => !g.flag(flag2), talk: async (g, e, ow) => press(g, ow), free: false });
+            m.gate(sx, sy, "switch_on", { name: "Interruptor", show: (g) => g.flag(flag2), text: "El interruptor ya est\xE1 activado." });
+          } else {
+            const pc = L3.path[Math.max(1, Math.min(bi - 2, L3.path.length - 3))];
+            const [px2, py] = L3.mz.tile(...pc);
+            entry.plate = [px2, py];
+            m.set(px2, py, "pad");
+            m.trigger(px2, py, async (g, ow) => {
+              if (!g.flag(flag2)) await press(g, ow);
+            }, { show: (g) => !g.flag(flag2) });
+          }
         }
         gateXY = L3.gate;
         leaderPos = [exitX, 2];
@@ -8180,10 +8201,7 @@
       for (let i = 1; i <= 3; i++) {
         await g.say(`Ronda ${i} de 3.`, { speaker: T2 });
         const r = await g.battleTrainer("coliseo" + i, { entity: null, rematch: true });
-        if (r.result !== "win") {
-          await g.say?.("...");
-          return;
-        }
+        if (r.result !== "win") return;
         if (i < 3) {
           healParty(g.party);
           g.audio.sfx("heal");
@@ -8834,7 +8852,8 @@
       await g.say("\xA1Bienvenido a la Liga Aurora! Aqu\xED se enfrentan los cinco rivales m\xE1s duros de Aurelia, uno tras otro, sin descanso. Si pierdes, empezar\xE1s de nuevo desde la primera sala.", { speaker: "Recepcionista" });
       if (await g.yesNo("\xBFQuieres que cure a tu equipo antes de empezar?")) {
         g.healAll();
-        await g.say("\xA1Listo! \xA1Mucha suerte!", { speaker: "Recepcionista" });
+        setRespawn(g, "meseta_aurora", "door_liga");
+        await g.say("\xA1Listo! Si pierdes, volver\xE1s aqu\xED, a la entrada de la Liga. \xA1Mucha suerte!", { speaker: "Recepcionista" });
       }
       if (g.flag("league_done") && await g.yesNo("\xBFQuieres desafiar de nuevo a la Liga? (se reinician las salas)")) {
         resetLeague(g);
@@ -9922,6 +9941,14 @@
     s.player.money = Math.max(0, Math.min(999999, Math.floor(s.player.money) || 0));
     for (const k of ["seen", "caught"]) s.dex[k] = Object.fromEntries(Object.entries(s.dex[k] || {}).filter(([id]) => SPECIES[id]));
     if (!Array.isArray(s.badges)) s.badges = [];
+    if (!Array.isArray(s.hall)) s.hall = [];
+    const d = isObj(s.daycare) ? s.daycare : { slots: [null, null], steps: 0, egg: null };
+    d.slots = [0, 1].map((i) => {
+      const x = Array.isArray(d.slots) ? d.slots[i] : null;
+      return x && isObj(x) && validateCreature(x.mon) ? x : null;
+    });
+    if (d.egg && !validateCreature(d.egg)) d.egg = null;
+    s.daycare = d;
     return s;
   }
   function summaryOf(s) {

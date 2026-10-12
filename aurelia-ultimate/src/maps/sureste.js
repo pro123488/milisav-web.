@@ -65,7 +65,7 @@ interior('int_oasis_coliseo', 18, 14, { name: 'Coliseo del Oasis', title: 'Colis
     for (let i = 1; i <= 3; i++) {
       await g.say(`Ronda ${i} de 3.`, { speaker: T });
       const r = await g.battleTrainer('coliseo' + i, { entity: null, rematch: true });
-      if (r.result !== 'win') { await g.say?.('...'); return; }
+      if (r.result !== 'win') return;          // si se pierde, el flujo de derrota ya ha llevado al jugador al último Centro
       if (i < 3) { healParty(g.party); g.audio.sfx('heal'); await g.say('El árbitro cura a tu equipo entre rondas.'); }
     }
     g.state.stats.tournaments++; tour.wins++; g.emit('tournament_won', {});

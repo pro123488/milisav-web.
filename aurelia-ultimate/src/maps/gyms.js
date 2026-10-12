@@ -184,19 +184,29 @@ export function defineGym(cityId, spec) {
       for (let i = 0; i < n; i++) { const idx = Math.max(2, Math.round(((i + 1) / (n + 1)) * (L.path.length - 1))); const a = L.path[idx], b = L.path[Math.max(0, idx - 1)]; const [x, y] = L.mz.tile(...a); cells.push({ x, y, dir: dirOf(a, b) }); }
       addTrainers(cells);
       // barreras eléctricas con interruptores
-      const nb = spec.barriers || 0;
+      const nb = spec.barriers || 0; const usedLeaves = new Set();
       for (let k = 0; k < nb; k++) {
         const bi = Math.round(((k + 1) / (nb + 1)) * (L.path.length - 1)) + 1; const bcell = L.path[Math.min(bi, L.path.length - 2)];
         const [bx, by] = L.mz.tile(...bcell); const flag = `gym_${cityId}_sw${k}`;
-        const onPath = new Set(L.path.slice(0, bi).map((c) => c.join()));
-        // hoja cuyo punto de unión con la solución está antes de la barrera
-        const attach = (cell) => { let c = cell; while (c && !onPath.has(c.join())) c = L.mz.parent[c.join()]; return c; };
-        const candidates = L.mz.leaves.filter((c) => !L.path.some((p) => p.join() === c.join()) && attach(c)).sort((a, b) => b.length - a.length);
-        const leaf = candidates[k % Math.max(1, candidates.length)] || L.path[Math.max(1, bi - 2)];
-        const [sx, sy] = L.mz.tile(...leaf);
-        m.gate(bx, by, spec.barrierTile || 'barrier_e', { show: (g) => !g.flag(flag), name: spec.barrierName || 'Barrera eléctrica', text: spec.barrierText || 'Una barrera de energía bloquea el paso. Debe de haber un interruptor por algún rincón del laberinto.' });
-        m.gate(sx, sy, 'switch_off', { name: 'Interruptor', show: (g) => !g.flag(flag), talk: async (g, e, ow) => { g.audio.sfx('item'); g.setFlag(flag); ow.refreshEntities(); await g.say(spec.switchText || '¡Clic! Una barrera se ha desactivado.'); }, free: false });
-        m.gate(sx, sy, 'switch_on', { name: 'Interruptor', show: (g) => g.flag(flag), text: 'El interruptor ya está activado.' });
+        // el interruptor debe poder alcanzarse SIN cruzar esta barrera: la hoja ha de colgar de la solución en un punto anterior a ella
+        const idx = new Map(L.path.map((c, i) => [c.join(), i]));
+        const joinIdx = (cell) => { let c = cell, d = 0; while (c && !idx.has(c.join())) { c = L.mz.parent[c.join()]; d++; } return c ? [idx.get(c.join()), d] : [-1, 0]; };
+        const candidates = L.mz.leaves.filter((c) => !idx.has(c.join()) && !usedLeaves.has(c.join()) && joinIdx(c)[0] >= 0 && joinIdx(c)[0] < Math.min(bi, L.path.length - 2)).sort((a, b) => joinIdx(b)[1] - joinIdx(a)[1]);
+        const leaf = candidates[0] || null;
+        const barrierText = spec.barrierText || 'Una barrera de energía bloquea el paso. Debe de haber un interruptor por algún rincón del laberinto.';
+        const press = async (g, ow) => { g.audio.sfx('item'); g.setFlag(flag); ow.refreshEntities(); await g.say(spec.switchText || '¡Clic! Una barrera se ha desactivado.'); };
+        (m.puzzle ||= []).push({ barrier: [bx, by], switch: null, plate: null });
+        const entry = m.puzzle[m.puzzle.length - 1];
+        m.gate(bx, by, spec.barrierTile || 'barrier_e', { show: (g) => !g.flag(flag), name: spec.barrierName || 'Barrera eléctrica', text: barrierText });
+        if (leaf) {                                          // interruptor al fondo de un callejón sin salida
+          usedLeaves.add(leaf.join()); const [sx, sy] = L.mz.tile(...leaf); entry.switch = [sx, sy];
+          m.gate(sx, sy, 'switch_off', { name: 'Interruptor', show: (g) => !g.flag(flag), talk: async (g, e, ow) => press(g, ow), free: false });
+          m.gate(sx, sy, 'switch_on', { name: 'Interruptor', show: (g) => g.flag(flag), text: 'El interruptor ya está activado.' });
+        } else {                                             // sin callejones disponibles: placa de presión sobre el propio camino, antes de la barrera
+          const pc = L.path[Math.max(1, Math.min(bi - 2, L.path.length - 3))]; const [px, py] = L.mz.tile(...pc); entry.plate = [px, py];
+          m.set(px, py, 'pad');
+          m.trigger(px, py, async (g, ow) => { if (!g.flag(flag)) await press(g, ow); }, { show: (g) => !g.flag(flag) });
+        }
       }
       gateXY = L.gate; leaderPos = [exitX, 2];
     } else if (LAYOUTS[spec.layout]) {

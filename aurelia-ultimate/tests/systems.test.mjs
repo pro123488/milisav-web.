@@ -67,3 +67,41 @@ test('Revancha: el equipo del entrenador sube de nivel con el bonus y mantiene l
   assert(strong.every((c) => c.hp === c.maxHp && c.moves.length >= 1));
   assert(strong[0].maxHp > base[0].maxHp, 'más nivel, más PS');
 });
+
+import { validateState } from '../src/save.js';
+import { newState } from '../src/state.js';
+test('Guardado: una partida antigua sin Salón de la Fama y con guardería dañada se repara', () => {
+  const s = newState({ name: 'Vieja', seed: 9 }); delete s.hall; s.daycare = { slots: [{ mon: { sp: 99999 } }, { mon: createCreature(1, 20), lv0: 20 }], steps: 3, egg: { sp: 99999, egg: true } };
+  const r = validateState(JSON.parse(JSON.stringify(s)));
+  assert(Array.isArray(r.hall)); eq(r.daycare.slots[0], null); assert(r.daycare.slots[1] && r.daycare.slots[1].mon.sp === 1); eq(r.daycare.egg, null);
+});
+test('Guardado: un huevo válido (con sus pasos) sobrevive al guardado y la carga', () => {
+  const s = newState({ name: 'Huevo', seed: 1 }); const egg = makeEgg(...pair(), new RNG(2)); s.party.push(createCreature(10, 8), egg);
+  const r = validateState(JSON.parse(JSON.stringify(s)));
+  eq(r.party.length, 2); assert(r.party[1].egg === true && r.party[1].hatch === egg.hatch);
+});
+
+import { legendary, offerQuest } from '../src/story.js';
+const storyGame = (result, { badges = 8, day = 0 } = {}) => {
+  const log = []; const flags = {}; const counters = {};
+  return { log, state: { counters, flags, badges: Array(badges).fill('x') }, badges: Array(badges).fill('x'), now: { day }, rng: new RNG(1),
+    flag: (k) => !!flags[k], setFlag: (k) => { flags[k] = true; }, emit: (e) => log.push('ev:' + e), audio: { sfx() {} },
+    say: async (t) => log.push(t), yesNo: async () => true, battleWild: async (mon) => { log.push('battle:' + mon.sp + ':' + mon.lv); return { result }; },
+    questStatus: () => 'none', startQuest: async (id) => log.push('quest:' + id) };
+};
+test('Legendarias: la captura fija la bandera; si se derrota sin capturar, se retira hasta el día siguiente', async () => {
+  const ow = { refreshEntities() {} }; const spec = { id: 113, lv: 50, flag: 'tempestra', minBadges: 5 };
+  let g = storyGame('captured'); await legendary(g, ow, spec); assert(g.state.flags.tempestra_done && g.log.includes('battle:113:50') && g.log.includes('ev:legendary'));
+  await legendary(g, ow, spec); assert(g.log.filter((l) => l.startsWith('battle')).length === 1, 'no se repite una vez capturada');
+  g = storyGame('win'); await legendary(g, ow, spec); assert(!g.state.flags.tempestra_done && g.state.counters.tempestra_day === 0);
+  await legendary(g, ow, spec); assert(g.log.filter((l) => l.startsWith('battle')).length === 1 && g.log.some((l) => /vuelva mañana/.test(l)), 'cooldown en el mismo día');
+  g.now.day = 1; await legendary(g, ow, spec); assert(g.log.filter((l) => l.startsWith('battle')).length === 2, 'vuelve al día siguiente');
+});
+test('Legendarias: sin las medallas necesarias no hay combate', async () => {
+  const g = storyGame('captured', { badges: 2 }); await legendary(g, { refreshEntities() {} }, { id: 113, lv: 50, flag: 'tempestra', minBadges: 5 });
+  assert(!g.log.some((l) => l.startsWith('battle')) && g.log.some((l) => /más medallas/.test(l)));
+});
+test('Misiones secundarias: offerQuest la ofrece una sola vez y la inicia al aceptar', async () => {
+  const g = storyGame('win'); const st = await offerQuest(g, 'side_x', 'NPC', 'Hola'); eq(st, 'active'); assert(g.log.includes('quest:side_x'));
+  g.questStatus = () => 'active'; const st2 = await offerQuest(g, 'side_x', 'NPC', 'Hola'); eq(st2, 'active'); eq(g.log.filter((l) => l === 'quest:side_x').length, 1);
+});
