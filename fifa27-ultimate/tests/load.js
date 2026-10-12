@@ -16,11 +16,14 @@ function scriptList() {
 }
 
 // Módulos que no tocan DOM y se pueden cargar en Node.
-const LOGIC = ['utils', 'data-names', 'tactics', 'players', 'teams', 'stadiums', 'physics', 'actions', 'ai', 'ai-keeper', 'ai-set', 'match', 'match-rules', 'economy', 'training',
-  'transfers', 'tournaments', 'career', 'ultimate-team', 'objectives', 'save-core', 'players-career'];
+const LOGIC = ['utils', 'data-names', 'tactics', 'players', 'teams', 'stadiums', 'physics', 'actions', 'ai', 'ai-keeper', 'ai-set', 'match', 'match-rules', 'matchsim', 'tournaments', 'competitions', 'economy', 'training',
+  'transfers', 'tournaments', 'career', 'ultimate-team', 'objectives', 'save-core', 'game', 'players-career'];
 
 function load(opts = {}) {
-  const sandbox = { console, setTimeout, clearTimeout, Math, JSON, Date, performance: { now: () => Date.now() } };
+  const mem = new Map();
+  const fakeLS = { getItem: k => mem.has(k) ? mem.get(k) : null, setItem: (k, v) => { if (opts.quota && [...mem.values()].reduce((s, x) => s + x.length, 0) + v.length > opts.quota) { const e = new Error('Quota'); e.name = 'QuotaExceededError'; throw e; } mem.set(k, String(v)); }, removeItem: k => mem.delete(k), key: i => [...mem.keys()][i], get length() { return mem.size; } };
+  Object.defineProperty(fakeLS, '__mem', { value: mem });
+  const sandbox = { console, setTimeout, clearTimeout, Math, JSON, Date, performance: { now: () => Date.now() }, localStorage: fakeLS };
   sandbox.window = sandbox;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);

@@ -186,7 +186,7 @@
    */
   function autoLineup(pool, formationId, opts = {}) {
     const f = FORMATIONS[formationId] || FORMATIONS['4-3-3'];
-    const avail = pool.filter(p => !(p.inj && p.inj.games > 0) && !p.sentOff && (!opts.exclude || !opts.exclude.includes(p.id)));
+    const avail = pool.filter(p => !(p.inj && p.inj.games > 0) && !(p.susp > 0) && !p.sentOff && (!opts.exclude || !opts.exclude.includes(p.id)));
     const used = new Set();
     const lineup = new Array(11).fill(null);
     // Orden de asignación: portero primero, luego por línea

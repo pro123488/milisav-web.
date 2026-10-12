@@ -15,7 +15,7 @@
   const P = G.Physics, PI = P.PITCH, A = G.Actions, T = G.Tactics;
   const AI = G.AI = G.AI || {};
 
-  const params = (m, team) => m.isHuman[team.idx] ? G.Match.DIFFICULTY[3] : m.diff;
+  const params = (m, team) => m.diffOf(team.idx);
   AI.params = params;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const rotv = (x, y, a) => { const c = Math.cos(a), s = Math.sin(a); return [x * c - y * s, x * s + y * c]; };
@@ -429,6 +429,7 @@
       shootU = xg * 9.5 - D.shootXg * 9.5 + 0.55 + noise() * 2;
       if (xg < 0.012) shootU = -9;
       if (m.phase === 'play' && hold < 0.08 && xg < 0.12) shootU -= 0.4;
+      shootU -= clamp((d2g - 19) / 12, 0, 1) * 0.3;          // los tiros lejanos son la última opción
     }
     /* --- opciones de pase --- */
     let bestPass = null, bpU = -9;
@@ -589,11 +590,11 @@
     let aimY;
     const gy = gk ? gk.y : 0;
     const side = gy >= 0 ? -1 : 1;
-    aimY = side * (0.55 + 0.4 * m.rng.next());
+    aimY = side * (0.6 + 0.38 * m.rng.next());
     if (Math.abs(p.y) > 6) aimY = -Math.sign(p.y) * (0.5 + 0.45 * m.rng.next()); // palo largo
     if (m.rng.chance(D.noise * 0.6)) aimY = m.rng.range(-1, 1);
     const close = d2g < 14;
-    let style = 'normal', power = close ? 0.65 + 0.2 * m.rng.next() : 0.7 + 0.25 * m.rng.next();
+    let style = 'normal', power = close ? 0.72 + 0.22 * m.rng.next() : 0.78 + 0.2 * m.rng.next();
     if (d2g > 18 && m.rng.chance(0.28) && p.a.prec > 62) { style = 'placed'; power = 0.55 + 0.3 * m.rng.next(); }
     else if (d2g > 23) { style = 'power'; power = 0.92; }
     const aimZ = close ? m.rng.range(0.08, 0.4) : m.rng.range(0.1, 0.6);

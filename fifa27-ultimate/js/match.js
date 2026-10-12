@@ -16,11 +16,11 @@
 
   /* ---------- Dificultad: cambia la CALIDAD DE LAS DECISIONES, no la velocidad ---------- */
   const DIFFICULTY = {
-    1: { name: 'Principiante', react: 0.60, noise: 0.40, passNoise: 1, aiPassNoise: 1.5, shotNoise: 1, aiShotNoise: 1.7, aiTackle: 0.75, pressCap: 1, shape: 0.55, runs: 0.35, aggr: 0.45, shootXg: 0.045, keeper: 0.70, anticipation: 0.4, tackleCd: 1.6, offsideTrap: 0 },
-    2: { name: 'Amateur',      react: 0.44, noise: 0.28, passNoise: 1, aiPassNoise: 1.25, shotNoise: 1, aiShotNoise: 1.35, aiTackle: 0.88, pressCap: 2, shape: 0.72, runs: 0.55, aggr: 0.6, shootXg: 0.06, keeper: 0.84, anticipation: 0.62, tackleCd: 1.3, offsideTrap: 0.2 },
-    3: { name: 'Profesional',  react: 0.32, noise: 0.18, passNoise: 1, aiPassNoise: 1.0, shotNoise: 1, aiShotNoise: 1.05, aiTackle: 1.0, pressCap: 3, shape: 0.86, runs: 0.75, aggr: 0.75, shootXg: 0.075, keeper: 0.95, anticipation: 0.8, tackleCd: 1.0, offsideTrap: 0.5 },
-    4: { name: 'Experto',      react: 0.24, noise: 0.10, passNoise: 1, aiPassNoise: 0.9, shotNoise: 1, aiShotNoise: 0.92, aiTackle: 1.06, pressCap: 3, shape: 0.95, runs: 0.9, aggr: 0.85, shootXg: 0.09, keeper: 1.03, anticipation: 0.92, tackleCd: 0.85, offsideTrap: 0.8 },
-    5: { name: 'Leyenda',      react: 0.17, noise: 0.05, passNoise: 1, aiPassNoise: 0.8, shotNoise: 1, aiShotNoise: 0.82, aiTackle: 1.12, pressCap: 4, shape: 1.0, runs: 1.0, aggr: 0.95, shootXg: 0.10, keeper: 1.12, anticipation: 1.0, tackleCd: 0.7, offsideTrap: 1 }
+    1: { name: 'Principiante', react: 0.60, noise: 0.40, passNoise: 1, aiPassNoise: 1.5, shotNoise: 1, aiShotNoise: 1.7, aiTackle: 0.75, pressCap: 1, shape: 0.55, runs: 0.35, aggr: 0.45, shootXg: 0.026, keeper: 0.70, anticipation: 0.4, tackleCd: 1.6, offsideTrap: 0 },
+    2: { name: 'Amateur',      react: 0.44, noise: 0.28, passNoise: 1, aiPassNoise: 1.25, shotNoise: 1, aiShotNoise: 1.35, aiTackle: 0.88, pressCap: 2, shape: 0.72, runs: 0.55, aggr: 0.6, shootXg: 0.03, keeper: 0.84, anticipation: 0.62, tackleCd: 1.3, offsideTrap: 0.2 },
+    3: { name: 'Profesional',  react: 0.32, noise: 0.18, passNoise: 1, aiPassNoise: 1.0, shotNoise: 1, aiShotNoise: 0.98, aiTackle: 1.0, pressCap: 3, shape: 0.86, runs: 0.75, aggr: 0.75, shootXg: 0.034, keeper: 0.95, anticipation: 0.8, tackleCd: 1.0, offsideTrap: 0.5 },
+    4: { name: 'Experto',      react: 0.24, noise: 0.10, passNoise: 1, aiPassNoise: 0.9, shotNoise: 1, aiShotNoise: 0.92, aiTackle: 1.06, pressCap: 3, shape: 0.95, runs: 0.9, aggr: 0.85, shootXg: 0.04, keeper: 1.03, anticipation: 0.92, tackleCd: 0.85, offsideTrap: 0.8 },
+    5: { name: 'Leyenda',      react: 0.17, noise: 0.05, passNoise: 1, aiPassNoise: 0.8, shotNoise: 1, aiShotNoise: 0.82, aiTackle: 1.12, pressCap: 4, shape: 1.0, runs: 1.0, aggr: 0.95, shootXg: 0.046, keeper: 1.12, anticipation: 1.0, tackleCd: 0.7, offsideTrap: 1 }
   };
 
   const DEFAULT_RULES = { offside: true, fouls: true, cards: true, injuries: true, foulRate: 1, subsMax: 5, extraTime: false, penalties: false, knockout: false, halves: 2 };
@@ -60,6 +60,7 @@
       this.cfg = cfg;
       this.rng = new RNG(cfg.seed || (Math.random() * 4294967296) >>> 0);
       this.diff = DIFFICULTY[cfg.difficulty || 3];
+      this.diffs = cfg.diffs ? cfg.diffs.map(d => DIFFICULTY[d]) : null;      // dificultad distinta por equipo (pruebas/coop)
       this.diffLevel = cfg.difficulty || 3;
       this.rules = Object.assign({}, DEFAULT_RULES, cfg.rules || {});
       this.humans = cfg.humans || [];
@@ -641,14 +642,16 @@
       if (shotOn) this.log_('save', gk, this.teams[gk.team]);
       return true;
     }
-    keeperMul(gk) { return this.isHuman[gk.team] ? 1 : this.diff.keeper; }
+    /** Parámetros de dificultad aplicables a un equipo (el humano siempre usa los neutros). */
+    diffOf(teamIdx) { return this.isHuman[teamIdx] ? DIFFICULTY[3] : (this.diffs ? this.diffs[teamIdx] : this.diff); }
+    keeperMul(gk) { return this.isHuman[gk.team] ? 1 : this.diffOf(gk.team).keeper; }
 
     /** Posición de las manos del portero y radio de alcance. */
     gkHand(gk) {
       if (gk.state === 'dive' && gk.dive) {
         const e = clamp(gk.dive.t / gk.dive.dur, 0, 1);
         const ease = 1 - (1 - e) * (1 - e);
-        return { x: gk.x + gk.dive.dx * 0.9 * ease, y: gk.y + gk.dive.dy * 0.9 * ease, z: lerp(1.0, gk.dive.z, ease), r: 0.78 + 0.18 * gk.a.gk / 100 + 0.08 * ease };
+        return { x: gk.x + gk.dive.dx * 0.9 * ease, y: gk.y + gk.dive.dy * 0.9 * ease, z: lerp(1.0, gk.dive.z, ease), r: 0.68 + 0.16 * gk.a.gk / 100 + 0.07 * ease };
       }
       return { x: gk.x + Math.cos(gk.ang) * 0.25, y: gk.y + Math.sin(gk.ang) * 0.25, z: 1.1, r: 0.9 + 0.14 * gk.a.gk / 100 };
     }
@@ -912,7 +915,7 @@
       if (scorer && !own) { scorer.st.g++; if (assist) assist.st.a++; }
       conceding.gk.st.conceded = (conceding.gk.st.conceded || 0) + 1;
       for (const p of conceding.players) p.st.conceded = (p.st.conceded || 0) + 1;
-      const g = { team: scoring.idx, scorer: scorer ? scorer.full : '—', scorerNum: scorer ? scorer.num : 0, scorerSim: scorer, assist: assist ? assist.full : null, assistSim: assist, min, own, half: this.half, type: b.shotBy === scorer ? 'shot' : 'play', score: this.score.slice() };
+      const g = { team: scoring.idx, scorer: scorer ? scorer.full : '—', scorerId: scorer ? scorer.id : null, scorerNum: scorer ? scorer.num : 0, scorerSim: scorer, assist: assist ? assist.full : null, assistId: assist ? assist.id : null, assistSim: assist, min, own, half: this.half, type: b.shotBy === scorer ? 'shot' : 'play', score: this.score.slice() };
       this.goals.push(g);
       this.log_('goal', scorer, scoring, { own, assist });
       this.stoppageTally += 0.9;

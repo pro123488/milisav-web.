@@ -90,7 +90,7 @@
     s *= A.fatigueNoise(p);
     s *= 1 + 0.8 * Math.abs(ang) / Math.PI;          // cuerpo mal orientado
     if (p.sprinting) s *= 1.12;
-    return s * m.diff.passNoise * (m.isHuman[p.team] ? 1 : m.diff.aiPassNoise);
+    return s * (m.isHuman[p.team] ? 1 : m.diffOf(p.team).aiPassNoise);
   };
 
   /**
@@ -167,7 +167,7 @@
     if (style === 'volley' || style === 'header') sigma *= 1.45;
     if (style === 'chip') sigma *= 0.9;
     if (opts.firstTime) sigma *= 1.3;
-    sigma *= m.diff.shotNoise * (m.isHuman[p.team] ? 1 : m.diff.aiShotNoise);
+    sigma *= (m.isHuman[p.team] ? 1 : m.diffOf(p.team).aiShotNoise);
     const latErr = clamp(gauss(m, sigma), -2.4 * sigma, 2.4 * sigma);
     const vertErr = clamp(gauss(m, sigma * 6.5), -2.4 * sigma * 6.5, 2.4 * sigma * 6.5);   // metros
     tz = Math.max(0.0, tz + vertErr * (0.6 + 0.4 * power));
@@ -300,7 +300,7 @@
     pWin += (A.fatigueFactor(p) - A.fatigueFactor(target)) * 0.5;
     if (target.shielding) pWin -= 0.12;
     if (Math.hypot(target.vx, target.vy) > 6.5) pWin -= 0.05;
-    pWin *= m.isHuman[p.team] ? 1 : m.diff.aiTackle;
+    pWin *= m.isHuman[p.team] ? 1 : m.diffOf(p.team).aiTackle;
     pWin = clamp(pWin, 0.08, 0.88);
     // riesgo de falta
     let pFoul = (slide ? 0.30 : 0.10) * (behind ? 2.1 : front ? 0.8 : 1.2) * (1.25 - tck * 0.55);

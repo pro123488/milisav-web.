@@ -1,0 +1,91 @@
+/* Pruebas del motor de competiciones. */
+const { load } = require('./load');
+const G = load({ only: 'logic' });
+const world = G.World.create(12345);
+const T = G.Tournaments;
+let fails = 0;
+const ok = (c, m) => { if (!c) { fails++; console.log('  ✗ FALLO:', m); } else console.log('  ✓', m); };
+const rng = new G.U.RNG(7);
+
+console.log('[Liga: 8 equipos, doble vuelta]');
+const ids8 = world.leagues.LAU.clubs;
+const lg = T.createLeague(ids8, { name: 'Liga Aurora', season: 2026, rules: { legs: 2 } });
+ok(lg.fixtures.length === 56, `56 partidos (28 × 2 vueltas): ${lg.fixtures.length}`);
+const perTeam = {}; lg.fixtures.forEach(f => { perTeam[f.home] = (perTeam[f.home] || 0) + 1; perTeam[f.away] = (perTeam[f.away] || 0) + 1; });
+ok(Object.values(perTeam).every(n => n === 14), 'cada equipo juega 14 partidos');
+const homeCount = {}; lg.fixtures.forEach(f => homeCount[f.home] = (homeCount[f.home] || 0) + 1);
+ok(Object.values(homeCount).every(n => n === 7), 'cada equipo juega 7 de local y 7 de visitante');
+const pairs = new Set(); lg.fixtures.forEach(f => pairs.add(f.home + '-' + f.away));
+ok(pairs.size === 56, 'todos los emparejamientos local-visitante son únicos');
+ok(lg.rounds.length === 14 && lg.rounds.every(r => r.fixtures.length === 4), '14 jornadas de 4 partidos');
+// jugar con simulación y comprobar la clasificación
+T.simulateAll(world, lg, rng);
+const st = T.standings(lg);
+ok(lg.status === 'finished' && lg.winner === st[0].team, 'la liga termina y proclama campeón al primero de la tabla');
+ok(st.every(r => r.p === 14 && r.w + r.d + r.l === 14 && r.pts === r.w * 3 + r.d), 'puntos = 3·V + E y 14 partidos por equipo');
+ok(st.reduce((s, r) => s + r.gf, 0) === st.reduce((s, r) => s + r.ga, 0), 'goles a favor = goles en contra (suma global)');
+const sortedOk = st.every((r, i) => i === 0 || st[i - 1].pts > r.pts || (st[i - 1].pts === r.pts && st[i - 1].gd >= r.gd));
+ok(sortedOk, 'la tabla está ordenada por puntos y diferencia de goles');
+console.log('   tabla:', st.map(r => `${r.pos}.${r.team} ${r.pts}pts (${r.gf}-${r.ga})`).join(' | '));
+const strongRank = ids8.map(id => [id, G.World.strength(world, world.clubs[id]).overall]).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+ok(st.slice(0, 3).some(r => strongRank.slice(0, 3).includes(r.team)), 'los equipos más fuertes suelen acabar arriba (sin amañar resultados)');
+const sc = T.topScorers(lg, 5);
+ok(sc.length > 0 && sc[0].g >= sc[sc.length - 1].g, 'tabla de goleadores ordenada: ' + sc.map(s => s.name + ' ' + s.g).join(', '));
+const goalsFromFx = lg.fixtures.reduce((s, f) => s + f.hg + f.ag, 0);
+const goalsFromScorers = Object.values(lg.scorers).reduce((s, x) => s + x.g, 0);
+ok(goalsFromScorers === goalsFromFx, `los goleadores suman los goles del torneo (${goalsFromScorers}/${goalsFromFx})`);
+
+console.log('\n[Eliminatoria: 16 equipos, partido único]');
+const clubs16 = Object.keys(world.clubs).slice(0, 16);
+const ko = T.createKnockout(clubs16, { name: 'Copa', season: 2026, rules: { legs: 1, thirdPlace: false } });
+ok(ko.fixtures.length === 8 && ko.bracket.rounds[0].name === 'Octavos de final', 'octavos: 8 partidos');
+T.simulateAll(world, ko, rng);
+ok(ko.status === 'finished' && ko.winner && ko.runnerUp && ko.winner !== ko.runnerUp, 'campeón y subcampeón definidos: ' + ko.winner + ' / ' + ko.runnerUp);
+ok(ko.fixtures.length === 15, '15 partidos en un cuadro de 16 (' + ko.fixtures.length + ')');
+ok(ko.fixtures.every(f => f.played && (f.hg !== f.ag || f.pens)), 'ningún partido de eliminatoria termina empatado sin penaltis');
+ok(ko.bracket.rounds.map(r => r.name).join() === 'Octavos de final,Cuartos de final,Semifinales,Final', 'rondas correctas');
+
+console.log('\n[Eliminatoria con descansos: 11 equipos + tercer puesto + ida y vuelta]');
+const k2 = T.createKnockout(Object.keys(world.clubs).slice(0, 11), { name: 'Copa 11', rules: { legs: 2, thirdPlace: true }, seeding: 'seeded', strength: Object.fromEntries(Object.keys(world.clubs).map(id => [id, G.World.strength(world, world.clubs[id]).overall])) });
+const byes = k2.ties.filter(t => t.bye).length;
+ok(byes === 5, '11 equipos en cuadro de 16 → 5 descansos (' + byes + ')');
+T.simulateAll(world, k2, rng);
+ok(k2.status === 'finished' && k2.third, 'termina con campeón y tercer puesto: ' + k2.winner + ' / 3º ' + k2.third);
+ok(k2.fixtures.some(f => f.roundName === 'Tercer puesto'), 'existe el partido por el tercer puesto');
+ok(k2.ties.filter(t => !t.bye && !t.third && t.round === 1).every(t => t.legs.length === 2), 'ida y vuelta en rondas previas a la final');
+const fin = k2.ties.find(t => t.round === k2.bracket.rounds.length - 1 && !t.third);
+ok(fin.legs.length === 1, 'la final es a partido único');
+
+console.log('\n[Grupos + cuadro: 32 selecciones (Mundial)]');
+const nats = Object.keys(world.nations);
+const strength = Object.fromEntries(nats.map(n => ['N_' + n, G.World.strength(world, world.nations[n].team).overall]));
+const wc = T.createGroups(nats.map(n => 'N_' + n), { name: 'Mundial', groups: 8, perGroup: 4, advance: 2, strength, rules: { thirdPlace: true }, neutral: true });
+ok(wc.groups.length === 8 && wc.groups.every(g => g.teams.length === 4), '8 grupos de 4');
+ok(wc.fixtures.length === 48, '48 partidos de grupos (' + wc.fixtures.length + ')');
+const topPot = wc.groups.map(g => g.teams[0]); ok(new Set(topPot).size === 8, 'cada grupo tiene un cabeza de serie distinto');
+const teamsAll = wc.groups.flatMap(g => g.teams); ok(new Set(teamsAll).size === 32, 'los 32 equipos están repartidos sin repetir');
+// jugar sólo la fase de grupos
+for (let i = 0; i < 20 && wc.stage === 'groups'; i++) T.currentRoundFixtures(wc).forEach(f => T.simulateFixture(world, wc, f, rng));
+ok(wc.stage === 'knockout', 'al terminar los grupos comienza el cuadro');
+ok(wc.bracket.rounds[0].name === 'Octavos de final' && wc.bracket.rounds[0].ties.length === 8, 'octavos con 8 eliminatorias');
+const r16 = wc.bracket.rounds[0].ties.map(id => T.tieOf(wc, id));
+const gr = t => wc.groups.findIndex(g => g.teams.includes(t));
+ok(r16.every(t => gr(t.a) !== gr(t.b)), 'nadie se enfrenta a un compañero de grupo en octavos');
+const winners = wc.groups.map((g, i) => T.standings(wc, i)[0].team);
+ok(r16.slice(0, 4).every(t => winners.includes(t.a)) && r16.slice(4).every(t => winners.includes(t.a)), 'cada eliminatoria enfrenta a un primero de grupo con un segundo de otro');
+T.simulateAll(world, wc, rng);
+ok(wc.status === 'finished' && wc.winner && wc.third, 'el Mundial termina con campeón y tercer puesto: ' + wc.winner + ' / 3º ' + wc.third);
+ok(wc.fixtures.length === 48 + 8 + 4 + 2 + 2, 'total 64 partidos (' + wc.fixtures.length + ')');
+const bestNat = nats.map(n => ['N_' + n, strength['N_' + n]]).sort((a, b) => b[1] - a[1]).slice(0, 6).map(x => x[0]);
+console.log('   campeón:', wc.winner, '| los 6 más fuertes:', bestNat.join(','));
+
+console.log('\n[Robustez]');
+const small = T.createLeague(['ATV', 'EAZ', 'UMA'], { name: 'Mini', rules: { legs: 1 } });
+ok(small.fixtures.length === 3 && small.rounds.length === 3, 'liga de 3 equipos (jornadas con descanso): 3 partidos, 3 jornadas');
+const two = T.createKnockout(['ATV', 'EAZ'], { name: 'Final' });
+T.simulateAll(world, two, rng);
+ok(two.status === 'finished' && two.fixtures.length === 1, 'final entre 2 equipos');
+const rec = JSON.parse(JSON.stringify(wc));
+ok(T.standings(rec, 0).length === 4 && rec.winner === wc.winner, 'la competición sobrevive a la serialización JSON');
+console.log(fails ? `\n${fails} FALLOS` : '\nTODO OK');
+process.exit(fails ? 1 : 0);

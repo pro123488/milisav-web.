@@ -173,6 +173,27 @@
       return m;
     },
 
+    /** Sustituye el estado por uno cargado (los ajustes del dispositivo se conservan). */
+    loadState(st) {
+      const keepSettings = G.state.settings;
+      st.settings = keepSettings;
+      G.state = this.state = st;
+      if (!st.world) { st.world = G.World.create(st.seed); st.world.custom = st.custom; this.applyCustom(st.world, st.custom); if (G.Editor && G.Editor.applyCustom) G.Editor.applyCustom(st.world, st.custom); }
+      this.saveProfile(); this.saveCustom(); this.applySettings();
+    },
+    newGame(opts = {}) {
+      const keep = G.state.settings;
+      const st = this.newState(); st.settings = keep;
+      if (opts.randomSeed) st.seed = (Math.random() * 1e9) >>> 0;
+      G.state = this.state = st;
+      this.buildWorld(); this.saveProfile(); this.saveCustom();
+    },
+    autosave() {
+      const s = G.state; if (!s || !s.settings.autosave || !G.Save) return;
+      clearTimeout(this._asT);
+      this._asT = setTimeout(() => { try { const r = G.Save.write('auto', s, 'Autoguardado'); if (!r.ok && G.UI) G.UI.toast(r.error, 'error'); } catch (e) { console.warn('autoguardado', e); } }, 1200);
+    },
+
     /** Simulación instantánea (sin interfaz) de un partido completo con el motor real. */
     simulateFull(opts) {
       const m = this.buildMatch(Object.assign({}, opts, { humans: [], autoBreak: true, introTime: 0.1 }));

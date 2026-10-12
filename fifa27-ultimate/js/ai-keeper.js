@@ -25,7 +25,7 @@
     const dur = clamp(tArr * 0.92, 0.28, 0.72);
     const mul = m.keeperMul(gk);
     const needSp = Math.max(0, lat - 0.9) / (0.7 * dur);
-    const maxSp = (4.2 + 6.2 * gkSkill(gk)) * (0.9 + 0.1 * mul);
+    const maxSp = (3.8 + 5.4 * gkSkill(gk)) * (0.9 + 0.1 * mul);
     const speed = Math.min(needSp, maxSp);
     // vector de estirada (hacia el lado y algo hacia delante)
     const fx = team.dir * 0.28;
@@ -75,7 +75,7 @@
       if (gk.ai.shotId !== b.touchT) {
         gk.ai.shotId = b.touchT; gk.ai.reacted = false;
         const rea = (gk.a.rea * 0.5 + gk.a.gk * 0.5) / 100;
-        gk.ai.reactAt = m.time + lerp(0.34, 0.09, clamp(rea, 0, 1)) / clamp(m.keeperMul(gk), 0.6, 1.3) * (1 + clamp(bs / 120, 0, 0.2));
+        gk.ai.reactAt = m.time + lerp(0.38, 0.12, clamp(rea, 0, 1)) / clamp(m.keeperMul(gk), 0.6, 1.3) * (1 + clamp(bs / 120, 0, 0.2));
       }
       if (!gk.ai.reacted && m.time >= gk.ai.reactAt) {
         const pr = P.predictGoalLine(b, ownX, 2.0);
@@ -200,7 +200,7 @@
     const side = m.rng.chance(0.5) ? -1 : 1;
     const high = m.rng.chance(0.4);
     return {
-      aimY: side * (0.6 + 0.3 * m.rng.next()) * (0.85 + 0.15 * skill),
+      aimY: side * (0.74 + 0.24 * m.rng.next()) * (0.9 + 0.1 * skill),
       aimZ: high ? m.rng.range(0.55, 0.85) : m.rng.range(0.05, 0.3),
       power: clamp(0.62 + 0.28 * m.rng.next() + 0.1 * skill, 0.4, 0.98)
     };
@@ -216,7 +216,7 @@
     const pr = P.predictGoalLine(m.ball, Math.sign(gk.x || (-team.dir)) * PI.HL, 1.6);
     const sk = gkSkill(gk) * m.keeperMul(gk);
     let y, z;
-    if (pr && m.rng.chance(0.14 + 0.3 * sk)) {            // "lee" el golpeo
+    if (pr && m.rng.chance(0.04 + 0.14 * sk)) {            // "lee" el golpeo (poco frecuente)
       y = pr.y + m.rng.gauss(0, 0.5); z = pr.z;
     } else {
       const r = m.rng.next();

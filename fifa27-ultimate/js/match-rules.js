@@ -394,7 +394,7 @@
     const sd = t.slots[out.slot];
     inn.pos = sd ? sd.pos : inn.pos;
     inn.role = sd ? (T.POSITIONS[sd.pos].line === 'POR' ? 'GK' : T.POSITIONS[sd.pos].line === 'DEF' ? 'DEF' : T.POSITIONS[sd.pos].line === 'MED' ? 'MID' : 'FWD') : inn.role;
-    inn.onPitch = true; inn.started = false; inn.minOn = 0;
+    inn.onPitch = true; inn.started = false; inn.minOn = 0; inn.entryMin = this.gameMinutes();
     inn.state = 'idle'; inn.cmd.mx = inn.cmd.my = 0;
     out.onPitch = false; out.minOff = this.gameMinutes(); out.hasBall = false; out.holding = false;
     t.players[idx] = inn;
@@ -619,7 +619,8 @@
         if (p.role === 'GK' || p.role === 'DEF') r -= (st.conceded || 0) * 0.16;
         r += winner === t.idx ? 0.3 : winner === 1 - t.idx ? -0.25 : 0;
         st.rt = clamp(Math.round(r * 10) / 10, 3.0, 10.0);
-        players.push({ sim: p, id: p.id, name: p.full, short: p.name, num: p.num, team: t.idx, pos: p.data.pos, slotPos: p.pos, role: p.role, rating: st.rt, st: Object.assign({}, st), starter: p.started !== false || t.setup.lineup.some(d => d && d.id === p.id), minOff: p.minOff, injured: p.injured, yellow: p.yellow, red: p.red });
+        const minPlayed = Math.max(0, Math.round((p.minOff !== null && p.minOff !== undefined ? p.minOff : mins) - (p.entryMin || 0)));
+        players.push({ sim: p, minutes: minPlayed, entryMin: p.entryMin || 0, id: p.id, name: p.full, short: p.name, num: p.num, team: t.idx, pos: p.data.pos, slotPos: p.pos, role: p.role, rating: st.rt, st: Object.assign({}, st), starter: p.started !== false || t.setup.lineup.some(d => d && d.id === p.id), minOff: p.minOff, injured: p.injured, yellow: p.yellow, red: p.red });
       }
     }
     // hombre del partido
