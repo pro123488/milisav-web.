@@ -480,6 +480,7 @@
           if (keys.length && Math.random() < chance) { const k = keys[Math.floor(Math.random() * keys.length)]; G.Players.bumpAttr(p, k, 1); p.trainGain++; out.attr = { key: k, label: G.Players.ATTR_LABELS[k], player: G.Players.fullName(p) }; }
         }
       }
+      if (G.Objectives) { G.Objectives.bump('drills', 1); if (res.rating >= 85) G.Objectives.bump('drillGold', 1); }
       if (G.Game) G.Game.saveProfile();
       return out;
     }

@@ -182,6 +182,7 @@
         const prize = c.meta.prize || 1e6;
         const coins = Math.round(prize / 1500);
         prof.trophies.push({ name: c.name, mode: { league: 'Liga', cup: 'Copa', world: 'Mundial', custom: 'Torneo' }[c.meta.mode] || 'Torneo', season: `${c.season}/${String(c.season + 1).slice(2)}`, color: c.meta.color || '#ffd23f', team: champion, date: Date.now() });
+        if (G.Objectives) G.Objectives.bump('titles', 1);
         G.Game.addCoins(coins); const ups = G.Game.addXp(c.meta.mode === 'world' ? 2500 : c.meta.mode === 'league' ? 1200 : 800);
         c.reward = { coins, xp: c.meta.mode === 'world' ? 2500 : c.meta.mode === 'league' ? 1200 : 800, levelUps: ups };
         G.Game.saveProfile();

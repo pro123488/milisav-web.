@@ -372,8 +372,8 @@
       const prof = G.state.profile;
       const lcUser = this.userLeagueComp(c), cupUser = this.userCupComp(c);
       const season = `${w.seasonYear}/${String(w.seasonYear + 1).slice(2)}`;
-      if (lcUser && lcUser.winner === c.club) { prof.trophies.push({ name: lcUser.name, mode: 'Carrera', season, color: '#ffd23f', team: c.club, date: Date.now() }); report.trophies.push(lcUser.name); c.coach.titles++; G.Game.addXp(1200); }
-      if (cupUser && cupUser.winner === c.club) { prof.trophies.push({ name: cupUser.name, mode: 'Carrera', season, color: '#7df9ff', team: c.club, date: Date.now() }); report.trophies.push(cupUser.name); c.coach.titles++; G.Game.addXp(800); }
+      if (lcUser && lcUser.winner === c.club) { prof.trophies.push({ name: lcUser.name, mode: 'Carrera', season, color: '#ffd23f', team: c.club, date: Date.now() }); report.trophies.push(lcUser.name); c.coach.titles++; G.Game.addXp(1200); if (G.Objectives) G.Objectives.bump('titles', 1); }
+      if (cupUser && cupUser.winner === c.club) { prof.trophies.push({ name: cupUser.name, mode: 'Carrera', season, color: '#7df9ff', team: c.club, date: Date.now() }); report.trophies.push(cupUser.name); c.coach.titles++; G.Game.addXp(800); if (G.Objectives) G.Objectives.bump('titles', 1); }
       G.Game.saveProfile();
       const upos = pos[c.club];
       // reputación del entrenador

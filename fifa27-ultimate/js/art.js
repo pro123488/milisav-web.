@@ -148,6 +148,6 @@
       <path d="M36 14 V36 C36 46 42 52 48 54" stroke="#fff" stroke-opacity=".5" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`;
   }
 
-  G.Art = { crestSVG, flagSVG, kitSVG, faceSVG, trophySVG, SHAPES, ICONS, SKIN, HAIR, crestShapes: Object.keys(SHAPES), crestIcons: Object.keys(ICONS),
+  G.Art = { crestSVG, flagSVG, kitSVG, faceSVG, trophySVG, SHAPES, ICONS, SKIN, HAIR, crestShapes: Object.keys(SHAPES), crestPatterns: ['solid', 'stripes', 'halves', 'diagonal', 'chevron', 'cross'], crestIcons: Object.keys(ICONS),
     crestPatterns: ['solid', 'stripes', 'halves', 'diagonal', 'chevron', 'cross'] };
 })(typeof window !== 'undefined' ? window : globalThis);

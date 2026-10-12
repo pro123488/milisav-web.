@@ -38,6 +38,7 @@
       { id: 'sedit', t: 'Editor de estadios', d: 'Categoría, capacidad y césped', ic: 'sedit', go: 'editstadiums' }
     ] },
     { sec: 'Mi perfil', items: [
+      { id: 'obj', t: 'Objetivos y recompensas', d: 'Diarios, semanales y hitos', ic: 'star', go: 'objectives' },
       { id: 'stats', t: 'Estadísticas', d: 'Récords e historial', ic: 'stats', go: 'stats' },
       { id: 'trophies', t: 'Trofeos', d: 'Tu sala de trofeos', ic: 'trophies', go: 'trophies' },
       { id: 'profile', t: 'Perfil del jugador', d: 'Nivel, monedas y aspecto', ic: 'profile', go: 'profile' },

@@ -10,6 +10,7 @@
       G.Input.init();
       G.UI.init();
       G.Game.init();
+      if (G.Objectives) G.Objectives.init();
       G.UI.go('menu', {}, { root: true, noStack: true, silent: true });
       // el audio sólo puede iniciarse tras un gesto del usuario
       const unlock = () => {

@@ -56,6 +56,7 @@
       s.world.custom = s.custom;
       this.applyCustom(s.world, s.custom);
       if (G.Editor && G.Editor.applyCustom) G.Editor.applyCustom(s.world, s.custom);
+      if (G.UT) G.UT.inject(s.world);
       if (G.ProClub) G.ProClub.inject(s.world);
     },
     /* ---------- personalizaciones del usuario (alineaciones, ediciones) ---------- */
@@ -180,7 +181,7 @@
       const keepSettings = G.state.settings;
       st.settings = keepSettings;
       G.state = this.state = st;
-      if (!st.world) { st.world = G.World.create(st.seed); st.world.custom = st.custom; this.applyCustom(st.world, st.custom); if (G.Editor && G.Editor.applyCustom) G.Editor.applyCustom(st.world, st.custom); if (G.ProClub) G.ProClub.inject(st.world); }
+      if (!st.world) { st.world = G.World.create(st.seed); st.world.custom = st.custom; this.applyCustom(st.world, st.custom); if (G.Editor && G.Editor.applyCustom) G.Editor.applyCustom(st.world, st.custom); if (G.UT) G.UT.inject(st.world); if (G.ProClub) G.ProClub.inject(st.world); }
       this.saveProfile(); this.saveCustom(); this.applySettings();
     },
     newGame(opts = {}) {

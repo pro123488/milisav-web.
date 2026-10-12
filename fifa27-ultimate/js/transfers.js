@@ -138,6 +138,7 @@
       }
       P.recalc(p);
       this.log(world).push({ w: wk, s: world.seasonYear, id: p.id, name: P.fullName(p), pos: p.pos, ovr: p.ovr, age: p.age, from: seller ? seller.id : (o.from || 'FA'), to: buyer.id, fee, type: o.type || 'buy' });
+      if (wasUser && G.Objectives && o.type !== 'sale') G.Objectives.bump('transfers', 1);
       if (seller && !this.isUser(world, seller)) { G.World.autoPick(world, seller); }
       if (!this.isUser(world, buyer) && buyer.lineup.some(x => !x)) this.refill(world, buyer);
       return p;
@@ -210,7 +211,7 @@
     /* ---------- consulta de mercado ---------- */
     /** Lista filtrada de jugadores comprables para `club`. */
     market(world, club, f = {}) {
-      let list = Object.values(world.players).filter(p => p.club !== club.id && !(p.loan && p.loan.to !== p.club));
+      let list = Object.values(world.players).filter(p => p.club !== club.id && !p.ut && !p.pro && !(p.loan && p.loan.to !== p.club));
       if (f.source === 'free') list = list.filter(p => !p.club && p.free);
       else if (f.source === 'foreign') list = list.filter(p => !p.club && !p.free);
       else if (f.source === 'domestic') list = list.filter(p => !!p.club);
