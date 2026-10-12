@@ -78,8 +78,11 @@ console.log(`   tiempo: ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 {
   console.log('[Despido]');
   const c2 = G.Career.create({ coachName: 'Pruebas2', club, difficulty: 5, ambition: 'ambicioso', specs: [] }); G.state.career = c2;
-  c2.boardConf = 4; c2.lowSeasons = 1;
-  G.Career.startSeasonPlay(c2); const rp = G.Career.autoSeason(c2);
+  c2.lowSeasons = 1;
+  G.Career.startSeasonPlay(c2);
+  while (c2.phase === 'season' && c2.week < G.Career.WEEKS) { G.Career.userFixtures(c2).filter(x => !x.fixture.played).forEach(r => G.Career.simUser(c2, r)); G.Career.finishWeek(c2); }
+  c2.boardConf = 2; c2.objectives.forEach(o => { if (o.type === 'league') o.target = 0; if (o.type === 'cup') o.target = 99; if (o.type === 'finance') c2.world.clubs[c2.club].fin.cash = -5e6; });   // temporada desastrosa: objetivos incumplidos
+  const rp = G.Career.autoSeason(c2);
   ok(rp.fired && c2.status === 'fired', 'confianza muy baja: la directiva despide al entrenador');
   ok(!G.Career.startNextSeason(c2), 'no se puede continuar la temporada estando despedido');
   ok(c2.jobOffers.length >= 1, `hay ofertas de trabajo tras el despido (${c2.jobOffers.map(o => o.name).join(', ')})`);

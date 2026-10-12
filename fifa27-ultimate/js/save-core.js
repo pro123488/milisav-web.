@@ -162,7 +162,8 @@
   function summary(s) {
     const p = s.profile, bits = [];
     if (s.career) bits.push('Entrenador: ' + (s.career.clubName || s.career.club || '—') + ' · T' + (s.career.season || 1));
-    if (s.playerCareer) bits.push('Futbolista: ' + (s.playerCareer.name || '—'));
+    if (s.playerCareer) { const pcp = s.playerCareer.world && s.playerCareer.world.players ? s.playerCareer.world.players[s.playerCareer.pid] : null; bits.push('Futbolista: ' + (pcp ? pcp.first + ' ' + pcp.last : '—') + ' · T' + (s.playerCareer.season || 1)); }
+    if (s.proClub && s.proClub.pro) bits.push('Pro: ' + s.proClub.pro.first + ' ' + s.proClub.pro.last + ' · nv. ' + s.proClub.level);
     if (s.ut) bits.push('UT: ' + (s.ut.cards ? s.ut.cards.length : 0) + ' cartas');
     const comps = s.comps ? Object.keys(s.comps).length : 0; if (comps) bits.push(comps + ' competición(es)');
     return { name: p.name, level: p.level, coins: p.coins, trophies: p.trophies.length, played: p.stats.played, bits };

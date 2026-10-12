@@ -154,8 +154,9 @@
       const p = this.me(c), pc = c.pc;
       const e = result && result.players ? result.players.find(x => x.id === p.id) : null;
       const out = { played: false, min: 0, rating: 0, g: 0, a: 0, pm: 0, trust: 0, xp: 0 };
-      if (e && e.st && e.st.min > 0) {
-        out.played = true; out.min = Math.round(e.st.min); out.rating = e.rating || 6; out.g = e.st.g || 0; out.a = e.st.a || 0;
+      const mins = e ? (e.minutes !== undefined ? e.minutes : (e.st && e.st.min) || 0) : 0;
+      if (e && mins > 0) {
+        out.played = true; out.min = Math.round(mins); out.rating = e.rating || 6; out.g = e.st.g || 0; out.a = e.st.a || 0;
         out.mom = result.mom === p.id;
         const mf = clamp(out.min / 90, 0.15, 1);
         out.pm = Math.max(0, Math.round((out.rating - 5.8) * 1.6 * mf + out.g * 1.5 + out.a * 0.8 + (out.mom ? 1.5 : 0)));

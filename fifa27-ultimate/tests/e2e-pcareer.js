@@ -67,7 +67,8 @@ let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗ FALLO', m
   await page.waitForSelector('.result', { timeout: 30000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: OUT + '/p06-result.png' });
-  ok(await page.locator('.pc-perf').count() === 1 || await page.locator('.panel .c').count() > 0, 'el resultado muestra tu actuación personal');
+  ok(await page.locator('.pc-perf').count() === 1, 'el resultado muestra tu actuación personal (nota, minutos, puntos de mejora)');
+  ok(await page.evaluate(() => G.state.playerCareer.pc.log.length === 1 && G.state.playerCareer.pc.log[0].min > 0), 'los minutos jugados se registran en el historial del jugador');
   await page.click('.res-btns .btn.primary'); await page.waitForSelector('.pc-head');
   const info = await page.evaluate(() => { const c = G.state.playerCareer, p = c.world.players[c.pid]; return { apps: p.st.apps, log: c.pc.log.length, min: p.st.min, pts: c.pc.pts }; });
   ok(info.log === 1 && info.apps === 1 && info.min > 0, `la actuación queda registrada (${info.min} min)`);

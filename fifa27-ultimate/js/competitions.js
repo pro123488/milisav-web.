@@ -107,6 +107,7 @@
       const stadium = neutral ? { name: c.meta.mode === 'world' ? 'Estadio Mundial' : 'Estadio Neutral', cat: 'intl', cap: 70000, seat: '#c8c8c8', seat2: '#888' } : (home.stadium || undefined);
       G.Game.playMatch({
         world, home, away, humans: humans.length === 2 ? [0, 1] : humans, minutes: c.meta.minutes || G.state.settings.minutes, difficulty: c.meta.difficulty || G.state.settings.difficulty,
+        lockId: c.meta.proClub && G.state.proClub ? G.ProClub.PRO_ID : null,
         title: `${c.name} · ${f.roundName}`, stadium,
         rules: f.ko ? { knockout: final, extraTime: c.rules.extraTime, penalties: c.rules.penalties } : {},
         noRematch: true, allowQuit: true,
@@ -119,11 +120,13 @@
       const rng = new G.U.RNG((Date.now() ^ G.U.hashString(fid)) >>> 0);
       const f = T.fixOf(c, fid);
       if (f.ko && f.legs > 1 && f.leg === f.legs && !result.shootout) { /* el global se resuelve en tournaments.resolveTie */ }
+      let proHtml = '';
+      if (c.meta.proClub && G.ProClub) { const out = G.ProClub.afterMatch(result); if (out) { G.state.proClub.lastMatch = out; proHtml = G.UIx && G.UIx.proSummary ? G.UIx.proSummary(out) : ''; } }
       if (c.meta.full) { G.QuickSim.applyToWorld(world, result, G.World.teamById(world, f.home), G.World.teamById(world, f.away), { rng }); }
       T.record(c, fid, result, rng);
       this.simulateOthers(id, fid, rng);
       this.afterUpdate(c);
-      return { go: 'comp', p: { id } };
+      return { go: 'comp', p: { id }, html: proHtml };
     },
     simulateOthers(id, exceptFid, rng) {
       const c = this.get(id), world = this.worldFor(c);

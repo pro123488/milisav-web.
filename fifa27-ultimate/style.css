@@ -356,3 +356,6 @@ select, input[type=number], input[type=search], input[type=text] { min-height: 4
 .awards-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .pc-perf { margin-top: 10px; }
 @media (max-width: 760px) { .pc-head { grid-template-columns: 1fr; } .pc-nums { justify-content: flex-start; } }
+
+.prose-list { padding-left: 1.2em; line-height: 1.6; color: #cfe0f7; margin: 6px 0; }
+.mycomps .mc { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
