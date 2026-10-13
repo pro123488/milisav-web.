@@ -44,10 +44,12 @@ await warpBack('playa_brisa', 14, 21);
 await G(() => { window.__game.state.player.surfing = true; window.__game.state.bag.barca = 1; window.__game.state.badges.length >= 5; });
 await hop('playa_brisa', 'isla_tormenta');
 ok('la isla tiene tormenta permanente', await G(() => window.__game.ow.weather === 'tormenta'), await G(() => window.__game.ow.weather));
-await G(() => { window.__game.state.player.surfing = false; });
+// La llegada es en pleno mar: se sigue en la barca hasta la costa (el juego baja de la barca al pisar tierra).
+const surfingOnArrival = await G(() => { window.__game.state.player.surfing = true; return window.__game.ow.waterAt(window.__game.ow.player.x, window.__game.ow.player.y); });
 const altar = await G(() => { const e = window.__game.ow.ents.find((q) => q.def && q.def.name === 'Altar de la Tormenta'); return e ? [e.x, e.y] : null; });
 const reached = altar && await goTo(page, altar[0], altar[1], { adjacent: true });
-ok('se llega andando al altar de la isla', reached, JSON.stringify(altar));
+ok('la llegada a la isla es en el mar (hay que navegar hasta la costa)', surfingOnArrival);
+ok('se llega al altar de la isla y al pisar tierra se baja de la barca', reached && !(await G(() => window.__game.state.player.surfing)), JSON.stringify(altar));
 if (reached) { await G(() => { const g = window.__game, ow = g.ow; const e = ow.ents.find((q) => q.def && q.def.name === 'Altar de la Tormenta'); ow.run(() => e.def.talk(g, e, ow)); }); await advance(page, { max: 40, quiet: 600 }); for (let i = 0; i < 8; i++) { if ((await G(() => window.__game.scene?.constructor.name)) === 'BattleScene') break; await page.keyboard.press('Enter'); await sleep(300); } }
 const foe = await G(() => { const b = window.__game.scene?.b; return b ? { sp: b.active(1).sp, lv: b.active(1).lv } : null; });
 ok('el altar enfrenta a Tempestra (Nv50)', foe && foe.sp === 113 && foe.lv === 50, JSON.stringify(foe));

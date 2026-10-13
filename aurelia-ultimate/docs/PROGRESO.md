@@ -37,5 +37,13 @@ Los E2E usan un bot que pulsa Enter, con PP infinitos y, en la Liga, curación e
 escalan con el nivel del equipo y un bot que solo usa el primer movimiento pierde combates parejos (comprobado: el Campeón Cassio resiste el Dragón).
 Estas pruebas demuestran que el flujo funciona y que **se puede ganar**; no miden el equilibrio de dificultad para un jugador humano.
 
+Ajustes de las propias pruebas al hacer la pasada final (no eran fallos del juego): la prueba del Valle sube el inicial de planta a Nv24 antes de
+enfrentarse a la líder de planta (con Nv13 y solo movimientos de planta el bot perdía); la del mundo desactivaba la barca demasiado pronto en la Isla
+Tormenta (se llega en pleno mar y el juego baja de la barca al pisar tierra, ahora comprobado); `goTo` rodea a los NPC si se atasca contra uno que
+deambula (el primer salto Villa Alba → Ruta 1 fallaba de forma intermitente); y los E2E deben ejecutarse **uno a uno**.
+
+## Última pasada E2E (Chromium, una prueba cada vez, sobre el juego tal como está empujado)
+Fase 1 23/23 · Fase 2 8/8 · menús 8/8 · Valle 22/22 · historia 21/21 · mundo 29/29 · Liga 13/13 · extras 8/8 · 8 gimnasios (3/3 cada uno) · 50/50 pruebas en Node.
+
 ## Cifras
 121 especies · 189 movimientos · 46 habilidades · 119 objetos · 102 mapas · 125 entrenadores · 31 misiones · 30 logros · ≈9.700 líneas en `src/` · 50 pruebas en Node.

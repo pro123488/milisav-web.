@@ -146,19 +146,20 @@ export function nextStep(page, tx, ty, { adjacent = false, blockGates = false, a
 }
 /** Camina hasta la casilla (o junto a ella) resolviendo combates y diálogos que aparezcan. Devuelve true si llega. */
 export async function goTo(page, tx, ty, { adjacent = false, maxSteps = 500, log = null, blockGates = false, avoidNpcs = false } = {}) {
-  let stuck = 0, last = null;
+  let stuck = 0, last = null, avoid = avoidNpcs;                  // si se atasca contra un NPC que deambula, rodea a los NPC
   for (let i = 0; i < maxSteps; i++) {
     if (process.env.E2E_VERBOSE) { await page.screenshot({ path: 'tests/out/gdbg.png' }); console.log('   · estado', await page.evaluate(() => `${window.__game.scene?.constructor.name} busy=${window.__game.ow?.busy} dlg=${!!document.getElementById('dialog')}`)); }
     if (await page.evaluate(() => window.__game.scene?.constructor.name === 'BattleScene')) { if (log) log('combate'); if (process.env.E2E_VERBOSE) console.log('   · combate...'); await driveBattle(page); await advance(page, { max: 80, quiet: 900 }); continue; }
     await advance(page, { max: 40, quiet: 250 });
-    const d = await nextStep(page, tx, ty, { adjacent, blockGates, avoidNpcs });
+    let d = await nextStep(page, tx, ty, { adjacent, blockGates, avoidNpcs: avoid });
+    if (d === null && avoid && !avoidNpcs) d = await nextStep(page, tx, ty, { adjacent, blockGates, avoidNpcs });
     if (process.env.E2E_VERBOSE) console.log('   · goTo', i, JSON.stringify(await pos(page)), d);
     if (d === 'arrived' || (adjacent && d === null && last === 'adj')) return true;
     if (d === null) return false;
     const before = await pos(page);
     await walk(page, d, 1);
     const after = await pos(page);
-    if (before[1] === after[1] && before[2] === after[2] && before[0] === after[0]) { if (++stuck > 6) return false; await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 600 }); } else stuck = 0;
+    if (before[1] === after[1] && before[2] === after[2] && before[0] === after[0]) { if (++stuck > 6) return false; if (stuck >= 2) avoid = true; await key(page, 'Enter', 1, 300); await advance(page, { max: 60, quiet: 600 }); } else { stuck = 0; avoid = avoidNpcs; }
     if (adjacent) { const n = await nextStep(page, tx, ty, { adjacent, blockGates, avoidNpcs }); if (n === null) last = 'adj'; }
   }
   return false;
