@@ -32,8 +32,12 @@ async function boot() {
   g.openPC = () => openPC(g); g.openBoutique = () => openBoutique(g);
   g.start();
   const boot = document.getElementById('boot'); if (boot) boot.remove();
-  setupTouch(g);
-  window.addEventListener('beforeunload', () => { try { if (g.state && g.settings.autosave && g.state.__dirty) g.save(g.slot, { quiet: true }); } catch { /* ignorar */ } });
+  setupTouch(g); setupFocusHint();
+  // Al cerrar la pestaña, recargar o pasar la página a segundo plano (móvil) se guarda si el juego está en reposo (nunca en mitad de un guion).
+  const saveOnLeave = () => { try { if (g.state && g.ow && g.scene === g.ow && !g.ow.busy) g.autosave(); } catch { /* ignorar */ } };
+  window.addEventListener('beforeunload', saveOnLeave);
+  window.addEventListener('pagehide', saveOnLeave);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveOnLeave(); });
 
   for (;;) {
     g.state = null; g.quitRequested = false; g.ow = null; g.audio.stopMusic();
@@ -52,6 +56,7 @@ async function boot() {
       await g.ui.fade(false, 600);
       const rosa = ow.entity('tia_rosa');
       if (rosa) await ow.run(() => rosa.def.talk(g, rosa, ow));
+      ow.player.dir = 'down';                // de cara a la puerta: si se pulsa Enter sin saber qué hacer, no vuelve a hablar con tía Rosa en bucle
     } else {
       g.setScene(ow);
       const s = g.state; const id = mapExists(s.player.map) ? s.player.map : 'villa_alba';
@@ -71,14 +76,38 @@ function setupTouch(g) {
   const touch = document.getElementById('touch');
   if (!touch) return;
   const isTouch = 'ontouchstart' in window || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-  if (!isTouch) return;
-  touch.hidden = false;
+  const DIR = ['up', 'down', 'left', 'right'];
+  const MIN_HOLD = 140;          // un toque rápido en una flecha debe dar un paso entero: el personaje primero gira y necesita ~130 ms para echar a andar
   touch.querySelectorAll('button').forEach((b) => {
-    const a = b.dataset.a;
-    const down = (e) => { e.preventDefault(); g.audio.unlock(); g.input.pressVirtual(a, true); if (!['up', 'down', 'left', 'right'].includes(a)) setTimeout(() => g.input.pressVirtual(a, false), 80); };
-    const up = (e) => { e.preventDefault(); if (['up', 'down', 'left', 'right'].includes(a)) g.input.pressVirtual(a, false); };
+    const a = b.dataset.a; let t0 = 0;
+    const down = (e) => { e.preventDefault(); g.audio.unlock(); t0 = performance.now(); g.input.pressVirtual(a, true); if (!DIR.includes(a)) setTimeout(() => g.input.pressVirtual(a, false), 80); };
+    const up = (e) => { e.preventDefault(); if (!DIR.includes(a)) return; const left = MIN_HOLD - (performance.now() - t0); if (left > 0) setTimeout(() => g.input.pressVirtual(a, false), left); else g.input.pressVirtual(a, false); };
     b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
   });
+  if (isTouch) { touch.hidden = false; return; }
+  // Escritorio: el pad en pantalla se ofrece solo si alguien hace clic en el mapa sin haber pulsado ninguna tecla (solo ratón: no podría andar).
+  let clicks = 0;
+  document.getElementById('stage')?.addEventListener('pointerdown', () => {
+    if (g.input.sawKey || !touch.hidden || !g.ow || g.scene !== g.ow) return;
+    if (++clicks >= 2) { touch.hidden = false; g.ui.toast('🖱 Botones en pantalla activados. También puedes jugar con el teclado (flechas o WASD, y Enter).'); }
+  });
+}
+
+/**
+ * Dentro de un visor incrustado (iframe, como el de los artefactos) el teclado no funciona hasta que se hace clic en la página.
+ * Mientras la página no tenga el foco se muestra un aviso pulsable; en pantallas táctiles no hace falta (hay botones virtuales).
+ */
+function setupFocusHint() {
+  if ('ontouchstart' in window || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) return;
+  const hint = document.createElement('div');
+  hint.id = 'focus-hint'; hint.textContent = '🖱 Haz clic en el juego para activar el teclado';
+  hint.style.cssText = 'position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200;padding:6px 16px;border-radius:999px;background:rgba(20,18,50,.95);border:2px solid #f2d060;color:#fff3b0;font:700 15px/1.2 system-ui,sans-serif;cursor:pointer;display:none;box-shadow:0 2px 10px rgba(0,0,0,.5)';
+  document.body.append(hint);
+  const refresh = () => { hint.style.display = document.hasFocus() ? 'none' : 'block'; };
+  hint.addEventListener('pointerdown', () => { try { window.focus(); } catch { /* ignorar */ } setTimeout(refresh, 0); });
+  window.addEventListener('focus', refresh); window.addEventListener('blur', () => setTimeout(refresh, 60));
+  window.addEventListener('pointerdown', () => setTimeout(refresh, 0)); window.addEventListener('keydown', refresh);
+  setInterval(refresh, 800); refresh();
 }
 
 window.addEventListener('error', (e) => { const b = document.getElementById('boot'); if (b) b.textContent = 'Error al iniciar: ' + e.message; });

@@ -148,12 +148,17 @@ export function gainXp(c, amount, levelCap = MAX_LEVEL) {
   if (c.lv >= MAX_LEVEL) c.xp = Math.min(c.xp, xpForLevel(g, MAX_LEVEL));
   return ups;
 }
+/**
+ * Ritmo de experiencia según el nivel de quien la recibe: ×1,6 hasta Nv15, bajando linealmente hasta ×1 en Nv30. El primer tramo del juego
+ * pedía decenas de combates para subir un nivel (Ruta 1 daba ~12 XP por combate) y los combates obligatorios llegaban antes que el nivel.
+ */
+export const earlyXpRate = (lv) => (lv <= 15 ? 1.6 : lv >= 30 ? 1 : 1.6 - (0.6 * (lv - 15)) / 15);
 /** Experiencia otorgada al derrotar a `foe` (instancia) */
 export function battleXp(foe, { trainer = false, participants = 1, ownLv = 1 }) {
   const y = speciesOf(foe).expYield;
   const ratio = clamp(foe.lv / Math.max(1, ownLv), 0.35, 1.4);
   const base = (y * foe.lv) / 7;
-  return Math.max(1, Math.floor((base * (trainer ? 1.5 : 1) * ratio) / Math.max(1, participants)));
+  return Math.max(1, Math.floor((base * (trainer ? 1.5 : 1) * ratio * earlyXpRate(ownLv)) / Math.max(1, participants)));
 }
 
 // ---- Entrenamiento (esfuerzo) ----

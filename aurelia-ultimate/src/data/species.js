@@ -127,8 +127,11 @@ function generateLearnset(s) {
   const out = [];
   // Los repertorios de criaturas de fase avanzada empiezan en un tier superior.
   const bump = s.stage - 1;
-  const pickFrom = (type, tier, wantStatus, preferCat, strict) => {
-    let pool = (MOVES_BY_TYPE[type] || []).filter((m) => !used.has(m.id));
+  // Tope de potencia por nivel: sin él, criaturas de Nv3-7 aprendían movimientos de potencia 75-100 (p. ej. Florín Nv3 con Drenaje 75 o Cervatillo
+  // Nv4 con Tormenta de Pétalos 100), y los primeros combates eran mucho más duros de lo que indicaban los niveles.
+  let cap = 999;
+  const pickFrom = (type, tier, wantStatus, preferCat, strict, relax = false) => {
+    let pool = (MOVES_BY_TYPE[type] || []).filter((m) => !used.has(m.id) && (relax || m.cat === 'est' || m.pow <= cap));
     if (wantStatus) {
       const st = pool.filter((m) => m.cat === 'est');
       if (st.length) return rng.pick(st);
@@ -145,6 +148,7 @@ function generateLearnset(s) {
     return rng.pick(near);
   };
   SLOT_LEVELS.forEach((lv, i) => {
+    cap = lv < 8 ? 60 : lv < 16 ? 85 : lv < 28 ? 100 : 999;
     const tier = Math.min(4, tierForLevel(lv) + (lv > 1 ? bump * 0 : 0));
     let type = s.types[0], wantStatus = false;
     if (i === 1) wantStatus = true;
@@ -160,7 +164,7 @@ function generateLearnset(s) {
     let m = null;
     if (wantStatus) m = pickFrom(type, tier, true, cat, true);
     for (const t of order) { if (m) break; m = pickFrom(t, tier, false, cat, true); }
-    if (!m) m = pickFrom(type, tier, false, cat, false) || pickFrom(s.types[0], tier, false, cat, false);
+    if (!m) m = pickFrom(type, tier, false, cat, false) || pickFrom(s.types[0], tier, false, cat, false) || pickFrom(type, tier, false, cat, false, true) || pickFrom(s.types[0], tier, false, cat, false, true);
     if (!m) return;
     used.add(m.id);
     out.push([lv, m.id]);
@@ -170,13 +174,13 @@ function generateLearnset(s) {
 
 // Movimientos propios de algunas especies (reemplazan o complementan el repertorio generado)
 const SIGNATURE = {
-  1: [[1, 'latigo_cepa'], [1, 'brote_vital'], [5, 'hoja_afilada'], [10, 'drenaje'], [16, 'esporas_sueno'], [22, 'bomba_semillas'], [28, 'fotosintesis']],
+  1: [[1, 'latigo_cepa'], [1, 'brote_vital'], [1, 'eco'], [5, 'hoja_afilada'], [10, 'drenaje'], [16, 'esporas_sueno'], [22, 'bomba_semillas'], [28, 'fotosintesis']],
   2: [[1, 'latigo_cepa'], [1, 'brote_vital'], [10, 'drenaje'], [16, 'hoja_afilada'], [22, 'esporas_sueno'], [28, 'bomba_semillas'], [34, 'semilla_parasita'], [40, 'tormenta_petalos']],
   3: [[1, 'latigo_cepa'], [1, 'drenaje'], [10, 'hoja_afilada'], [16, 'karate_tajo'], [24, 'bomba_semillas'], [30, 'golpe_certero'], [36, 'respiracion_zen'], [44, 'fuerza_bruta'], [52, 'rayo_clorofila'], [60, 'tormenta_petalos']],
-  4: [[1, 'ascua'], [1, 'alarido'], [5, 'colmillo_brasa'], [10, 'aliento_igneo'], [16, 'danza_llama'], [22, 'ola_calor'], [28, 'garra_nocturna']],
+  4: [[1, 'ascua'], [1, 'alarido'], [1, 'eco'], [5, 'colmillo_brasa'], [10, 'aliento_igneo'], [16, 'danza_llama'], [22, 'ola_calor'], [28, 'garra_nocturna']],
   5: [[1, 'ascua'], [1, 'alarido'], [10, 'aliento_igneo'], [16, 'colmillo_brasa'], [22, 'danza_llama'], [28, 'calcinada'], [34, 'ola_calor'], [40, 'garra_nocturna'], [46, 'torbellino_igneo']],
   6: [[1, 'ascua'], [1, 'aliento_dragon'], [10, 'aliento_igneo'], [24, 'ola_calor'], [32, 'garra_dragon'], [38, 'danza_dragon'], [44, 'torbellino_igneo'], [52, 'pulso_dragon'], [60, 'nova_ardiente']],
-  7: [[1, 'chorro_menor'], [1, 'coraza_acuosa'], [5, 'burbujeo'], [10, 'remolino_marino'], [16, 'cascada'], [22, 'torrente'], [28, 'aliento_helado']],
+  7: [[1, 'chorro_menor'], [1, 'coraza_acuosa'], [1, 'eco'], [5, 'burbujeo'], [10, 'remolino_marino'], [16, 'cascada'], [22, 'torrente'], [28, 'aliento_helado']],
   8: [[1, 'chorro_menor'], [1, 'coraza_acuosa'], [10, 'burbujeo'], [16, 'remolino_marino'], [22, 'cascada'], [28, 'aliento_helado'], [34, 'torrente'], [40, 'rayo_hielo'], [46, 'ola_marina']],
   9: [[1, 'chorro_menor'], [1, 'copos_cortantes'], [10, 'burbujeo'], [24, 'torrente'], [32, 'rayo_hielo'], [38, 'escudo_hielo'], [44, 'cola_acuatica'], [52, 'ventisca'], [60, 'hidrocanon']],
   113: [[1, 'descarga'], [1, 'rafaga'], [20, 'vendaval'], [35, 'rayo_corto'], [50, 'aire_cortante'], [60, 'tormenta_primordial'], [70, 'trueno_fuerte']],

@@ -9,15 +9,15 @@ import { defineTrainer } from '../trainers.js';
 
 // ============================ BOSQUE UMBRA ============================
 rec('eclipse_museo1', 'Recluta', 'recluta', [{ sp: 27, lv: 8 }, { sp: 67, lv: 8 }], { reward: 240, intro: '¡Quédate quieto! ¡Nos llevamos el Prisma y nadie dirá nada!', win: '¡Aaah! ¡Retirada!' });
-rec('eclipse_museo2', 'Recluta', 'recluta2', [{ sp: 57, lv: 9 }, { sp: 27, lv: 9 }], { reward: 270, intro: '¡Tú otra vez! ¡No dejaremos que lo recuperes!', win: '¡Imposible!' });
-rec('eclipse_inv1', 'Recluta', 'recluta', [{ sp: 57, lv: 11 }, { sp: 15, lv: 10 }, { sp: 67, lv: 11 }], { reward: 330 });
-rec('eclipse_inv2', 'Recluta', 'recluta2', [{ sp: 27, lv: 11 }, { sp: 57, lv: 12 }], { reward: 360 });
+rec('eclipse_museo2', 'Recluta', 'recluta2', [{ sp: 57, lv: 8 }, { sp: 27, lv: 8 }], { reward: 270, intro: '¡Tú otra vez! ¡No dejaremos que lo recuperes!', win: '¡Imposible!' });
+rec('eclipse_inv1', 'Recluta', 'recluta', [{ sp: 57, lv: 7 }, { sp: 15, lv: 6 }, { sp: 67, lv: 7 }], { reward: 330 });
+rec('eclipse_inv2', 'Recluta', 'recluta2', [{ sp: 27, lv: 8 }, { sp: 57, lv: 9 }], { reward: 360 });
 
 defineRoute('bosque_umbra', { name: 'Bosque Umbra', w: 48, h: 30, style: 'bosque', zone: 'bosque', tags: ['bosque'], music: 'forest', density: 0.5,
   waypoints: [[0, 14], [10, 14], [10, 20], [22, 20], [22, 8], [34, 8], [34, 10], [47, 10]], width: 2,
   conn: { w: { map: 'ruta1', rows: [14, 15], off: 0 }, e: { map: 'ciudad_roble', rows: [10, 11], off: 0 } },
   enc: { hierba: { zone: 'bosque', lv: [5, 8], maxRarity: 'R' } },
-  trainers: [{ cls: 'campista', x: 14, y: 17, dir: 'right', lv: [6, 8], n: 2 }, { cls: 'joven', x: 26, y: 18, dir: 'up', lv: [6, 7], n: 2, sight: 3 }, { cls: 'excursionista', x: 30, y: 6, dir: 'down', lv: [7, 9], n: 2, sight: 3 }],
+  trainers: [{ cls: 'campista', x: 14, y: 17, dir: 'right', lv: [5, 7], n: 2 }, { cls: 'joven', x: 26, y: 18, dir: 'up', lv: [3, 4], n: 2, sight: 3 }, { cls: 'excursionista', x: 30, y: 6, dir: 'down', lv: [5, 6], n: 2, sight: 3 }],
   items: [[8, 17, 'pocion'], [20, 6, 'antidoto'], [28, 22, 'capsula', 2], [40, 5, 'super_pocion']], hidden: [[12, 24, 'concha_rara'], [38, 20, 'polvo_cristal'], [5, 6, 'baya_amistad']],
   signs: [[4, 13, 'BOSQUE UMBRA\nLos árboles filtran la luz: ¡no te desvíes del camino!\n← Ruta 1    Ciudad Roble →'], [44, 8, 'CIUDAD ROBLE\nA 10 minutos a pie. Museo, gimnasio y Centro de Curación.']],
   npcs: [{ id: 'guarda', x: 11, y: 12, dir: 'down', look: 'excursionista', name: 'Guardabosques', text: 'La niebla del bosque se cierra al caer la noche. Si te pierdes, sigue el camino de tierra: siempre vuelve a algún lado.' },
@@ -127,6 +127,6 @@ defineCity('ciudad_roble', { name: 'Ciudad Roble', w: 38, h: 28, fill: 'grass', 
 
 // ---------- Gimnasio de Roble: laberinto de setos ----------
 defineGym('ciudad_roble', { name: 'Gimnasio Roble', title: 'Gimnasio de Ciudad Roble', badge: 'hoja', leader: 'lider_fresia', layout: 'maze', zone: { zone: 'bosque' },
-  trainers: [{ cls: 'campista', lv: [9, 10], n: 2 }, { cls: 'joven', types: ['planta', 'insecto'], lv: [10, 11], n: 2 }, { cls: 'excursionista', types: ['planta', 'insecto'], lv: [11, 12], n: 2 }],
+  trainers: [{ cls: 'campista', lv: [6, 7], n: 2 }, { cls: 'joven', types: ['planta', 'insecto'], lv: [6, 8], n: 2 }, { cls: 'excursionista', types: ['planta', 'insecto'], lv: [7, 8], n: 2 }],
   rewards: { tm: 'dt10', items: { super_pocion: 3 } }, after: 'Mi jardín es tuyo cuando quieras volver. ¡Y cuida bien a tus criaturas: el camino se endurece!',
   afterWin: async (g) => { g.setFlag('medalla_hoja'); await g.completeQuest('main_05'); await g.startQuest('main_06'); chapter(g, 'Capítulo 2 · Rumbo a Puerto Marea'); } });

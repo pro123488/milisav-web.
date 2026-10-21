@@ -208,6 +208,7 @@ export class Overworld {
     for (const x of this.exclaims) x.t -= dt; this.exclaims = this.exclaims.filter((x) => x.t > 0);
     // movimiento de entidades
     for (const e of [...this.ents, this.player]) if (e && e.move) this.advance(e, dt);
+    g.autosaveTick(dt, !this.busy && !this.player.move && g.scene === this);      // guardado automático en reposo (ver Game.autosaveTick)
     if (!this.busy && !this.player.move) this.updatePlayerInput(dt);
     this.updateWander(dt);
     this.updateCamera();
@@ -476,5 +477,13 @@ export class Overworld {
       ctx.fillStyle = '#f4f1ff'; ctx.fillText(txt, VIEW_W - 21, 29);
     }
     if (this.state.repel > 0) { ctx.font = '12px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.textAlign = 'right'; ctx.fillText('Repelente: ' + this.state.repel, VIEW_W - 14, 52); }
+    // Ayuda de controles para quien empieza: hasta los primeros pasos, mientras no haya diálogo en pantalla
+    if (this.state.stats.steps < 8 && !this.busy) {
+      const pad = document.getElementById('touch') && !document.getElementById('touch').hidden;
+      const txt = pad ? 'Pad de la izquierda: moverte · A: hablar o aceptar' : 'Flechas o WASD: moverte · Enter, Espacio o Z: hablar o aceptar';
+      ctx.font = 'bold 15px "Trebuchet MS",sans-serif'; ctx.textAlign = 'center'; const w = ctx.measureText(txt).width + 28;
+      ctx.fillStyle = 'rgba(10,8,24,.78)'; ctx.beginPath(); ctx.roundRect((VIEW_W - w) / 2, VIEW_H - 44, w, 28, 10); ctx.fill(); ctx.strokeStyle = '#f2d060'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fff3b0'; ctx.fillText(txt, VIEW_W / 2, VIEW_H - 25);
+    }
   }
 }

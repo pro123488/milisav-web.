@@ -85,12 +85,20 @@ habilidades y objetos; `ai.js` ofrece tres perfiles (`basic`, `smart`, `ace`). L
 `localStorage` con claves `aurelia-ultimate.slot{1..3}` (+ `.bak`), formato versionado (`GAME.saveVersion`), migraciones, validación
 (`validateState`) y recuperación automática desde la copia de seguridad si el dato principal está dañado. Los ajustes van aparte.
 
+**Autoguardado** (`Game.autosaveTick`/`autosave`): ciertos eventos (`SAVE_EVENTS`: cambiar de mapa, terminar un combate, capturar, comprar, misiones...)
+marcan la partida como pendiente (`dirty`) y el mundo la guarda en el siguiente momento de **reposo** (sin guion, diálogo ni combate, mínimo cada 6 s),
+así que nunca se guarda una escena a medias. También se guarda al cerrar/ocultar la pestaña si hay reposo. `Save.persistent()` detecta visores que
+bloquean `localStorage` (p. ej. un iframe con sandbox): el título avisa y el aviso de «Partida guardada» se vuelve honesto.
+
 ## Pruebas
 
 * `npm test` (Node, sin navegador): núcleo (tipos, combate, captura, evolución, guardado), datos, **mapas**, **contenido** (todo
   identificador usado en guiones existe) y sistemas (crianza, revanchas).
-* E2E con Chromium (Playwright): `tests/e2e_fase1.mjs` (ciclo completo del jugador), `e2e_valle.mjs` (historia del Valle),
-  `e2e_gym.mjs <ciudad> <medalla>` (recorre un gimnasio), `e2e_menus.mjs` (todas las pantallas).
+  Incluye `tests/firstphase.test.mjs`: el primer duelo (Kai) con el inicial de Nv5 y la bolsa real, el sellado de entradas por BFS, la derrota sin
+  castigo, el autoguardado, las teclas en campos de texto y la **calibración del primer arco** contra un jugador de referencia por etapa.
+* E2E con Chromium (Playwright, **uno a uno**): `tests/e2e_fase1.mjs` (ciclo completo del jugador, con el inicial sin reforzar), `e2e_kai.mjs` (perder el
+  primer duelo, recuperarse y ganar), `e2e_movil.mjs` (móvil vertical/apaisado, iframe con sandbox, escritorio solo con ratón), `e2e_valle.mjs` (historia
+  del Valle), `e2e_gym.mjs <ciudad> <medalla>` (recorre un gimnasio), `e2e_menus.mjs` (todas las pantallas).
 
 Ver `docs/PROGRESO.md` (estado real, qué está probado y qué no), `docs/ERRORES_CONOCIDOS.md`, `docs/EXPANSION_3D.md`
 y `docs/MULTIJUGADOR.md` (diseño; **no implementado**).

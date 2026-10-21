@@ -1,5 +1,5 @@
 // Interfaz DOM: diálogos con máquina de escribir, menús, toasts, pantallas y utilidades de presentación.
-import { el } from './util.js';
+import { el, onHover } from './util.js';
 import { TYPES } from './data/types.js';
 import { RARITY } from './data/species.js';
 import { STATUS } from './creatures.js';
@@ -38,7 +38,9 @@ export class UI {
     this.rescale(); window.addEventListener('resize', () => this.rescale());
   }
   rescale() {
-    const s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
+    // Se usa el menor entre la ventana y el área real del documento: en móvil, si algo desborda, innerWidth/innerHeight pueden inflarse.
+    const w = Math.min(window.innerWidth, document.documentElement.clientWidth || Infinity), h = Math.min(window.innerHeight, document.documentElement.clientHeight || Infinity);
+    const s = Math.min(w / 960, h / 540);
     this.stage.style.transform = `translate(-50%,-50%) scale(${s})`;
     this.scale = s;
   }
@@ -94,7 +96,7 @@ export class UI {
       if (boxed && opts.style?.display === 'grid') { list.style.display = 'grid'; list.style.gridTemplateColumns = opts.style.gridTemplateColumns; list.style.gap = opts.style.gap; list.style.maxHeight = 'none'; wrap.style.display = 'block'; wrap.style.gridTemplateColumns = ''; }
       const nodes = items.map((it, i) => {
         const n = el('div', { class: 'mi' + (it.disabled ? ' off' : '') }, [it.icon ? it.icon : null, el('span', {}, it.label), it.hint ? el('span', { class: 'hint' }, it.hint) : null]);
-        n.addEventListener('mouseenter', () => setSel(i, true));
+        onHover(n, () => setSel(i, true));
         n.addEventListener('click', () => { setSel(i, true); choose(); });
         list.append(n); return n;
       });
@@ -170,7 +172,7 @@ export class UI {
   /** Lista vertical navegable dentro de un contenedor (para pantallas con detalle). */
   listPick(container, items, { onChange, onSelect, index = 0 } = {}) {
     let sel = index;
-    const nodes = items.map((it, i) => { const n = it.node; n.addEventListener('mouseenter', () => set(i)); n.addEventListener('click', () => { set(i); onSelect && onSelect(it, i); }); return n; });
+    const nodes = items.map((it, i) => { const n = it.node; onHover(n, () => set(i)); n.addEventListener('click', () => { set(i); onSelect && onSelect(it, i); }); return n; });
     const set = (i) => { sel = (i + items.length) % items.length; nodes.forEach((n, k) => n.classList.toggle('sel', k === sel)); nodes[sel]?.scrollIntoView({ block: 'nearest' }); onChange && onChange(items[sel], sel); };
     set(sel);
     return { get index() { return sel; }, move: (d) => set(sel + d), set, current: () => items[sel] };

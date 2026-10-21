@@ -1,5 +1,5 @@
 // Menú principal del juego (Esc): equipo, mochila, perfil, guardado, opciones...
-import { el, fmtTime, fmtMoney } from '../util.js';
+import { el, fmtTime, fmtMoney, onHover } from '../util.js';
 import { creatureCard, creatureDetail } from './creature_view.js';
 import { displayName, healCreature, learnMove, canFight, STATUS } from '../creatures.js';
 import { bagList } from '../inventory.js';
@@ -65,7 +65,7 @@ export async function openParty(g) {
     let sel = 0, swapFrom = null;
     const render = () => {
       left.innerHTML = '';
-      g.party.forEach((c, i) => { const n = el('div', { class: 'card' + (i === sel ? ' sel' : ''), style: swapFrom === i ? { outline: '2px dashed #6ad8ff' } : {} }, creatureCard(c, { size: 52 })); n.addEventListener('click', () => { sel = i; render(); actions(); }); n.addEventListener('mouseenter', () => { if (sel !== i) { sel = i; render(); } }); left.append(n); });
+      g.party.forEach((c, i) => { const n = el('div', { class: 'card' + (i === sel ? ' sel' : ''), style: swapFrom === i ? { outline: '2px dashed #6ad8ff' } : {} }, creatureCard(c, { size: 52 })); n.addEventListener('click', () => { sel = i; render(); actions(); }); onHover(n, () => { if (sel !== i) { sel = i; render(); } }); left.append(n); });
       right.innerHTML = ''; if (g.party[sel]) right.append(creatureDetail(g.party[sel]));
     };
     const actions = async () => {
@@ -113,7 +113,7 @@ export async function openBag(g, { inBattle = false } = {}) {
       list = bagList(g.bag, pocket); if (sel >= list.length) sel = Math.max(0, list.length - 1);
       listEl.innerHTML = '';
       if (!list.length) listEl.append(el('div', { class: 'dim', style: { padding: '12px' } }, 'Vacío'));
-      list.forEach((x, i) => { const n = el('div', { class: 'mi' + (i === sel ? ' sel' : '') }, [el('span', {}, x.item.name), el('span', { class: 'hint' }, x.item.fx.key ? '' : '×' + x.n)]); n.addEventListener('click', () => { sel = i; refresh(); useSelected(); }); n.addEventListener('mouseenter', () => { if (sel !== i) { sel = i; refresh(); } }); listEl.append(n); });
+      list.forEach((x, i) => { const n = el('div', { class: 'mi' + (i === sel ? ' sel' : '') }, [el('span', {}, x.item.name), el('span', { class: 'hint' }, x.item.fx.key ? '' : '×' + x.n)]); n.addEventListener('click', () => { sel = i; refresh(); useSelected(); }); onHover(n, () => { if (sel !== i) { sel = i; refresh(); } }); listEl.append(n); });
       desc.innerHTML = '';
       const cur = list[sel];
       if (cur) { const it = cur.item; desc.append(el('div', { class: 'title' }, it.name), el('div', {}, it.desc), el('div', { class: 'hr' }), el('div', { class: 'dim small' }, `Categoría: ${POCKETS[it.pocket]}${it.price ? ` · Valor: ${fmtMoney(it.price)}${it.sell ? ` (venta ${fmtMoney(Math.floor(it.price / 2))})` : ''}` : ''}`), el('div', { class: 'spacer' }), el('button', { class: 'btn', onclick: useSelected }, usable(it) ? 'Usar' : (it.fx.key ? 'Objeto clave' : 'No utilizable aquí'))); }

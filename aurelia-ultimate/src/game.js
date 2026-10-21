@@ -11,6 +11,11 @@ import { bagAdd, bagRemove, bagHas, bagCount, hasKey } from './inventory.js';
 import { healParty, displayName } from './creatures.js';
 import { SPECIES, getSpecies } from './data/species.js';
 
+/** Eventos tras los cuales conviene guardar (el guardado real ocurre en el siguiente momento de reposo). */
+const SAVE_EVENTS = new Set(['visit', 'battle_end', 'defeat', 'receive', 'capture', 'release', 'item', 'buy', 'sell', 'money', 'heal', 'evolve', 'hatch',
+  'flag', 'quest_start', 'quest_ready', 'quest_done', 'badge', 'gym_won', 'dex_caught', 'tournament_won', 'legendary', 'league_won', 'cosmetic', 'fly_unlocked']);
+const AUTOSAVE_EVERY = 6;
+
 export class Game {
   constructor() {
     this.settings = Save.loadSettings();
@@ -56,7 +61,29 @@ export class Game {
 
   // ---------- eventos (misiones, logros, estadísticas) ----------
   on(fn) { this.hooks.push(fn); }
-  emit(ev, data = {}) { for (const h of this.hooks) { try { h(ev, data, this); } catch (e) { console.error('hook', ev, e); } } }
+  emit(ev, data = {}) {
+    if (SAVE_EVENTS.has(ev)) this.dirty = true;
+    for (const h of this.hooks) { try { h(ev, data, this); } catch (e) { console.error('hook', ev, e); } }
+  }
+
+  // ---------- guardado automático ----------
+  /**
+   * Lo llama el mundo en cada fotograma. Guarda en la ranura activa cuando hubo cambios relevantes (`dirty`) y el juego está en reposo
+   * (sin guion, diálogo ni combate en curso: así nunca se guarda una escena a medias), como máximo cada AUTOSAVE_EVERY segundos.
+   */
+  autosaveTick(dt, idle) {
+    this._autoT = (this._autoT || 0) + dt;
+    if (!this.dirty || !idle || this._autoT < AUTOSAVE_EVERY) return false;
+    return this.autosave();
+  }
+  autosave() {
+    if (!this.state || !this.slot || this.settings.autosave === false) return false;
+    this._autoT = 0; this.dirty = false;
+    const ok = this.save(this.slot, { quiet: true });
+    if (ok && !this._autoToast) { this._autoToast = true; this.ui.toast('💾 Guardado automático activado'); }
+    if (!ok && !this._autoWarn) { this._autoWarn = true; this.ui.toast('⚠ No se pudo guardar automáticamente (¿almacenamiento lleno o bloqueado?). Usa Menú > Guardar.'); }
+    return ok;
+  }
 
   // ---------- dinero / objetos ----------
   addMoney(n) { this.state.player.money = Math.max(0, Math.min(MONEY_MAX, this.state.player.money + Math.floor(n))); if (n > 0) this.emit('money', { n }); }
@@ -111,7 +138,7 @@ export class Game {
     if (!this.state) return false;
     const r = Save.write(slot, this.state);
     this.settings.lastSlot = slot; this.slot = slot; Save.saveSettings(this.settings);
-    if (!quiet) { if (r.ok) { this.audio.sfx('save'); this.ui.toast('💾 Partida guardada (ranura ' + slot + ')'); } else { this.audio.sfx('error'); this.ui.toast('⚠ No se pudo guardar: ' + r.error); } }
+    if (!quiet) { if (r.ok) { this.audio.sfx('save'); this.ui.toast(Save.persistent() ? '💾 Partida guardada (ranura ' + slot + ')' : '⚠ Guardada solo mientras no cierres ni recargues esta página: este visor no conserva partidas'); } else { this.audio.sfx('error'); this.ui.toast('⚠ No se pudo guardar: ' + r.error); } }
     return r.ok;
   }
   loadSlot(slot) { const r = Save.read(slot); if (!r.ok) return r; this.state = r.state; this.slot = slot; this.settings.lastSlot = slot; Save.saveSettings(this.settings); return r; }

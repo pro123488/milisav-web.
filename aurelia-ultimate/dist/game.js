@@ -1738,6 +1738,7 @@
     changeFriendship: () => changeFriendship,
     createCreature: () => createCreature,
     displayName: () => displayName,
+    earlyXpRate: () => earlyXpRate,
     evYield: () => evYield,
     gainXp: () => gainXp,
     healCreature: () => healCreature,
@@ -3885,8 +3886,9 @@
     const used = /* @__PURE__ */ new Set();
     const out = [];
     const bump = s.stage - 1;
-    const pickFrom2 = (type, tier, wantStatus, preferCat, strict) => {
-      let pool = (MOVES_BY_TYPE[type] || []).filter((m) => !used.has(m.id));
+    let cap = 999;
+    const pickFrom2 = (type, tier, wantStatus, preferCat, strict, relax = false) => {
+      let pool = (MOVES_BY_TYPE[type] || []).filter((m) => !used.has(m.id) && (relax || m.cat === "est" || m.pow <= cap));
       if (wantStatus) {
         const st = pool.filter((m) => m.cat === "est");
         if (st.length) return rng.pick(st);
@@ -3902,6 +3904,7 @@
       return rng.pick(near);
     };
     SLOT_LEVELS.forEach((lv, i) => {
+      cap = lv < 8 ? 60 : lv < 16 ? 85 : lv < 28 ? 100 : 999;
       const tier = Math.min(4, tierForLevel(lv) + (lv > 1 ? bump * 0 : 0));
       let type = s.types[0], wantStatus = false;
       if (i === 1) wantStatus = true;
@@ -3920,7 +3923,7 @@
         if (m) break;
         m = pickFrom2(t, tier, false, cat, true);
       }
-      if (!m) m = pickFrom2(type, tier, false, cat, false) || pickFrom2(s.types[0], tier, false, cat, false);
+      if (!m) m = pickFrom2(type, tier, false, cat, false) || pickFrom2(s.types[0], tier, false, cat, false) || pickFrom2(type, tier, false, cat, false, true) || pickFrom2(s.types[0], tier, false, cat, false, true);
       if (!m) return;
       used.add(m.id);
       out.push([lv, m.id]);
@@ -3928,13 +3931,13 @@
     return out;
   }
   var SIGNATURE = {
-    1: [[1, "latigo_cepa"], [1, "brote_vital"], [5, "hoja_afilada"], [10, "drenaje"], [16, "esporas_sueno"], [22, "bomba_semillas"], [28, "fotosintesis"]],
+    1: [[1, "latigo_cepa"], [1, "brote_vital"], [1, "eco"], [5, "hoja_afilada"], [10, "drenaje"], [16, "esporas_sueno"], [22, "bomba_semillas"], [28, "fotosintesis"]],
     2: [[1, "latigo_cepa"], [1, "brote_vital"], [10, "drenaje"], [16, "hoja_afilada"], [22, "esporas_sueno"], [28, "bomba_semillas"], [34, "semilla_parasita"], [40, "tormenta_petalos"]],
     3: [[1, "latigo_cepa"], [1, "drenaje"], [10, "hoja_afilada"], [16, "karate_tajo"], [24, "bomba_semillas"], [30, "golpe_certero"], [36, "respiracion_zen"], [44, "fuerza_bruta"], [52, "rayo_clorofila"], [60, "tormenta_petalos"]],
-    4: [[1, "ascua"], [1, "alarido"], [5, "colmillo_brasa"], [10, "aliento_igneo"], [16, "danza_llama"], [22, "ola_calor"], [28, "garra_nocturna"]],
+    4: [[1, "ascua"], [1, "alarido"], [1, "eco"], [5, "colmillo_brasa"], [10, "aliento_igneo"], [16, "danza_llama"], [22, "ola_calor"], [28, "garra_nocturna"]],
     5: [[1, "ascua"], [1, "alarido"], [10, "aliento_igneo"], [16, "colmillo_brasa"], [22, "danza_llama"], [28, "calcinada"], [34, "ola_calor"], [40, "garra_nocturna"], [46, "torbellino_igneo"]],
     6: [[1, "ascua"], [1, "aliento_dragon"], [10, "aliento_igneo"], [24, "ola_calor"], [32, "garra_dragon"], [38, "danza_dragon"], [44, "torbellino_igneo"], [52, "pulso_dragon"], [60, "nova_ardiente"]],
-    7: [[1, "chorro_menor"], [1, "coraza_acuosa"], [5, "burbujeo"], [10, "remolino_marino"], [16, "cascada"], [22, "torrente"], [28, "aliento_helado"]],
+    7: [[1, "chorro_menor"], [1, "coraza_acuosa"], [1, "eco"], [5, "burbujeo"], [10, "remolino_marino"], [16, "cascada"], [22, "torrente"], [28, "aliento_helado"]],
     8: [[1, "chorro_menor"], [1, "coraza_acuosa"], [10, "burbujeo"], [16, "remolino_marino"], [22, "cascada"], [28, "aliento_helado"], [34, "torrente"], [40, "rayo_hielo"], [46, "ola_marina"]],
     9: [[1, "chorro_menor"], [1, "copos_cortantes"], [10, "burbujeo"], [24, "torrente"], [32, "rayo_hielo"], [38, "escudo_hielo"], [44, "cola_acuatica"], [52, "ventisca"], [60, "hidrocanon"]],
     113: [[1, "descarga"], [1, "rafaga"], [20, "vendaval"], [35, "rayo_corto"], [50, "aire_cortante"], [60, "tormenta_primordial"], [70, "trueno_fuerte"]],
@@ -4019,6 +4022,20 @@
     let n = 0;
     return () => "u" + Date.now().toString(36) + (n++).toString(36) + Math.floor(Math.random() * 1e4).toString(36);
   })();
+  var _px = NaN;
+  var _py = NaN;
+  function pointerMoved(e) {
+    const moved = e.screenX !== _px || e.screenY !== _py;
+    _px = e.screenX;
+    _py = e.screenY;
+    return moved;
+  }
+  function onHover(node, fn) {
+    node.addEventListener("mousemove", (ev) => {
+      if (pointerMoved(ev)) fn();
+    });
+    return node;
+  }
   function el(tag, props = {}, kids = []) {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(props || {})) {
@@ -4210,11 +4227,12 @@
     if (c.lv >= MAX_LEVEL) c.xp = Math.min(c.xp, xpForLevel(g, MAX_LEVEL));
     return ups;
   }
+  var earlyXpRate = (lv) => lv <= 15 ? 1.6 : lv >= 30 ? 1 : 1.6 - 0.6 * (lv - 15) / 15;
   function battleXp(foe, { trainer = false, participants = 1, ownLv = 1 }) {
     const y = speciesOf(foe).expYield;
     const ratio = clamp(foe.lv / Math.max(1, ownLv), 0.35, 1.4);
     const base = y * foe.lv / 7;
-    return Math.max(1, Math.floor(base * (trainer ? 1.5 : 1) * ratio / Math.max(1, participants)));
+    return Math.max(1, Math.floor(base * (trainer ? 1.5 : 1) * ratio * earlyXpRate(ownLv) / Math.max(1, participants)));
   }
   function evYield(foe) {
     const s = speciesOf(foe);
@@ -5223,7 +5241,8 @@
       window.addEventListener("resize", () => this.rescale());
     }
     rescale() {
-      const s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
+      const w = Math.min(window.innerWidth, document.documentElement.clientWidth || Infinity), h = Math.min(window.innerHeight, document.documentElement.clientHeight || Infinity);
+      const s = Math.min(w / 960, h / 540);
       this.stage.style.transform = `translate(-50%,-50%) scale(${s})`;
       this.scale = s;
     }
@@ -5326,7 +5345,7 @@
         }
         const nodes = items.map((it, i) => {
           const n = el("div", { class: "mi" + (it.disabled ? " off" : "") }, [it.icon ? it.icon : null, el("span", {}, it.label), it.hint ? el("span", { class: "hint" }, it.hint) : null]);
-          n.addEventListener("mouseenter", () => setSel(i, true));
+          onHover(n, () => setSel(i, true));
           n.addEventListener("click", () => {
             setSel(i, true);
             choose();
@@ -5477,7 +5496,7 @@
       let sel = index;
       const nodes = items.map((it, i) => {
         const n = it.node;
-        n.addEventListener("mouseenter", () => set(i));
+        onHover(n, () => set(i));
         n.addEventListener("click", () => {
           set(i);
           onSelect && onSelect(it, i);
@@ -5504,26 +5523,35 @@
     4: "Valiente e impulsivo. Es el m\xE1s veloz de los tres y su fuego castiga a quien baja la guardia.",
     7: "Alegre y resistente. Aguanta muchos golpes y devuelve con chorros de agua y burbujas."
   };
+  var names = (ids) => ids.slice(0, 3).map((t) => TYPES[t].name).join(", ") + (ids.length > 3 ? "\u2026" : "");
+  var strongAgainst = (t) => TYPE_IDS.filter((d) => effectiveness(t, [d]) > 1);
+  var weakTo = (t) => TYPE_IDS.filter((a) => effectiveness(a, [t]) > 1);
   function chooseStarter(g) {
     return new Promise((resolve2) => {
       let sel = 0;
       const cards = [];
-      const root = el("div", { class: "screen" }, [el("div", { class: "head" }, el("h2", {}, "Elige a tu primera criatura")), el("div", { class: "body", style: { gap: "16px" } })]);
+      const root = el("div", { class: "screen" }, [
+        el("div", { class: "head" }, el("h2", {}, "Elige a tu primera criatura")),
+        el("div", { class: "body", style: { gap: "14px" } }),
+        el("div", { class: "small dim center", style: { marginTop: "6px" } }, "\u2190 \u2192 o rat\xF3n para mirar \xB7 Enter, Espacio o clic para elegir \xB7 Esc: volver \xB7 Fuego vence a Planta, Planta a Agua y Agua a Fuego")
+      ]);
       const body = root.querySelector(".body");
       STARTERS.forEach((id, i) => {
         const s = getSpecies(id), ab = ABILITIES[s.abilities[0]];
         const start = s.learnset.filter((x) => x[0] <= 5).map((x) => getMove(x[1]));
-        const card = el("div", { class: "panel col grow", style: { cursor: "pointer", gap: "6px" } }, [
-          el("div", { class: "row", style: { justifyContent: "center" } }, creatureImg(id, 160)),
+        const t = s.types[0];
+        const card = el("div", { class: "panel col grow", style: { cursor: "pointer", gap: "4px", padding: "8px 12px" } }, [
+          el("div", { class: "row", style: { justifyContent: "center" } }, creatureImg(id, 104)),
           el("div", { class: "title center", style: { margin: 0 } }, s.name),
           el("div", { class: "center" }, s.types.map(typeChip)),
-          el("div", { class: "small", style: { minHeight: "56px" } }, BLURB[id]),
-          el("div", { class: "col", style: { gap: "2px" } }, STAT_KEYS.map((k) => el("div", { class: "stat", style: { gridTemplateColumns: "70px 1fr 28px" } }, [el("span", {}, STAT_NAMES[k]), el("div", { class: "b" }, el("i", { style: { width: Math.min(100, s.base[k] / 0.8) + "%" } })), el("b", {}, String(s.base[k]))]))),
+          el("div", { class: "small", style: { minHeight: "44px" } }, BLURB[id]),
+          el("div", { class: "col", style: { gap: "1px", fontSize: "14px" } }, STAT_KEYS.map((k) => el("div", { class: "stat", style: { gridTemplateColumns: "70px 1fr 28px" } }, [el("span", {}, STAT_NAMES[k]), el("div", { class: "b" }, el("i", { style: { width: Math.min(100, s.base[k] / 0.8) + "%" } })), el("b", {}, String(s.base[k]))]))),
           el("div", { class: "small" }, [el("b", { class: "gold" }, "Habilidad: "), ab ? ab.name : "\u2014"]),
           el("div", { class: "small" }, [el("b", { class: "gold" }, "Movimientos: "), start.map((m) => m.name).join(", ")]),
-          el("div", { class: "small dim" }, "Evoluci\xF3n: " + s.family.map((x) => getSpecies(x).name).join(" \u2192 "))
+          el("div", { class: "small" }, [el("b", { class: "good" }, "Fuerte contra: "), names(strongAgainst(t))]),
+          el("div", { class: "small" }, [el("b", { class: "bad" }, "D\xE9bil contra: "), names(weakTo(t))])
         ]);
-        card.addEventListener("mouseenter", () => {
+        onHover(card, () => {
           sel = i;
           hl();
         });
@@ -5536,7 +5564,7 @@
         body.append(card);
       });
       const hl = () => cards.forEach((c, i) => {
-        c.style.transform = i === sel ? "translateY(-6px)" : "";
+        c.style.transform = i === sel ? "translateY(-4px)" : "";
         c.style.borderColor = i === sel ? "#fff3b0" : "";
         c.style.boxShadow = i === sel ? "0 0 0 3px #0a0818,0 0 28px rgba(255,220,100,.6)" : "";
       });
@@ -5552,6 +5580,7 @@
           hl();
           g.audio.sfx("select");
         } else if (a === "confirm") finish2(true);
+        else if (a === "cancel") finish2(false);
       });
       const finish2 = (ok) => {
         off();
@@ -5572,17 +5601,19 @@
     return id;
   };
   var rivalMon = (g, lv, stage) => ({ sp: evoStep(rivalStarter(g), stage), lv });
+  var RIVAL1_LV = 2;
   defineTrainer("rival1", {
     name: "Kai",
     cls: "Rival",
     look: look("kai"),
-    ai: "smart",
+    ai: "basic",
     iv: 3,
     reward: 250,
-    team: (g) => [{ ...rivalMon(g, 4, 0), moves: void 0 }],
-    intro: "\xA1Eh, {player}! Te estaba esperando. \xA1Mi criatura y yo estamos listos! \xBFEchamos un combate de pr\xE1ctica?",
+    practice: true,
+    team: (g) => [{ ...rivalMon(g, RIVAL1_LV, 0), moves: void 0 }],
+    intro: "\xA1Eh, {player}! Te estaba esperando. \xA1Mi criatura es reci\xE9n nacida, pero tiene ventaja de tipo sobre la tuya! \xBFEchamos un combate de pr\xE1ctica?",
     win: "\xA1Vaya, qu\xE9 fuerte! Pero la pr\xF3xima vez no me ganar\xE1s. \xA1Voy a cruzar el bosque antes que t\xFA! \xA1Nos vemos en Ciudad Roble!",
-    lose: "\xA1Ja! \xA1Te lo dije! Entrena m\xE1s y vuelve a intentarlo."
+    lose: "\xA1Ja! \xA1Te lo dije! Pero tranquilo, es solo pr\xE1ctica: tu equipo ya est\xE1 curado. Entrena en la hierba alta o repasa los tipos, y vuelve a hablar conmigo cuando quieras."
   });
   defineTrainer("teo", { name: "Teo", cls: "Joven", look: look("nino"), ai: "basic", iv: 2, team: [{ sp: 10, lv: 3 }, { sp: 13, lv: 3 }], reward: 140, intro: "\xA1Eh! \xA1T\xFA! \xA1Mis criaturas y yo queremos combatir!", win: "\xA1Uf! \xA1Eres muy bueno! Me voy a entrenar m\xE1s.", lose: "\xA1Gan\xE9! \xA1Ja ja!", afterWin: "Voy a entrenar en la hierba alta. \xA1Ah\xED hay montones de criaturas!" });
   defineTrainer("mia", { name: "M\xEDa", cls: "Ni\xF1a exploradora", look: look("nina"), ai: "basic", iv: 2, team: [{ sp: 15, lv: 4 }, { sp: 22, lv: 4 }], reward: 190, intro: "\xA1Te he visto al pasar! \xBFAceptas un combate?", win: "\xA1Qu\xE9 bien lo has hecho! Toma, una c\xE1psula de regalo.", afterWin: "Dicen que en el Bosque Umbra viven criaturas muy raras." });
@@ -5597,7 +5628,7 @@
     intro: "\xA1Bienvenido a mi jard\xEDn! Soy Fresia. Aqu\xED, cada criatura florece a su ritmo... pero ninguna se rinde sin pelear. \xA1Veamos qu\xE9 has plantado t\xFA!",
     win: "Has regado bien tus semillas... \xA1Eres un entrenador de verdad! Toma la Medalla Hoja, te la has ganado.",
     lose: "Hasta las flores m\xE1s fuertes necesitan tiempo para crecer. Vuelve a intentarlo.",
-    team: [{ sp: 25, lv: 12, moves: ["esporas_sueno", "drenaje", "latigo_cepa", "acido"] }, { sp: 74, lv: 13, moves: ["latigo_cepa", "hoja_afilada", "brote_vital", "zarpazo_tierra"] }, { sp: 109, lv: 14, moves: ["drenaje", "semilla_parasita", "brote_vital", "destello"] }, { sp: 26, lv: 16, ab: 0, moves: ["bomba_semillas", "bomba_lodo", "esporas_sueno", "drenaje"] }]
+    team: [{ sp: 25, lv: 7, moves: ["esporas_sueno", "drenaje", "latigo_cepa", "acido"] }, { sp: 74, lv: 8, moves: ["latigo_cepa", "hoja_afilada", "brote_vital", "zarpazo_tierra"] }, { sp: 109, lv: 9, moves: ["drenaje", "semilla_parasita", "brote_vital", "destello"] }, { sp: 26, lv: 10, ab: 0, moves: ["bomba_semillas", "bomba_lodo", "esporas_sueno", "drenaje"] }]
   });
   L2("lider_marlo", "Marlo", "marlo", "L\xEDder de Gimnasio \xB7 Agua", {
     iv: 9,
@@ -5703,7 +5734,7 @@
     team: [{ sp: 3, lv: 63, moves: ["fuerza_bruta", "rayo_clorofila", "tormenta_petalos", "golpe_certero"] }, { sp: 6, lv: 63, moves: ["torbellino_igneo", "pulso_dragon", "garra_dragon", "danza_dragon"] }, { sp: 9, lv: 63, moves: ["ventisca", "hidrocanon", "escudo_hielo", "cola_acuatica"] }, { sp: 62, lv: 64, moves: ["psiquico_fuerte", "rayo_luz", "telequinesis", "muro_psiquico"] }, { sp: 78, lv: 64, moves: ["meteoro_acero", "sismo", "bomba_hierro", "coraza_ferrea"] }, { sp: 83, lv: 66, ab: 0, moves: ["garra_dragon", "vendaval", "danza_dragon", "cae_halcon"] }]
   });
   var K = (id, o, mons) => defineTrainer(id, { name: "Kai", cls: "Rival", look: look("kai"), ai: "smart", iv: 9, ...o, team: (g) => mons(g) });
-  K("rival2", { reward: 900, iv: 6, intro: "\xA1{player}! \xA1Te dije que te alcanzar\xEDa! \xA1Mira c\xF3mo ha crecido mi equipo!", win: "\xA1Qu\xE9 rabia! Pero me has ganado limpiamente. Seguir\xE9 entrenando.", lose: "\xA1Gan\xE9! \xA1Ja! La pr\xF3xima vez, m\xE1s fuerte." }, (g) => [{ ...rivalMon(g, 13, 0), moves: void 0 }, { sp: 10, lv: 11 }, { sp: 52, lv: 11 }]);
+  K("rival2", { reward: 900, iv: 6, intro: "\xA1{player}! \xA1Te dije que te alcanzar\xEDa! \xA1Mira c\xF3mo ha crecido mi equipo!", win: "\xA1Qu\xE9 rabia! Pero me has ganado limpiamente. Seguir\xE9 entrenando.", lose: "\xA1Gan\xE9! \xA1Ja! La pr\xF3xima vez, m\xE1s fuerte." }, (g) => [{ ...rivalMon(g, 7, 0), moves: void 0 }, { sp: 10, lv: 5 }, { sp: 52, lv: 5 }]);
   K("rival3", { reward: 2600, iv: 9, intro: "\xA1Eh, {player}! \xBFHas visto lo que pas\xF3 en D\xEDnamo? Esa gente del Eclipse es peligrosa. Pero antes, \xA1un combate, para no perder la costumbre!", win: "Cada vez eres m\xE1s fuerte... Yo tambi\xE9n lo ser\xE9.", lose: "Todav\xEDa me queda ventaja." }, (g) => [{ ...rivalMon(g, 27, 1) }, { sp: 11, lv: 24 }, { sp: 61, lv: 25 }, { sp: 53, lv: 25 }]);
   K("rival4", { reward: 5200, iv: 12, intro: "{player}. Estoy aqu\xED por lo mismo que t\xFA: detener a Vesper. Pero antes necesito saber si est\xE1s a la altura... \xA1Combate!", win: "Ten\xEDas raz\xF3n en confiar en tu camino. Vamos juntos al Santuario.", lose: "A\xFAn no est\xE1s listo. Entrena y vuelve." }, (g) => [{ ...rivalMon(g, 48, 2) }, { sp: 12, lv: 45 }, { sp: 62, lv: 45 }, { sp: 54, lv: 46 }, { sp: 89, lv: 46 }]);
   K("rival5", { reward: 14e3, iv: 14, ai: "ace", intro: "T\xFA y yo, de nuevo. Esta vez, sin excusas. \xA1Quiero ver qui\xE9n es el mejor entrenador de Aurelia!", win: "\xA1Lo has logrado! ... Gracias por no rendirte nunca.", lose: "A\xFAn no. \xA1Pero lo conseguir\xE1s!" }, (g) => [{ ...rivalMon(g, 66, 2) }, { sp: 12, lv: 63 }, { sp: 62, lv: 63 }, { sp: 54, lv: 64 }, { sp: 78, lv: 64 }, { sp: 83, lv: 65 }]);
@@ -5714,7 +5745,7 @@
     intro: "As\xED que t\xFA eres el entrenador entrometido. Soy Cinder, teniente de la Orden del Eclipse. El Prisma ahora nos pertenece, \xA1y t\xFA no nos detendr\xE1s!",
     win: "\xA1Maldici\xF3n! \xA1Esto no cambia nada! La Orden... \xA1lo recordar\xE1!",
     lose: "F\xE1cil. Muy f\xE1cil.",
-    team: [{ sp: 27, lv: 13, moves: ["mordisco_oscuro", "ala_cortante", "picotazo", "rafaga"] }, { sp: 57, lv: 14, moves: ["colmillo_veneno", "picadura_toxica", "ataque_arena", "aliento_dragon"] }, { sp: 67, lv: 15, moves: ["garra_nocturna", "sombra_fugaz", "mal_de_ojo", "mordisco_oscuro"] }]
+    team: [{ sp: 27, lv: 7, moves: ["mordisco_oscuro", "ala_cortante", "picotazo", "rafaga"] }, { sp: 57, lv: 8, moves: ["colmillo_veneno", "picadura_toxica", "ataque_arena", "aliento_dragon"] }, { sp: 67, lv: 9, moves: ["garra_nocturna", "sombra_fugaz", "mal_de_ojo", "mordisco_oscuro"] }]
   });
   O("gris1", "Teniente Gris", "teniente2", "Teniente del Eclipse", {
     reward: 3600,
@@ -6077,10 +6108,10 @@
     m.tree(18, 20, "oak");
     m.spawn("start", 5, 10, "down").spawn("fly", 17, 10, "down");
     m.connect("e", "ruta1", { offset: 0 });
-    m.trigger(29, 10, async (g, ow) => {
-      await g.say("Deber\xEDas pasar primero por el laboratorio del Prof. Sauce, \xBFno? Te estaba esperando.");
+    m.trigger(30, 8, async (g, ow) => {
+      await g.say("Deber\xEDas pasar primero por el laboratorio del Prof. Sauce, \xBFno? Te estaba esperando. Es el edificio blanco, en el centro del pueblo.");
       await ow.walk(ow.player, "left", 2);
-    }, { w: 2, h: 2, show: (g) => !g.flag("starter_chosen") });
+    }, { w: 1, h: 6, show: (g) => !g.flag("starter_chosen") });
     m.npc({ id: "tomas", x: 12, y: 13, dir: "down", look: look("abuelo"), name: "Abuelo Tom\xE1s", move: "wander", range: 1, talk: async (g) => {
       const st = g.questStatus("side_baston");
       if (st === "none") {
@@ -6100,7 +6131,7 @@
       } else await g.say("Mi bast\xF3n y yo te estamos muy agradecidos. \xA1Ahora s\xED que puedo pasear!", { speaker: "Abuelo Tom\xE1s" });
     } });
     m.npc({ id: "lia", x: 24, y: 16, dir: "down", look: look("nina"), name: "L\xEDa", move: "wander", range: 1, text: "Mi abuela dice que las criaturas se cansan igual que nosotros. Si una se queda sin PP en un movimiento, \xA1descanso en un Centro y listo!" });
-    m.npc({ id: "pipo", x: 20, y: 11, dir: "right", look: look("nino", { top: 4 }), name: "Pipo", move: "wander", range: 2, text: "En la hierba alta saltan criaturas salvajes. Si no quieres combatir, \xA1rodea! Si quieres capturarlas, primero debil\xEDtalas." });
+    m.npc({ id: "pipo", x: 20, y: 12, dir: "up", look: look("nino", { top: 4 }), name: "Pipo", move: "static", text: "En la hierba alta saltan criaturas salvajes. Si no quieres combatir, \xA1rodea! Si quieres capturarlas, primero debil\xEDtalas." });
     m.npc({ id: "rosa_jardin", x: 6, y: 12, dir: "right", look: look("abuela"), name: "Vecina", move: "static", text: "Antes en Villa Alba no pasaba nada. Ahora siempre hay entrenadores... y gente rara con capas oscuras por las rutas. Ten cuidado, \xBFeh?" });
   });
   interior("casa_jugador", 10, 8, { name: "Tu casa", title: "Tu casa", floor: "wood", exit: { to: "villa_alba", spawn: "door_casa" }, noFly: true }, (m, { cx }) => {
@@ -6118,6 +6149,7 @@
         await g.say("\xA1Buenos d\xEDas, {player}! Has dormido como un tronco. \xA1Hoy es un gran d\xEDa!", { speaker: "T\xEDa Rosa" });
         await g.say("El Prof. Sauce llam\xF3 temprano: quiere verte en su laboratorio, en esta misma Villa Alba. Dice que tiene algo importante para ti.", { speaker: "T\xEDa Rosa" });
         await g.say("Sal por la puerta, sigue el camino hacia la derecha y busca el edificio blanco. \xA1No te olvides de ponerte las pilas!", { speaker: "T\xEDa Rosa" });
+        await g.say("Para moverte usa las flechas del teclado (o WASD); en el m\xF3vil, el pad de la izquierda. Para hablar con alguien, ponte frente a \xE9l y pulsa Enter, Espacio o Z (el bot\xF3n A en el m\xF3vil). Con Esc o M abres el men\xFA.", { speaker: "T\xEDa Rosa" });
         await g.startQuest("main_01");
         return;
       }
@@ -6182,7 +6214,7 @@
         await g.giveItem("capsula", 5);
         await g.giveItem("pocion", 2);
         await g.giveItem("lupa");
-        await g.sayAll(["Para capturar, primero debilita a la criatura salvaje y luego lanza una c\xE1psula desde el men\xFA de combate. \xA1M\xE1s PS perdidos, m\xE1s f\xE1cil es!", "Y si se te cansan las criaturas, tu t\xEDa Rosa y los Centros de Curaci\xF3n las dejar\xE1n como nuevas."], { speaker: "Prof. Sauce" });
+        await g.sayAll(["Para capturar, primero debilita a la criatura salvaje y luego lanza una c\xE1psula desde el men\xFA de combate. \xA1M\xE1s PS perdidos, m\xE1s f\xE1cil es!", "Y si se te cansan las criaturas, tu t\xEDa Rosa y los Centros de Curaci\xF3n las dejar\xE1n como nuevas.", "Un \xFAltimo consejo de entrenador: los tipos importan. El fuego vence a la planta, la planta vence al agua y el agua vence al fuego. Al elegir un movimiento ver\xE1s si es muy eficaz o poco eficaz contra tu rival."], { speaker: "Prof. Sauce" });
         const rs = getSpecies(rivalStarter(g));
         await g.sayAll([`En ese momento... \xA1la puerta se abre de golpe!`], {});
         g.setFlag("kai_en_lab");
@@ -6192,7 +6224,7 @@
           await ow.walk(kai, "up", 1);
           ow.faceToward(kai, ow.player.x, ow.player.y);
         }
-        await g.sayAll(["\xA1{player}! \xA1Qu\xE9 suerte, ya has elegido! Yo tambi\xE9n me llevo una.", `Esta de aqu\xED: ${rs.name}. Tiene ventaja sobre la tuya, \xA1ja ja!`, "Te espero en la Ruta 1. \xA1Combatiremos para ver qui\xE9n es mejor!"], { speaker: "Kai" });
+        await g.sayAll(["\xA1{player}! \xA1Qu\xE9 suerte, ya has elegido! Yo tambi\xE9n me llevo una.", `Esta de aqu\xED: ${rs.name}, de tipo ${TYPES[rs.types[0]].name.toLowerCase()}. Es reci\xE9n nacida, \xA1pero tiene ventaja de tipo sobre la tuya, ja ja!`, "Te espero en la Ruta 1, en la entrada. \xA1Combatiremos para ver qui\xE9n es mejor!"], { speaker: "Kai" });
         if (kai) {
           await ow.walkPath(kai, "down,right");
         }
@@ -6247,12 +6279,18 @@
     m.connect("w", "villa_alba", { offset: 0 }).connect("e", "bosque_umbra", { offset: 0 });
     m.trainer({ id: "teo", trainer: "teo", x: 15, y: 12, dir: "down", look: look("nino"), name: "Teo", sight: 3 });
     m.trainer({ id: "mia", trainer: "mia", x: 26, y: 5, dir: "down", look: look("nina"), name: "M\xEDa", sight: 3, afterWin: true });
-    m.trigger(2, 10, async (g, ow) => {
-      ow.busy = true;
+    const rivalDuel = async (g, ow) => {
       const kai = ow.entity("kai_ruta");
-      if (kai) ow.faceToward(kai, ow.player.x, ow.player.y);
+      if (kai) {
+        ow.faceToward(kai, ow.player.x, ow.player.y);
+        await ow.exclaim(kai, 500);
+      }
       const r = await g.battleTrainer("rival1", { entity: kai });
-      if (r.result !== "win") return;
+      if (r.result !== "win") {
+        g.setFlag("rival1_lost");
+        await g.say("Consejo: sube de nivel luchando contra criaturas salvajes en la hierba alta, y usa Pociones desde la Mochila durante el combate. Y recuerda: el fuego vence a la planta, la planta al agua y el agua al fuego.");
+        return;
+      }
       g.setFlag("rival1_done");
       ow.refreshEntities();
       await g.say("Seguir\xE9 cruzando el bosque. \xA1Alc\xE1nzame si puedes!", { speaker: "Kai" });
@@ -6262,9 +6300,16 @@
       }
       g.setFlag("kai_sigue");
       ow.refreshEntities();
-    }, { w: 1, h: 2, show: (g) => g.flag("starter_chosen") && !g.flag("rival1_done") });
-    m.npc({ id: "kai_ruta", x: 6, y: 10, dir: "left", look: look("kai"), name: "Kai", move: "static", show: (g) => g.flag("starter_chosen") && !g.flag("kai_sigue"), talk: async (g) => {
-      await g.say("\xA1Vamos, entrena un poco!", { speaker: "Kai" });
+    };
+    m.trigger(1, 8, rivalDuel, { w: 1, h: 6, show: (g) => g.flag("starter_chosen") && !g.flag("rival1_done") && !g.flag("rival1_lost") });
+    m.npc({ id: "kai_ruta", x: 6, y: 10, dir: "left", look: look("kai"), name: "Kai", move: "static", show: (g) => g.flag("starter_chosen") && !g.flag("kai_sigue"), talk: async (g, e, ow) => {
+      if (g.flag("rival1_done")) {
+        await g.say("\xA1Vamos, entrena un poco!", { speaker: "Kai" });
+        return;
+      }
+      await g.say(g.flag("rival1_lost") ? "\xBFOtra vez? \xA1Me gusta tu \xE1nimo! Tu equipo est\xE1 curado, \xBFempezamos?" : "\xA1Ah\xED est\xE1s! \xBFListo para nuestro combate de pr\xE1ctica?", { speaker: "Kai" });
+      if (await g.yesNo("\xBFCombatir contra Kai ahora?")) await rivalDuel(g, ow);
+      else await g.say("Cuando quieras. Aqu\xED estar\xE9.", { speaker: "Kai" });
     } });
     m.trigger(40, 14, async (g) => {
       g.setFlag("ruta1_cruzada");
@@ -7075,9 +7120,9 @@
 
   // src/maps/valle.js
   rec("eclipse_museo1", "Recluta", "recluta", [{ sp: 27, lv: 8 }, { sp: 67, lv: 8 }], { reward: 240, intro: "\xA1Qu\xE9date quieto! \xA1Nos llevamos el Prisma y nadie dir\xE1 nada!", win: "\xA1Aaah! \xA1Retirada!" });
-  rec("eclipse_museo2", "Recluta", "recluta2", [{ sp: 57, lv: 9 }, { sp: 27, lv: 9 }], { reward: 270, intro: "\xA1T\xFA otra vez! \xA1No dejaremos que lo recuperes!", win: "\xA1Imposible!" });
-  rec("eclipse_inv1", "Recluta", "recluta", [{ sp: 57, lv: 11 }, { sp: 15, lv: 10 }, { sp: 67, lv: 11 }], { reward: 330 });
-  rec("eclipse_inv2", "Recluta", "recluta2", [{ sp: 27, lv: 11 }, { sp: 57, lv: 12 }], { reward: 360 });
+  rec("eclipse_museo2", "Recluta", "recluta2", [{ sp: 57, lv: 8 }, { sp: 27, lv: 8 }], { reward: 270, intro: "\xA1T\xFA otra vez! \xA1No dejaremos que lo recuperes!", win: "\xA1Imposible!" });
+  rec("eclipse_inv1", "Recluta", "recluta", [{ sp: 57, lv: 7 }, { sp: 15, lv: 6 }, { sp: 67, lv: 7 }], { reward: 330 });
+  rec("eclipse_inv2", "Recluta", "recluta2", [{ sp: 27, lv: 8 }, { sp: 57, lv: 9 }], { reward: 360 });
   defineRoute("bosque_umbra", {
     name: "Bosque Umbra",
     w: 48,
@@ -7091,7 +7136,7 @@
     width: 2,
     conn: { w: { map: "ruta1", rows: [14, 15], off: 0 }, e: { map: "ciudad_roble", rows: [10, 11], off: 0 } },
     enc: { hierba: { zone: "bosque", lv: [5, 8], maxRarity: "R" } },
-    trainers: [{ cls: "campista", x: 14, y: 17, dir: "right", lv: [6, 8], n: 2 }, { cls: "joven", x: 26, y: 18, dir: "up", lv: [6, 7], n: 2, sight: 3 }, { cls: "excursionista", x: 30, y: 6, dir: "down", lv: [7, 9], n: 2, sight: 3 }],
+    trainers: [{ cls: "campista", x: 14, y: 17, dir: "right", lv: [5, 7], n: 2 }, { cls: "joven", x: 26, y: 18, dir: "up", lv: [3, 4], n: 2, sight: 3 }, { cls: "excursionista", x: 30, y: 6, dir: "down", lv: [5, 6], n: 2, sight: 3 }],
     items: [[8, 17, "pocion"], [20, 6, "antidoto"], [28, 22, "capsula", 2], [40, 5, "super_pocion"]],
     hidden: [[12, 24, "concha_rara"], [38, 20, "polvo_cristal"], [5, 6, "baya_amistad"]],
     signs: [[4, 13, "BOSQUE UMBRA\nLos \xE1rboles filtran la luz: \xA1no te desv\xEDes del camino!\n\u2190 Ruta 1    Ciudad Roble \u2192"], [44, 8, "CIUDAD ROBLE\nA 10 minutos a pie. Museo, gimnasio y Centro de Curaci\xF3n."]],
@@ -7295,7 +7340,7 @@
     leader: "lider_fresia",
     layout: "maze",
     zone: { zone: "bosque" },
-    trainers: [{ cls: "campista", lv: [9, 10], n: 2 }, { cls: "joven", types: ["planta", "insecto"], lv: [10, 11], n: 2 }, { cls: "excursionista", types: ["planta", "insecto"], lv: [11, 12], n: 2 }],
+    trainers: [{ cls: "campista", lv: [6, 7], n: 2 }, { cls: "joven", types: ["planta", "insecto"], lv: [6, 8], n: 2 }, { cls: "excursionista", types: ["planta", "insecto"], lv: [7, 8], n: 2 }],
     rewards: { tm: "dt10", items: { super_pocion: 3 } },
     after: "Mi jard\xEDn es tuyo cuando quieras volver. \xA1Y cuida bien a tus criaturas: el camino se endurece!",
     afterWin: async (g) => {
@@ -9057,6 +9102,7 @@
     ArrowRight: "right",
     KeyD: "right",
     Enter: "confirm",
+    NumpadEnter: "confirm",
     Space: "confirm",
     KeyZ: "confirm",
     KeyE: "confirm",
@@ -9088,8 +9134,9 @@
     _down(e) {
       const a = KEYMAP[e.code];
       if (!a) return;
+      if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) && !["Escape", "Enter", "NumpadEnter"].includes(e.code)) return;
+      this.sawKey = true;
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "Tab", "Backspace"].includes(e.code)) e.preventDefault();
-      if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName) && !["Escape", "Enter"].includes(e.code)) return;
       if (!this.held.has(a)) {
         this.held.add(a);
         if (DIRS[a]) {
@@ -10042,6 +10089,17 @@
     exists(n) {
       return !!store().getItem(slotKey(n));
     },
+    /** ¿Se puede guardar de verdad en este navegador/visor? (false en modo privado estricto o visores sin almacenamiento: el progreso no sobreviviría) */
+    persistent() {
+      try {
+        const k = P + ".probe";
+        window.localStorage.setItem(k, "1");
+        window.localStorage.removeItem(k);
+        return true;
+      } catch {
+        return false;
+      }
+    },
     latest() {
       let best = null;
       for (const s of Save.list()) if (!s.empty && !s.corrupt && (!best || (s.summary.savedAt || 0) > (best.summary.savedAt || 0))) best = s;
@@ -10066,6 +10124,34 @@
   // src/game.js
   init_rng();
   init_config();
+  var SAVE_EVENTS = /* @__PURE__ */ new Set([
+    "visit",
+    "battle_end",
+    "defeat",
+    "receive",
+    "capture",
+    "release",
+    "item",
+    "buy",
+    "sell",
+    "money",
+    "heal",
+    "evolve",
+    "hatch",
+    "flag",
+    "quest_start",
+    "quest_ready",
+    "quest_done",
+    "badge",
+    "gym_won",
+    "dex_caught",
+    "tournament_won",
+    "legendary",
+    "league_won",
+    "cosmetic",
+    "fly_unlocked"
+  ]);
+  var AUTOSAVE_EVERY = 6;
   var Game = class {
     constructor() {
       this.settings = Save.loadSettings();
@@ -10180,6 +10266,7 @@
       this.hooks.push(fn);
     }
     emit(ev, data = {}) {
+      if (SAVE_EVENTS.has(ev)) this.dirty = true;
       for (const h of this.hooks) {
         try {
           h(ev, data, this);
@@ -10187,6 +10274,31 @@
           console.error("hook", ev, e);
         }
       }
+    }
+    // ---------- guardado automático ----------
+    /**
+     * Lo llama el mundo en cada fotograma. Guarda en la ranura activa cuando hubo cambios relevantes (`dirty`) y el juego está en reposo
+     * (sin guion, diálogo ni combate en curso: así nunca se guarda una escena a medias), como máximo cada AUTOSAVE_EVERY segundos.
+     */
+    autosaveTick(dt, idle) {
+      this._autoT = (this._autoT || 0) + dt;
+      if (!this.dirty || !idle || this._autoT < AUTOSAVE_EVERY) return false;
+      return this.autosave();
+    }
+    autosave() {
+      if (!this.state || !this.slot || this.settings.autosave === false) return false;
+      this._autoT = 0;
+      this.dirty = false;
+      const ok = this.save(this.slot, { quiet: true });
+      if (ok && !this._autoToast) {
+        this._autoToast = true;
+        this.ui.toast("\u{1F4BE} Guardado autom\xE1tico activado");
+      }
+      if (!ok && !this._autoWarn) {
+        this._autoWarn = true;
+        this.ui.toast("\u26A0 No se pudo guardar autom\xE1ticamente (\xBFalmacenamiento lleno o bloqueado?). Usa Men\xFA > Guardar.");
+      }
+      return ok;
     }
     // ---------- dinero / objetos ----------
     addMoney(n) {
@@ -10310,7 +10422,7 @@
       if (!quiet) {
         if (r.ok) {
           this.audio.sfx("save");
-          this.ui.toast("\u{1F4BE} Partida guardada (ranura " + slot + ")");
+          this.ui.toast(Save.persistent() ? "\u{1F4BE} Partida guardada (ranura " + slot + ")" : "\u26A0 Guardada solo mientras no cierres ni recargues esta p\xE1gina: este visor no conserva partidas");
         } else {
           this.audio.sfx("error");
           this.ui.toast("\u26A0 No se pudo guardar: " + r.error);
@@ -10845,6 +10957,7 @@
       for (const x of this.exclaims) x.t -= dt;
       this.exclaims = this.exclaims.filter((x) => x.t > 0);
       for (const e of [...this.ents, this.player]) if (e && e.move) this.advance(e, dt);
+      g.autosaveTick(dt, !this.busy && !this.player.move && g.scene === this);
       if (!this.busy && !this.player.move) this.updatePlayerInput(dt);
       this.updateWander(dt);
       this.updateCamera();
@@ -11332,6 +11445,22 @@
         ctx.textAlign = "right";
         ctx.fillText("Repelente: " + this.state.repel, VIEW_W - 14, 52);
       }
+      if (this.state.stats.steps < 8 && !this.busy) {
+        const pad = document.getElementById("touch") && !document.getElementById("touch").hidden;
+        const txt = pad ? "Pad de la izquierda: moverte \xB7 A: hablar o aceptar" : "Flechas o WASD: moverte \xB7 Enter, Espacio o Z: hablar o aceptar";
+        ctx.font = 'bold 15px "Trebuchet MS",sans-serif';
+        ctx.textAlign = "center";
+        const w = ctx.measureText(txt).width + 28;
+        ctx.fillStyle = "rgba(10,8,24,.78)";
+        ctx.beginPath();
+        ctx.roundRect((VIEW_W - w) / 2, VIEW_H - 44, w, 28, 10);
+        ctx.fill();
+        ctx.strokeStyle = "#f2d060";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = "#fff3b0";
+        ctx.fillText(txt, VIEW_W / 2, VIEW_H - 25);
+      }
     }
   };
 
@@ -11422,6 +11551,8 @@
       this.root.append(logo);
       const ver = el("div", { class: "small", style: { position: "absolute", right: "14px", bottom: "8px", color: "rgba(255,255,255,.75)" } }, `v${GAME.version} \xB7 Se ejecuta en tu navegador`);
       this.root.append(ver);
+      if (!Save.persistent()) this.root.append(el("div", { class: "small", style: { position: "absolute", left: "50%", transform: "translateX(-50%)", top: "150px", width: "560px", textAlign: "center", padding: "6px 12px", borderRadius: "8px", background: "rgba(120,30,30,.9)", border: "2px solid #ffb0a0", color: "#fff" } }, "\u26A0 Este navegador o visor no permite guardar partidas: puedes jugar, pero el progreso se perder\xE1 al cerrar o recargar."));
+      this.root.append(el("div", { class: "small", style: { position: "absolute", left: "14px", bottom: "8px", color: "rgba(255,255,255,.85)", textShadow: "0 1px 0 #2a1040" } }, "Flechas o WASD: mover \xB7 Enter, Espacio o Z: aceptar \xB7 Esc o X: volver \xB7 M: men\xFA \xB7 tambi\xE9n con rat\xF3n o toque"));
       for (; ; ) {
         const latest = Save.latest();
         const slots = Save.list();
@@ -11489,7 +11620,7 @@
             if (mode === "new") {
               if (!s.empty) {
                 off();
-                const ok = await g.ui.yesNo(`La ranura ${s.slot} ya contiene una partida. \xBFSobrescribirla al guardar? (La partida actual no se borra hasta que guardes.)`);
+                const ok = await g.ui.yesNo(`La ranura ${s.slot} ya contiene una partida. \xBFSobrescribirla? La partida actual se mantiene hasta que el juego guarde por primera vez en esa ranura (el guardado autom\xE1tico lo hace al empezar a jugar).`);
                 if (!ok) {
                   off = g.input.push(handler);
                   return;
@@ -11698,17 +11829,20 @@
           sel = idx;
           hl();
         } }, "\u25B6")])]);
-        row.addEventListener("mouseenter", () => {
+        onHover(row, () => {
           sel = idx;
           hl();
         });
         list.append(row);
         rowsEl.push({ o, val, row });
       });
-      const hl = () => rowsEl.forEach((r, i) => r.row.classList.toggle("sel", i === sel));
+      const hl = () => rowsEl.forEach((r, i) => {
+        r.row.classList.toggle("sel", i === sel);
+        if (i === sel && r.row.isConnected) r.row.scrollIntoView({ block: "nearest" });
+      });
       const nameInp = el("input", { type: "text", maxlength: 10, value: name, oninput: (e) => {
         name = e.target.value;
-      }, style: { width: "210px" } });
+      }, onfocus: (e) => e.target.select(), style: { width: "210px" } });
       const rand = el("button", { class: "btn", onclick: () => {
         const r = new RNG(Date.now() & 65535);
         look2.skin = r.int(0, 5);
@@ -11737,7 +11871,12 @@
         el("div", { class: "head" }, el("h2", {}, "Crea a tu entrenador")),
         el("div", { class: "body" }, [
           el("div", { class: "panel col", style: { alignItems: "center", width: "380px" } }, [preview, el("div", { class: "row", style: { marginTop: "8px" } }, [el("span", {}, "Nombre"), nameInp])]),
-          el("div", { class: "panel col grow scroll" }, [list, el("div", { class: "row", style: { justifyContent: "space-between", marginTop: "8px" } }, [back, rand, go])])
+          // la lista de opciones se desplaza dentro de su caja; los botones y la ayuda quedan siempre visibles debajo
+          el("div", { class: "panel col grow", style: { minHeight: 0 } }, [
+            el("div", { class: "col grow scroll", style: { minHeight: 0 } }, list),
+            el("div", { class: "row", style: { justifyContent: "space-between", marginTop: "8px" } }, [back, rand, go]),
+            el("div", { class: "small dim center", style: { marginTop: "6px" } }, "\u2191 \u2193 elegir \xB7 \u2190 \u2192 cambiar \xB7 Enter: \xA1empezar! \xB7 Esc: volver \xB7 clic en el nombre para escribir")
+          ])
         ])
       ]);
       g.ui.root.append(scr);
@@ -11745,7 +11884,7 @@
       hl();
       const off = g.input.push((a) => {
         if (document.activeElement === nameInp) {
-          if (a === "cancel") nameInp.blur();
+          if (a === "cancel" || a === "confirm") nameInp.blur();
           return;
         }
         if (a === "up") {
@@ -12557,7 +12696,7 @@
             choose(c);
             render2();
           });
-          row.addEventListener("mouseenter", () => {
+          onHover(row, () => {
             if (sel !== i) {
               sel = i;
               render2();
@@ -12711,7 +12850,7 @@
             render2();
             actions();
           });
-          n.addEventListener("mouseenter", () => {
+          onHover(n, () => {
             if (sel !== i) {
               sel = i;
               render2();
@@ -12834,7 +12973,7 @@
             refresh();
             useSelected();
           });
-          n.addEventListener("mouseenter", () => {
+          onHover(n, () => {
             if (sel !== i) {
               sel = i;
               refresh();
@@ -13146,7 +13285,7 @@
             render2();
             doTx();
           });
-          row.addEventListener("mouseenter", () => {
+          onHover(row, () => {
             if (sel !== i) {
               sel = i;
               qty = 1;
@@ -13288,7 +13427,7 @@
           if (a === "party") d.append(el("div", { class: "small" }, [el("b", {}, c.egg ? "Huevo" : displayName(c)), el("div", { class: "dim" }, c.egg ? "Algo se mueve..." : `Nv${c.lv} \xB7 ${c.hp}/${c.maxHp}`)]));
           else if (c.hp === 0 && !c.egg) d.style.filter = "grayscale(.8)";
         }
-        d.addEventListener("mouseenter", () => {
+        onHover(d, () => {
           area = a;
           cur = i;
           render2(false);
@@ -15378,9 +15517,9 @@
         this.wxEl.style.display = "none";
         return;
       }
-      const names = { soleado: "\u2600 Sol intenso", lluvia: "\u{1F327} Lluvia", tormenta: "\u26C8 Tormenta", arena: "\u{1F32A} Tormenta de arena", granizo: "\u2744 Granizo", niebla: "\u{1F32B} Niebla", calor: "\u{1F525} Calor sofocante" };
+      const names2 = { soleado: "\u2600 Sol intenso", lluvia: "\u{1F327} Lluvia", tormenta: "\u26C8 Tormenta", arena: "\u{1F32A} Tormenta de arena", granizo: "\u2744 Granizo", niebla: "\u{1F32B} Niebla", calor: "\u{1F525} Calor sofocante" };
       this.wxEl.style.display = "";
-      this.wxEl.textContent = names[id] || id;
+      this.wxEl.textContent = names2[id] || id;
     }
     async onSend(e) {
       const s = this.spr[e.side], g = this.g;
@@ -15518,7 +15657,7 @@
     }
     async chooseMove() {
       const g = this.g, b = this.b, me = b.active(0), foe = b.active(1);
-      const known = g.dex.caught[foe.sp];
+      const known = true;
       const foeTypes = getSpecies(foe.sp).types;
       const infoEl = el("div", { class: "small", style: { position: "absolute", left: "16px", top: "12px", width: "44%" } });
       this.textBox.append(infoEl);
@@ -15854,7 +15993,7 @@
       const ow = g.ow;
       if (def.intro) await g.say(def.intro, { speaker: def.name });
       const team = buildTeam(def, g, { bonus: opts.rematch ? opts.lvBonus || 0 : 0 });
-      const sum = await runBattle(g, { foe: { name: def.name, party: team, wild: false, trainer: def, ai: def.ai, items: def.items }, terrain: terrainFor(ow.map, null), trainerLook: def.look, isGym: !!def.gym, music: def.music, canFlee: false, trainerDef: def, rematch: !!opts.rematch });
+      const sum = await runBattle(g, { foe: { name: def.name, party: team, wild: false, trainer: def, ai: def.ai, items: def.items }, terrain: terrainFor(ow.map, null), trainerLook: def.look, isGym: !!def.gym, music: def.music, canFlee: false, trainerDef: def, rematch: !!opts.rematch, practice: !!def.practice });
       if (sum.result === "win") {
         if (def.win) await g.say(def.win, { speaker: def.name });
         if (def.afterBattle) await def.afterBattle(g, def);
@@ -15876,7 +16015,7 @@
     }
     g.audio.stopMusic();
     const now = g.now;
-    const weatherName = ow?.weatherId || null;
+    const weatherName = cfg.practice ? null : ow?.weatherId || null;
     const battle = new Battle({
       seed: g.rng.next() * 4294967296 >>> 0,
       player: { name: g.playerName, party, bag: g.bag },
@@ -15948,8 +16087,15 @@
     }
     for (const c of party) if (c.pendingMoves?.length) await learnMoveFlow(g, c);
     if (sum.result !== "lose") await evolutionFlow(g, { trigger: "level" });
-    if (sum.result === "lose") await blackout(g, cfg);
+    if (sum.result === "lose") await (cfg.practice ? practiceDefeat(g, cfg) : blackout(g, cfg));
     return sum;
+  }
+  async function practiceDefeat(g, cfg = {}) {
+    await g.say(`${g.playerName} se ha quedado sin criaturas en condiciones de luchar...`);
+    if (cfg.trainerDef?.lose) await g.say(cfg.trainerDef.lose, { speaker: cfg.trainerDef.name });
+    healParty(g.party);
+    g.audio.sfx("heal");
+    g.emit("practice_lost", { trainer: cfg.trainerDef?.id });
   }
   async function blackout(g, cfg = {}) {
     const st = g.state;
@@ -15960,13 +16106,16 @@
       g.state.player.money -= loss;
       await g.say(`Has perdido ${loss} \xE1ureos en la huida.`);
     }
+    const wasBusy = g.ow.busy;
     await g.ui.fade(true, 500);
     healParty(g.party);
     g.state.player.surfing = false;
     const h = st.lastHeal;
     await g.ow.loadMap(h.map, h.x, h.y, "down", { announce: true });
+    g.ow.busy = true;
     await g.ui.fade(false, 500);
     await g.say("Tus criaturas han sido curadas. \xA1Vuelve a intentarlo cuando est\xE9s listo!");
+    g.ow.busy = wasBusy ?? false;
     g.emit("blackout");
   }
   async function learnMoveFlow(g, mon) {
@@ -16048,7 +16197,7 @@
     for (const k of keys) baby.iv[k] = (rng.chance(0.5) ? a : b).iv[k];
     const learn = new Set(getSpecies(root).learnset.map(([, id]) => id));
     const shared = a.moves.map((m) => m.id).filter((id) => b.moves.some((m) => m.id === id) && learn.has(id));
-    for (const id of shared.slice(0, 2)) learnMove(baby, id, 3);
+    for (const id of shared.slice(0, 2)) learnMove(baby, id, 2);
     baby.egg = true;
     baby.hatch = EGG_STEPS(root);
     baby.eggSteps = baby.hatch;
@@ -16208,11 +16357,17 @@
     const boot2 = document.getElementById("boot");
     if (boot2) boot2.remove();
     setupTouch(g);
-    window.addEventListener("beforeunload", () => {
+    setupFocusHint();
+    const saveOnLeave = () => {
       try {
-        if (g.state && g.settings.autosave && g.state.__dirty) g.save(g.slot, { quiet: true });
+        if (g.state && g.ow && g.scene === g.ow && !g.ow.busy) g.autosave();
       } catch {
       }
+    };
+    window.addEventListener("beforeunload", saveOnLeave);
+    window.addEventListener("pagehide", saveOnLeave);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") saveOnLeave();
     });
     for (; ; ) {
       g.state = null;
@@ -16238,6 +16393,7 @@
         await g.ui.fade(false, 600);
         const rosa = ow.entity("tia_rosa");
         if (rosa) await ow.run(() => rosa.def.talk(g, rosa, ow));
+        ow.player.dir = "down";
       } else {
         g.setScene(ow);
         const s = g.state;
@@ -16267,25 +16423,66 @@
     const touch = document.getElementById("touch");
     if (!touch) return;
     const isTouch = "ontouchstart" in window || window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-    if (!isTouch) return;
-    touch.hidden = false;
+    const DIR = ["up", "down", "left", "right"];
+    const MIN_HOLD = 140;
     touch.querySelectorAll("button").forEach((b) => {
       const a = b.dataset.a;
+      let t0 = 0;
       const down = (e) => {
         e.preventDefault();
         g.audio.unlock();
+        t0 = performance.now();
         g.input.pressVirtual(a, true);
-        if (!["up", "down", "left", "right"].includes(a)) setTimeout(() => g.input.pressVirtual(a, false), 80);
+        if (!DIR.includes(a)) setTimeout(() => g.input.pressVirtual(a, false), 80);
       };
       const up = (e) => {
         e.preventDefault();
-        if (["up", "down", "left", "right"].includes(a)) g.input.pressVirtual(a, false);
+        if (!DIR.includes(a)) return;
+        const left = MIN_HOLD - (performance.now() - t0);
+        if (left > 0) setTimeout(() => g.input.pressVirtual(a, false), left);
+        else g.input.pressVirtual(a, false);
       };
       b.addEventListener("pointerdown", down);
       b.addEventListener("pointerup", up);
       b.addEventListener("pointerleave", up);
       b.addEventListener("pointercancel", up);
     });
+    if (isTouch) {
+      touch.hidden = false;
+      return;
+    }
+    let clicks = 0;
+    document.getElementById("stage")?.addEventListener("pointerdown", () => {
+      if (g.input.sawKey || !touch.hidden || !g.ow || g.scene !== g.ow) return;
+      if (++clicks >= 2) {
+        touch.hidden = false;
+        g.ui.toast("\u{1F5B1} Botones en pantalla activados. Tambi\xE9n puedes jugar con el teclado (flechas o WASD, y Enter).");
+      }
+    });
+  }
+  function setupFocusHint() {
+    if ("ontouchstart" in window || window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return;
+    const hint = document.createElement("div");
+    hint.id = "focus-hint";
+    hint.textContent = "\u{1F5B1} Haz clic en el juego para activar el teclado";
+    hint.style.cssText = "position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:200;padding:6px 16px;border-radius:999px;background:rgba(20,18,50,.95);border:2px solid #f2d060;color:#fff3b0;font:700 15px/1.2 system-ui,sans-serif;cursor:pointer;display:none;box-shadow:0 2px 10px rgba(0,0,0,.5)";
+    document.body.append(hint);
+    const refresh = () => {
+      hint.style.display = document.hasFocus() ? "none" : "block";
+    };
+    hint.addEventListener("pointerdown", () => {
+      try {
+        window.focus();
+      } catch {
+      }
+      setTimeout(refresh, 0);
+    });
+    window.addEventListener("focus", refresh);
+    window.addEventListener("blur", () => setTimeout(refresh, 60));
+    window.addEventListener("pointerdown", () => setTimeout(refresh, 0));
+    window.addEventListener("keydown", refresh);
+    setInterval(refresh, 800);
+    refresh();
   }
   window.addEventListener("error", (e) => {
     const b = document.getElementById("boot");

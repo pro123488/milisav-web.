@@ -77,10 +77,12 @@ test('Combate: mismos resultados con la misma semilla', () => {
   const run = (seed) => { const b = mkBattle(seed); const log = [...b.start()]; let g = 0; while (!b.result && g++ < 200) { if (b.awaiting) { log.push(...b.forceSwitch(b.sides[0].party.findIndex((p) => p.hp > 0)).events); continue; } log.push(...b.turn(chooseAction(b, 0)).events); } return strip(log); };
   eq(run(5), run(5)); assert(run(5) !== run(6));
 });
+/** Índice del primer movimiento de ataque (a partir de cierto nivel el primero de la lista puede ser de estado). */
+const dmgIdx = (b) => b.active(0).moves.findIndex((m) => MOVES[m.id].cat !== 'est');
 test('Combate: los ataques causan daño y la salud se actualiza', () => {
   const b = mkBattle(3); b.start();
   const before = b.active(1).hp;
-  const r = b.turn({ type: 'move', idx: 0 });
+  const r = b.turn({ type: 'move', idx: dmgIdx(b) });
   assert(r.ok);
   const dmgEv = r.events.filter((e) => e.t === 'dmg' && e.side === 1);
   assert(dmgEv.length >= 1 && b.active(1).hp < before, 'no hubo daño');
@@ -92,7 +94,7 @@ test('Combate: ganar da experiencia que persiste en la criatura', () => {
   let g = 0;
   while (!b.result && g++ < 200) {
     if (b.awaiting) { b.forceSwitch(b.sides[0].party.findIndex((p) => p.hp > 0)); continue; }
-    b.turn({ type: 'move', idx: 0 });
+    b.turn({ type: 'move', idx: dmgIdx(b) });
   }
   eq(b.result, 'win');
   assert(b.sides[0].party.some((m, i) => m.xp > before[i]), 'sin experiencia');

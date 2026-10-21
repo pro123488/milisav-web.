@@ -10,6 +10,12 @@ export function fmtTime(sec) {
   return `${h}:${String(m).padStart(2, '0')}`;
 }
 export const uid = (() => { let n = 0; return () => 'u' + Date.now().toString(36) + (n++).toString(36) + Math.floor(Math.random() * 1e4).toString(36); })();
+// Posición del último movimiento real del puntero. Tras abrir una pantalla bajo un ratón quieto el navegador puede emitir eventos
+// sintéticos (mouseenter/mousemove) con las mismas coordenadas: no deben mover la selección del menú.
+let _px = NaN, _py = NaN;
+export function pointerMoved(e) { const moved = e.screenX !== _px || e.screenY !== _py; _px = e.screenX; _py = e.screenY; return moved; }
+/** Ejecuta fn cuando el puntero se mueve de verdad sobre el nodo (sustituye a mouseenter para seleccionar elementos de menú). */
+export function onHover(node, fn) { node.addEventListener('mousemove', (ev) => { if (pointerMoved(ev)) fn(); }); return node; }
 /** Crea un nodo DOM: el('div', {class:'x', onclick:fn}, [hijos|texto]) */
 export function el(tag, props = {}, kids = []) {
   const n = document.createElement(tag);

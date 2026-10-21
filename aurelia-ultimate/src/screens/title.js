@@ -1,7 +1,7 @@
 // Pantalla de título, ranuras de partida, creación de personaje, opciones, controles y créditos.
 import { VIEW_W, VIEW_H } from '../config.js';
 import { GAME } from '../config.js';
-import { el, fmtTime } from '../util.js';
+import { el, fmtTime, onHover } from '../util.js';
 import { Save } from '../save.js';
 import { drawCreature, creatureCanvas, SPR } from '../gfx/creature_gfx.js';
 import { trainerCanvas, SKINS, HAIR_COLORS, OUTFIT_COLORS, PANTS_COLORS, HAIR_STYLES, OUTFITS, HATS, STYLES, DEFAULT_LOOK } from '../gfx/trainer_gfx.js';
@@ -43,6 +43,8 @@ export class TitleScene {
       el('div', { style: { fontSize: '22px', color: '#fff', letterSpacing: '8px', textShadow: '0 2px 0 #2a1040', marginTop: '-4px' } }, GAME.subtitle.toUpperCase())]);
     this.root.append(logo);
     const ver = el('div', { class: 'small', style: { position: 'absolute', right: '14px', bottom: '8px', color: 'rgba(255,255,255,.75)' } }, `v${GAME.version} · Se ejecuta en tu navegador`); this.root.append(ver);
+    if (!Save.persistent()) this.root.append(el('div', { class: 'small', style: { position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: '150px', width: '560px', textAlign: 'center', padding: '6px 12px', borderRadius: '8px', background: 'rgba(120,30,30,.9)', border: '2px solid #ffb0a0', color: '#fff' } }, '⚠ Este navegador o visor no permite guardar partidas: puedes jugar, pero el progreso se perderá al cerrar o recargar.'));
+    this.root.append(el('div', { class: 'small', style: { position: 'absolute', left: '14px', bottom: '8px', color: 'rgba(255,255,255,.85)', textShadow: '0 1px 0 #2a1040' } }, 'Flechas o WASD: mover · Enter, Espacio o Z: aceptar · Esc o X: volver · M: menú · también con ratón o toque'));
     for (;;) {
       const latest = Save.latest();
       const slots = Save.list();
@@ -86,7 +88,7 @@ export class TitleScene {
         const activate = async (s) => {
           if (mode === 'select') { g.slot = s.slot; g.settings.lastSlot = s.slot; g.saveSettings(); g.ui.toast(`Ranura activa: ${s.slot}`); redraw(); return; }
           if (mode === 'new') {
-            if (!s.empty) { off(); const ok = await g.ui.yesNo(`La ranura ${s.slot} ya contiene una partida. ¿Sobrescribirla al guardar? (La partida actual no se borra hasta que guardes.)`); if (!ok) { off = g.input.push(handler); return; } }
+            if (!s.empty) { off(); const ok = await g.ui.yesNo(`La ranura ${s.slot} ya contiene una partida. ¿Sobrescribirla? La partida actual se mantiene hasta que el juego guarde por primera vez en esa ranura (el guardado automático lo hace al empezar a jugar).`); if (!ok) { off = g.input.push(handler); return; } }
             cleanup(); resolve(s.slot); return;
           }
           if (s.empty) { g.audio.sfx('error'); return; }
@@ -182,11 +184,11 @@ export function openCreator(g) {
     opts.forEach((o, idx) => {
       const val = el('div', { style: { width: '170px', textAlign: 'center' } });
       const row = el('div', { class: 'mi', style: { justifyContent: 'space-between' } }, [el('span', {}, o.label), el('span', { class: 'row', style: { gap: '4px' } }, [el('button', { class: 'btn', style: { padding: '0 10px' }, onclick: (e) => { e.stopPropagation(); setIndex(o, curIndex(o) - 1); sel = idx; hl(); } }, '◀'), val, el('button', { class: 'btn', style: { padding: '0 10px' }, onclick: (e) => { e.stopPropagation(); setIndex(o, curIndex(o) + 1); sel = idx; hl(); } }, '▶')])]);
-      row.addEventListener('mouseenter', () => { sel = idx; hl(); });
+      onHover(row, () => { sel = idx; hl(); });
       list.append(row); rowsEl.push({ o, val, row });
     });
-    const hl = () => rowsEl.forEach((r, i) => r.row.classList.toggle('sel', i === sel));
-    const nameInp = el('input', { type: 'text', maxlength: 10, value: name, oninput: (e) => { name = e.target.value; }, style: { width: '210px' } });
+    const hl = () => rowsEl.forEach((r, i) => { r.row.classList.toggle('sel', i === sel); if (i === sel && r.row.isConnected) r.row.scrollIntoView({ block: 'nearest' }); });
+    const nameInp = el('input', { type: 'text', maxlength: 10, value: name, oninput: (e) => { name = e.target.value; }, onfocus: (e) => e.target.select(), style: { width: '210px' } });
     const rand = el('button', { class: 'btn', onclick: () => { const r = new RNG(Date.now() & 0xffff); look.skin = r.int(0, 5); look.hair = r.pick(HAIR_STYLES)[0]; look.hairColor = r.int(0, 9); look.outfit = r.pick(OUTFITS)[0]; look.top = r.int(0, 9); look.bottom = r.int(0, 7); look.hat = r.pick(HATS)[0]; look.hatColor = r.int(0, 9); look.glasses = r.chance(0.3); look.scarf = r.chance(0.25) ? r.int(0, 9) : null; look.bag = r.chance(0.4) ? r.int(0, 9) : null; refreshAll(); g.audio.sfx('select'); } }, '🎲 Aleatorio');
     const go = el('button', { class: 'btn', style: { fontSize: '20px', padding: '8px 22px' }, onclick: () => finish() }, '¡Comenzar la aventura!');
     const back = el('button', { class: 'btn', onclick: () => finish(true) }, '← Volver');
@@ -195,12 +197,17 @@ export function openCreator(g) {
       el('div', { class: 'head' }, el('h2', {}, 'Crea a tu entrenador')),
       el('div', { class: 'body' }, [
         el('div', { class: 'panel col', style: { alignItems: 'center', width: '380px' } }, [preview, el('div', { class: 'row', style: { marginTop: '8px' } }, [el('span', {}, 'Nombre'), nameInp])]),
-        el('div', { class: 'panel col grow scroll' }, [list, el('div', { class: 'row', style: { justifyContent: 'space-between', marginTop: '8px' } }, [back, rand, go])]),
+        // la lista de opciones se desplaza dentro de su caja; los botones y la ayuda quedan siempre visibles debajo
+        el('div', { class: 'panel col grow', style: { minHeight: 0 } }, [
+          el('div', { class: 'col grow scroll', style: { minHeight: 0 } }, list),
+          el('div', { class: 'row', style: { justifyContent: 'space-between', marginTop: '8px' } }, [back, rand, go]),
+          el('div', { class: 'small dim center', style: { marginTop: '6px' } }, '↑ ↓ elegir · ← → cambiar · Enter: ¡empezar! · Esc: volver · clic en el nombre para escribir'),
+        ]),
       ]),
     ]);
     g.ui.root.append(scr); refreshAll(); hl();
     const off = g.input.push((a) => {
-      if (document.activeElement === nameInp) { if (a === 'cancel') nameInp.blur(); return; }
+      if (document.activeElement === nameInp) { if (a === 'cancel' || a === 'confirm') nameInp.blur(); return; }
       if (a === 'up') { sel = (sel + opts.length - 1) % opts.length; hl(); g.audio.sfx('select'); } else if (a === 'down') { sel = (sel + 1) % opts.length; hl(); g.audio.sfx('select'); }
       else if (a === 'left') { setIndex(opts[sel], curIndex(opts[sel]) - 1); g.audio.sfx('select'); } else if (a === 'right') { setIndex(opts[sel], curIndex(opts[sel]) + 1); g.audio.sfx('select'); }
       else if (a === 'confirm') finish(); else if (a === 'cancel') finish(true);

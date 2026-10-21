@@ -97,6 +97,8 @@ export const Save = {
   },
   remove(n) { store().removeItem(slotKey(n)); store().removeItem(slotKey(n) + '.bak'); },
   exists(n) { return !!store().getItem(slotKey(n)); },
+  /** ¿Se puede guardar de verdad en este navegador/visor? (false en modo privado estricto o visores sin almacenamiento: el progreso no sobreviviría) */
+  persistent() { try { const k = P + '.probe'; window.localStorage.setItem(k, '1'); window.localStorage.removeItem(k); return true; } catch { return false; } },
   latest() {
     let best = null;
     for (const s of Save.list()) if (!s.empty && !s.corrupt && (!best || (s.summary.savedAt || 0) > (best.summary.savedAt || 0))) best = s;

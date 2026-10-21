@@ -27,7 +27,7 @@ export function makeEgg(a, b, rng) {
   // movimientos compartidos que el bebé puede aprender
   const learn = new Set(getSpecies(root).learnset.map(([, id]) => id));
   const shared = a.moves.map((m) => m.id).filter((id) => b.moves.some((m) => m.id === id) && learn.has(id));
-  for (const id of shared.slice(0, 2)) learnMove(baby, id, 3);
+  for (const id of shared.slice(0, 2)) learnMove(baby, id, 2);      // si no caben, se sustituye un movimiento base (índice 2), nunca uno ya heredado
   baby.egg = true; baby.hatch = EGG_STEPS(root); baby.eggSteps = baby.hatch;
   return baby;
 }

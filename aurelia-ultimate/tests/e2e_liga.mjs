@@ -23,7 +23,7 @@ for (let i = 0; i < 5; i++) {
   console.log('   · sala', i + 1, 'elite en', e, 'jugador', await G(() => { const p = window.__game.ow.player; return [p.x, p.y, p.dir, window.__game.ow.busy, window.__game.scene?.constructor.name]; }));
   await G(() => window.__game.healAll());                                      // equivale a gastar pociones/revivir entre salas (la Liga no ofrece curación gratuita)
   await face(page, await dirTo(page, e[0], e[1])); await page.screenshot({ path: `tests/out/liga_r${i + 1}_a.png` }); await key(page, 'Enter', 1, 400); console.log('   · tras Enter', JSON.stringify(await G(() => ({ ix: window.__ix.splice(0).slice(-6), dlg: document.getElementById('dialog')?.innerText, busy: window.__game.ow.busy, bt: window.__bt.length, tr: Object.keys(window.__game.state.trainers) })))); await advance(page, { max: 100, quiet: 1500 });
-  await driveBattle(page, { max: 1500 }); await advance(page, { max: 200, quiet: 2500 });
+  await driveBattle(page, { max: 1500, smart: true }); await advance(page, { max: 200, quiet: 2500 });
   await page.screenshot({ path: `tests/out/liga_r${i + 1}_b.png` });
   console.log('   · battleTrainer:', JSON.stringify(await G(() => window.__bt.splice(0))));
   s = await S(); ok(`sala ${i + 1}: se derrota a ${elites[i]}`, s.trainers.includes(elites[i]), JSON.stringify(s.trainers.filter((t) => elites.includes(t))));

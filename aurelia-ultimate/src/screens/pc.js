@@ -1,5 +1,5 @@
 // Terminal de almacenamiento: 12 cajas de 30 huecos + equipo de 6. Mover, intercambiar, ver ficha, liberar y renombrar cajas.
-import { el } from '../util.js';
+import { el, onHover } from '../util.js';
 import { BOX_COUNT, BOX_SIZE, PARTY_MAX } from '../config.js';
 import { creatureImg, creatureImgOf } from '../ui.js';
 import { creatureDetail, creatureCard } from './creature_view.js';
@@ -22,7 +22,7 @@ export function openPC(g) {
     const mk = (c, sel, a, i) => {
       const d = el('div', { class: 'card' + (sel ? ' sel' : ''), style: { width: a === 'party' ? '100%' : '58px', height: a === 'party' ? '52px' : '58px', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: held && held.from.area === a && held.from.idx === i && (a === 'party' || held.from.box === box) ? 0.35 : 1 } });
       if (c) { d.append(creatureImgOf(c, a === 'party' ? 44 : 48)); if (a === 'party') d.append(el('div', { class: 'small' }, [el('b', {}, c.egg ? 'Huevo' : displayName(c)), el('div', { class: 'dim' }, c.egg ? 'Algo se mueve...' : `Nv${c.lv} · ${c.hp}/${c.maxHp}`)])); else if (c.hp === 0 && !c.egg) d.style.filter = 'grayscale(.8)'; }
-      d.addEventListener('mouseenter', () => { area = a; cur = i; render(false); }); d.addEventListener('click', () => { area = a; cur = i; act(); });
+      onHover(d, () => { area = a; cur = i; render(false); }); d.addEventListener('click', () => { area = a; cur = i; act(); });
       return d;
     };
     const render = (full = true) => {

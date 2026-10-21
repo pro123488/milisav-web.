@@ -318,7 +318,8 @@ export class BattleScene {
   }
   async chooseMove() {
     const g = this.g, b = this.b, me = b.active(0), foe = b.active(1);
-    const known = g.dex.caught[foe.sp];
+    // La eficacia se muestra siempre: los tipos del rival ya están a la vista en su ficha, así que ocultarla solo confundía a quien empieza.
+    const known = true;
     const foeTypes = getSpecies(foe.sp).types;
     const infoEl = el('div', { class: 'small', style: { position: 'absolute', left: '16px', top: '12px', width: '44%' } });
     this.textBox.append(infoEl); this.textEl.textContent = '';

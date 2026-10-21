@@ -21,8 +21,8 @@ await shot('starter');
 await key(page, 'Enter', 1, 600); await key(page, 'Enter', 1, 400); await advance(page, { max: 200, quiet: 1500 });
 s = await S(); ok('el equipo tiene la criatura inicial (Nv5)', s.party.length === 1 && s.party[0].lv === 5 && [1, 4, 7].includes(s.party[0].sp), JSON.stringify(s.party[0]));
 ok('el inventario recibió cápsulas y la misión se actualizó', s.bag.capsula >= 10 && s.quests.main_01 === 'done');
-// Reforzamos al inicial para que el combate de práctica sea determinista
-await G(() => { const g = window.__game; const { gainXp, healCreature } = window.__au.Creatures; gainXp(g.party[0], 1500); healCreature(g.party[0]); });
+// OJO: el inicial NO se refuerza. Antes se subía a Nv13 "para que el combate fuera determinista" y eso ocultó que el duelo real con Kai
+// (inicial de Nv5) era casi imposible para una persona. Ahora el duelo se juega con el inicial tal como lo entrega el profesor.
 console.log('3) Explorar un mapa (colisiones, edificios, conexión entre mapas)');
 await walk(page, 'down', 2); await sleep(900);
 await walk(page, 'down', 1); await walk(page, 'right', 3); await walk(page, 'up', 1);
@@ -36,10 +36,17 @@ console.log('4) Combate contra un entrenador (rival)');
 await page.keyboard.down('ArrowRight'); await sleep(900); await page.keyboard.up('ArrowRight'); await sleep(600);
 await advance(page, { max: 30, quiet: 700 }); await sleep(900); await shot('battle_trainer');
 ok('comienza el combate por turnos', await G(() => window.__game.scene?.constructor.name === 'BattleScene'));
-const fin = await driveBattle(page); await advance(page, { max: 120, quiet: 1500 });
+const duel = await G(() => { const b = window.__game.scene?.b; return b ? { me: b.active(0).lv, foe: b.active(1).lv, wx: b.weather?.id ?? b.weather ?? null } : null; });
+ok('el duelo es con el inicial sin reforzar (Nv5) contra un rival recién nacido (Nv2)', duel && duel.me === 5 && duel.foe === 2, JSON.stringify(duel));
+const fin = await driveBattle(page, { smart: true }); await advance(page, { max: 120, quiet: 1500 });
 s = await S(); ok('victoria registrada: misión y bandera del rival', s.flags.includes('rival1_done') && s.quests.main_02 === 'done', JSON.stringify(s.quests));
 ok('el dinero y la experiencia aumentan tras ganar', s.money > 1500 && s.party[0].xp > 0);
 await sleep(1200);
+// Una persona usaría una Poción o descansaría antes de entrar en la hierba con la criatura herida del duelo: se simula con una cura.
+await G(() => window.__game.healAll());
+// Autoguardado: sin pulsar «Guardar», tras unos segundos en reposo la partida ya está en el almacenamiento.
+await sleep(7500);
+ok('el autoguardado escribe la partida sin que el jugador la guarde', await G(() => !!localStorage.getItem('aurelia-ultimate.slot1')));
 console.log('5) Encontrar una criatura salvaje en la hierba alta y combatir');
 const route = await pathToGround(page, 'tallgrass'); for (const d of route || []) await walk(page, d, 1);
 await G(() => { const g = window.__game, o = g.battleWild; window.__wr = []; g.battleWild = async (...a) => { const r = await o(...a); window.__wr.push(r.result); return r; }; });
@@ -48,7 +55,7 @@ for (let i = 0; i < 120 && !inB; i++) { await walk(page, i % 2 ? 'left' : 'right
 ok('aparece una criatura salvaje al pisar hierba alta', inB, JSON.stringify(await pos(page)));
 await sleep(1500); await shot('battle_wild');
 // luchar hasta ganar
-await driveBattle(page); await advance(page, { max: 100, quiet: 1200 }); await sleep(800);
+await driveBattle(page, { smart: true }); await advance(page, { max: 100, quiet: 1200 }); await sleep(800);
 s = await S(); ok('la criatura gana experiencia al derrotar a la salvaje', s.party[0].xp > xp0, `xp ${xp0} -> ${s.party[0].xp} · resultados ${JSON.stringify(await G(() => window.__wr))}`);
 console.log('6) Capturar una criatura y añadirla al equipo');
 inB = false; await sleep(500);

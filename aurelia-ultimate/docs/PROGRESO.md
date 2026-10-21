@@ -4,7 +4,7 @@ Leyenda: ✅ hecho y comprobado · 🟡 hecho, comprobado solo en parte · ⛔ n
 
 | Fase | Contenido | Estado | Cómo se comprueba |
 |---|---|---|---|
-| 1. Prototipo jugable | iniciar, personaje, inicial, explorar, salvaje, combate, captura, equipo, XP, curar, guardar, cerrar, cargar y continuar | ✅ | `tests/e2e_fase1.mjs` (navegador, 23 comprobaciones) |
+| 1. Prototipo jugable | iniciar, personaje, inicial, explorar, salvaje, combate, captura, equipo, XP, curar, guardar, cerrar, cargar y continuar | ✅ | `tests/e2e_fase1.mjs` (navegador, 25 comprobaciones, con el inicial de Nv5 sin reforzar y el duelo real con Kai) · `tests/e2e_kai.mjs` (perder el duelo sin castigo y recuperarse) · `tests/e2e_movil.mjs` (móvil, visor incrustado, ratón) |
 | 2. Criaturas y sistemas | 121 especies (≥100), 18 tipos con una sola tabla, 189 movimientos, 46 habilidades, captura, evolución visual, equipo/PC (12 cajas), mochila, tiendas, enciclopedia | ✅ | `npm test` (core, data) + `tests/e2e_fase2.mjs` (usar objeto, comprar, evolucionar, PC) + `tests/e2e_menus.mjs` (todas las pantallas, con revisión visual) |
 | 3. Mundo | 102 mapas (29 exteriores, 73 interiores) en 15 zonas: rutas, ciudades, cuevas, isla, desierto, volcán, pantano, nieve, ruinas | ✅ | `tests/maps.test.mjs` (conexiones, destinos, alcanzabilidad por BFS) + `tests/e2e_world.mjs` (recorrido real de todas las conexiones, viaje en barca a la Isla Tormenta) |
 | 4. Historia y misiones | Orden del Eclipse (Cinder, Gris, Vesper), 4 Prismas, rival Kai, 19 misiones principales + 12 secundarias, objetos clave y bloqueos por medallas | ✅ | `tests/content.test.mjs` (todo id existe) + `tests/e2e_valle.mjs` + `tests/e2e_historia.mjs` (guiones de cada región con diálogos y misiones reales) |
@@ -31,19 +31,43 @@ Leyenda: ✅ hecho y comprobado · 🟡 hecho, comprobado solo en parte · ⛔ n
   la criatura caída y Enter no hacía nada. `ui.menu` ahora empieza en el primer elemento utilizable.
 * Una aserción de Fase 1 era demasiado permisiva (aceptaba `nivel > 5` aunque la experiencia no subiera); ahora exige que suba la XP.
 
-## Sobre las pruebas con bot
-Los E2E usan un bot que pulsa Enter, con PP infinitos y, en la Liga, curación entre salas (equivale a gastar pociones: la Liga no cura gratis).
-`driveBattle(..., { smart: true })` elige el movimiento de mayor daño esperado con la tabla de tipos real; se usa en el Coliseo porque sus rivales
-escalan con el nivel del equipo y un bot que solo usa el primer movimiento pierde combates parejos (comprobado: el Campeón Cassio resiste el Dragón).
-Estas pruebas demuestran que el flujo funciona y que **se puede ganar**; no miden el equilibrio de dificultad para un jugador humano.
+## Lo que encontró una persona real: no se podía pasar de Villa Alba
+Una persona jugando no pudo superar la primera fase. Se investigó con cinco líneas independientes (partida de principiante con teclado real y los tres
+iniciales, auditoría de bloqueos, simulación del combate con el motor real, UX del arranque y móvil/visor incrustado). **Mi E2E de la Fase 1 subía el
+inicial a Nv13 antes del duelo con Kai («para que sea determinista»), así que el bot lo pasaba y se dio la Fase 1 por verificada cuando el duelo real no se
+podía ganar.** Hallazgos (todos corregidos y con prueba):
+* **Duelo con Kai casi imposible** (Brotín 0 % de victorias en 4 intentos, Chispín 0/3, Burbín 1/4; en simulación 0-16 %). El rival Nv4 tenía ventaja de tipo, IA
+  lista y clima aleatorio; al perder se volvía a casa con −10 % de dinero y no se podía subir de nivel antes de reintentar. Ahora es un **combate de práctica**:
+  criatura de Kai Nv2, IA básica, siempre tiempo despejado, sin pérdida de dinero ni traslado al perder (el equipo se cura en el sitio y se repite hablando con Kai).
+* Se podía **rodear** a Sauce (salida este de Villa Alba) y a Kai (entrada de la Ruta 1): los disparadores cubren ahora toda la abertura (comprobado por BFS).
+* **Tía Rosa en bucle**: tras la presentación, pulsar Enter repetidamente la hacía repetir sus frases sin fin y nada decía que hay que usar las flechas. Ahora el
+  jugador queda de cara a la puerta, hay una frase de controles y una ayuda en pantalla durante los primeros pasos.
+* **Autoguardado inexistente** (el de `beforeunload` era código muerto): recargar o cerrar perdía todo salvo si se había descansado. Ahora se guarda en reposo.
+* **Móvil**: la página completa se dibujaba ~3 veces demasiado grande y los botones táctiles quedaban fuera de pantalla (el visor solo aporta
+  `width=device-width,initial-scale=1`); un toque rápido en una flecha solo giraba; sin teclado y sin pad no se podía andar con el ratón.
+* **Creador de personaje**: «¡Comenzar la aventura!» quedaba fuera de la pantalla, Retroceso/Espacio no funcionaban en el nombre (`preventDefault` antes de mirar si
+  el foco estaba en un campo de texto) y Enter no hacía nada. Menús que empezaban en la opción bajo el ratón quieto. Pantalla de iniciales sin ayuda ni «Esc».
+* En un visor incrustado el teclado no funciona hasta hacer clic: ahora hay un aviso «Haz clic en el juego».
+* **Dificultad del primer arco**: los combates obligatorios que siguen (Bosque Umbra, museo, invernadero, Cinder, líder de Roble) pedían un inicial 5-10
+  niveles por encima del rival. Causas: niveles de rivales, experiencia lenta (~12 XP por combate en la Ruta 1) y el **generador procedural de movimientos**, que
+  daba movimientos de potencia 75-100 a criaturas de Nv1-7 (89 casos; ahora 8, diseñados a mano). Se bajaron niveles, se subió la experiencia ×1,6 hasta Nv15 y se
+  dio «Eco» (sonido, neutral) a los tres iniciales. `tests/firstphase.test.mjs` exige que, contra un jugador de referencia por etapa, el peor inicial gane cada
+  combate obligatorio con holgura.
 
-Ajustes de las propias pruebas al hacer la pasada final (no eran fallos del juego): la prueba del Valle sube el inicial de planta a Nv24 antes de
-enfrentarse a la líder de planta (con Nv13 y solo movimientos de planta el bot perdía); la del mundo desactivaba la barca demasiado pronto en la Isla
-Tormenta (se llega en pleno mar y el juego baja de la barca al pisar tierra, ahora comprobado); `goTo` rodea a los NPC si se atasca contra uno que
-deambula (el primer salto Villa Alba → Ruta 1 fallaba de forma intermitente); y los E2E deben ejecutarse **uno a uno**.
+## Sobre las pruebas con bot (lección aprendida)
+Los E2E usan un bot que pulsa Enter, con PP infinitos y curaciones puntuales que equivalen a gastar pociones (en la Liga, entre salas; en la Fase 1, tras
+el duelo). `driveBattle(..., { smart: true })` elige el movimiento de mayor daño esperado con la tabla de tipos real. Estas pruebas demuestran que el flujo
+funciona y que **se puede ganar**; **no miden el equilibrio**, y mientras el bot esté reforzado puede ocultar muros. Por eso: (1) el E2E de la Fase 1 ya no
+refuerza al inicial; (2) los E2E de historia (Valle, historia, mundo, Liga, gimnasios) parten de equipos de Nv30-99 **a propósito** (prueban guiones, no
+dificultad); (3) la dificultad se mide aparte, en Node, con el motor real, jugadores de referencia y muchas semillas (`tests/firstphase.test.mjs`), y solo para
+el primer arco.
+
+Ajustes de las propias pruebas (no eran fallos del juego): la del mundo desactivaba la barca demasiado pronto en la Isla Tormenta (se llega en pleno mar y el
+juego baja de la barca al pisar tierra, ahora comprobado); `goTo` rodea a los NPC si se atasca contra uno que deambula; los E2E deben ejecutarse **uno a uno**.
 
 ## Última pasada E2E (Chromium, una prueba cada vez, sobre el juego tal como está empujado)
-Fase 1 23/23 · Fase 2 8/8 · menús 8/8 · Valle 22/22 · historia 21/21 · mundo 29/29 · Liga 13/13 · extras 8/8 · 8 gimnasios (3/3 cada uno) · 50/50 pruebas en Node.
+Fase 1 25/25 · Kai 11/11 · móvil 24/24 (emulación de Chromium) · Fase 2 8/8 · menús 8/8 · Valle 22/22 · historia 21/21 · mundo 29/29 · Liga 13/13 · extras 8/8 · 8 gimnasios
+(3/3 cada uno) · 64/64 pruebas en Node. Las pasadas del navegador son del mismo `dist/game.js` que se publica.
 
 ## Cifras
-121 especies · 189 movimientos · 46 habilidades · 119 objetos · 102 mapas · 125 entrenadores · 31 misiones · 30 logros · ≈9.700 líneas en `src/` · 50 pruebas en Node.
+121 especies · 189 movimientos · 46 habilidades · 119 objetos · 102 mapas · 125 entrenadores · 31 misiones · 30 logros · ≈9.900 líneas en `src/` · 64 pruebas en Node.

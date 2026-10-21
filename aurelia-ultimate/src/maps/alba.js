@@ -5,6 +5,7 @@ import { interior, defineShopInterior, defineHouse, setRespawn } from './helpers
 import { chooseStarter, STARTERS } from '../screens/starter.js';
 import { createCreature, displayName } from '../creatures.js';
 import { getSpecies } from '../data/species.js';
+import { TYPES } from '../data/types.js';
 import { rivalStarter } from '../data/trainers_data.js';
 import { bagCount } from '../inventory.js';
 import { RNG } from '../rng.js';
@@ -30,8 +31,9 @@ defineMap('villa_alba', 32, 22, { name: 'Villa Alba', title: 'Villa Alba', fill:
   m.tree(11, 14, 'oak'); m.tree(12, 16, 'oak'); m.tree(2, 19, 'oak'); m.tree(18, 20, 'oak');
   m.spawn('start', 5, 10, 'down').spawn('fly', 17, 10, 'down');
   m.connect('e', 'ruta1', { offset: 0 });
-  // Salida bloqueada hasta tener criatura
-  m.trigger(29, 10, async (g, ow) => { await g.say('Deberías pasar primero por el laboratorio del Prof. Sauce, ¿no? Te estaba esperando.'); await ow.walk(ow.player, 'left', 2); }, { w: 2, h: 2, show: (g) => !g.flag('starter_chosen') });
+  // Salida bloqueada hasta tener criatura. La salida este mide 6 casillas de alto (x=30, filas 8-13) y el disparador las cubre todas: no se puede rodear
+  // (lo comprueba tests/maps.test.mjs).
+  m.trigger(30, 8, async (g, ow) => { await g.say('Deberías pasar primero por el laboratorio del Prof. Sauce, ¿no? Te estaba esperando. Es el edificio blanco, en el centro del pueblo.'); await ow.walk(ow.player, 'left', 2); }, { w: 1, h: 6, show: (g) => !g.flag('starter_chosen') });
   m.npc({ id: 'tomas', x: 12, y: 13, dir: 'down', look: look('abuelo'), name: 'Abuelo Tomás', move: 'wander', range: 1, talk: async (g) => {
     const st = g.questStatus('side_baston');
     if (st === 'none') { await g.say('Ay, ay... ¿Has visto mi bastón? Fui a pasear por la Ruta 1 y lo perdí entre la hierba. ¡Sin él no puedo ni dar un paso decente!', { speaker: 'Abuelo Tomás' }); if (await g.yesNo('¿Quieres buscar su bastón por la Ruta 1?')) { await g.startQuest('side_baston'); await g.say('¡Gracias, jovencísimo! Seguro que está bien escondido... ¡Los objetos ocultos brillan si llevas una lupa!', { speaker: 'Abuelo Tomás' }); } }
@@ -39,7 +41,7 @@ defineMap('villa_alba', 32, 22, { name: 'Villa Alba', title: 'Villa Alba', fill:
     else await g.say('Mi bastón y yo te estamos muy agradecidos. ¡Ahora sí que puedo pasear!', { speaker: 'Abuelo Tomás' });
   } });
   m.npc({ id: 'lia', x: 24, y: 16, dir: 'down', look: look('nina'), name: 'Lía', move: 'wander', range: 1, text: 'Mi abuela dice que las criaturas se cansan igual que nosotros. Si una se queda sin PP en un movimiento, ¡descanso en un Centro y listo!' });
-  m.npc({ id: 'pipo', x: 20, y: 11, dir: 'right', look: look('nino', { top: 4 }), name: 'Pipo', move: 'wander', range: 2, text: 'En la hierba alta saltan criaturas salvajes. Si no quieres combatir, ¡rodea! Si quieres capturarlas, primero debilítalas.' });
+  m.npc({ id: 'pipo', x: 20, y: 12, dir: 'up', look: look('nino', { top: 4 }), name: 'Pipo', move: 'static', text: 'En la hierba alta saltan criaturas salvajes. Si no quieres combatir, ¡rodea! Si quieres capturarlas, primero debilítalas.' });
   m.npc({ id: 'rosa_jardin', x: 6, y: 12, dir: 'right', look: look('abuela'), name: 'Vecina', move: 'static', text: 'Antes en Villa Alba no pasaba nada. Ahora siempre hay entrenadores... y gente rara con capas oscuras por las rutas. Ten cuidado, ¿eh?' });
 });
 
@@ -51,6 +53,7 @@ interior('casa_jugador', 10, 8, { name: 'Tu casa', title: 'Tu casa', floor: 'woo
       await g.say('¡Buenos días, {player}! Has dormido como un tronco. ¡Hoy es un gran día!', { speaker: 'Tía Rosa' });
       await g.say('El Prof. Sauce llamó temprano: quiere verte en su laboratorio, en esta misma Villa Alba. Dice que tiene algo importante para ti.', { speaker: 'Tía Rosa' });
       await g.say('Sal por la puerta, sigue el camino hacia la derecha y busca el edificio blanco. ¡No te olvides de ponerte las pilas!', { speaker: 'Tía Rosa' });
+      await g.say('Para moverte usa las flechas del teclado (o WASD); en el móvil, el pad de la izquierda. Para hablar con alguien, ponte frente a él y pulsa Enter, Espacio o Z (el botón A en el móvil). Con Esc o M abres el menú.', { speaker: 'Tía Rosa' });
       await g.startQuest('main_01'); return;
     }
     await g.say('Cuando vuelvas cansado, aquí tendrás tu cama y tu comida caliente. ¿Quieres que cuide de tus criaturas?', { speaker: 'Tía Rosa' });
@@ -84,14 +87,14 @@ interior('int_alba_lab', 12, 10, { name: 'Laboratorio', title: 'Laboratorio del 
       await g.sayAll([`¡Excelente elección! ${displayName(c)} y tú os llevaréis de maravilla.`, 'Toma, el Atlas de Aurelia: registra automáticamente todas las criaturas que veas y captures. Lo encontrarás en tu menú como "Enciclopedia".'], { speaker: 'Prof. Sauce' });
       await g.giveItem('capsula', 5); await g.giveItem('pocion', 2);
       await g.giveItem('lupa');
-      await g.sayAll(['Para capturar, primero debilita a la criatura salvaje y luego lanza una cápsula desde el menú de combate. ¡Más PS perdidos, más fácil es!', 'Y si se te cansan las criaturas, tu tía Rosa y los Centros de Curación las dejarán como nuevas.'], { speaker: 'Prof. Sauce' });
+      await g.sayAll(['Para capturar, primero debilita a la criatura salvaje y luego lanza una cápsula desde el menú de combate. ¡Más PS perdidos, más fácil es!', 'Y si se te cansan las criaturas, tu tía Rosa y los Centros de Curación las dejarán como nuevas.', 'Un último consejo de entrenador: los tipos importan. El fuego vence a la planta, la planta vence al agua y el agua vence al fuego. Al elegir un movimiento verás si es muy eficaz o poco eficaz contra tu rival.'], { speaker: 'Prof. Sauce' });
       // El rival se lleva la suya
       const rs = getSpecies(rivalStarter(g));
       await g.sayAll([`En ese momento... ¡la puerta se abre de golpe!`], {});
       g.setFlag('kai_en_lab'); ow.refreshEntities();
       const kai = ow.entity('kai_lab');
       if (kai) { await ow.walk(kai, 'up', 1); ow.faceToward(kai, ow.player.x, ow.player.y); }
-      await g.sayAll(['¡{player}! ¡Qué suerte, ya has elegido! Yo también me llevo una.', `Esta de aquí: ${rs.name}. Tiene ventaja sobre la tuya, ¡ja ja!`, 'Te espero en la Ruta 1. ¡Combatiremos para ver quién es mejor!'], { speaker: 'Kai' });
+      await g.sayAll(['¡{player}! ¡Qué suerte, ya has elegido! Yo también me llevo una.', `Esta de aquí: ${rs.name}, de tipo ${TYPES[rs.types[0]].name.toLowerCase()}. Es recién nacida, ¡pero tiene ventaja de tipo sobre la tuya, ja ja!`, 'Te espero en la Ruta 1, en la entrada. ¡Combatiremos para ver quién es mejor!'], { speaker: 'Kai' });
       if (kai) { await ow.walkPath(kai, 'down,right'); }
       g.clearFlag('kai_en_lab'); g.setFlag('kai_salio'); ow.refreshEntities();
       await g.sayAll(['Qué muchacho tan enérgico... Bueno, una última cosa, {player}.', 'Necesito que lleves este paquete al Museo de Ciudad Roble, al otro lado del Bosque Umbra. Es muy frágil: ¡no lo pierdas!'], { speaker: 'Prof. Sauce' });
@@ -127,17 +130,29 @@ defineMap('ruta1', 44, 24, { name: 'Ruta 1', title: 'Ruta 1', fill: 'grass', mus
   m.connect('w', 'villa_alba', { offset: 0 }).connect('e', 'bosque_umbra', { offset: 0 });
   m.trainer({ id: 'teo', trainer: 'teo', x: 15, y: 12, dir: 'down', look: look('nino'), name: 'Teo', sight: 3 });
   m.trainer({ id: 'mia', trainer: 'mia', x: 26, y: 5, dir: 'down', look: look('nina'), name: 'Mía', sight: 3, afterWin: true });
-  // Rival: el combate se repite hasta que el jugador gana; la misión solo avanza con la victoria
-  m.trigger(2, 10, async (g, ow) => {
-    ow.busy = true; const kai = ow.entity('kai_ruta');
-    if (kai) ow.faceToward(kai, ow.player.x, ow.player.y);
+  // Primer duelo con Kai: combate de práctica (rival Nv2, siempre con tiempo despejado, sin castigo al perder; ver trainers_data.js).
+  // El disparador cubre toda la entrada oeste de la Ruta 1 (x=1, filas 8-13: lo único transitable en x=0..1), así que no se puede rodear.
+  // Si se pierde, el equipo se cura en el sitio, el disparador deja de actuar (flag rival1_lost) y el duelo se repite hablando con Kai.
+  const rivalDuel = async (g, ow) => {
+    const kai = ow.entity('kai_ruta');
+    if (kai) { ow.faceToward(kai, ow.player.x, ow.player.y); await ow.exclaim(kai, 500); }
     const r = await g.battleTrainer('rival1', { entity: kai });
-    if (r.result !== 'win') return;
+    if (r.result !== 'win') {
+      g.setFlag('rival1_lost');
+      await g.say('Consejo: sube de nivel luchando contra criaturas salvajes en la hierba alta, y usa Pociones desde la Mochila durante el combate. Y recuerda: el fuego vence a la planta, la planta al agua y el agua al fuego.');
+      return;
+    }
     g.setFlag('rival1_done'); ow.refreshEntities();
     await g.say('Seguiré cruzando el bosque. ¡Alcánzame si puedes!', { speaker: 'Kai' });
     const k2 = ow.entity('kai_ruta'); if (k2) { await ow.walkPath(k2, 'right,right,right,right,right,right,right,right'); }
     g.setFlag('kai_sigue'); ow.refreshEntities();
-  }, { w: 1, h: 2, show: (g) => g.flag('starter_chosen') && !g.flag('rival1_done') });
-  m.npc({ id: 'kai_ruta', x: 6, y: 10, dir: 'left', look: look('kai'), name: 'Kai', move: 'static', show: (g) => g.flag('starter_chosen') && !g.flag('kai_sigue'), talk: async (g) => { await g.say('¡Vamos, entrena un poco!', { speaker: 'Kai' }); } });
+  };
+  m.trigger(1, 8, rivalDuel, { w: 1, h: 6, show: (g) => g.flag('starter_chosen') && !g.flag('rival1_done') && !g.flag('rival1_lost') });
+  m.npc({ id: 'kai_ruta', x: 6, y: 10, dir: 'left', look: look('kai'), name: 'Kai', move: 'static', show: (g) => g.flag('starter_chosen') && !g.flag('kai_sigue'), talk: async (g, e, ow) => {
+    if (g.flag('rival1_done')) { await g.say('¡Vamos, entrena un poco!', { speaker: 'Kai' }); return; }
+    await g.say(g.flag('rival1_lost') ? '¿Otra vez? ¡Me gusta tu ánimo! Tu equipo está curado, ¿empezamos?' : '¡Ahí estás! ¿Listo para nuestro combate de práctica?', { speaker: 'Kai' });
+    if (await g.yesNo('¿Combatir contra Kai ahora?')) await rivalDuel(g, ow);
+    else await g.say('Cuando quieras. Aquí estaré.', { speaker: 'Kai' });
+  } });
   m.trigger(40, 14, async (g) => { g.setFlag('ruta1_cruzada'); }, { w: 2, h: 2, once: true });
 });

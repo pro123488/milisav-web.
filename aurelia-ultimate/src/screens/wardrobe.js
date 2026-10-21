@@ -1,5 +1,5 @@
 // Armario: ropa, sombreros, accesorios, colores, efectos visuales y diseños de cápsula. Todo es opcional.
-import { el } from '../util.js';
+import { el, onHover } from '../util.js';
 import { trainerCanvas, HAIR_STYLES, OUTFITS, HATS, SKINS, HAIR_COLORS, OUTFIT_COLORS, PANTS_COLORS } from '../gfx/trainer_gfx.js';
 import { fmtMoney } from '../util.js';
 
@@ -61,7 +61,7 @@ export function openWardrobe(g) {
     const render = () => {
       tabs.innerHTML = ''; KINDS.forEach(([k, t]) => tabs.append(el('div', { class: 'tab' + (k === kind ? ' on' : ''), onclick: () => { kind = k; sel = 0; render(); } }, t)));
       const its = items(); if (sel >= its.length) sel = 0; list.innerHTML = '';
-      its.forEach((c, i) => { const row = el('div', { class: 'mi' + (i === sel ? ' sel' : '') + (c.own ? '' : ' off'), style: { opacity: c.own ? 1 : 0.65 } }, [c.swatch ? el('span', { style: { width: '20px', height: '20px', borderRadius: '4px', background: c.swatch, border: '2px solid #fff' } }) : null, el('span', {}, c.name), el('span', { class: 'hint' }, equipped(c) ? '✔ puesto' : c.own ? '' : c.price ? `🔒 ${fmtMoney(c.price)} (Boutique)` : '🔒 ' + (c.how || ''))]); row.addEventListener('click', () => { sel = i; choose(c); render(); }); row.addEventListener('mouseenter', () => { if (sel !== i) { sel = i; render(); } }); list.append(row); });
+      its.forEach((c, i) => { const row = el('div', { class: 'mi' + (i === sel ? ' sel' : '') + (c.own ? '' : ' off'), style: { opacity: c.own ? 1 : 0.65 } }, [c.swatch ? el('span', { style: { width: '20px', height: '20px', borderRadius: '4px', background: c.swatch, border: '2px solid #fff' } }) : null, el('span', {}, c.name), el('span', { class: 'hint' }, equipped(c) ? '✔ puesto' : c.own ? '' : c.price ? `🔒 ${fmtMoney(c.price)} (Boutique)` : '🔒 ' + (c.how || ''))]); row.addEventListener('click', () => { sel = i; choose(c); render(); }); onHover(row, () => { if (sel !== i) { sel = i; render(); } }); list.append(row); });
       const cur = its[sel]; note.textContent = cur ? (cur.own ? '' : cur.price ? `Se vende en la Boutique de Ciudad Dínamo por ${fmtMoney(cur.price)}.` : `Se desbloquea: ${cur.how || ''}`) : ''; draw();
     };
     const choose = (c) => {

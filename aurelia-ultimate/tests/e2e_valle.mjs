@@ -73,8 +73,9 @@ const arrived = await goTo(page, 9, 3, { log: () => nfights++ });
 s = await S(); ok('se atraviesa el laberinto de setos hasta la sala del líder', arrived, JSON.stringify([s.map]));
 ok('se derrotó a los 3 entrenadores del gimnasio (la verja se abre)', s.trainers.filter((t) => t.startsWith('gym_ciudad_roble_t')).length === 3, JSON.stringify(s.trainers));
 await shot('gimnasio_lider');
-// El inicial (planta, Nv13, solo movimientos de planta) llega a una líder de planta: se simula entrenamiento previo (hasta Nv24) y el bot elige su mejor movimiento.
-await G(() => { const g = window.__game, C = window.__au.Creatures, c = g.party[0]; C.gainXp(c, 1e7, 24); C.healCreature(c); });
+// Esta prueba recorre el guion de la historia con un inicial de Nv30 (no mide dificultad: eso lo hace tests/firstphase.test.mjs). Antes de la líder se
+// cura al equipo, como si se hubieran gastado pociones tras los entrenadores del gimnasio.
+await G(() => { const g = window.__game, C = window.__au.Creatures; for (const c of g.party) C.healCreature(c); });
 await face(page, 'up'); await key(page, 'Enter', 1, 300); await advance(page, { max: 100, quiet: 1500 });
 await driveBattle(page, { max: 1200, smart: true }); await advance(page, { max: 200, quiet: 2500 });
 s = await S(); ok('se obtiene la Medalla Hoja y la DT10', s.badges.includes('hoja') && s.bag.dt10 === 1, JSON.stringify([s.badges, s.bag.dt10]));

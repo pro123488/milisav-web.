@@ -28,13 +28,13 @@ Controles: flechas/WASD mover · Enter/Z aceptar · Esc/X cancelar o abrir el me
 ```bash
 npm install        # solo esbuild (empaquetado)
 npm run build      # genera dist/game.js
-npm test           # pruebas en Node: núcleo, datos, mapas, contenido, sistemas (50 pruebas)
+npm test           # pruebas en Node: núcleo, datos, mapas, contenido, sistemas, primera fase y calibración (64 pruebas)
 ```
 Pruebas end-to-end (Chromium + Playwright, con el servidor local en :8080, **una a una**: varios navegadores a la vez las vuelven inestables):
-`node tests/e2e_fase1.mjs`, `e2e_valle.mjs`, `e2e_fase2.mjs`, `e2e_historia.mjs`, `e2e_world.mjs`, `e2e_liga.mjs`, `e2e_extras.mjs`
-(guardería, boutique, revancha y Coliseo), `sh tests/run_gyms.sh` (los 8 gimnasios) y
-`e2e_menus.mjs` (capturas de pantallas). Última pasada completa: Fase 1 23/23 · Fase 2 8/8 · menús 8/8 · Valle 22/22 · historia 21/21 ·
-mundo 29/29 · Liga 13/13 · extras 8/8 · los 8 gimnasios 3/3 cada uno.
+`node tests/e2e_fase1.mjs`, `e2e_kai.mjs` (perder el primer duelo y recuperarse), `e2e_movil.mjs` (móvil, visor incrustado, ratón), `e2e_valle.mjs`,
+`e2e_fase2.mjs`, `e2e_historia.mjs`, `e2e_world.mjs`, `e2e_liga.mjs`, `e2e_extras.mjs` (guardería, boutique, revancha y Coliseo), `sh tests/run_gyms.sh` (los 8 gimnasios) y
+`e2e_menus.mjs` (capturas de pantallas). Última pasada completa: Fase 1 25/25 · Kai 11/11 · móvil 24/24 · Fase 2 8/8 · menús 8/8 · Valle 22/22 · historia 21/21 ·
+mundo 29/29 · Liga 13/13 · extras 8/8 · los 8 gimnasios 3/3 cada uno · 64/64 en Node.
 
 ## Documentación
 * [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — capas, datos, mundo, guiones, combate, guardado, pruebas.

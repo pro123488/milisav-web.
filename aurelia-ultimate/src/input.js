@@ -2,7 +2,7 @@
 // up down left right confirm cancel menu run
 const KEYMAP = {
   ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
-  Enter: 'confirm', Space: 'confirm', KeyZ: 'confirm', KeyE: 'confirm',
+  Enter: 'confirm', NumpadEnter: 'confirm', Space: 'confirm', KeyZ: 'confirm', KeyE: 'confirm',
   Escape: 'cancel', Backspace: 'cancel', KeyX: 'cancel', KeyQ: 'cancel',
   KeyM: 'menu', Tab: 'menu', ShiftLeft: 'run', ShiftRight: 'run', KeyC: 'run',
 };
@@ -19,8 +19,11 @@ export class Input {
   _down(e) {
     const a = KEYMAP[e.code];
     if (!a) return;
+    // Dentro de un campo de texto, las teclas son del campo (Retroceso, Espacio, flechas...) salvo Esc/Enter. Esta comprobación va ANTES de
+    // preventDefault: si no, no se podría borrar ni escribir espacios en el nombre del personaje.
+    if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && !['Escape', 'Enter', 'NumpadEnter'].includes(e.code)) return;
+    this.sawKey = true;                          // el juego sabe que quien juega tiene teclado (si no, se ofrece el pad en pantalla)
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab', 'Backspace'].includes(e.code)) e.preventDefault();
-    if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && !['Escape', 'Enter'].includes(e.code)) return;
     if (!this.held.has(a)) { this.held.add(a); if (DIRS[a]) { this.order = this.order.filter((x) => x !== a); this.order.push(a); } this.press(a, e.repeat); }
     else if (e.repeat && (DIRS[a])) this.press(a, true);
   }

@@ -33,7 +33,7 @@ export function installFlows(game) {
     const ow = g.ow;
     if (def.intro) await g.say(def.intro, { speaker: def.name });
     const team = buildTeam(def, g, { bonus: opts.rematch ? (opts.lvBonus || 0) : 0 });
-    const sum = await runBattle(g, { foe: { name: def.name, party: team, wild: false, trainer: def, ai: def.ai, items: def.items }, terrain: terrainFor(ow.map, null), trainerLook: def.look, isGym: !!def.gym, music: def.music, canFlee: false, trainerDef: def, rematch: !!opts.rematch });
+    const sum = await runBattle(g, { foe: { name: def.name, party: team, wild: false, trainer: def, ai: def.ai, items: def.items }, terrain: terrainFor(ow.map, null), trainerLook: def.look, isGym: !!def.gym, music: def.music, canFlee: false, trainerDef: def, rematch: !!opts.rematch, practice: !!def.practice });
     if (sum.result === 'win') {
       if (def.win) await g.say(def.win, { speaker: def.name });
       if (def.afterBattle) await def.afterBattle(g, def);
@@ -52,7 +52,7 @@ export async function runBattle(g, cfg) {
   if (!g.firstFighter()) { await g.say('No tienes criaturas en condiciones de luchar.'); return { result: 'none' }; }
   g.audio.stopMusic();
   const now = g.now;
-  const weatherName = ow?.weatherId || null;
+  const weatherName = cfg.practice ? null : (ow?.weatherId || null);          // los combates de práctica son siempre en tiempo despejado
   const battle = new Battle({
     seed: (g.rng.next() * 4294967296) >>> 0,
     player: { name: g.playerName, party, bag: g.bag },
@@ -104,8 +104,16 @@ export async function runBattle(g, cfg) {
   for (const c of party) if (c.pendingMoves?.length) await learnMoveFlow(g, c);
   if (sum.result !== 'lose') await evolutionFlow(g, { trigger: 'level' });
   // ---- derrota ----
-  if (sum.result === 'lose') await blackout(g, cfg);
+  if (sum.result === 'lose') await (cfg.practice ? practiceDefeat(g, cfg) : blackout(g, cfg));
   return sum;
+}
+
+/** Derrota en un combate de práctica: sin castigo ni traslado; el equipo se cura en el sitio y el rival anima al jugador. */
+export async function practiceDefeat(g, cfg = {}) {
+  await g.say(`${g.playerName} se ha quedado sin criaturas en condiciones de luchar...`);
+  if (cfg.trainerDef?.lose) await g.say(cfg.trainerDef.lose, { speaker: cfg.trainerDef.name });
+  healParty(g.party); g.audio.sfx('heal');
+  g.emit('practice_lost', { trainer: cfg.trainerDef?.id });
 }
 
 export async function blackout(g, cfg = {}) {
@@ -113,13 +121,16 @@ export async function blackout(g, cfg = {}) {
   await g.say(`${g.playerName} se ha quedado sin criaturas en condiciones de luchar...`);
   if (cfg.trainerDef?.lose) await g.say(cfg.trainerDef.lose, { speaker: cfg.trainerDef.name });
   if (loss > 0) { g.state.player.money -= loss; await g.say(`Has perdido ${loss} áureos en la huida.`); }
+  const wasBusy = g.ow.busy;
   await g.ui.fade(true, 500);
   healParty(g.party);
   g.state.player.surfing = false;
   const h = st.lastHeal;
   await g.ow.loadMap(h.map, h.x, h.y, 'down', { announce: true });
+  g.ow.busy = true;                                   // loadMap libera el control: se mantiene bloqueado hasta cerrar el último diálogo
   await g.ui.fade(false, 500);
   await g.say('Tus criaturas han sido curadas. ¡Vuelve a intentarlo cuando estés listo!');
+  g.ow.busy = wasBusy ?? false;
   g.emit('blackout');
 }
 
