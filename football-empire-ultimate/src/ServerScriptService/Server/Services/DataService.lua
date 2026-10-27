@@ -47,6 +47,7 @@ local function isAccessError(err)
 		or msg:find("API Services") ~= nil
 		or msg:find("API access") ~= nil
 		or msg:find("Studio") ~= nil
+		or msg:find("publish") ~= nil
 end
 
 do
