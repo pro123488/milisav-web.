@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="ReplicatedStorage" referent="RBX00000012"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX00000011"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000009"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">CommercialConfig</string><ProtectedString name="Source"><![CDATA[-- CommercialConfig (ModuleScript)
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="ReplicatedStorage" referent="RBX00000014"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX00000013"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX0000000A"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">CommercialConfig</string><ProtectedString name="Source"><![CDATA[-- CommercialConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/CommercialConfig
 --
 -- Instalaciones comerciales (FASE 3): políticas de precios de tienda, restauración
@@ -468,7 +468,174 @@ function FacilityConfig.LevelData(id, level)
 end
 
 return FacilityConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000004"><Properties><string name="Name">GameConfig</string><ProtectedString name="Source"><![CDATA[-- GameConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000004"><Properties><string name="Name">FootballConfig</string><ProtectedString name="Source"><![CDATA[-- FootballConfig (ModuleScript)
+-- Ubicación: ReplicatedStorage/Shared/Config/FootballConfig
+--
+-- Futbolistas, contratos, temporadas y CANTERA GENERACIONAL (FASE 4).
+-- Todos los nombres se generan combinando listas: son jugadores ficticios.
+
+local FootballConfig = {}
+
+-- ===== Temporada =====
+-- Una temporada dura SEASON_LENGTH jornadas (ciclos económicos). Al terminar:
+-- los jugadores cumplen años, los contratos avanzan, hay retiradas y llega una
+-- nueva hornada a la cantera. Las ligas (FASE 7) usarán este mismo reloj.
+FootballConfig.SEASON_LENGTH = 30
+
+-- ===== Plantilla =====
+FootballConfig.MAX_SQUAD = 25
+FootballConfig.MIN_SQUAD = 14 -- no se puede bajar de aquí al rescindir o vender
+FootballConfig.CONTRACT_MAX_SEASONS = 5
+FootballConfig.RENEW_WINDOW = 2 -- se puede renovar cuando quedan 2 temporadas o menos
+FootballConfig.RELEASE_COST_SHARE = 0.25 -- rescindir cuesta el 25 % del salario restante
+
+FootballConfig.Positions = {
+	{ id = "GK", name = "Portero", short = "POR", icon = "🧤" },
+	{ id = "DEF", name = "Defensa", short = "DEF", icon = "🛡️" },
+	{ id = "MID", name = "Centrocampista", short = "MED", icon = "🎯" },
+	{ id = "FWD", name = "Delantero", short = "DEL", icon = "⚽" },
+}
+
+FootballConfig.Attributes = {
+	{ id = "pace", name = "Velocidad", short = "VEL" },
+	{ id = "shooting", name = "Tiro", short = "TIR" },
+	{ id = "passing", name = "Pase", short = "PAS" },
+	{ id = "dribbling", name = "Regate", short = "REG" },
+	{ id = "defending", name = "Defensa", short = "DEF" },
+	{ id = "stamina", name = "Resistencia", short = "RES" },
+}
+
+-- Peso de cada atributo en la media según la posición (cada fila suma 1).
+-- Para el portero, "Defensa" representa sus paradas.
+FootballConfig.Weights = {
+	GK = { pace = 0.15, shooting = 0.00, passing = 0.15, dribbling = 0.05, defending = 0.55, stamina = 0.10 },
+	DEF = { pace = 0.15, shooting = 0.05, passing = 0.15, dribbling = 0.05, defending = 0.45, stamina = 0.15 },
+	MID = { pace = 0.10, shooting = 0.15, passing = 0.30, dribbling = 0.20, defending = 0.10, stamina = 0.15 },
+	FWD = { pace = 0.20, shooting = 0.35, passing = 0.10, dribbling = 0.20, defending = 0.05, stamina = 0.10 },
+}
+
+-- Perfil típico de cada posición al generar jugadores (desviación sobre la media objetivo).
+FootballConfig.Bias = {
+	GK = { pace = -8, shooting = -25, passing = -5, dribbling = -15, defending = 8, stamina = -3 },
+	DEF = { pace = -2, shooting = -15, passing = -3, dribbling = -10, defending = 8, stamina = 2 },
+	MID = { pace = -2, shooting = -2, passing = 6, dribbling = 3, defending = -8, stamina = 3 },
+	FWD = { pace = 4, shooting = 7, passing = -4, dribbling = 3, defending = -25, stamina = -2 },
+}
+
+-- Plantilla inicial de un club nuevo
+FootballConfig.STARTING_SQUAD = { GK = 2, DEF = 5, MID = 5, FWD = 4 }
+FootballConfig.STARTING_OVERALL = { min = 42, max = 54 }
+
+-- ===== Valor y salario (exponenciales con la media) =====
+FootballConfig.VALUE_BASE = 1000 -- valor de un jugador de media 45
+FootballConfig.VALUE_GROWTH = 1.14
+FootballConfig.SALARY_BASE = 8 -- salario por jornada de un jugador de media 45
+FootballConfig.SALARY_GROWTH = 1.09
+FootballConfig.YOUTH_SALARY_SHARE = 0.6 -- salario del primer contrato de un canterano
+
+-- ===== Entrenamiento y evolución =====
+FootballConfig.BASE_GROWTH = 0.17 -- puntos de media por jornada en las mejores condiciones
+FootballConfig.GROWTH_GAP = 15 -- con 15 o más puntos de margen hasta el potencial se crece al máximo
+FootballConfig.AgeRates = { -- multiplicador de evolución por edad (negativo = declive)
+	{ maxAge = 17, rate = 1.2 },
+	{ maxAge = 21, rate = 1.0 },
+	{ maxAge = 24, rate = 0.7 },
+	{ maxAge = 27, rate = 0.35 },
+	{ maxAge = 30, rate = 0.1 },
+	{ maxAge = 32, rate = -0.2 },
+	{ maxAge = 99, rate = -0.5 },
+}
+FootballConfig.TrainingIntensities = {
+	{ id = "LIGHT", name = "Suave", growth = 0.7 },
+	{ id = "NORMAL", name = "Normal", growth = 1.0 },
+	{ id = "INTENSE", name = "Intensa", growth = 1.3 },
+}
+FootballConfig.TRAINING_FACILITY_BONUS = 0.2 -- +20 % por nivel del Centro de entrenamiento
+FootballConfig.FOCUS_WEIGHT = 0.4 -- peso extra del atributo en el que se centra el entrenamiento
+
+-- ===== Retirada y leyendas =====
+FootballConfig.RETIRE_MIN_AGE = 33
+FootballConfig.RETIRE_CHANCE_PER_YEAR = 0.25 -- 33 años: 25 %, 34: 50 %, ...
+FootballConfig.RETIRE_FORCED_AGE = 37
+FootballConfig.LEGEND_MIN_PEAK = 72 -- media máxima para entrar en las leyendas del club
+FootballConfig.LEGEND_MIN_ACADEMY_PEAK = 65 -- los canteranos entran antes
+FootballConfig.LEGEND_MIN_APPS = 150
+
+-- ===== Cantera =====
+FootballConfig.YOUTH_MIN_PROMOTE_AGE = 16
+FootballConfig.YOUTH_MAX_AGE = 18 -- con 19 años dejan la academia si no suben al primer equipo
+FootballConfig.YOUTH_START_AGE = { min = 15, max = 16 }
+FootballConfig.YOUTH_OVERALL = { min = 28, max = 44 }
+-- Por nivel de la Academia juvenil (0 = cantera básica sin instalación)
+FootballConfig.AcademyLevels = {
+	[0] = { capacity = 4, intake = 1, potentialMin = 50, potentialMax = 72, growth = 1.0 },
+	[1] = { capacity = 6, intake = 2, potentialMin = 55, potentialMax = 78, growth = 1.25 },
+	[2] = { capacity = 8, intake = 3, potentialMin = 60, potentialMax = 84, growth = 1.5 },
+	[3] = { capacity = 10, intake = 4, potentialMin = 65, potentialMax = 90, growth = 1.75 },
+}
+FootballConfig.GEM_CHANCE = 0.05 -- probabilidad de "joya" (+8 de potencial)
+FootballConfig.GEM_CHANCE_PER_SCOUT = 0.02
+FootballConfig.GEM_BONUS = 8
+FootballConfig.STAR_POTENTIAL = 85 -- se marca como ⭐ si el potencial estimado mínimo llega aquí
+
+-- ===== Ojeadores =====
+FootballConfig.MAX_SCOUTS = 3
+FootballConfig.SCOUT_COSTS = { 150, 400, 800 } -- coste total por jornada con 1, 2 o 3 ojeadores
+FootballConfig.SCOUT_POTENTIAL_BONUS = 2 -- +2 al rango de potencial por ojeador
+FootballConfig.SCOUT_REPORT_CYCLES = 10 -- cada cuántas jornadas llega un informe
+FootballConfig.SCOUT_ERROR = { [0] = 12, [1] = 8, [2] = 4, [3] = 0 } -- margen del potencial estimado
+FootballConfig.SCOUT_SIGN_BASE = 500
+FootballConfig.SCOUT_SIGN_PER_POTENTIAL2 = 0.8 -- fichaje de un juvenil = base + potencial² × 0,8
+
+-- ===== Nombres ficticios =====
+FootballConfig.FirstNames = {
+	"Álex", "Bruno", "Carlos", "Dani", "Emilio", "Fabián", "Gonzalo", "Héctor", "Iker", "Javier",
+	"Kevin", "Lucas", "Mateo", "Nico", "Óscar", "Pablo", "Rafa", "Santi", "Tomás", "Unai",
+	"Víctor", "Yago", "Adrián", "Bastián", "Cristian", "Diego", "Enzo", "Facundo", "Gael", "Hugo",
+	"Iván", "Joaquín", "Leo", "Marco", "Nahuel", "Rodrigo", "Samuel", "Thiago", "Valentín", "Martín",
+	"André", "João", "Luca", "Mamadou", "Kenji", "Omar", "Erik", "Jonas", "Malik", "Sergi",
+}
+FootballConfig.LastNames = {
+	"García", "Rodríguez", "Fernández", "López", "Martínez", "Sánchez", "Pérez", "Gómez", "Ruiz", "Díaz",
+	"Moreno", "Álvarez", "Romero", "Navarro", "Torres", "Domínguez", "Vázquez", "Ramos", "Gil", "Serrano",
+	"Molina", "Ortega", "Delgado", "Castro", "Ortiz", "Rubio", "Marín", "Sanz", "Núñez", "Iglesias",
+	"Medina", "Garrido", "Cortés", "Castillo", "Santos", "Lozano", "Guerrero", "Cano", "Prieto", "Méndez",
+	"Silva", "Costa", "Rossi", "Diallo", "Tanaka", "Haddad", "Larsen", "Weber", "Okafor", "Vidal",
+}
+
+function FootballConfig.Position(id)
+	for _, p in ipairs(FootballConfig.Positions) do
+		if p.id == id then
+			return p
+		end
+	end
+	return FootballConfig.Positions[3]
+end
+
+function FootballConfig.Intensity(id)
+	for _, i in ipairs(FootballConfig.TrainingIntensities) do
+		if i.id == id then
+			return i
+		end
+	end
+	return FootballConfig.TrainingIntensities[2]
+end
+
+function FootballConfig.AgeRate(age)
+	for _, entry in ipairs(FootballConfig.AgeRates) do
+		if age <= entry.maxAge then
+			return entry.rate
+		end
+	end
+	return -0.5
+end
+
+function FootballConfig.Academy(level)
+	return FootballConfig.AcademyLevels[math.clamp(level or 0, 0, 3)]
+end
+
+return FootballConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">GameConfig</string><ProtectedString name="Source"><![CDATA[-- GameConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/GameConfig
 --
 -- Constantes generales del juego y del equilibrio económico.
@@ -477,12 +644,12 @@ return FacilityConfig
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.3.0-fase3"
+GameConfig.VERSION = "0.4.0-fase4"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
 GameConfig.DATASTORE_NAME = "FEU_Clubs_v1"
-GameConfig.DATA_VERSION = 3 -- v3: socios, satisfacción, políticas de precios y patrocinadores
+GameConfig.DATA_VERSION = 4 -- v4: plantilla, cantera, temporadas y leyendas
 GameConfig.AUTOSAVE_SECONDS = 120
 GameConfig.SESSION_LOCK_SECONDS = 600 -- un bloqueo más antiguo se considera abandonado
 GameConfig.MAX_TRANSACTIONS = 60
@@ -582,7 +749,7 @@ GameConfig.OWNERSHIP_RECHECK_SECONDS = 90 -- reintento en segundo plano cuando R
 GameConfig.PRICE_CACHE_SECONDS = 600
 
 return GameConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000005"><Properties><string name="Name">GamePassConfig</string><ProtectedString name="Source"><![CDATA[-- GamePassConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000006"><Properties><string name="Name">GamePassConfig</string><ProtectedString name="Source"><![CDATA[-- GamePassConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/GamePassConfig
 --
 -- Configuración CENTRALIZADA de los Game Passes de FOOTBALL EMPIRE ULTIMATE.
@@ -740,7 +907,7 @@ function GamePassConfig.GetKeyById(id: number): string?
 end
 
 return GamePassConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000006"><Properties><string name="Name">MenuConfig</string><ProtectedString name="Source"><![CDATA[-- MenuConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000007"><Properties><string name="Name">MenuConfig</string><ProtectedString name="Source"><![CDATA[-- MenuConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/MenuConfig
 --
 -- Entradas del menú principal. `phase` indica en qué fase del plan se
@@ -769,10 +936,10 @@ local MenuConfig = {
 }
 
 -- Fase actualmente implementada: las entradas con phase <= CURRENT_PHASE están activas.
-MenuConfig.CURRENT_PHASE = 3
+MenuConfig.CURRENT_PHASE = 4
 
 return MenuConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000007"><Properties><string name="Name">SponsorConfig</string><ProtectedString name="Source"><![CDATA[-- SponsorConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">SponsorConfig</string><ProtectedString name="Source"><![CDATA[-- SponsorConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/SponsorConfig
 --
 -- Contratos de patrocinio (FASE 3). Todas las marcas son FICTICIAS: se generan
@@ -856,7 +1023,7 @@ function SponsorConfig.ObjectiveMet(objective, occupancy, satisfaction, members)
 end
 
 return SponsorConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">StadiumStages</string><ProtectedString name="Source"><![CDATA[-- StadiumStages (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">StadiumStages</string><ProtectedString name="Source"><![CDATA[-- StadiumStages (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/StadiumStages
 --
 -- Las siete etapas del ESTADIO EVOLUTIVO (FASE 2).
@@ -943,7 +1110,7 @@ function StadiumStages.Get(stage)
 end
 
 return StadiumStages
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000010"><Properties><string name="Name">Modules</string></Properties><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">EconomyFormulas</string><ProtectedString name="Source"><![CDATA[-- EconomyFormulas (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000012"><Properties><string name="Name">Modules</string></Properties><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">EconomyFormulas</string><ProtectedString name="Source"><![CDATA[-- EconomyFormulas (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/EconomyFormulas
 --
 -- Fórmulas económicas PURAS (sin efectos secundarios).
@@ -957,6 +1124,7 @@ local CosmeticConfig = require(Config.CosmeticConfig)
 local StadiumStages = require(Config.StadiumStages)
 local CommercialConfig = require(Config.CommercialConfig)
 local SponsorConfig = require(Config.SponsorConfig)
+local FootballConfig = require(Config.FootballConfig)
 
 local EconomyFormulas = {}
 
@@ -1147,6 +1315,7 @@ function EconomyFormulas.Cycle(data)
 		staff = GameConfig.STAFF_BASE + totals.staff,
 		stadium = stageEffects.upkeep, -- operación del estadio según su etapa
 		wages = EconomyFormulas.Wages(data), -- salarios de la plantilla (FASE 4)
+		scouts = FootballConfig.SCOUT_COSTS[(data.academy and data.academy.scouts) or 0] or 0, -- ojeadores (FASE 4)
 		interest = math.floor((economy.debt or 0) * GameConfig.DEBT_INTEREST_PER_CYCLE),
 	}
 
@@ -1301,7 +1470,115 @@ function EconomyFormulas.CanUpgradeStage(data)
 end
 
 return EconomyFormulas
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">Format</string><ProtectedString name="Source"><![CDATA[-- Format (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">FootballFormulas</string><ProtectedString name="Source"><![CDATA[-- FootballFormulas (ModuleScript)
+-- Ubicación: ReplicatedStorage/Shared/Modules/FootballFormulas
+-- Fórmulas puras de futbolistas: media, valor, salario, potencial estimado y evolución.
+-- Las usa el servidor (autoridad) y el cliente (solo para mostrar).
+
+local FootballConfig = require(script.Parent.Parent.Config.FootballConfig)
+
+local FootballFormulas = {}
+
+function FootballFormulas.Overall(player)
+	local weights = FootballConfig.Weights[player.pos] or FootballConfig.Weights.MID
+	local total = 0
+	for attr, w in pairs(weights) do
+		total += (player.attrs[attr] or 0) * w
+	end
+	return total
+end
+
+function FootballFormulas.OverallInt(player)
+	return math.floor(FootballFormulas.Overall(player) + 0.5)
+end
+
+local function ageFactor(age)
+	if age <= 21 then
+		return 1.3
+	elseif age <= 26 then
+		return 1.15
+	elseif age <= 29 then
+		return 1.0
+	elseif age <= 32 then
+		return 0.7
+	end
+	return 0.4
+end
+
+function FootballFormulas.MarketValue(player)
+	local ovr = FootballFormulas.Overall(player)
+	local margin = math.max(0, (player.potential or ovr) - ovr)
+	local value = FootballConfig.VALUE_BASE * FootballConfig.VALUE_GROWTH ^ (ovr - 45)
+		* ageFactor(player.age) * (1 + margin / 40)
+	return math.max(100, math.floor(value / 100 + 0.5) * 100)
+end
+
+function FootballFormulas.SalaryDemand(player)
+	local ovr = FootballFormulas.Overall(player)
+	return math.max(2, math.floor(FootballConfig.SALARY_BASE * FootballConfig.SALARY_GROWTH ^ (ovr - 45) + 0.5))
+end
+
+-- Rango de potencial que se muestra según el número de ojeadores.
+-- Es estable para cada jugador (no cambia al recargar) y siempre contiene el valor real.
+function FootballFormulas.PotentialRange(player, scouts)
+	local err = FootballConfig.SCOUT_ERROR[math.clamp(scouts or 0, 0, 3)]
+	if err == 0 then
+		return player.potential, player.potential
+	end
+	local hash = 0
+	for i = 1, #player.id do
+		hash = (hash * 31 + string.byte(player.id, i)) % 9973
+	end
+	local shift = hash % (err + 1) -- el valor real queda en una posición fija dentro del rango
+	local low = player.potential - shift
+	local high = low + err
+	return math.max(1, low), math.min(99, high)
+end
+
+-- Evolución de un jugador en UNA jornada (devuelve el cambio de media previsto).
+function FootballFormulas.GrowthPerCycle(player, multiplier)
+	local rate = FootballConfig.AgeRate(player.age)
+	if rate <= 0 then
+		return FootballConfig.BASE_GROWTH * rate
+	end
+	local gap = (player.potential or 0) - FootballFormulas.Overall(player)
+	if gap <= 0 then
+		return 0
+	end
+	return FootballConfig.BASE_GROWTH * rate * math.clamp(gap / FootballConfig.GROWTH_GAP, 0, 1) * (multiplier or 1)
+end
+
+-- Aplica un cambio de media repartiéndolo entre atributos (según posición y foco).
+function FootballFormulas.ApplyGrowth(player, delta)
+	if delta == 0 then
+		return
+	end
+	local weights = FootballConfig.Weights[player.pos] or FootballConfig.Weights.MID
+	local share, denominator = {}, 0
+	for attr, w in pairs(weights) do
+		local s = w + (player.focus == attr and FootballConfig.FOCUS_WEIGHT or 0) + 0.02
+		share[attr] = s
+		denominator += w * s
+	end
+	if denominator <= 0 then
+		return
+	end
+	local k = delta / denominator
+	for attr, s in pairs(share) do
+		player.attrs[attr] = math.clamp((player.attrs[attr] or 0) + k * s, 1, 99)
+	end
+end
+
+function FootballFormulas.YouthSignFee(potential)
+	return math.floor(FootballConfig.SCOUT_SIGN_BASE + potential * potential * FootballConfig.SCOUT_SIGN_PER_POTENTIAL2)
+end
+
+function FootballFormulas.ReleaseCost(player)
+	return math.floor((player.salary or 0) * FootballConfig.SEASON_LENGTH * (player.contract or 0) * FootballConfig.RELEASE_COST_SHARE)
+end
+
+return FootballFormulas
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">Format</string><ProtectedString name="Source"><![CDATA[-- Format (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/Format
 -- Utilidades de formato compartidas por cliente y servidor.
 
@@ -1352,7 +1629,7 @@ function Format.Duration(seconds)
 end
 
 return Format
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">KitPattern</string><ProtectedString name="Source"><![CDATA[-- KitPattern (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">KitPattern</string><ProtectedString name="Source"><![CDATA[-- KitPattern (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/KitPattern
 -- Dibuja una plantilla de equipación con Frames. Lo usan la interfaz (vista previa)
 -- y el servidor (expositor de equipación del estadio, en un SurfaceGui).
@@ -1403,7 +1680,7 @@ function KitPattern.Build(parent, pattern, primary, secondary)
 end
 
 return KitPattern
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">PlacementRules</string><ProtectedString name="Source"><![CDATA[-- PlacementRules (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">PlacementRules</string><ProtectedString name="Source"><![CDATA[-- PlacementRules (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/PlacementRules
 --
 -- Reglas de colocación libre de decoraciones (CONSTRUCCIÓN AVANZADA, FASE 2).
@@ -1510,7 +1787,7 @@ function PlacementRules.Validate(params)
 end
 
 return PlacementRules
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[-- Remotes (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[-- Remotes (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/Remotes
 --
 -- Punto único de acceso a los RemoteEvents/RemoteFunctions.
@@ -1560,7 +1837,7 @@ function Remotes.Get(name)
 end
 
 return Remotes
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">StadiumLayout</string><ProtectedString name="Source"><![CDATA[-- StadiumLayout (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">StadiumLayout</string><ProtectedString name="Source"><![CDATA[-- StadiumLayout (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/StadiumLayout
 --
 -- Plano del terreno en coordenadas LOCALES (iguales para todos los terrenos):
@@ -1622,7 +1899,7 @@ StadiumLayout.Reserved = {
 }
 
 return StadiumLayout
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000023"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX00000022"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX00000013"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (Script de servidor)
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000027"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX00000026"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX00000015"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (Script de servidor)
 -- Ubicación: ServerScriptService/Server/Main
 --
 -- Arranque del servidor y enrutado de acciones del cliente.
@@ -1646,6 +1923,7 @@ local EconomyService = require(Services.EconomyService)
 local BuildService = require(Services.BuildService)
 local StadiumService = require(Services.StadiumService)
 local SponsorService = require(Services.SponsorService)
+local SquadService = require(Services.SquadService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -1694,6 +1972,7 @@ local function buildState(player)
 		},
 		history = data.history,
 		sponsors = data.sponsors,
+		football = SquadService.BuildState(data), -- plantilla, cantera, temporada, leyendas (FASE 4)
 		economy = EconomyService.Summary(player, data),
 		premium = {
 			owned = GamePassService.OwnedList(player),
@@ -1769,6 +2048,39 @@ Actions.UpgradeStage = function(player)
 		SponsorService.RefreshOffers(DataService.Get(player), false) -- nuevos huecos desbloqueados
 	end
 	return ok, msg, ok
+end
+
+-- ===== Plantilla y cantera (FASE 4) =====
+Actions.SetTrainingIntensity = function(player, payload)
+	return SquadService.SetIntensity(player, payload)
+end
+
+Actions.SetTrainingFocus = function(player, payload)
+	return SquadService.SetFocus(player, payload)
+end
+
+Actions.RenewContract = function(player, payload)
+	return SquadService.Renew(player, payload)
+end
+
+Actions.ReleasePlayer = function(player, payload)
+	return SquadService.Release(player, payload)
+end
+
+Actions.PromoteYouth = function(player, payload)
+	return SquadService.PromoteYouth(player, payload)
+end
+
+Actions.ReleaseYouth = function(player, payload)
+	return SquadService.ReleaseYouth(player, payload)
+end
+
+Actions.SetScouts = function(player, payload)
+	return SquadService.SetScouts(player, payload)
+end
+
+Actions.SignYouthReport = function(player, payload)
+	return SquadService.SignReport(player, payload)
 end
 
 Actions.SetPricePolicy = function(player, payload)
@@ -1886,6 +2198,7 @@ local function onPlayerAdded(player)
 	if not PlotService.GetPlot(player) then
 		notifyRemote:FireClient(player, "error", "El servidor está lleno de estadios. Tu club funciona, pero tu estadio no se mostrará en este servidor.")
 	end
+	SquadService.EnsureSquad(data)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
@@ -1937,6 +2250,9 @@ EconomyService.OnCycle(function(player, cycle)
 	if #sponsorMessages > 0 then
 		PlotService.RequestRender(player) -- quita vallas o nombre del estadio caducados
 	end
+	for _, message in ipairs(SquadService.AfterCycle(player)) do
+		notifyRemote:FireClient(player, "info", message)
+	end
 	PlotService.UpdateCrowd(player, cycle.occupancy)
 	pushState(player)
 	local data = DataService.Get(player)
@@ -1970,7 +2286,7 @@ task.spawn(function()
 end)
 
 print(string.format("[%s] Servidor iniciado · versión %s", GameConfig.GAME_NAME, GameConfig.VERSION))
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001D"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">BuildService</string><ProtectedString name="Source"><![CDATA[-- BuildService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000020"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">BuildService</string><ProtectedString name="Source"><![CDATA[-- BuildService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/BuildService
 --
 -- Construcción validada en el servidor:
@@ -2166,7 +2482,7 @@ function BuildService.DecorationVisibility(player, data)
 end
 
 return BuildService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">ClubService</string><ProtectedString name="Source"><![CDATA[-- ClubService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">ClubService</string><ProtectedString name="Source"><![CDATA[-- ClubService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/ClubService
 --
 -- Identidad del club: nombre (filtrado por Roblox), abreviatura y apariencia
@@ -2309,7 +2625,7 @@ function ClubService.ShortName(data)
 end
 
 return ClubService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[-- DataService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[-- DataService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/DataService
 --
 -- Guardado persistente con DataStoreService:
@@ -2537,7 +2853,7 @@ function DataService.Start()
 end
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">EconomyService</string><ProtectedString name="Source"><![CDATA[-- EconomyService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">EconomyService</string><ProtectedString name="Source"><![CDATA[-- EconomyService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/EconomyService
 --
 -- Economía AUTORITATIVA del servidor:
@@ -2576,6 +2892,9 @@ EconomyService.Category = {
 	DEBT = "Deuda",
 	REFUND = "Reembolso",
 	SPONSOR = "Patrocinio",
+	ACADEMY = "Academia",
+	TRANSFER = "Fichajes",
+	PRIZE = "Premios",
 }
 local C = EconomyService.Category
 
@@ -2826,7 +3145,7 @@ function EconomyService.Start()
 end
 
 return EconomyService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">GamePassService</string><ProtectedString name="Source"><![CDATA[-- GamePassService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">GamePassService</string><ProtectedString name="Source"><![CDATA[-- GamePassService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/GamePassService
 --
 -- Integración REAL con MarketplaceService:
@@ -3103,7 +3422,7 @@ function GamePassService.OnPurchaseConfirmed(callback)
 end
 
 return GamePassService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">PlotService</string><ProtectedString name="Source"><![CDATA[-- PlotService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">PlotService</string><ProtectedString name="Source"><![CDATA[-- PlotService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/PlotService
 --
 -- Terrenos del servidor:
@@ -3431,7 +3750,7 @@ function PlotService.CharacterAdded(player)
 end
 
 return PlotService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">SponsorService</string><ProtectedString name="Source"><![CDATA[-- SponsorService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">SponsorService</string><ProtectedString name="Source"><![CDATA[-- SponsorService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/SponsorService
 --
 -- Contratos de patrocinio (FASE 3):
@@ -3606,7 +3925,421 @@ function SponsorService.PlayerReady(player)
 end
 
 return SponsorService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">StadiumRenderer</string><ProtectedString name="Source"><![CDATA[-- StadiumRenderer (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">SquadService</string><ProtectedString name="Source"><![CDATA[-- SquadService (ModuleScript)
+-- Ubicación: ServerScriptService/Server/Services/SquadService
+--
+-- FASE 4: plantilla, contratos, entrenamiento y CANTERA GENERACIONAL.
+--   * Evolución por jornada según potencial, edad, entrenamiento e instalaciones.
+--   * Temporadas: edad, contratos, retiradas, leyendas y nueva hornada de juveniles.
+--   * Ojeadores: mejoran el potencial de la cantera, la precisión del potencial
+--     estimado y traen informes con juveniles que se pueden fichar.
+-- Todo se valida aquí; el cliente solo envía intenciones con IDs de SUS jugadores.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage.Shared
+local GameConfig = require(Shared.Config.GameConfig)
+local FootballConfig = require(Shared.Config.FootballConfig)
+local FootballFormulas = require(Shared.Modules.FootballFormulas)
+
+local DataService = require(script.Parent.DataService)
+local EconomyService = require(script.Parent.EconomyService)
+local StadiumService = require(script.Parent.StadiumService)
+local PlayerFactory = require(script.Parent.Parent.Util.PlayerFactory)
+
+local SquadService = {}
+
+local rng = Random.new()
+
+local function findIn(list, id)
+	if type(id) ~= "string" then
+		return nil
+	end
+	for index, p in ipairs(list) do
+		if p.id == id then
+			return p, index
+		end
+	end
+	return nil
+end
+SquadService.FindIn = findIn
+
+local function academyLevel(data)
+	return data.stadium.facilities.academy or 0
+end
+
+function SquadService.EnsureSquad(data)
+	if #data.squad == 0 then
+		data.squad = PlayerFactory.StartingSquad(data)
+	end
+	if #data.academy.youths == 0 and data.academy.seededIntake ~= true then
+		local level = academyLevel(data)
+		for _ = 1, FootballConfig.Academy(level).intake + 1 do
+			table.insert(data.academy.youths, PlayerFactory.Youth(data, level, data.academy.scouts))
+		end
+		data.academy.seededIntake = true
+	end
+end
+
+-- ===== Acciones =====
+
+function SquadService.SetIntensity(player, payload)
+	local data = DataService.Get(player)
+	local id = type(payload) == "table" and payload.intensity
+	for _, option in ipairs(FootballConfig.TrainingIntensities) do
+		if option.id == id then
+			data.training.intensity = option.id
+			return true, "Entrenamiento: " .. option.name
+		end
+	end
+	return false, "Intensidad no válida."
+end
+
+function SquadService.SetFocus(player, payload)
+	local data = DataService.Get(player)
+	if type(payload) ~= "table" then
+		return false, "Solicitud no válida."
+	end
+	local target = findIn(data.squad, payload.id) or findIn(data.academy.youths, payload.id)
+	if not target then
+		return false, "Ese jugador no es de tu club."
+	end
+	if payload.focus == nil or payload.focus == "" then
+		target.focus = nil
+		return true, target.name .. ": entrenamiento equilibrado."
+	end
+	for _, attr in ipairs(FootballConfig.Attributes) do
+		if attr.id == payload.focus then
+			target.focus = attr.id
+			return true, string.format("%s: entrenamiento centrado en %s.", target.name, attr.name)
+		end
+	end
+	return false, "Atributo no válido."
+end
+
+function SquadService.Renew(player, payload)
+	local data = DataService.Get(player)
+	local target = type(payload) == "table" and findIn(data.squad, payload.id)
+	if not target then
+		return false, "Ese jugador no es de tu plantilla."
+	end
+	local years = tonumber(type(payload) == "table" and payload.years)
+	if not years or years ~= math.floor(years) or years < 1 or years > FootballConfig.CONTRACT_MAX_SEASONS then
+		return false, "Duración no válida."
+	end
+	if target.contract > FootballConfig.RENEW_WINDOW then
+		return false, string.format("Solo se puede renovar cuando quedan %d temporadas o menos.", FootballConfig.RENEW_WINDOW)
+	end
+	if target.age >= FootballConfig.RETIRE_FORCED_AGE - 1 and years > 1 then
+		return false, "Por su edad, solo acepta renovar 1 temporada."
+	end
+	local demand = FootballFormulas.SalaryDemand(target)
+	target.salary = demand
+	target.contract = years
+	return true, string.format("%s renueva %d temporada(s) por %d %s/jornada.", target.name, years, demand, GameConfig.CURRENCY)
+end
+
+function SquadService.Release(player, payload)
+	local data = DataService.Get(player)
+	local target, index = findIn(data.squad, type(payload) == "table" and payload.id)
+	if not target then
+		return false, "Ese jugador no es de tu plantilla."
+	end
+	if #data.squad <= FootballConfig.MIN_SQUAD then
+		return false, string.format("Necesitas al menos %d jugadores en la plantilla.", FootballConfig.MIN_SQUAD)
+	end
+	local cost = FootballFormulas.ReleaseCost(target)
+	local paid, err = EconomyService.Spend(player, cost, EconomyService.Category.WAGES, "Rescisión: " .. target.name)
+	if not paid then
+		return false, "No puedes pagar la rescisión (" .. cost .. " " .. GameConfig.CURRENCY .. "): " .. tostring(err)
+	end
+	table.remove(data.squad, index)
+	StadiumService.LogEvent(data, "player_released", { name = target.name, ovr = FootballFormulas.OverallInt(target) })
+	return true, target.name .. " deja el club."
+end
+
+function SquadService.PromoteYouth(player, payload)
+	local data = DataService.Get(player)
+	local youth, index = findIn(data.academy.youths, type(payload) == "table" and payload.id)
+	if not youth then
+		return false, "Ese juvenil no está en tu academia."
+	end
+	if youth.age < FootballConfig.YOUTH_MIN_PROMOTE_AGE then
+		return false, string.format("Debe tener al menos %d años.", FootballConfig.YOUTH_MIN_PROMOTE_AGE)
+	end
+	if #data.squad >= FootballConfig.MAX_SQUAD then
+		return false, string.format("La plantilla está llena (%d). Haz sitio primero.", FootballConfig.MAX_SQUAD)
+	end
+	table.remove(data.academy.youths, index)
+	youth.salary = math.max(2, math.floor(FootballFormulas.SalaryDemand(youth) * FootballConfig.YOUTH_SALARY_SHARE))
+	youth.contract = 3
+	youth.joinedSeason = data.season.number
+	table.insert(data.squad, youth)
+	data.stats.academyGraduates = (data.stats.academyGraduates or 0) + 1
+	StadiumService.LogEvent(data, "youth_promoted", { name = youth.name, ovr = FootballFormulas.OverallInt(youth), age = youth.age })
+	return true, string.format("🧬 %s sube al primer equipo.", youth.name)
+end
+
+function SquadService.ReleaseYouth(player, payload)
+	local data = DataService.Get(player)
+	local youth, index = findIn(data.academy.youths, type(payload) == "table" and payload.id)
+	if not youth then
+		return false, "Ese juvenil no está en tu academia."
+	end
+	table.remove(data.academy.youths, index)
+	return true, youth.name .. " deja la academia."
+end
+
+function SquadService.SetScouts(player, payload)
+	local data = DataService.Get(player)
+	local count = tonumber(type(payload) == "table" and payload.count)
+	if not count or count ~= math.floor(count) or count < 0 or count > FootballConfig.MAX_SCOUTS then
+		return false, "Número de ojeadores no válido."
+	end
+	data.academy.scouts = count
+	if count > 0 and #data.academy.reports == 0 then
+		data.academy.nextReport = data.stats.cycles + 1 -- primer informe en la próxima jornada
+	end
+	if count == 0 then
+		data.academy.reports = {}
+	end
+	return true, count == 0 and "Has despedido a los ojeadores." or string.format("Ahora tienes %d ojeador(es).", count)
+end
+
+function SquadService.SignReport(player, payload)
+	local data = DataService.Get(player)
+	local candidate, index = findIn(data.academy.reports, type(payload) == "table" and payload.id)
+	if not candidate then
+		return false, "Ese informe ya no está disponible."
+	end
+	local level = academyLevel(data)
+	if #data.academy.youths >= FootballConfig.Academy(level).capacity then
+		return false, "La academia está llena. Mejora la Academia juvenil o haz sitio."
+	end
+	local fee = FootballFormulas.YouthSignFee(candidate.potential)
+	local paid, err = EconomyService.Spend(player, fee, EconomyService.Category.ACADEMY, "Fichaje juvenil: " .. candidate.name)
+	if not paid then
+		return false, err
+	end
+	table.remove(data.academy.reports, index)
+	table.insert(data.academy.youths, candidate)
+	return true, string.format("🔎 %s se incorpora a la academia.", candidate.name)
+end
+
+-- ===== Evolución y temporadas =====
+
+local function trainingMultiplier(data)
+	local intensity = FootballConfig.Intensity(data.training.intensity)
+	local trainingLevel = data.stadium.facilities.training or 0
+	return intensity.growth * (1 + FootballConfig.TRAINING_FACILITY_BONUS * trainingLevel)
+end
+
+local function grow(player, multiplier)
+	local delta = FootballFormulas.GrowthPerCycle(player, multiplier)
+	FootballFormulas.ApplyGrowth(player, delta)
+	local ovr = FootballFormulas.Overall(player)
+	if ovr > (player.peak or 0) then
+		player.peak = ovr
+	end
+end
+
+local function legendCheck(data, p)
+	local peak = math.floor((p.peak or 0) + 0.5)
+	local apps = p.stats and p.stats.apps or 0
+	local isLegend = peak >= FootballConfig.LEGEND_MIN_PEAK
+		or (p.origin == "academy" and peak >= FootballConfig.LEGEND_MIN_ACADEMY_PEAK)
+		or apps >= FootballConfig.LEGEND_MIN_APPS
+	if isLegend then
+		table.insert(data.legends, {
+			name = p.name,
+			pos = p.pos,
+			peak = peak,
+			origin = p.origin,
+			seasons = math.max(1, data.season.number - (p.joinedSeason or data.season.number)),
+			apps = apps,
+			goals = p.stats and p.stats.goals or 0,
+			assists = p.stats and p.stats.assists or 0,
+			retiredSeason = data.season.number,
+		})
+		while #data.legends > 50 do
+			table.remove(data.legends, 1)
+		end
+	end
+	return isLegend
+end
+
+local function seasonEnd(data, messages)
+	local finished = data.season.number
+	data.season.number += 1
+	data.season.cycle = 0
+
+	-- Primer equipo: edad, contratos y retiradas
+	local keep = {}
+	for _, p in ipairs(data.squad) do
+		p.age += 1
+		p.contract -= 1
+		local retireChance = (p.age - FootballConfig.RETIRE_MIN_AGE + 1) * FootballConfig.RETIRE_CHANCE_PER_YEAR
+		if p.age >= FootballConfig.RETIRE_FORCED_AGE or (p.age >= FootballConfig.RETIRE_MIN_AGE and rng:NextNumber() < retireChance) then
+			local legend = legendCheck(data, p)
+			StadiumService.LogEvent(data, "player_retired", { name = p.name, age = p.age, peak = math.floor(p.peak + 0.5), legend = legend })
+			table.insert(messages, string.format("👋 %s se retira con %d años%s.", p.name, p.age, legend and " y entra en las leyendas del club" or ""))
+		elseif p.contract <= 0 then
+			StadiumService.LogEvent(data, "player_left", { name = p.name, reason = "contract" })
+			table.insert(messages, p.name .. " termina su contrato y deja el club.")
+		else
+			table.insert(keep, p)
+		end
+	end
+	data.squad = keep
+
+	-- Academia: edad y salidas
+	local youths = {}
+	for _, y in ipairs(data.academy.youths) do
+		y.age += 1
+		if y.age > FootballConfig.YOUTH_MAX_AGE then
+			table.insert(messages, y.name .. " cumple " .. y.age .. " años y deja la academia sin debutar.")
+		else
+			table.insert(youths, y)
+		end
+	end
+	data.academy.youths = youths
+
+	-- Nueva hornada
+	local level = academyLevel(data)
+	local academy = FootballConfig.Academy(level)
+	local free = academy.capacity - #data.academy.youths
+	local intake = math.min(academy.intake, free)
+	for _ = 1, intake do
+		table.insert(data.academy.youths, PlayerFactory.Youth(data, level, data.academy.scouts))
+	end
+	if intake > 0 then
+		table.insert(messages, string.format("🧬 Llega una nueva hornada a la cantera: %d juvenil(es).", intake))
+	end
+	if #data.squad < FootballConfig.MIN_SQUAD then
+		-- Garantía de jugabilidad: se completan plazas con jugadores libres modestos.
+		while #data.squad < FootballConfig.MIN_SQUAD do
+			local positions = FootballConfig.Positions
+			table.insert(data.squad, PlayerFactory.Create(data, {
+				pos = positions[rng:NextInteger(1, #positions)].id,
+				overall = rng:NextInteger(FootballConfig.STARTING_OVERALL.min, FootballConfig.STARTING_OVERALL.max),
+				age = rng:NextInteger(20, 30),
+				origin = "free",
+			}))
+		end
+		table.insert(messages, "Se han incorporado jugadores libres para completar la plantilla mínima.")
+	end
+	StadiumService.LogEvent(data, "season_end", { season = finished })
+	table.insert(messages, string.format("📅 Termina la temporada %d. ¡Empieza la temporada %d!", finished, data.season.number))
+end
+
+local function refreshReports(data)
+	local academy = data.academy
+	if academy.scouts <= 0 then
+		academy.reports = {}
+		return
+	end
+	if data.stats.cycles >= (academy.nextReport or 0) then
+		academy.reports = {}
+		for _ = 1, academy.scouts do
+			local candidate = PlayerFactory.Youth(data, academyLevel(data), academy.scouts)
+			table.insert(academy.reports, candidate)
+		end
+		academy.nextReport = data.stats.cycles + FootballConfig.SCOUT_REPORT_CYCLES
+	end
+end
+
+-- Se llama después de cada jornada. Devuelve mensajes para el jugador.
+function SquadService.AfterCycle(player)
+	local data = DataService.Get(player)
+	if not data then
+		return {}
+	end
+	local messages = {}
+	local multiplier = trainingMultiplier(data)
+	for _, p in ipairs(data.squad) do
+		grow(p, multiplier)
+	end
+	local youthMultiplier = FootballConfig.Academy(academyLevel(data)).growth * FootballConfig.Intensity(data.training.intensity).growth
+	for _, y in ipairs(data.academy.youths) do
+		grow(y, youthMultiplier)
+	end
+	refreshReports(data)
+	data.season.cycle += 1
+	if data.season.cycle >= FootballConfig.SEASON_LENGTH then
+		seasonEnd(data, messages)
+	end
+	return messages
+end
+
+-- ===== Estado para el cliente (sin el potencial exacto) =====
+
+local function publicPlayer(p, scouts, multiplier)
+	local low, high = FootballFormulas.PotentialRange(p, scouts)
+	local attrs = {}
+	for id, v in pairs(p.attrs) do
+		attrs[id] = math.floor(v + 0.5)
+	end
+	return {
+		id = p.id,
+		name = p.name,
+		age = p.age,
+		pos = p.pos,
+		attrs = attrs,
+		ovr = FootballFormulas.OverallInt(p),
+		potentialLow = low,
+		potentialHigh = high,
+		star = low >= FootballConfig.STAR_POTENTIAL,
+		value = FootballFormulas.MarketValue(p),
+		salary = p.salary,
+		salaryDemand = FootballFormulas.SalaryDemand(p),
+		contract = p.contract,
+		releaseCost = FootballFormulas.ReleaseCost(p),
+		focus = p.focus,
+		origin = p.origin,
+		stats = p.stats,
+		growth = math.floor(FootballFormulas.GrowthPerCycle(p, multiplier or 1) * FootballConfig.SEASON_LENGTH * 10 + 0.5) / 10, -- media prevista por temporada
+		signFee = p.origin == "academy" and FootballFormulas.YouthSignFee(p.potential) or nil,
+	}
+end
+
+function SquadService.BuildState(data)
+	local scouts = data.academy.scouts
+	local squad, youths, reports = {}, {}, {}
+	local squadMultiplier = trainingMultiplier(data)
+	local youthMultiplier = FootballConfig.Academy(academyLevel(data)).growth * FootballConfig.Intensity(data.training.intensity).growth
+	for _, p in ipairs(data.squad) do
+		table.insert(squad, publicPlayer(p, scouts, squadMultiplier))
+	end
+	for _, y in ipairs(data.academy.youths) do
+		table.insert(youths, publicPlayer(y, scouts, youthMultiplier))
+	end
+	for _, r in ipairs(data.academy.reports) do
+		table.insert(reports, publicPlayer(r, scouts, youthMultiplier))
+	end
+	local level = academyLevel(data)
+	return {
+		squad = squad,
+		academy = {
+			youths = youths,
+			reports = reports,
+			scouts = scouts,
+			level = level,
+			capacity = FootballConfig.Academy(level).capacity,
+			intake = FootballConfig.Academy(level).intake,
+			nextReportIn = math.max(0, (data.academy.nextReport or 0) - data.stats.cycles),
+		},
+		training = {
+			intensity = data.training.intensity,
+			multiplier = trainingMultiplier(data),
+		},
+		season = { number = data.season.number, cycle = data.season.cycle, length = FootballConfig.SEASON_LENGTH },
+		legends = data.legends,
+		graduates = data.stats.academyGraduates or 0,
+	}
+end
+
+return SquadService
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">StadiumRenderer</string><ProtectedString name="Source"><![CDATA[-- StadiumRenderer (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/StadiumRenderer
 --
 -- Construye el estadio físico a partir de los datos del club.
@@ -4556,7 +5289,7 @@ function StadiumRenderer.Render(folder, origin, info)
 end
 
 return StadiumRenderer
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">StadiumService</string><ProtectedString name="Source"><![CDATA[-- StadiumService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">StadiumService</string><ProtectedString name="Source"><![CDATA[-- StadiumService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/StadiumService
 --
 -- ESTADIO EVOLUTIVO (FASE 2): ascenso entre las 7 etapas.
@@ -4609,7 +5342,7 @@ function StadiumService.UpgradeStage(player)
 end
 
 return StadiumService
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000021"><Properties><string name="Name">Util</string></Properties><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">DefaultData</string><ProtectedString name="Source"><![CDATA[-- DefaultData (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000025"><Properties><string name="Name">Util</string></Properties><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">DefaultData</string><ProtectedString name="Source"><![CDATA[-- DefaultData (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/DefaultData
 --
 -- Plantilla de datos de un club y validación/reparación de datos cargados.
@@ -4627,6 +5360,7 @@ local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
+local FootballConfig = require(Shared.Config.FootballConfig)
 
 local DefaultData = {}
 
@@ -4689,9 +5423,12 @@ function DefaultData.Create(player)
 			nextRefresh = 0, -- nº de jornada en la que se renuevan las ofertas
 		},
 		-- ===== Reservado para fases posteriores =====
-		squad = {},
-		academy = {},
-		season = { number = 1 },
+		squad = {}, -- primer equipo (FASE 4): lista de jugadores
+		academy = { youths = {}, reports = {}, scouts = 0, nextReport = 0 }, -- cantera (FASE 4)
+		training = { intensity = "NORMAL" },
+		season = { number = 1, cycle = 0 },
+		legends = {}, -- jugadores legendarios retirados
+		nextPlayerId = 0,
 		trophies = {},
 		records = {},
 		missions = {},
@@ -4758,6 +5495,71 @@ local function cleanSponsors(raw)
 				end
 			end
 			clean.offers[slot.id] = list
+		end
+	end
+	return clean
+end
+
+local function validPlayer(p)
+	if type(p) ~= "table" or type(p.id) ~= "string" or #p.id > 20 or type(p.name) ~= "string" or #p.name > 40 then
+		return nil
+	end
+	if not finiteNumber(p.age) or p.age < 14 or p.age > 45 then
+		return nil
+	end
+	local posOk = false
+	for _, pos in ipairs(FootballConfig.Positions) do
+		if pos.id == p.pos then
+			posOk = true
+		end
+	end
+	if not posOk or type(p.attrs) ~= "table" then
+		return nil
+	end
+	local attrs = {}
+	for _, attr in ipairs(FootballConfig.Attributes) do
+		local v = p.attrs[attr.id]
+		if not finiteNumber(v) then
+			return nil
+		end
+		attrs[attr.id] = math.clamp(v, 1, 99)
+	end
+	local focus = nil
+	for _, attr in ipairs(FootballConfig.Attributes) do
+		if attr.id == p.focus then
+			focus = attr.id
+		end
+	end
+	local stats = type(p.stats) == "table" and p.stats or {}
+	return {
+		id = p.id,
+		name = p.name,
+		age = math.floor(p.age),
+		pos = p.pos,
+		attrs = attrs,
+		focus = focus,
+		potential = math.clamp(math.floor(tonumber(p.potential) or 50), 1, 99),
+		peak = math.clamp(tonumber(p.peak) or 0, 0, 99),
+		salary = math.max(0, math.floor(tonumber(p.salary) or 0)),
+		contract = math.clamp(math.floor(tonumber(p.contract) or 0), 0, FootballConfig.CONTRACT_MAX_SEASONS),
+		origin = type(p.origin) == "string" and p.origin:sub(1, 12) or "start",
+		joinedSeason = math.max(1, math.floor(tonumber(p.joinedSeason) or 1)),
+		stats = {
+			apps = math.max(0, math.floor(tonumber(stats.apps) or 0)),
+			goals = math.max(0, math.floor(tonumber(stats.goals) or 0)),
+			assists = math.max(0, math.floor(tonumber(stats.assists) or 0)),
+		},
+		loan = type(p.loan) == "table" and p.loan or nil, -- cesiones (FASE 6)
+	}
+end
+
+local function cleanPlayers(list, max)
+	local clean, seen = {}, {}
+	for _, p in ipairs(type(list) == "table" and list or {}) do
+		local valid = validPlayer(p)
+		if valid and not seen[valid.id] and #clean < max then
+			seen[valid.id] = true
+			table.insert(clean, valid)
 		end
 	end
 	return clean
@@ -4916,6 +5718,42 @@ function DefaultData.Reconcile(data, player)
 
 	-- Patrocinadores
 	data.sponsors = cleanSponsors(data.sponsors)
+
+	-- Plantilla y cantera (FASE 4)
+	data.squad = cleanPlayers(data.squad, FootballConfig.MAX_SQUAD + 5)
+	if type(data.academy) ~= "table" then
+		data.academy = {}
+	end
+	data.academy.youths = cleanPlayers(data.academy.youths, 12)
+	data.academy.reports = cleanPlayers(data.academy.reports, FootballConfig.MAX_SCOUTS)
+	data.academy.scouts = math.clamp(math.floor(tonumber(data.academy.scouts) or 0), 0, FootballConfig.MAX_SCOUTS)
+	data.academy.nextReport = math.max(0, math.floor(tonumber(data.academy.nextReport) or 0))
+	data.academy.seededIntake = data.academy.seededIntake == true
+	if type(data.training) ~= "table" or not FootballConfig.Intensity(data.training.intensity) or FootballConfig.Intensity(data.training.intensity).id ~= data.training.intensity then
+		data.training = { intensity = "NORMAL" }
+	end
+	if type(data.season) ~= "table" then
+		data.season = {}
+	end
+	data.season.number = math.max(1, math.floor(tonumber(data.season.number) or 1))
+	data.season.cycle = math.clamp(math.floor(tonumber(data.season.cycle) or 0), 0, FootballConfig.SEASON_LENGTH - 1)
+	if type(data.legends) ~= "table" then
+		data.legends = {}
+	end
+	-- El contador de IDs nunca puede quedar por debajo de un ID existente
+	local maxId = math.max(0, math.floor(tonumber(data.nextPlayerId) or 0))
+	local function bump(list)
+		for _, p in ipairs(list) do
+			local n = tonumber(p.id:match("^p(%d+)$"))
+			if n and n > maxId then
+				maxId = n
+			end
+		end
+	end
+	bump(data.squad)
+	bump(data.academy.youths)
+	bump(data.academy.reports)
+	data.nextPlayerId = maxId
 	if type(economy.transactions) ~= "table" then
 		economy.transactions = {}
 	end
@@ -4933,7 +5771,122 @@ function DefaultData.Reconcile(data, player)
 end
 
 return DefaultData
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">RateLimiter</string><ProtectedString name="Source"><![CDATA[-- RateLimiter (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">PlayerFactory</string><ProtectedString name="Source"><![CDATA[-- PlayerFactory (ModuleScript)
+-- Ubicación: ServerScriptService/Server/Util/PlayerFactory
+-- Genera futbolistas ficticios en el SERVIDOR (el cliente nunca crea jugadores).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage.Shared
+local FootballConfig = require(Shared.Config.FootballConfig)
+local FootballFormulas = require(Shared.Modules.FootballFormulas)
+
+local PlayerFactory = {}
+
+local rng = Random.new()
+
+function PlayerFactory.RandomName()
+	local first = FootballConfig.FirstNames[rng:NextInteger(1, #FootballConfig.FirstNames)]
+	local last = FootballConfig.LastNames[rng:NextInteger(1, #FootballConfig.LastNames)]
+	return first .. " " .. last
+end
+
+function PlayerFactory.NextId(data)
+	data.nextPlayerId = (data.nextPlayerId or 0) + 1
+	return "p" .. data.nextPlayerId
+end
+
+-- Atributos alrededor de una media objetivo con el perfil de la posición.
+local function makeAttrs(pos, target)
+	local attrs = {}
+	local bias = FootballConfig.Bias[pos] or FootballConfig.Bias.MID
+	for _, attr in ipairs(FootballConfig.Attributes) do
+		attrs[attr.id] = math.clamp(target + bias[attr.id] + rng:NextInteger(-6, 6), 5, 95)
+	end
+	-- Ajuste fino para que la media quede en el objetivo
+	local probe = { pos = pos, attrs = attrs }
+	local diff = target - FootballFormulas.Overall(probe)
+	for id, value in pairs(attrs) do
+		attrs[id] = math.clamp(value + diff, 5, 95)
+	end
+	return attrs
+end
+
+local function potentialFor(age, ovr)
+	local gap
+	if age <= 21 then
+		gap = rng:NextInteger(5, 25)
+	elseif age <= 25 then
+		gap = rng:NextInteger(2, 12)
+	elseif age <= 28 then
+		gap = rng:NextInteger(0, 5)
+	else
+		gap = 0
+	end
+	return math.clamp(math.floor(ovr + gap + 0.5), 1, 97)
+end
+
+-- opts: { pos, overall, age, potential?, origin, contract? }
+function PlayerFactory.Create(data, opts)
+	local attrs = makeAttrs(opts.pos, opts.overall)
+	local player = {
+		id = PlayerFactory.NextId(data),
+		name = PlayerFactory.RandomName(),
+		age = opts.age,
+		pos = opts.pos,
+		attrs = attrs,
+		focus = nil,
+		origin = opts.origin or "start",
+		joinedSeason = data.season.number,
+		stats = { apps = 0, goals = 0, assists = 0 },
+	}
+	local ovr = FootballFormulas.Overall(player)
+	player.potential = opts.potential or potentialFor(opts.age, ovr)
+	player.peak = ovr
+	player.salary = FootballFormulas.SalaryDemand(player)
+	player.contract = opts.contract or rng:NextInteger(1, 3)
+	return player
+end
+
+function PlayerFactory.StartingSquad(data)
+	local squad = {}
+	local range = FootballConfig.STARTING_OVERALL
+	for _, position in ipairs(FootballConfig.Positions) do
+		for _ = 1, FootballConfig.STARTING_SQUAD[position.id] or 0 do
+			table.insert(squad, PlayerFactory.Create(data, {
+				pos = position.id,
+				overall = rng:NextInteger(range.min, range.max),
+				age = rng:NextInteger(18, 33),
+				origin = "start",
+			}))
+		end
+	end
+	return squad
+end
+
+-- Juvenil para la cantera. academyLevel y scouts condicionan el potencial.
+function PlayerFactory.Youth(data, academyLevel, scouts)
+	local academy = FootballConfig.Academy(academyLevel)
+	local bonus = (scouts or 0) * FootballConfig.SCOUT_POTENTIAL_BONUS
+	local potential = rng:NextInteger(academy.potentialMin + bonus, academy.potentialMax + bonus)
+	local gem = rng:NextNumber() < FootballConfig.GEM_CHANCE + (scouts or 0) * FootballConfig.GEM_CHANCE_PER_SCOUT
+	if gem then
+		potential += FootballConfig.GEM_BONUS
+	end
+	local positions = FootballConfig.Positions
+	local youth = PlayerFactory.Create(data, {
+		pos = positions[rng:NextInteger(1, #positions)].id,
+		overall = rng:NextInteger(FootballConfig.YOUTH_OVERALL.min, FootballConfig.YOUTH_OVERALL.max),
+		age = rng:NextInteger(FootballConfig.YOUTH_START_AGE.min, FootballConfig.YOUTH_START_AGE.max),
+		potential = math.clamp(potential, 40, 97),
+		origin = "academy",
+		contract = 0,
+	})
+	youth.salary = 0 -- los juveniles no cobran salario de primer equipo
+	return youth
+end
+
+return PlayerFactory
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">RateLimiter</string><ProtectedString name="Source"><![CDATA[-- RateLimiter (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/RateLimiter
 -- Limita cuántas acciones puede enviar cada jugador por ventana de tiempo.
 
@@ -4964,7 +5917,7 @@ function RateLimiter:Remove(player)
 end
 
 return RateLimiter
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Retry</string><ProtectedString name="Source"><![CDATA[-- Retry (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Retry</string><ProtectedString name="Source"><![CDATA[-- Retry (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/Retry
 -- Ejecuta una función con pcall y reintentos controlados con espera exponencial.
 
@@ -4987,7 +5940,7 @@ function Retry.Call(attempts, baseDelay, fn, ...)
 end
 
 return Retry
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000037"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000036"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX00000035"><Properties><string name="Name">Client</string></Properties><Item class="Folder" referent="RBX00000025"><Properties><string name="Name">Controllers</string></Properties><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">PlacementController</string><ProtectedString name="Source"><![CDATA[-- PlacementController (ModuleScript)
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000003D"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX0000003C"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX0000003B"><Properties><string name="Name">Client</string></Properties><Item class="Folder" referent="RBX00000029"><Properties><string name="Name">Controllers</string></Properties><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">PlacementController</string><ProtectedString name="Source"><![CDATA[-- PlacementController (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/PlacementController
 --
 -- CONSTRUCCIÓN AVANZADA (FASE 2): modo de colocación libre de decoraciones.
@@ -5313,7 +6266,7 @@ function PlacementController.Start(ctx, opts)
 end
 
 return PlacementController
-]]></ProtectedString></Properties></Item></Item><Item class="LocalScript" referent="RBX00000026"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (LocalScript)
+]]></ProtectedString></Properties></Item></Item><Item class="LocalScript" referent="RBX0000002A"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (LocalScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Main
 --
 -- Interfaz principal: barra superior, menú principal adaptable (PC / móvil / tableta),
@@ -5347,6 +6300,8 @@ local Screens = {
 	economy = require(ScreensFolder.Economy),
 	shop = require(ScreensFolder.Shop),
 	settings = require(ScreensFolder.Settings),
+	squad = require(ScreensFolder.Squad),
+	academy = require(ScreensFolder.Academy),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
@@ -5771,7 +6726,130 @@ task.spawn(function()
 		actionRemote:InvokeServer("RefreshShop")
 	end)
 end)
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000002F"><Properties><string name="Name">Screens</string></Properties><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Build</string><ProtectedString name="Source"><![CDATA[-- Build (ModuleScript) · Pantalla "Construcción"
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000035"><Properties><string name="Name">Screens</string></Properties><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Academy</string><ProtectedString name="Source"><![CDATA[-- Academy (ModuleScript) · Pantalla "Academia" · CANTERA GENERACIONAL (FASE 4)
+-- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Academy
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local FootballConfig = require(Shared.Config.FootballConfig)
+
+local Squad = require(script.Parent.Squad)
+
+local Academy = {}
+
+function Academy.Render(container, ctx)
+	local C, Theme, Format, state = ctx.C, ctx.Theme, ctx.Format, ctx.state
+	local football = state.football
+	local academy = football.academy
+	local levelData = FootballConfig.Academy(academy.level)
+	local scroll = C.Scroll()
+	scroll.Parent = container
+	local add = C.Stack(scroll)
+
+	add(C.Title("🧬 Cantera generacional", 26))
+
+	local remaining = football.season.length - football.season.cycle
+	add(C.Card({ BackgroundColor3 = Theme.Panel }, {
+		C.Label(string.format("<b>Academia juvenil nivel %d</b>%s", academy.level, academy.level == 0 and " (cantera básica)" or ""), { TextSize = 16 }),
+		C.Label(string.format("Plazas %d/%d · %d juvenil(es) por hornada · evolución ×%.2f · potencial base %d-%d",
+			#academy.youths, academy.capacity, academy.intake, levelData.growth, levelData.potentialMin, levelData.potentialMax), { TextSize = 14 }),
+		C.Label(string.format("Próxima hornada al final de la temporada: dentro de %d jornada(s). Con %d años los juveniles dejan la academia si no suben al primer equipo.",
+			remaining, FootballConfig.YOUTH_MAX_AGE + 1), { TextColor3 = Theme.TextDim, TextSize = 13 }),
+		C.Button("Mejorar la Academia juvenil", "secondary", function()
+			ctx.navigate("build")
+		end),
+	}))
+
+	-- Ojeadores
+	local err = FootballConfig.SCOUT_ERROR[academy.scouts]
+	local scoutCard = C.Card({}, {
+		C.Title(string.format("🔎 Ojeadores: %d / %d", academy.scouts, FootballConfig.MAX_SCOUTS), 18),
+		C.Label(string.format("Coste: %s por jornada. Potencial estimado con margen de ±%d. +%d al potencial de la cantera y más probabilidad de joyas. "
+			.. "Cada %d jornadas traen un informe con juveniles que puedes fichar%s.",
+			Format.Money(FootballConfig.SCOUT_COSTS[academy.scouts] or 0), err, academy.scouts * FootballConfig.SCOUT_POTENTIAL_BONUS,
+			FootballConfig.SCOUT_REPORT_CYCLES, academy.scouts > 0 and string.format(" (próximo en %d)", academy.nextReportIn) or ""),
+			{ TextColor3 = Theme.TextDim, TextSize = 13 }),
+	})
+	local minus = C.Button("− Despedir", "secondary", function()
+		ctx.act("SetScouts", { count = academy.scouts - 1 })
+	end)
+	local plus = C.Button(string.format("+ Contratar (%s/jornada)", Format.Money(FootballConfig.SCOUT_COSTS[math.min(FootballConfig.MAX_SCOUTS, academy.scouts + 1)] or 0)), "primary", function()
+		ctx.act("SetScouts", { count = academy.scouts + 1 })
+	end)
+	C.SetEnabled(minus, academy.scouts > 0)
+	C.SetEnabled(plus, academy.scouts < FootballConfig.MAX_SCOUTS)
+	C.Row({ minus, plus }, 8).Parent = scoutCard
+	add(scoutCard)
+
+	-- Juveniles
+	add(C.Title(string.format("👦 Juveniles (%d)", #academy.youths), 20))
+	if #academy.youths == 0 then
+		add(C.Label("La academia está vacía. Llegarán juveniles al final de la temporada.", { TextColor3 = Theme.TextMuted }))
+	end
+	for _, y in ipairs(academy.youths) do
+		local expanded = ctx.params.selected == y.id
+		add(Squad.PlayerCard(ctx, y, {
+			expanded = expanded,
+			onToggle = function()
+				ctx.navigate("academy", { selected = (not expanded) and y.id or nil })
+			end,
+			actions = function(card)
+				local promote = C.Button("⬆️ Subir al primer equipo", "primary", function()
+					ctx.act("PromoteYouth", { id = y.id })
+				end)
+				C.SetEnabled(promote, y.age >= FootballConfig.YOUTH_MIN_PROMOTE_AGE and #football.squad < FootballConfig.MAX_SQUAD)
+				local release = C.Button("Liberar", "danger", function()
+					ctx.act("ReleaseYouth", { id = y.id })
+				end)
+				C.Row({ promote, release }, 8).Parent = card
+				if y.age < FootballConfig.YOUTH_MIN_PROMOTE_AGE then
+					C.Label(string.format("Podrá subir al primer equipo con %d años.", FootballConfig.YOUTH_MIN_PROMOTE_AGE), { TextSize = 13, TextColor3 = Theme.TextDim }).Parent = card
+				end
+			end,
+		}))
+	end
+
+	-- Informes de ojeadores
+	if academy.scouts > 0 then
+		local reports = C.Card({}, { C.Title("📋 Informe de los ojeadores", 18) })
+		if #academy.reports == 0 then
+			C.Label("Sin candidatos todavía. El informe llega en la próxima jornada.", { TextColor3 = Theme.TextMuted }).Parent = reports
+		end
+		for _, r in ipairs(academy.reports) do
+			local pos = FootballConfig.Position(r.pos)
+			local sign = C.Button("Fichar · " .. Format.Money(r.signFee or 0), "primary", function()
+				ctx.act("SignYouthReport", { id = r.id })
+			end, { Size = UDim2.new(0, 160, 0, 34), AutomaticSize = Enum.AutomaticSize.None })
+			C.SetEnabled(sign, #academy.youths < academy.capacity and state.economy.money >= (r.signFee or 0))
+			C.Row({
+				C.Label(string.format("<b>%s</b>%s · %s %s · %d años · media %d · potencial %d-%d",
+					r.name, r.star and " ⭐" or "", pos.icon, pos.short, r.age, r.ovr, r.potentialLow, r.potentialHigh),
+					{ Size = UDim2.new(1, -180, 0, 0), TextSize = 14 }),
+				sign,
+			}).Parent = reports
+		end
+		add(reports)
+	end
+
+	-- Leyendas
+	local legends = C.Card({}, {
+		C.Title("🏛️ Jugadores legendarios", 18),
+		C.Label(string.format("Canteranos que han subido al primer equipo: %d", football.graduates), { TextSize = 14 }),
+	})
+	if #football.legends == 0 then
+		C.Label("Todavía no hay leyendas. Los jugadores que se retiren tras una gran carrera aparecerán aquí.", { TextColor3 = Theme.TextMuted, TextSize = 13 }).Parent = legends
+	end
+	for i = #football.legends, 1, -1 do
+		local l = football.legends[i]
+		local pos = FootballConfig.Position(l.pos)
+		C.Label(string.format("🏅 <b>%s</b> · %s · media máx. %d · %d temporadas · %s · retirado en la temporada %d",
+			l.name, pos.short, l.peak, l.seasons, l.origin == "academy" and "canterano" or "fichaje", l.retiredSeason), { TextSize = 14 }).Parent = legends
+	end
+	add(legends)
+end
+
+return Academy
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Build</string><ProtectedString name="Source"><![CDATA[-- Build (ModuleScript) · Pantalla "Construcción"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Build
 -- Pestañas: Instalaciones · Decoración (comprar y colocar) · Diseños (Constructor Pro).
 -- La interfaz calcula requisitos solo para informar; el servidor valida cada compra.
@@ -6026,7 +7104,7 @@ function Build.Render(container, ctx)
 end
 
 return Build
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Club</string><ProtectedString name="Source"><![CDATA[-- Club (ModuleScript) · Pantalla "Mi club"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Club</string><ProtectedString name="Source"><![CDATA[-- Club (ModuleScript) · Pantalla "Mi club"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Club
 -- Nombre, abreviatura y apariencia del club (escudo, colores, equipación, efectos).
 
@@ -6203,7 +7281,7 @@ function Club.Render(container, ctx)
 end
 
 return Club
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">ComingSoon</string><ProtectedString name="Source"><![CDATA[-- ComingSoon (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">ComingSoon</string><ProtectedString name="Source"><![CDATA[-- ComingSoon (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/ComingSoon
 -- Pantalla honesta para secciones de fases futuras: explica qué incluirán y cuándo.
 -- No contiene botones que finjan funcionar.
@@ -6247,7 +7325,7 @@ function ComingSoon.Render(container, ctx)
 end
 
 return ComingSoon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Economy</string><ProtectedString name="Source"><![CDATA[-- Economy (ModuleScript) · Pantalla "Economía"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">Economy</string><ProtectedString name="Source"><![CDATA[-- Economy (ModuleScript) · Pantalla "Economía"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Economy
 -- Pestañas: Resumen (dinero, deuda, entradas, previsión, historial) · Aficionados (FASE 3)
 -- · Comercial (FASE 3) · Patrocinios (FASE 3).
@@ -6276,6 +7354,7 @@ local EXPENSE_LABELS = {
 	{ "staff", "👷 Personal" },
 	{ "stadium", "🏟️ Operación del estadio" },
 	{ "wages", "👕 Salarios de la plantilla" },
+	{ "scouts", "🔎 Ojeadores" },
 	{ "interest", "📉 Intereses de deuda" },
 }
 
@@ -6322,7 +7401,7 @@ local function renderSummary(add, ctx)
 		stat.LayoutOrder = i
 		stat.Parent = grid
 	end
-	add(C.Label("Los presupuestos salarial y de fichajes se calculan con tus ingresos y tu dinero; se usarán con la plantilla (FASE 4) y el mercado (FASE 6).",
+	add(C.Label("El presupuesto salarial orienta cuánto gastar en salarios; el de fichajes se usará en el mercado (FASE 6).",
 		{ TextColor3 = Theme.TextMuted, TextSize = 13 }))
 
 	-- Precio de entradas
@@ -6596,7 +7675,7 @@ function Economy.Render(container, ctx)
 end
 
 return Economy
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Home</string><ProtectedString name="Source"><![CDATA[-- Home (ModuleScript) · Pantalla "Inicio"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">Home</string><ProtectedString name="Source"><![CDATA[-- Home (ModuleScript) · Pantalla "Inicio"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Home
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -6743,7 +7822,7 @@ function Home.Render(container, ctx)
 end
 
 return Home
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Settings</string><ProtectedString name="Source"><![CDATA[-- Settings (ModuleScript) · Pantalla "Configuración"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">Settings</string><ProtectedString name="Source"><![CDATA[-- Settings (ModuleScript) · Pantalla "Configuración"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Settings
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -6810,7 +7889,7 @@ function Settings.Render(container, ctx)
 end
 
 return Settings
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[-- Shop (ModuleScript) · TIENDA PREMIUM
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[-- Shop (ModuleScript) · TIENDA PREMIUM
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Shop
 --
 -- Muestra los Game Passes con su estado REAL enviado por el servidor:
@@ -7030,7 +8109,217 @@ function Shop.Render(container, ctx)
 end
 
 return Shop
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">Stadium</string><ProtectedString name="Source"><![CDATA[-- Stadium (ModuleScript) · Pantalla "Mi estadio"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000033"><Properties><string name="Name">Squad</string><ProtectedString name="Source"><![CDATA[-- Squad (ModuleScript) · Pantalla "Plantilla" (FASE 4)
+-- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Squad
+-- Jugadores con estadísticas, contratos, entrenamiento, renovaciones y rescisiones.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local FootballConfig = require(Shared.Config.FootballConfig)
+
+local Squad = {}
+
+local function ovrColor(Theme, ovr)
+	if ovr >= 80 then
+		return Theme.Gold
+	elseif ovr >= 65 then
+		return Theme.Accent
+	elseif ovr >= 50 then
+		return Theme.Info
+	end
+	return Theme.TextDim
+end
+Squad.OvrColor = ovrColor
+
+-- Fila de atributo con barra
+local function attrBar(ctx, attr, value)
+	local C, Theme = ctx.C, ctx.Theme
+	local row = C.New("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 20) })
+	C.Label(attr.name, { Size = UDim2.new(0, 95, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextSize = 13, TextColor3 = Theme.TextDim }).Parent = row
+	local bar = C.ProgressBar(value / 99, ovrColor(Theme, value), 8)
+	bar.Position = UDim2.new(0, 100, 0.5, -4)
+	bar.Size = UDim2.new(1, -140, 0, 8)
+	bar.Parent = row
+	C.Label(tostring(value), { Position = UDim2.new(1, -34, 0, 0), Size = UDim2.new(0, 34, 1, 0), AutomaticSize = Enum.AutomaticSize.None,
+		TextXAlignment = Enum.TextXAlignment.Right, Font = Theme.FontBold, TextSize = 13 }).Parent = row
+	return row
+end
+Squad.AttrBar = attrBar
+
+-- Tarjeta de jugador reutilizable (también la usa la Academia).
+-- opts = { expanded, onToggle, actions = function(card) }
+function Squad.PlayerCard(ctx, p, opts)
+	local C, Theme, Format = ctx.C, ctx.Theme, ctx.Format
+	local pos = FootballConfig.Position(p.pos)
+	local card = C.Card({ BackgroundColor3 = opts.expanded and Theme.CardAlt or Theme.Card })
+	local header = C.New("TextButton", {
+		Text = "",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 44),
+		AutoButtonColor = false,
+	})
+	C.Label(tostring(p.ovr), {
+		Font = Theme.FontBlack, TextSize = 26, TextColor3 = ovrColor(Theme, p.ovr),
+		Size = UDim2.new(0, 46, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextXAlignment = Enum.TextXAlignment.Center,
+	}).Parent = header
+	local potential = p.potentialLow == p.potentialHigh and tostring(p.potentialLow) or (p.potentialLow .. "-" .. p.potentialHigh)
+	C.Label(string.format("<b>%s</b>%s\n<font color='#A0AFC8'>%s %s · %d años · potencial %s</font>",
+		p.name, p.star and "  ⭐" or "", pos.icon, pos.short, p.age, potential), {
+		Position = UDim2.fromOffset(54, 0), Size = UDim2.new(1, -170, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14,
+	}).Parent = header
+	local right = p.contract and p.contract > 0
+		and string.format("%s/jornada\n%d temp.%s", Format.Money(p.salary), p.contract, p.contract <= 1 and " ⚠️" or "")
+		or string.format("+%s/temp.", tostring(p.growth))
+	C.Label(right, { Position = UDim2.new(1, -112, 0, 0), Size = UDim2.new(0, 112, 1, 0), AutomaticSize = Enum.AutomaticSize.None,
+		TextXAlignment = Enum.TextXAlignment.Right, TextSize = 12, TextColor3 = Theme.TextDim }).Parent = header
+	header.Activated:Connect(opts.onToggle)
+	header.Parent = card
+
+	if opts.expanded then
+		for _, attr in ipairs(FootballConfig.Attributes) do
+			attrBar(ctx, attr, p.attrs[attr.id] or 0).Parent = card
+		end
+		C.Label(string.format("Valor de mercado: <b>%s</b> · Evolución prevista: <b>%+.1f</b> de media por temporada · Partidos %d · Goles %d · Asistencias %d",
+			Format.Money(p.value), p.growth, p.stats.apps, p.stats.goals, p.stats.assists), { TextSize = 13 }).Parent = card
+		-- Foco de entrenamiento
+		local focusButtons = { C.Button("Equilibrado", p.focus == nil and "primary" or "secondary", function()
+			if p.focus ~= nil then
+				ctx.act("SetTrainingFocus", { id = p.id, focus = "" })
+			end
+		end, { Size = UDim2.new(0, 0, 0, 30), TextSize = 13 }) }
+		for _, attr in ipairs(FootballConfig.Attributes) do
+			table.insert(focusButtons, C.Button(attr.short, p.focus == attr.id and "primary" or "secondary", function()
+				if p.focus ~= attr.id then
+					ctx.act("SetTrainingFocus", { id = p.id, focus = attr.id })
+				end
+			end, { Size = UDim2.new(0, 0, 0, 30), TextSize = 13 }))
+		end
+		C.Label("🎯 Foco de entrenamiento:", { TextSize = 13, TextColor3 = Theme.TextDim }).Parent = card
+		C.Row(focusButtons, 6).Parent = card
+		if opts.actions then
+			opts.actions(card)
+		end
+	end
+	return card
+end
+
+function Squad.Render(container, ctx)
+	local C, Theme, Format, state = ctx.C, ctx.Theme, ctx.Format, ctx.state
+	local football = state.football
+	local scroll = C.Scroll()
+	scroll.Parent = container
+	local add = C.Stack(scroll)
+
+	add(C.Row({
+		C.Title("👕 Plantilla", 26),
+		C.Badge(string.format("Temporada %d · jornada %d/%d", football.season.number, football.season.cycle + 1, football.season.length), Theme.Panel, Theme.TextDim),
+	}, 12))
+
+	-- Resumen
+	local squad = football.squad
+	local wages, value, best = 0, 0, {}
+	for _, p in ipairs(squad) do
+		wages += p.salary
+		value += p.value
+		table.insert(best, p.ovr)
+	end
+	table.sort(best, function(a, b)
+		return a > b
+	end)
+	local top = 0
+	for i = 1, math.min(11, #best) do
+		top += best[i]
+	end
+	local grid = C.Grid(200, 78, 10)
+	add(grid)
+	local stats = {
+		{ "👥", "Jugadores", string.format("%d / %d", #squad, FootballConfig.MAX_SQUAD) },
+		{ "⭐", "Media del mejor 11", tostring(math.floor(top / math.max(1, math.min(11, #best)) + 0.5)) },
+		{ "💸", "Salarios por jornada", Format.Money(wages) },
+		{ "💎", "Valor de la plantilla", Format.Money(value) },
+	}
+	for i, st in ipairs(stats) do
+		local stat = C.Stat(st[1], st[2], st[3])
+		stat.LayoutOrder = i
+		stat.Parent = grid
+	end
+
+	-- Entrenamiento
+	local training = C.Card({}, {
+		C.Title("🏋️ Entrenamiento", 18),
+		C.Label(string.format("La evolución depende del potencial, la edad, la intensidad y el Centro de entrenamiento (multiplicador actual ×%.2f). "
+			.. "Los jugadores mayores de 30 empiezan a declinar.", football.training.multiplier), { TextColor3 = Theme.TextDim, TextSize = 13 }),
+	})
+	local intensityButtons = {}
+	for _, option in ipairs(FootballConfig.TrainingIntensities) do
+		local selected = football.training.intensity == option.id
+		table.insert(intensityButtons, C.Button(string.format("%s · ×%.1f", option.name, option.growth), selected and "primary" or "secondary", function()
+			if not selected then
+				ctx.act("SetTrainingIntensity", { intensity = option.id })
+			end
+		end))
+	end
+	C.Row(intensityButtons, 8).Parent = training
+	add(training)
+
+	-- Filtros
+	local filter = ctx.params.filter or "ALL"
+	local filterButtons = { C.Button("Todos", filter == "ALL" and "primary" or "secondary", function()
+		ctx.navigate("squad", { filter = "ALL" })
+	end) }
+	for _, position in ipairs(FootballConfig.Positions) do
+		table.insert(filterButtons, C.Button(position.icon .. " " .. position.short, filter == position.id and "primary" or "secondary", function()
+			ctx.navigate("squad", { filter = position.id })
+		end))
+	end
+	add(C.Row(filterButtons, 6))
+
+	local sorted = table.clone(squad)
+	table.sort(sorted, function(a, b)
+		if a.pos ~= b.pos then
+			local order = { GK = 1, DEF = 2, MID = 3, FWD = 4 }
+			return order[a.pos] < order[b.pos]
+		end
+		return a.ovr > b.ovr
+	end)
+	for _, p in ipairs(sorted) do
+		if filter == "ALL" or p.pos == filter then
+			local expanded = ctx.params.selected == p.id
+			add(Squad.PlayerCard(ctx, p, {
+				expanded = expanded,
+				onToggle = function()
+					ctx.navigate("squad", { filter = filter, selected = (not expanded) and p.id or nil })
+				end,
+				actions = function(card)
+					if p.contract <= FootballConfig.RENEW_WINDOW then
+						C.Label(string.format("📝 Renovación: pide %s/jornada (ahora cobra %s).", Format.Money(p.salaryDemand), Format.Money(p.salary)),
+							{ TextSize = 13 }).Parent = card
+						local renewButtons = {}
+						for years = 1, FootballConfig.CONTRACT_MAX_SEASONS do
+							table.insert(renewButtons, C.Button(years .. " temp.", "secondary", function()
+								ctx.act("RenewContract", { id = p.id, years = years })
+							end, { Size = UDim2.new(0, 0, 0, 30), TextSize = 13 }))
+						end
+						C.Row(renewButtons, 6).Parent = card
+					else
+						C.Label(string.format("📝 Contrato: %d temporadas. Podrás renovar cuando queden %d o menos.", p.contract, FootballConfig.RENEW_WINDOW),
+							{ TextSize = 13, TextColor3 = Theme.TextDim }).Parent = card
+					end
+					local release = C.Button("Rescindir · " .. Format.Money(p.releaseCost), "danger", function()
+						ctx.act("ReleasePlayer", { id = p.id })
+					end)
+					C.SetEnabled(release, #squad > FootballConfig.MIN_SQUAD and state.economy.money >= p.releaseCost)
+					release.Parent = card
+				end,
+			}))
+		end
+	end
+	add(C.Label("Toca un jugador para ver sus atributos, su foco de entrenamiento y su contrato. Los fichajes llegan en la FASE 6.",
+		{ TextColor3 = Theme.TextMuted, TextSize = 13 }))
+end
+
+return Squad
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000034"><Properties><string name="Name">Stadium</string><ProtectedString name="Source"><![CDATA[-- Stadium (ModuleScript) · Pantalla "Mi estadio"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Stadium
 -- Resumen del estadio: etapa evolutiva, aforo, atractivo e instalaciones.
 
@@ -7183,7 +8472,7 @@ function Stadium.Render(container, ctx)
 end
 
 return Stadium
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000034"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">Components</string><ProtectedString name="Source"><![CDATA[-- Components (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000003A"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000036"><Properties><string name="Name">Components</string><ProtectedString name="Source"><![CDATA[-- Components (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Components
 -- Fábrica de elementos de interfaz reutilizables (todo por código, sin assets externos).
 
@@ -7516,7 +8805,7 @@ function C.OptionTile(title, subtitle, opts, extra)
 end
 
 return C
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">Notifier</string><ProtectedString name="Source"><![CDATA[-- Notifier (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000037"><Properties><string name="Name">Notifier</string><ProtectedString name="Source"><![CDATA[-- Notifier (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Notifier
 -- Notificaciones emergentes (toasts) apiladas en la esquina superior.
 
@@ -7593,7 +8882,7 @@ function Notifier.Show(kind, message, duration)
 end
 
 return Notifier
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">Premium</string><ProtectedString name="Source"><![CDATA[-- Premium (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000038"><Properties><string name="Name">Premium</string><ProtectedString name="Source"><![CDATA[-- Premium (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Premium
 -- Ayudas de INTERFAZ para mostrar opciones bloqueadas por Game Pass.
 -- Solo deciden qué se muestra: el servidor vuelve a validar cada acción.
@@ -7623,7 +8912,7 @@ function Premium.OnLockedClick(ctx, item)
 end
 
 return Premium
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000033"><Properties><string name="Name">Theme</string><ProtectedString name="Source"><![CDATA[-- Theme (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000039"><Properties><string name="Name">Theme</string><ProtectedString name="Source"><![CDATA[-- Theme (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Theme
 -- Paleta y tipografía de la interfaz: estilo futbolístico moderno (noche de estadio).
 

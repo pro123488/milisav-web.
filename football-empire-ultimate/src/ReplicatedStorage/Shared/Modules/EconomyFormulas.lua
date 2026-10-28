@@ -12,6 +12,7 @@ local CosmeticConfig = require(Config.CosmeticConfig)
 local StadiumStages = require(Config.StadiumStages)
 local CommercialConfig = require(Config.CommercialConfig)
 local SponsorConfig = require(Config.SponsorConfig)
+local FootballConfig = require(Config.FootballConfig)
 
 local EconomyFormulas = {}
 
@@ -202,6 +203,7 @@ function EconomyFormulas.Cycle(data)
 		staff = GameConfig.STAFF_BASE + totals.staff,
 		stadium = stageEffects.upkeep, -- operación del estadio según su etapa
 		wages = EconomyFormulas.Wages(data), -- salarios de la plantilla (FASE 4)
+		scouts = FootballConfig.SCOUT_COSTS[(data.academy and data.academy.scouts) or 0] or 0, -- ojeadores (FASE 4)
 		interest = math.floor((economy.debt or 0) * GameConfig.DEBT_INTEREST_PER_CYCLE),
 	}
 

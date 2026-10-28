@@ -37,6 +37,9 @@ EconomyService.Category = {
 	DEBT = "Deuda",
 	REFUND = "Reembolso",
 	SPONSOR = "Patrocinio",
+	ACADEMY = "Academia",
+	TRANSFER = "Fichajes",
+	PRIZE = "Premios",
 }
 local C = EconomyService.Category
 

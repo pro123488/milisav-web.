@@ -32,6 +32,8 @@ local Screens = {
 	economy = require(ScreensFolder.Economy),
 	shop = require(ScreensFolder.Shop),
 	settings = require(ScreensFolder.Settings),
+	squad = require(ScreensFolder.Squad),
+	academy = require(ScreensFolder.Academy),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))

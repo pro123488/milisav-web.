@@ -16,6 +16,7 @@ local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
+local FootballConfig = require(Shared.Config.FootballConfig)
 
 local DefaultData = {}
 
@@ -78,9 +79,12 @@ function DefaultData.Create(player)
 			nextRefresh = 0, -- nº de jornada en la que se renuevan las ofertas
 		},
 		-- ===== Reservado para fases posteriores =====
-		squad = {},
-		academy = {},
-		season = { number = 1 },
+		squad = {}, -- primer equipo (FASE 4): lista de jugadores
+		academy = { youths = {}, reports = {}, scouts = 0, nextReport = 0 }, -- cantera (FASE 4)
+		training = { intensity = "NORMAL" },
+		season = { number = 1, cycle = 0 },
+		legends = {}, -- jugadores legendarios retirados
+		nextPlayerId = 0,
 		trophies = {},
 		records = {},
 		missions = {},
@@ -147,6 +151,71 @@ local function cleanSponsors(raw)
 				end
 			end
 			clean.offers[slot.id] = list
+		end
+	end
+	return clean
+end
+
+local function validPlayer(p)
+	if type(p) ~= "table" or type(p.id) ~= "string" or #p.id > 20 or type(p.name) ~= "string" or #p.name > 40 then
+		return nil
+	end
+	if not finiteNumber(p.age) or p.age < 14 or p.age > 45 then
+		return nil
+	end
+	local posOk = false
+	for _, pos in ipairs(FootballConfig.Positions) do
+		if pos.id == p.pos then
+			posOk = true
+		end
+	end
+	if not posOk or type(p.attrs) ~= "table" then
+		return nil
+	end
+	local attrs = {}
+	for _, attr in ipairs(FootballConfig.Attributes) do
+		local v = p.attrs[attr.id]
+		if not finiteNumber(v) then
+			return nil
+		end
+		attrs[attr.id] = math.clamp(v, 1, 99)
+	end
+	local focus = nil
+	for _, attr in ipairs(FootballConfig.Attributes) do
+		if attr.id == p.focus then
+			focus = attr.id
+		end
+	end
+	local stats = type(p.stats) == "table" and p.stats or {}
+	return {
+		id = p.id,
+		name = p.name,
+		age = math.floor(p.age),
+		pos = p.pos,
+		attrs = attrs,
+		focus = focus,
+		potential = math.clamp(math.floor(tonumber(p.potential) or 50), 1, 99),
+		peak = math.clamp(tonumber(p.peak) or 0, 0, 99),
+		salary = math.max(0, math.floor(tonumber(p.salary) or 0)),
+		contract = math.clamp(math.floor(tonumber(p.contract) or 0), 0, FootballConfig.CONTRACT_MAX_SEASONS),
+		origin = type(p.origin) == "string" and p.origin:sub(1, 12) or "start",
+		joinedSeason = math.max(1, math.floor(tonumber(p.joinedSeason) or 1)),
+		stats = {
+			apps = math.max(0, math.floor(tonumber(stats.apps) or 0)),
+			goals = math.max(0, math.floor(tonumber(stats.goals) or 0)),
+			assists = math.max(0, math.floor(tonumber(stats.assists) or 0)),
+		},
+		loan = type(p.loan) == "table" and p.loan or nil, -- cesiones (FASE 6)
+	}
+end
+
+local function cleanPlayers(list, max)
+	local clean, seen = {}, {}
+	for _, p in ipairs(type(list) == "table" and list or {}) do
+		local valid = validPlayer(p)
+		if valid and not seen[valid.id] and #clean < max then
+			seen[valid.id] = true
+			table.insert(clean, valid)
 		end
 	end
 	return clean
@@ -305,6 +374,42 @@ function DefaultData.Reconcile(data, player)
 
 	-- Patrocinadores
 	data.sponsors = cleanSponsors(data.sponsors)
+
+	-- Plantilla y cantera (FASE 4)
+	data.squad = cleanPlayers(data.squad, FootballConfig.MAX_SQUAD + 5)
+	if type(data.academy) ~= "table" then
+		data.academy = {}
+	end
+	data.academy.youths = cleanPlayers(data.academy.youths, 12)
+	data.academy.reports = cleanPlayers(data.academy.reports, FootballConfig.MAX_SCOUTS)
+	data.academy.scouts = math.clamp(math.floor(tonumber(data.academy.scouts) or 0), 0, FootballConfig.MAX_SCOUTS)
+	data.academy.nextReport = math.max(0, math.floor(tonumber(data.academy.nextReport) or 0))
+	data.academy.seededIntake = data.academy.seededIntake == true
+	if type(data.training) ~= "table" or not FootballConfig.Intensity(data.training.intensity) or FootballConfig.Intensity(data.training.intensity).id ~= data.training.intensity then
+		data.training = { intensity = "NORMAL" }
+	end
+	if type(data.season) ~= "table" then
+		data.season = {}
+	end
+	data.season.number = math.max(1, math.floor(tonumber(data.season.number) or 1))
+	data.season.cycle = math.clamp(math.floor(tonumber(data.season.cycle) or 0), 0, FootballConfig.SEASON_LENGTH - 1)
+	if type(data.legends) ~= "table" then
+		data.legends = {}
+	end
+	-- El contador de IDs nunca puede quedar por debajo de un ID existente
+	local maxId = math.max(0, math.floor(tonumber(data.nextPlayerId) or 0))
+	local function bump(list)
+		for _, p in ipairs(list) do
+			local n = tonumber(p.id:match("^p(%d+)$"))
+			if n and n > maxId then
+				maxId = n
+			end
+		end
+	end
+	bump(data.squad)
+	bump(data.academy.youths)
+	bump(data.academy.reports)
+	data.nextPlayerId = maxId
 	if type(economy.transactions) ~= "table" then
 		economy.transactions = {}
 	end

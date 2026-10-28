@@ -22,6 +22,7 @@ local EconomyService = require(Services.EconomyService)
 local BuildService = require(Services.BuildService)
 local StadiumService = require(Services.StadiumService)
 local SponsorService = require(Services.SponsorService)
+local SquadService = require(Services.SquadService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -70,6 +71,7 @@ local function buildState(player)
 		},
 		history = data.history,
 		sponsors = data.sponsors,
+		football = SquadService.BuildState(data), -- plantilla, cantera, temporada, leyendas (FASE 4)
 		economy = EconomyService.Summary(player, data),
 		premium = {
 			owned = GamePassService.OwnedList(player),
@@ -145,6 +147,39 @@ Actions.UpgradeStage = function(player)
 		SponsorService.RefreshOffers(DataService.Get(player), false) -- nuevos huecos desbloqueados
 	end
 	return ok, msg, ok
+end
+
+-- ===== Plantilla y cantera (FASE 4) =====
+Actions.SetTrainingIntensity = function(player, payload)
+	return SquadService.SetIntensity(player, payload)
+end
+
+Actions.SetTrainingFocus = function(player, payload)
+	return SquadService.SetFocus(player, payload)
+end
+
+Actions.RenewContract = function(player, payload)
+	return SquadService.Renew(player, payload)
+end
+
+Actions.ReleasePlayer = function(player, payload)
+	return SquadService.Release(player, payload)
+end
+
+Actions.PromoteYouth = function(player, payload)
+	return SquadService.PromoteYouth(player, payload)
+end
+
+Actions.ReleaseYouth = function(player, payload)
+	return SquadService.ReleaseYouth(player, payload)
+end
+
+Actions.SetScouts = function(player, payload)
+	return SquadService.SetScouts(player, payload)
+end
+
+Actions.SignYouthReport = function(player, payload)
+	return SquadService.SignReport(player, payload)
 end
 
 Actions.SetPricePolicy = function(player, payload)
@@ -262,6 +297,7 @@ local function onPlayerAdded(player)
 	if not PlotService.GetPlot(player) then
 		notifyRemote:FireClient(player, "error", "El servidor está lleno de estadios. Tu club funciona, pero tu estadio no se mostrará en este servidor.")
 	end
+	SquadService.EnsureSquad(data)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
@@ -312,6 +348,9 @@ EconomyService.OnCycle(function(player, cycle)
 	end
 	if #sponsorMessages > 0 then
 		PlotService.RequestRender(player) -- quita vallas o nombre del estadio caducados
+	end
+	for _, message in ipairs(SquadService.AfterCycle(player)) do
+		notifyRemote:FireClient(player, "info", message)
 	end
 	PlotService.UpdateCrowd(player, cycle.occupancy)
 	pushState(player)

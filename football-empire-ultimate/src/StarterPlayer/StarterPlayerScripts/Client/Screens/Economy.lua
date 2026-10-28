@@ -27,6 +27,7 @@ local EXPENSE_LABELS = {
 	{ "staff", "👷 Personal" },
 	{ "stadium", "🏟️ Operación del estadio" },
 	{ "wages", "👕 Salarios de la plantilla" },
+	{ "scouts", "🔎 Ojeadores" },
 	{ "interest", "📉 Intereses de deuda" },
 }
 
@@ -73,7 +74,7 @@ local function renderSummary(add, ctx)
 		stat.LayoutOrder = i
 		stat.Parent = grid
 	end
-	add(C.Label("Los presupuestos salarial y de fichajes se calculan con tus ingresos y tu dinero; se usarán con la plantilla (FASE 4) y el mercado (FASE 6).",
+	add(C.Label("El presupuesto salarial orienta cuánto gastar en salarios; el de fichajes se usará en el mercado (FASE 6).",
 		{ TextColor3 = Theme.TextMuted, TextSize = 13 }))
 
 	-- Precio de entradas
