@@ -288,6 +288,7 @@ local function playLeagueRound(player, data, round, out)
 			end
 			if result then
 				out.result = result
+				out.points = (out.points or 0) + (result.outcome == "W" and 3 or (result.outcome == "D" and 1 or 0))
 				local us = home and hg or ag
 				local them = home and ag or hg
 				table.insert(out.messages, string.format("⚽ Liga, jornada %d: %s %d - %d %s", round,
@@ -368,6 +369,7 @@ local function playCupRound(player, data, roundIndex, out)
 		if a == USER or b == USER then
 			local name = LeagueConfig.CUP_ROUND_NAMES[roundIndex]
 			if winner == USER then
+				out.points = (out.points or 0) + 2
 				local prize = LeagueConfig.CUP_ROUND_PRIZE[roundIndex] * division.prize
 				EconomyService.Earn(player, prize, EconomyService.Category.PRIZE, LeagueConfig.CUP_NAME .. ": " .. name)
 				table.insert(out.messages, string.format("🏆 %s · %s: ¡pasas de ronda%s! Premio %d %s.", LeagueConfig.CUP_NAME, name,
@@ -383,6 +385,7 @@ local function playCupRound(player, data, roundIndex, out)
 	if roundIndex == #LeagueConfig.CUP_CYCLES then
 		cup.champion = winners[1]
 		if cup.champion == USER then
+			out.points = (out.points or 0) + 10
 			local rep = LeagueConfig.REP_CUP_BASE + LeagueConfig.REP_CUP_PER_LEVEL * league.division
 			data.club.reputationEarned += rep
 			table.insert(data.trophies, { kind = "cup", name = LeagueConfig.CUP_NAME, season = data.season.number })
@@ -413,6 +416,7 @@ local function finalize(player, data, out)
 	local positionPrize = math.floor(LeagueConfig.POSITION_PRIZE * division.prize * (teams + 1 - position) / teams)
 	EconomyService.Earn(player, positionPrize, EconomyService.Category.PRIZE, string.format("%s: %dº puesto", division.name, position))
 	if champion then
+		out.points = (out.points or 0) + 10
 		EconomyService.Earn(player, LeagueConfig.TITLE_BONUS * division.prize, EconomyService.Category.PRIZE, "Título de " .. division.name)
 		local rep = LeagueConfig.REP_TITLE_BASE + LeagueConfig.REP_TITLE_PER_LEVEL * league.division
 		data.club.reputationEarned += rep
@@ -451,7 +455,26 @@ local function finalize(player, data, out)
 		end
 	end
 	local cup = league.cup
+	-- Máximo goleador y mejor asistente de la temporada (eventos reales de los partidos)
+	local topScorer, topAssist
+	for _, p in ipairs(data.squad) do
+		local s = p.seasonStats
+		if s and s.goals > 0 and (not topScorer or s.goals > topScorer.goals) then
+			topScorer = { name = p.name, goals = s.goals }
+		end
+		if s and s.assists > 0 and (not topAssist or s.assists > topAssist.assists) then
+			topAssist = { name = p.name, assists = s.assists }
+		end
+	end
+	if topScorer and (data.records.mostGoalsSeason == nil or topScorer.goals > data.records.mostGoalsSeason.goals) then
+		data.records.mostGoalsSeason = { name = topScorer.name, goals = topScorer.goals, season = league.season }
+	end
+	if userRow and (data.records.bestSeasonPoints == nil or userRow.pts > data.records.bestSeasonPoints.points) then
+		data.records.bestSeasonPoints = { points = userRow.pts, season = league.season, division = division.name }
+	end
 	table.insert(league.history, {
+		topScorer = topScorer,
+		topAssist = topAssist,
 		season = league.season,
 		division = league.division,
 		divisionName = division.name,

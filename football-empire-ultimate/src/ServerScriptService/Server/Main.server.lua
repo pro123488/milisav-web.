@@ -26,6 +26,8 @@ local SquadService = require(Services.SquadService)
 local MatchService = require(Services.MatchService)
 local TransferService = require(Services.TransferService)
 local LeagueService = require(Services.LeagueService)
+local UniverseService = require(Services.UniverseService)
+local HistoryService = require(Services.HistoryService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -77,6 +79,8 @@ local function buildState(player)
 		football = SquadService.BuildState(data), -- plantilla, cantera, temporada, leyendas (FASE 4)
 		matchday = MatchService.BuildState(data), -- tácticas, amistosos, historial, récords (FASE 5)
 		league = LeagueService.BuildState(data, ClubService.DisplayName(data), ClubService.ShortName(data)), -- ligas, copa y carrera (FASE 7)
+		universe = UniverseService.BuildState(player, data), -- universo futbolístico (FASE 8)
+		clubHistory = HistoryService.BuildState(data), -- historia del club (FASE 8)
 		transfers = TransferService.BuildState(data, function(p) -- mercado, ofertas y presupuesto (FASE 6)
 			return SquadService.PublicPlayer(p, data.academy.scouts)
 		end),
@@ -239,6 +243,11 @@ Actions.SetTransferBudget = function(player, payload)
 	return TransferService.SetBudgetShare(player, payload)
 end
 
+-- ===== Universo (FASE 8) =====
+Actions.VisitClub = function(player, payload)
+	return UniverseService.Visit(player, payload, PlotService)
+end
+
 Actions.SetPricePolicy = function(player, payload)
 	if type(payload) ~= "table" then
 		return false, "Solicitud no válida."
@@ -358,6 +367,14 @@ local function onPlayerAdded(player)
 	MatchService.PlayerReady(player)
 	TransferService.PlayerReady(player)
 	LeagueService.PlayerReady(player)
+	UniverseService.PlayerReady(player)
+	task.spawn(function()
+		local rewardMessage = UniverseService.ClaimWeekly(player)
+		if rewardMessage then
+			notifyRemote:FireClient(player, "success", rewardMessage)
+			pushState(player)
+		end
+	end)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
@@ -378,6 +395,7 @@ local function onPlayerRemoving(player)
 	GamePassService.PlayerRemoving(player)
 	limiter:Remove(player)
 	busy[player] = nil
+	UniverseService.PlayerRemoving(player) -- último perfil público antes de liberar los datos
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -416,6 +434,7 @@ EconomyService.OnCycle(function(player, cycle)
 		for _, message in ipairs(leagueOut.messages) do
 			notifyRemote:FireClient(player, "info", message)
 		end
+		UniverseService.AddWeeklyPoints(player, leagueOut.points)
 		if leagueOut.result then
 			notifyRemote:FireClient(player, "match", leagueOut.result) -- resumen para el visor de partidos
 			PlotService.RequestRender(player) -- marcador y sala de trofeos
@@ -430,6 +449,7 @@ EconomyService.OnCycle(function(player, cycle)
 	for _, message in ipairs(MatchService.AfterCycle(player)) do
 		notifyRemote:FireClient(player, "info", message)
 	end
+	HistoryService.AfterCycle(player)
 	PlotService.UpdateCrowd(player, cycle.occupancy)
 	pushState(player)
 	local data = DataService.Get(player)
@@ -445,6 +465,7 @@ PlotService.CreateWorld()
 DataService.Start()
 GamePassService.Start()
 EconomyService.Start()
+UniverseService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)

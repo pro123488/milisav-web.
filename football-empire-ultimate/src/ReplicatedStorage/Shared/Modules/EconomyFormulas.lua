@@ -13,6 +13,7 @@ local StadiumStages = require(Config.StadiumStages)
 local CommercialConfig = require(Config.CommercialConfig)
 local SponsorConfig = require(Config.SponsorConfig)
 local FootballConfig = require(Config.FootballConfig)
+local UniverseConfig = require(Config.UniverseConfig)
 
 local EconomyFormulas = {}
 
@@ -214,9 +215,9 @@ function EconomyFormulas.Cycle(data)
 		shop = math.floor(attendance * totals.shopSpend * shopPolicy.spend * spendMultiplier),
 		restaurant = math.floor(attendance * totals.foodSpend * foodPolicy.spend * spendMultiplier),
 		sponsors = GameConfig.SPONSOR_BASE + reputation * GameConfig.SPONSOR_PER_REPUTATION + stageEffects.sponsorBonus,
-		contracts = contractTotal,
+		contracts = math.floor(contractTotal * UniverseConfig.Multiplier("contracts")), -- evento del universo
 		vip = totals.vipIncome,
-		tour = math.floor(reputation * totals.tourRate),
+		tour = math.floor(reputation * totals.tourRate * UniverseConfig.Multiplier("tour")),
 		loans = loanIncome, -- cesiones a otros clubes (FASE 6)
 	}
 	local expenses = {
@@ -246,7 +247,7 @@ function EconomyFormulas.Cycle(data)
 	if satisfaction < GameConfig.FAN_DECLINE_SATISFACTION then
 		fanDelta = -math.ceil(fans * GameConfig.FAN_DECLINE_RATE)
 	else
-		local growth = 0.5 + satisfaction / 100
+		local growth = (0.5 + satisfaction / 100) * UniverseConfig.Multiplier("fanGrowth")
 		fanDelta = math.floor((fanCap - fans) * GameConfig.FAN_GROWTH_RATE * growth)
 		if fanDelta == 0 and fans < fanCap then
 			fanDelta = 1

@@ -92,6 +92,9 @@ function DefaultData.Create(player)
 		market = { listings = {}, rejected = {}, nextRefresh = 0 }, -- mercado de fichajes (FASE 6)
 		transferOffers = {}, -- ofertas recibidas por tus jugadores
 		league = nil, -- liga, copa y modo carrera (FASE 7): la crea LeagueService
+		allTimeStats = {}, -- [idJugador] = { name, pos, origin, apps, goals, assists } (FASE 8)
+		reputationHistory = {}, -- { season, cycle, value } (FASE 8)
+		universe = { claimedWeek = -1, week = -1, weekPoints = 0 }, -- competición semanal (FASE 8)
 		nextPlayerId = 0,
 		trophies = {},
 		records = {},
@@ -228,6 +231,11 @@ local function validPlayer(p)
 		loan = validLoan(p.loan), -- cesiones (FASE 6)
 		listed = (p.listed == "sale" or p.listed == "loan") and p.listed or nil,
 		fitness = math.clamp(tonumber(p.fitness) or 100, 0, 100),
+		seasonStats = {
+			apps = math.max(0, math.floor(tonumber(type(p.seasonStats) == "table" and p.seasonStats.apps) or 0)),
+			goals = math.max(0, math.floor(tonumber(type(p.seasonStats) == "table" and p.seasonStats.goals) or 0)),
+			assists = math.max(0, math.floor(tonumber(type(p.seasonStats) == "table" and p.seasonStats.assists) or 0)),
+		},
 		injury = math.clamp(math.floor(tonumber(p.injury) or 0), 0, 30),
 	}
 end
@@ -497,6 +505,33 @@ function DefaultData.Reconcile(data, player)
 		end
 	end
 	data.trophies = trophies
+
+	-- Historia y universo (FASE 8)
+	local allTime, count = {}, 0
+	for id, s in pairs(type(data.allTimeStats) == "table" and data.allTimeStats or {}) do
+		if type(id) == "string" and type(s) == "table" and type(s.name) == "string" and count < 200 then
+			count += 1
+			allTime[id] = {
+				name = s.name:sub(1, 40), pos = type(s.pos) == "string" and s.pos or "MID", origin = type(s.origin) == "string" and s.origin or "start",
+				apps = math.max(0, math.floor(tonumber(s.apps) or 0)),
+				goals = math.max(0, math.floor(tonumber(s.goals) or 0)),
+				assists = math.max(0, math.floor(tonumber(s.assists) or 0)),
+			}
+		end
+	end
+	data.allTimeStats = allTime
+	if type(data.reputationHistory) ~= "table" then
+		data.reputationHistory = {}
+	end
+	while #data.reputationHistory > 60 do
+		table.remove(data.reputationHistory, 1)
+	end
+	if type(data.universe) ~= "table" then
+		data.universe = {}
+	end
+	data.universe.claimedWeek = math.floor(tonumber(data.universe.claimedWeek) or -1)
+	data.universe.week = math.floor(tonumber(data.universe.week) or -1)
+	data.universe.weekPoints = math.max(0, math.floor(tonumber(data.universe.weekPoints) or 0))
 
 	-- Mercado (FASE 6)
 	if type(data.market) ~= "table" then

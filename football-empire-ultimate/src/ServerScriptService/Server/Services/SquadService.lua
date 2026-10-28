@@ -14,6 +14,7 @@ local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local FootballConfig = require(Shared.Config.FootballConfig)
 local FootballFormulas = require(Shared.Modules.FootballFormulas)
+local UniverseConfig = require(Shared.Config.UniverseConfig)
 
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -265,6 +266,7 @@ local function seasonEnd(data, messages)
 	-- Primer equipo: edad, contratos y retiradas
 	local keep = {}
 	for _, p in ipairs(data.squad) do
+		p.seasonStats = { apps = 0, goals = 0, assists = 0 } -- nueva temporada
 		p.age += 1
 		p.contract -= 1
 		local retireChance = (p.age - FootballConfig.RETIRE_MIN_AGE + 1) * FootballConfig.RETIRE_CHANCE_PER_YEAR
@@ -349,6 +351,7 @@ function SquadService.AfterCycle(player)
 		grow(p, multiplier)
 	end
 	local youthMultiplier = FootballConfig.Academy(academyLevel(data)).growth * FootballConfig.Intensity(data.training.intensity).growth
+		* UniverseConfig.Multiplier("youthGrowth") -- evento del universo
 	for _, y in ipairs(data.academy.youths) do
 		grow(y, youthMultiplier)
 	end

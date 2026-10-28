@@ -399,6 +399,37 @@ local function buildLaneFacilities(folder, origin, facilities, design, info)
 			Vector3.new(4, 3, 3), GOLD, Enum.Material.Metal, { Reflectance = 0.3 })
 		cup.Shape = Enum.PartType.Cylinder
 		label(cup, string.format("🏆 Títulos: %d", info.trophyCount or 0), 4, GOLD).MaxDistance = 90
+		-- Vitrina física: una copa por título real (las 12 más recientes) y una placa con la lista
+		local trophies = info.trophies or {}
+		local shelfX = F.trophyRoom.X + size.X / 2 + 4
+		part(folder, origin, CFrame.new(shelfX, 1, F.trophyRoom.Z), Vector3.new(3, 2, 26), Color3.fromRGB(60, 40, 25), Enum.Material.Wood)
+		local shown = 0
+		for i = #trophies, math.max(1, #trophies - 11), -1 do
+			local t = trophies[i]
+			shown += 1
+			local z = F.trophyRoom.Z - 12 + (shown - 1) * 2.2
+			local trophyCup = part(folder, origin, CFrame.new(shelfX, 3, z) * CFrame.Angles(0, 0, math.rad(90)),
+				Vector3.new(2, 1.2, 1.2), t.kind == "cup" and Color3.fromRGB(220, 220, 230) or GOLD, Enum.Material.Metal, { Reflectance = 0.3 })
+			trophyCup.Shape = Enum.PartType.Cylinder
+		end
+		local plaque = part(folder, origin, CFrame.new(shelfX + 1.6, 5, F.trophyRoom.Z) * CFrame.Angles(0, math.rad(90), 0),
+			Vector3.new(26, 4, 0.3), Color3.fromRGB(30, 25, 15), Enum.Material.Wood)
+		local lines = {}
+		for i = #trophies, math.max(1, #trophies - 5), -1 do
+			table.insert(lines, string.format("%s %s (T%d)", trophies[i].kind == "cup" and "🥇" or "🏆", trophies[i].name, trophies[i].season))
+		end
+		local function plaqueText(gui)
+			local t = Instance.new("TextLabel")
+			t.Size = UDim2.fromScale(1, 1)
+			t.BackgroundTransparency = 1
+			t.TextColor3 = GOLD
+			t.Font = Enum.Font.GothamBold
+			t.TextScaled = true
+			t.Text = #lines > 0 and table.concat(lines, "   ·   ") or "La vitrina espera su primer título"
+			t.Parent = gui
+		end
+		surfaceText(plaque, Enum.NormalId.Front, plaqueText)
+		surfaceText(plaque, Enum.NormalId.Back, plaqueText)
 	end
 end
 

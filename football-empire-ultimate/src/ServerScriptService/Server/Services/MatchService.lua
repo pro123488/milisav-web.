@@ -17,6 +17,7 @@ local FootballConfig = require(Shared.Config.FootballConfig)
 local TacticsConfig = require(Shared.Config.TacticsConfig)
 local FootballFormulas = require(Shared.Modules.FootballFormulas)
 local MatchEngine = require(Shared.Modules.MatchEngine)
+local UniverseConfig = require(Shared.Config.UniverseConfig)
 
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -233,11 +234,23 @@ local function applyPlayerEffects(data, sheet, result, messages)
 		local p = byId[entry.id]
 		if p then
 			p.stats.apps += 1
+			p.seasonStats = p.seasonStats or { apps = 0, goals = 0, assists = 0 }
+			p.seasonStats.apps += 1
 			local ps = result.playerStats[p.id]
-			if ps then
-				p.stats.goals += ps.goals
-				p.stats.assists += ps.assists
+			local goals, assists = ps and ps.goals or 0, ps and ps.assists or 0
+			p.stats.goals += goals
+			p.stats.assists += assists
+			p.seasonStats.goals += goals
+			p.seasonStats.assists += assists
+			-- Estadísticas de todos los tiempos del club (sobreviven a ventas y retiradas)
+			local all = data.allTimeStats[p.id]
+			if not all then
+				all = { name = p.name, pos = p.pos, origin = p.origin, apps = 0, goals = 0, assists = 0 }
+				data.allTimeStats[p.id] = all
 			end
+			all.apps += 1
+			all.goals += goals
+			all.assists += assists
 			local stamina = p.attrs.stamina or 50
 			local cost = TacticsConfig.FITNESS_COST_MAX - (TacticsConfig.FITNESS_COST_MAX - TacticsConfig.FITNESS_COST_MIN) * stamina / 99
 			p.fitness = math.clamp((p.fitness or 100) - cost, 0, 100)
@@ -294,6 +307,7 @@ function MatchService.Play(player, opponent, opts)
 	-- Premios, reputación y satisfacción
 	local outcome = us.goals > them.goals and "W" or (us.goals == them.goals and "D" or "L")
 	local prize = TacticsConfig.FRIENDLY_PRIZE_BASE * (opponent.strength / 50) ^ 2 * (opts.prizeScale or 1)
+		* UniverseConfig.Multiplier("matchPrize") -- evento del universo
 	if outcome == "D" then
 		prize *= TacticsConfig.PRIZE_DRAW
 	elseif outcome == "L" then
