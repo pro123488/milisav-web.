@@ -18,6 +18,7 @@ local INCOME_LABELS = {
 local EXPENSE_LABELS = {
 	{ "maintenance", "🔧 Mantenimiento" },
 	{ "staff", "👷 Personal" },
+	{ "stadium", "🏟️ Operación del estadio" },
 	{ "wages", "👕 Salarios (FASE 4)" },
 	{ "interest", "📉 Intereses de deuda" },
 }

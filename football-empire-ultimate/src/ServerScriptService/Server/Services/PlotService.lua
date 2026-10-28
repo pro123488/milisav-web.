@@ -52,7 +52,7 @@ local function setFreeSign(plot)
 	if plot.owner then
 		return
 	end
-	local sign = makePart(plot.model, plot.origin * CFrame.new(0, 6, 78), Vector3.new(20, 6, 1),
+	local sign = makePart(plot.model, plot.origin * CFrame.new(0, 6, 82), Vector3.new(20, 6, 1),
 		Color3.fromRGB(30, 40, 60), Enum.Material.SmoothPlastic, "FreeSign")
 	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
 		local gui = Instance.new("SurfaceGui")
@@ -172,7 +172,7 @@ function PlotService.BuildRenderInfo(player, data)
 	local palette = CosmeticConfig.ById.palette[appearance.palette]
 	local crest = CosmeticConfig.ById.crest[appearance.crest]
 	local kit = CosmeticConfig.ById.kit[appearance.kit]
-	local stage = StadiumStages[data.stadium.stage] or StadiumStages[1]
+	local stage = StadiumStages.Get(data.stadium.stage)
 	return {
 		facilities = data.stadium.facilities,
 		appearance = appearance,
@@ -184,10 +184,13 @@ function PlotService.BuildRenderInfo(player, data)
 		clubName = ClubService.DisplayName(data),
 		shortName = ClubService.ShortName(data),
 		ownerName = player.DisplayName,
+		stage = stage.stage,
 		stageName = stage.name,
+		stageVisual = stage.visual,
+		trophyCount = #data.trophies,
 		vip = ClubService.IsVip(player),
-		decorations = BuildService.VisibleDecorations(player, data),
-		maxSlots = BuildService.MaxDecorationSlots(player),
+		decorations = data.stadium.decorations,
+		decorationVisible = BuildService.DecorationVisibility(player, data),
 	}
 end
 

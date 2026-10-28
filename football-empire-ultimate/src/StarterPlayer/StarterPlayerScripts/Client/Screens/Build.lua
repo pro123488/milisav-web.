@@ -87,82 +87,95 @@ end
 
 local function renderDecorations(add, ctx)
 	local C, Theme, Format, state = ctx.C, ctx.Theme, ctx.Format, ctx.state
-	local maxSlots = state.stadium.maxDecorationSlots
-	local selected = ctx.params.slot
+	local stadium = state.stadium
+	local list = stadium.decorations
+	local max = stadium.maxDecorations
+	local isPro = state.premium.owned.CONSTRUCTOR_PRO == true
+	local freeLimit = EconomyFormulas.FreeDecorationLimit(stadium.stage)
 
-	add(C.Label(string.format("Tienes %d espacios de decoración en tu terreno (%d gratuitos; %d más con Constructor Pro). "
-		.. "Todos los espacios están dentro de tu terreno. Retirar una decoración devuelve el %d%% de su precio.",
-		maxSlots, GameConfig.FREE_DECORATION_SLOTS, GameConfig.PRO_DECORATION_SLOTS - GameConfig.FREE_DECORATION_SLOTS,
-		math.floor(CosmeticConfig.DECORATION_REFUND * 100)), { TextColor3 = Theme.TextDim, TextSize = 14 }))
-
-	local grid = C.Grid(150, 96, 8)
-	add(grid)
-	for slot = 1, GameConfig.PRO_DECORATION_SLOTS do
-		local key = tostring(slot)
-		local decoId = state.stadium.decorations[key]
-		local item = decoId and CosmeticConfig.ById.decoration[decoId]
-		local slotLocked = slot > maxSlots
-		local hidden = decoId and state.stadium.visibleDecorations[key] == nil
-		local subtitle = slotLocked and "🔒 Constructor Pro" or (item and (hidden and "Oculta: requiere pase" or "Ocupado") or "Libre")
-		local tile = C.OptionTile("Espacio " .. slot, subtitle, {
-			selected = selected == slot,
-			locked = slotLocked and not decoId,
-			lockText = "Constructor Pro",
-			onClick = function()
-				if slotLocked and not decoId then
-					ctx.notify("info", "Los espacios 5-8 forman parte del pase Constructor Pro.")
-					ctx.navigate("shop", { focus = "CONSTRUCTOR_PRO" })
-				else
-					ctx.navigate("build", { tab = "decor", slot = slot })
-				end
-			end,
-		}, C.Label(item and item.name or "—", {
-			Position = UDim2.fromOffset(6, 10), Size = UDim2.new(1, -12, 0, 36),
-			AutomaticSize = Enum.AutomaticSize.None, TextXAlignment = Enum.TextXAlignment.Center,
-			Font = Theme.FontBold, TextSize = 14,
-		}))
-		tile.LayoutOrder = slot
-		tile.Parent = grid
+	-- Resumen y herramientas
+	local info = C.Card({ BackgroundColor3 = Theme.Panel }, {
+		C.Row({
+			C.Title(string.format("🌳 Decoraciones %d / %d", #list, max), 18),
+			C.Badge(string.format("Rejilla %d · Rotación %d°", stadium.tools.grid, stadium.tools.rotationStep),
+				isPro and Theme.Info or Theme.CardAlt),
+		}, 10),
+		C.Label(string.format("Coloca decoraciones libremente en la plaza de tu terreno (zona azul en el modo construcción). "
+			.. "Tu etapa de estadio permite %d; cada ascenso de etapa añade más. Retirar devuelve el %d%% del precio. "
+			.. "Cada decoración (hasta %d) suma +%s de atractivo.",
+			freeLimit, math.floor(CosmeticConfig.DECORATION_REFUND * 100), freeLimit,
+			Format.Percent(CosmeticConfig.DECORATION_ATTRACTIVENESS)), { TextColor3 = Theme.TextDim, TextSize = 13 }),
+	})
+	if not isPro then
+		local upsell = C.Row({
+			C.Label(string.format("🏗️ Constructor Pro: rejilla fina de %d stud, rotación a %d° y +%d decoraciones (sin ventaja económica).",
+				GameConfig.PRO_GRID, GameConfig.PRO_ROTATION_STEP, GameConfig.PRO_EXTRA_DECORATIONS),
+				{ TextColor3 = Theme.Gold, TextSize = 13, Size = UDim2.new(1, -130, 0, 0) }),
+			C.Button("Ver pase", "gold", function()
+				ctx.navigate("shop", { focus = "CONSTRUCTOR_PRO" })
+			end, { Size = UDim2.new(0, 110, 0, 32), AutomaticSize = Enum.AutomaticSize.None }),
+		}, 8)
+		upsell.Parent = info
 	end
+	add(info)
 
-	if not selected then
-		add(C.Label("Selecciona un espacio para colocar o retirar una decoración.", { TextColor3 = Theme.TextMuted }))
-		return
+	-- Catálogo
+	local full = #list >= max
+	local catalog = C.Card({}, { C.Title("🛒 Colocar una decoración nueva", 18) })
+	if full then
+		C.Label("Has alcanzado tu límite. Asciende tu estadio para colocar más, o retira alguna.", { TextColor3 = Theme.Warning, TextSize = 13 }).Parent = catalog
 	end
-
-	local key = tostring(selected)
-	local current = state.stadium.decorations[key]
-	if current then
-		local item = CosmeticConfig.ById.decoration[current]
-		add(C.Card({}, {
-			C.Title(string.format("Espacio %d · %s", selected, item and item.name or current), 18),
-			C.Button(string.format("Retirar (+%s)", Format.Money(math.floor((item and item.cost or 0) * CosmeticConfig.DECORATION_REFUND))), "danger", function()
-				ctx.act("RemoveDecoration", { slot = selected })
-			end),
-		}))
-		return
-	end
-
-	local catalog = C.Card({}, { C.Title(string.format("Colocar en el espacio %d", selected), 18) })
 	for _, item in ipairs(CosmeticConfig.Decorations) do
 		local locked = Premium.IsLocked(state, item)
-		local button = C.Button(locked and "🔒 Ver pase" or ("Comprar · " .. Format.Money(item.cost)), locked and "gold" or "primary", function()
+		local button = C.Button(locked and "🔒 Ver pase" or ("Colocar · " .. Format.Money(item.cost)), locked and "gold" or "primary", function()
 			if locked then
 				Premium.OnLockedClick(ctx, item)
 			else
-				ctx.act("PlaceDecoration", { slot = selected, decoration = item.id })
+				ctx.startPlacement({ decoId = item.id })
 			end
 		end, { Size = UDim2.new(0, 170, 0, 34), AutomaticSize = Enum.AutomaticSize.None })
-		if not locked and state.economy.money < item.cost then
-			C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(item.cost))
+		if not locked then
+			if state.economy.money < item.cost then
+				C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(item.cost))
+			elseif full then
+				C.SetEnabled(button, false, "Límite alcanzado")
+			end
 		end
 		C.Row({
-			C.Label(item.name .. (item.requiredPass and ("  <font color='#FFC400'>" .. Premium.PassName(item.requiredPass) .. "</font>") or ""),
+			C.Label(string.format("%s  <font color='#8C9BB4'>(%dx%d)</font>%s", item.name, item.w, item.d,
+				item.requiredPass and ("  <font color='#FFC400'>" .. Premium.PassName(item.requiredPass) .. "</font>") or ""),
 				{ Size = UDim2.new(1, -190, 0, 0) }),
 			button,
 		}).Parent = catalog
 	end
 	add(catalog)
+
+	-- Decoraciones colocadas
+	local placed = C.Card({}, { C.Title("📍 Tus decoraciones", 18) })
+	if #list == 0 then
+		C.Label("Todavía no has colocado ninguna.", { TextColor3 = Theme.TextMuted }).Parent = placed
+	end
+	for index, entry in ipairs(list) do
+		local item = CosmeticConfig.ById.decoration[entry.id]
+		local hidden = stadium.decorationVisible[index] ~= true
+		local name = item and item.name or entry.id
+		local moveButton = C.Button("Mover", "secondary", function()
+			ctx.startPlacement({ decoId = entry.id, moveIndex = index })
+		end, { Size = UDim2.new(0, 80, 0, 32), AutomaticSize = Enum.AutomaticSize.None })
+		if hidden then
+			C.SetEnabled(moveButton, false)
+		end
+		C.Row({
+			C.Label(string.format("%d. %s  <font color='#8C9BB4'>x %d · z %d · %d°</font>%s", index, name, entry.x, entry.z, entry.r,
+				hidden and "  <font color='#FFA028'>(oculta: requiere pase o supera tu límite)</font>" or ""),
+				{ Size = UDim2.new(1, -200, 0, 0), TextSize = 14 }),
+			moveButton,
+			C.Button("Retirar", "danger", function()
+				ctx.act("RemoveDecoration", { index = index, decoration = entry.id })
+			end, { Size = UDim2.new(0, 90, 0, 32), AutomaticSize = Enum.AutomaticSize.None }),
+		}).Parent = placed
+	end
+	add(placed)
 end
 
 local function renderDesigns(add, ctx)

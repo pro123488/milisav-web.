@@ -41,7 +41,7 @@ function DefaultData.Create(player)
 		stadium = {
 			stage = 1,
 			facilities = facilities,
-			decorations = {}, -- ["1"] = "flags"  (claves de texto para DataStore)
+			decorations = {}, -- lista de { id = "flags", x = 40, z = 88, r = 0 } (coordenadas locales)
 		},
 		economy = {
 			money = GameConfig.STARTING_MONEY,
@@ -72,8 +72,55 @@ function DefaultData.Create(player)
 		trophies = {},
 		records = {},
 		missions = {},
-		history = {},
+		history = {}, -- eventos reales del club: { t, kind, ... } (base de la HISTORIA DEL CLUB)
 	}
+end
+
+-- Posiciones a las que se migran las decoraciones de la v1 (espacios fijos 1-8).
+local V1_SLOT_POSITIONS = {
+	{ -36, 86 }, { 36, 86 }, { -60, 86 }, { 60, 86 },
+	{ -84, 86 }, { 84, 86 }, { -48, 97 }, { 48, 97 },
+}
+
+local function finiteNumber(n)
+	return type(n) == "number" and n == n and n ~= math.huge and n ~= -math.huge
+end
+
+local function cleanDecorations(raw)
+	local list = {}
+	if type(raw) ~= "table" then
+		return list
+	end
+	-- v1: { ["1"] = "flags", ... }  ->  v2: { { id, x, z, r }, ... }
+	local v1 = {}
+	for key, value in pairs(raw) do
+		if type(value) == "string" and tonumber(key) then
+			table.insert(v1, { slot = tonumber(key), id = value })
+		end
+	end
+	if #v1 > 0 then
+		table.sort(v1, function(a, b)
+			return a.slot < b.slot
+		end)
+		for _, entry in ipairs(v1) do
+			local pos = V1_SLOT_POSITIONS[entry.slot]
+			if pos and CosmeticConfig.ById.decoration[entry.id] then
+				table.insert(list, { id = entry.id, x = pos[1], z = pos[2], r = 0 })
+			end
+		end
+		return list
+	end
+	for _, entry in ipairs(raw) do
+		if type(entry) == "table" and CosmeticConfig.ById.decoration[entry.id]
+			and finiteNumber(entry.x) and finiteNumber(entry.z) and finiteNumber(entry.r)
+			and math.abs(entry.x) <= 150 and math.abs(entry.z) <= 105 then
+			table.insert(list, { id = entry.id, x = entry.x, z = entry.z, r = entry.r % 360 })
+		end
+		if #list >= GameConfig.MAX_DECORATIONS then
+			break
+		end
+	end
+	return list
 end
 
 local function fillMissing(target, template)
@@ -147,15 +194,15 @@ function DefaultData.Reconcile(data, player)
 		end
 	end
 	stadium.facilities = cleanFacilities
-	local cleanDecorations = {}
-	for slot, decoId in pairs(stadium.decorations) do
-		local index = tonumber(slot)
-		if index and index >= 1 and index <= GameConfig.PRO_DECORATION_SLOTS
-			and validItem("decoration", decoId) then
-			cleanDecorations[tostring(math.floor(index))] = decoId
-		end
+	stadium.decorations = cleanDecorations(stadium.decorations)
+
+	-- Historial de eventos
+	if type(data.history) ~= "table" then
+		data.history = {}
 	end
-	stadium.decorations = cleanDecorations
+	while #data.history > GameConfig.MAX_HISTORY_EVENTS do
+		table.remove(data.history, 1)
+	end
 
 	-- Economía
 	local economy = data.economy

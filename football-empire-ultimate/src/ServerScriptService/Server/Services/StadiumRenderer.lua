@@ -3,47 +3,32 @@
 --
 -- Construye el estadio físico a partir de los datos del club.
 -- Optimización: cada grada es un bloque por fila (no un asiento por pieza),
--- las instalaciones son volúmenes simples y todo es Anchored. Un estadio completo
--- de la FASE 1 ronda las 150 piezas.
+-- las esquinas son 3 bloques escalonados, las instalaciones son volúmenes simples
+-- y todo es Anchored. Un estadio legendario completo ronda las 300 piezas.
 --
--- Coordenadas locales del terreno (220 x 170):
---   X: -110..110 (largo del campo), Z: -85..85 (Z+ = plaza de entrada)
---   Campo de juego centrado en (0, -10), 100 x 64.
+-- El plano (posiciones de todo) está en ReplicatedStorage/Shared/Modules/StadiumLayout.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
-local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local KitPattern = require(Shared.Modules.KitPattern)
+local Layout = require(Shared.Modules.StadiumLayout)
 
 local StadiumRenderer = {}
 
-local PITCH_CENTER_Z = -10
-local PITCH_LENGTH = 100
-local PITCH_WIDTH = 64
-local ROW_DEPTH = 3
-local ROW_STEP = 1.5
-local ROWS_BY_LEVEL = { 4, 5, 6, 8, 10, 12 }
+local PITCH_CENTER_Z = Layout.PITCH_CENTER_Z
+local PITCH_LENGTH = Layout.PITCH_LENGTH
+local PITCH_WIDTH = Layout.PITCH_WIDTH
+local ROW_DEPTH = Layout.ROW_DEPTH
+local ROW_STEP = Layout.ROW_STEP
+local ROWS_BY_LEVEL = Layout.ROWS_BY_LEVEL
 
 local GOLD = Color3.fromRGB(255, 200, 70)
 local WHITE = Color3.fromRGB(245, 245, 245)
 
--- Espacios de decoración (1-4 gratuitos, 5-8 Constructor Pro). Todos dentro del terreno.
-StadiumRenderer.DecorationSlots = {
-	Vector3.new(-40, 0, 72),
-	Vector3.new(40, 0, 72),
-	Vector3.new(-65, 0, 72),
-	Vector3.new(65, 0, 72),
-	Vector3.new(-90, 0, 72),
-	Vector3.new(90, 0, 72),
-	Vector3.new(-100, 0, -30),
-	Vector3.new(100, 0, -30),
-}
-assert(#StadiumRenderer.DecorationSlots >= GameConfig.PRO_DECORATION_SLOTS, "Faltan posiciones de decoración")
-
-StadiumRenderer.SpawnOffset = CFrame.new(0, 4, 64) * CFrame.Angles(0, 0, 0)
+StadiumRenderer.SpawnOffset = CFrame.new(Layout.SPAWN)
 
 -- ===== Utilidades de construcción =====
 
@@ -247,10 +232,11 @@ local function buildLighting(folder, origin, level, vip)
 	if level < 1 then
 		return
 	end
-	local positions = { Vector3.new(-58, 0, PITCH_CENTER_Z - 40), Vector3.new(58, 0, PITCH_CENTER_Z - 40) }
+	-- Torres en las esquinas exteriores del estadio (fuera de gradas y esquinas)
+	local positions = { Vector3.new(-100, 0, -97), Vector3.new(100, 0, -97) }
 	if level >= 2 then
-		table.insert(positions, Vector3.new(-58, 0, PITCH_CENTER_Z + 40))
-		table.insert(positions, Vector3.new(58, 0, PITCH_CENTER_Z + 40))
+		table.insert(positions, Vector3.new(-100, 0, 72))
+		table.insert(positions, Vector3.new(100, 0, 72))
 	end
 	local height = 26 + level * 5
 	-- VIP Club: iluminación dorada (ventaja visual, sin efecto económico)
@@ -268,7 +254,7 @@ local function buildLighting(folder, origin, level, vip)
 		head.Parent = folder
 		local spot = Instance.new("SpotLight")
 		spot.Face = Enum.NormalId.Front
-		spot.Angle = 70
+		spot.Angle = 90
 		spot.Brightness = 1.5 + level
 		spot.Range = 60
 		spot.Color = lightColor
@@ -281,10 +267,12 @@ local function buildScoreboard(folder, origin, level, info)
 		return
 	end
 	local width, height = 14 + level * 4, 7 + level * 2
-	local baseY = 22
-	local pos = Vector3.new(104, baseY + height / 2, PITCH_CENTER_Z)
-	for _, dz in ipairs({ -width / 3, width / 3 }) do
-		part(folder, origin, CFrame.new(104, baseY / 2, PITCH_CENTER_Z + dz), Vector3.new(1, baseY, 1), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
+	-- Detrás de la grada norte, por encima de su cubierta
+	local baseY = 32
+	local z = -100
+	local pos = Vector3.new(0, baseY + height / 2, z)
+	for _, dx in ipairs({ -width / 3, width / 3 }) do
+		part(folder, origin, CFrame.new(dx, baseY / 2, z), Vector3.new(1, baseY, 1), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
 	end
 	local worldPos = (origin * CFrame.new(pos)).Position
 	local target = (origin * CFrame.new(0, pos.Y, PITCH_CENTER_Z)).Position
@@ -345,13 +333,74 @@ local function buildBuilding(folder, origin, pos, level, design, primary, second
 	part(folder, origin, CFrame.new(pos.X, size.Y + 0.5, pos.Z), Vector3.new(size.X + 1, 1, size.Z + 1),
 		isNeon and secondary or primary, isNeon and Enum.Material.Neon or Enum.Material.SmoothPlastic)
 	label(body, string.format("%s · Nv %d", title, level), size.Y / 2 + 3)
+	return body, size
+end
+
+-- Campo de entrenamiento pequeño (centro de entrenamiento y academia)
+local function miniPitch(folder, origin, pos, length, width, withGoals)
+	part(folder, origin, CFrame.new(pos.X, 0.1, pos.Z), Vector3.new(length, 0.2, width), Color3.fromRGB(60, 160, 65), Enum.Material.Grass)
+	part(folder, origin, CFrame.new(pos.X, 0.22, pos.Z), Vector3.new(0.4, 0.02, width), WHITE, nil, { CanCollide = false })
+	if withGoals then
+		for _, side in ipairs({ -1, 1 }) do
+			local x = pos.X + side * length / 2
+			for _, dz in ipairs({ -3, 3 }) do
+				part(folder, origin, CFrame.new(x, 1.5, pos.Z + dz), Vector3.new(0.3, 3, 0.3), WHITE)
+			end
+			part(folder, origin, CFrame.new(x, 3, pos.Z), Vector3.new(0.3, 0.3, 6.3), WHITE)
+		end
+	end
+end
+
+local GLASS_DESIGN = { material = "Glass" }
+
+local function buildLaneFacilities(folder, origin, facilities, design, info)
+	local F = Layout.Facilities
+	local function title(id)
+		local def = FacilityConfig.Get(id)
+		return def.icon .. " " .. def.name
+	end
+	buildBuilding(folder, origin, F.lockers, facilities.lockers or 0, design, info.primary, info.secondary, title("lockers"))
+	buildBuilding(folder, origin, F.shop, facilities.shop or 0, design, info.primary, info.secondary, title("shop"))
+	buildBuilding(folder, origin, F.restaurant, facilities.restaurant or 0, design, info.primary, info.secondary, title("restaurant"))
+
+	-- Zona VIP: pabellón de cristal con remate dorado
+	local vipLevel = facilities.vip or 0
+	if vipLevel > 0 then
+		local body, size = buildBuilding(folder, origin, F.vip, vipLevel, GLASS_DESIGN, info.primary, info.secondary, title("vip"))
+		part(folder, origin, CFrame.new(F.vip.X, size.Y + 1.2, F.vip.Z), Vector3.new(size.X + 1.4, 0.4, size.Z + 1.4), GOLD, Enum.Material.Neon, { CanCollide = false })
+		body.Color = Color3.fromRGB(190, 220, 240)
+	end
+
+	-- Centro de entrenamiento: edificio + campo de entrenamiento
+	local trainingLevel = facilities.training or 0
+	if trainingLevel > 0 then
+		buildBuilding(folder, origin, F.training + Vector3.new(0, 0, 12), trainingLevel, design, info.primary, info.secondary, title("training"))
+		miniPitch(folder, origin, F.training + Vector3.new(0, 0, -18), 20 + trainingLevel * 3, 14, trainingLevel >= 2)
+	end
+
+	-- Academia juvenil: edificio + campo pequeño
+	local academyLevel = facilities.academy or 0
+	if academyLevel > 0 then
+		buildBuilding(folder, origin, F.academy + Vector3.new(0, 0, -6), academyLevel, design, info.primary, info.secondary, title("academy"))
+		miniPitch(folder, origin, F.academy + Vector3.new(0, 0, 12), 18 + academyLevel * 2, 8, academyLevel >= 2)
+	end
+
+	-- Sala de trofeos: edificio con copa y contador REAL de títulos
+	local trophyLevel = facilities.trophyRoom or 0
+	if trophyLevel > 0 then
+		local _, size = buildBuilding(folder, origin, F.trophyRoom, trophyLevel, design, info.primary, info.secondary, title("trophyRoom"))
+		local cup = part(folder, origin, CFrame.new(F.trophyRoom.X, size.Y + 3, F.trophyRoom.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(4, 3, 3), GOLD, Enum.Material.Metal, { Reflectance = 0.3 })
+		cup.Shape = Enum.PartType.Cylinder
+		label(cup, string.format("🏆 Títulos: %d", info.trophyCount or 0), 4, GOLD).MaxDistance = 90
+	end
 end
 
 local function buildSign(folder, origin, info)
 	for _, x in ipairs({ -12, 12 }) do
-		part(folder, origin, CFrame.new(x, 4, 78), Vector3.new(1, 8, 1), info.vip and GOLD or Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
+		part(folder, origin, CFrame.new(x, 4, Layout.SIGN.Z), Vector3.new(1, 8, 1), info.vip and GOLD or Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
 	end
-	local board = part(folder, origin, CFrame.new(0, 11, 78), Vector3.new(26, 10, 1), info.primary, Enum.Material.SmoothPlastic, { Name = "ClubSign" })
+	local board = part(folder, origin, CFrame.new(0, 11, Layout.SIGN.Z), Vector3.new(26, 10, 1), info.primary, Enum.Material.SmoothPlastic, { Name = "ClubSign" })
 	local function content(gui)
 		local frame = Instance.new("Frame")
 		frame.Size = UDim2.fromScale(1, 1)
@@ -408,8 +457,8 @@ local function buildSign(folder, origin, info)
 	surfaceText(board, Enum.NormalId.Back, content)
 
 	-- Expositor de equipación
-	part(folder, origin, CFrame.new(-22, 3, 80), Vector3.new(0.6, 6, 0.6), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
-	local kitBoard = part(folder, origin, CFrame.new(-22, 8, 80), Vector3.new(5, 5, 0.4), info.primary)
+	part(folder, origin, CFrame.new(Layout.KIT_DISPLAY.X, 3, Layout.KIT_DISPLAY.Z), Vector3.new(0.6, 6, 0.6), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
+	local kitBoard = part(folder, origin, CFrame.new(Layout.KIT_DISPLAY.X, 8, Layout.KIT_DISPLAY.Z), Vector3.new(5, 5, 0.4), info.primary)
 	local function kit(gui)
 		local holder = Instance.new("Frame")
 		holder.Size = UDim2.fromScale(1, 1)
@@ -579,22 +628,185 @@ DecorationBuilders.vip_statue = function(f, o, p)
 	sparkle.Parent = head
 end
 
-local function buildDecorations(folder, origin, visible, maxSlots, info)
-	for slot = 1, GameConfig.PRO_DECORATION_SLOTS do
-		local pos = StadiumRenderer.DecorationSlots[slot]
-		local decoId = visible[slot]
-		if decoId and DecorationBuilders[decoId] then
+-- Decoraciones en posición libre: cada una se construye en su propio marco local
+-- (posición + rotación), así los constructores no necesitan saber de rotaciones.
+local function buildDecorations(folder, origin, decorations, visibleFlags, info)
+	for index, entry in ipairs(decorations) do
+		local builder = DecorationBuilders[entry.id]
+		if builder and visibleFlags[index] then
 			local sub = Instance.new("Folder")
-			sub.Name = "Decoration_" .. slot
+			sub.Name = "Decoration_" .. index
 			sub.Parent = folder
-			DecorationBuilders[decoId](sub, origin, pos, info)
-		elseif slot <= maxSlots then
-			-- Marca de espacio libre (solo visual)
-			local marker = part(folder, origin, CFrame.new(pos.X, 0.05, pos.Z), Vector3.new(8, 0.1, 8),
-				Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic,
-				{ Transparency = 0.7, CanCollide = false, Name = "FreeSlot_" .. slot })
-			label(marker, "Espacio " .. slot .. " libre", 2, Color3.fromRGB(200, 220, 255)).MaxDistance = 50
+			local frame = origin * CFrame.new(entry.x, 0, entry.z) * CFrame.Angles(0, math.rad(entry.r or 0), 0)
+			builder(sub, frame, Vector3.zero, info)
 		end
+	end
+end
+
+-- ===== Estadio evolutivo: elementos de cada etapa =====
+
+local function stageColor(name)
+	local colors = {
+		Concrete = Color3.fromRGB(175, 175, 170),
+		Cobblestone = Color3.fromRGB(150, 140, 130),
+		Slate = Color3.fromRGB(110, 115, 125),
+		Marble = Color3.fromRGB(230, 228, 222),
+		WoodPlanks = Color3.fromRGB(150, 110, 70),
+		Brick = Color3.fromRGB(160, 80, 60),
+		Glass = Color3.fromRGB(170, 210, 235),
+	}
+	return colors[name] or Color3.fromRGB(170, 170, 170)
+end
+
+local function buildWalls(folder, origin, visual, info)
+	local wall = visual.wall
+	local h = wall.height
+	local mat = material(wall.material, Enum.Material.Concrete)
+	local color = stageColor(wall.material)
+	local props = { Transparency = wall.material == "Glass" and 0.4 or 0, Name = "Wall" }
+	local hx, hz = Layout.HALF_X, Layout.HALF_Z
+	local t = 1.5
+	local gateHalf = 10
+	local segments = {
+		{ CFrame.new(0, h / 2, -hz + t / 2), Vector3.new(hx * 2, h, t) }, -- norte
+		{ CFrame.new(-hx + t / 2, h / 2, 0), Vector3.new(t, h, hz * 2) }, -- oeste
+		{ CFrame.new(hx - t / 2, h / 2, 0), Vector3.new(t, h, hz * 2) }, -- este
+		{ CFrame.new(-(hx + gateHalf) / 2, h / 2, hz - t / 2), Vector3.new(hx - gateHalf, h, t) }, -- sur izq.
+		{ CFrame.new((hx + gateHalf) / 2, h / 2, hz - t / 2), Vector3.new(hx - gateHalf, h, t) }, -- sur dcha.
+	}
+	for _, seg in ipairs(segments) do
+		part(folder, origin, seg[1], seg[2], color, mat, props)
+		-- Remate superior: franja del club, neón o dorado según la etapa
+		if wall.stripe or wall.neon or wall.gold then
+			local capColor = wall.gold and GOLD or (wall.neon and info.secondary or info.primary)
+			local capMat = (wall.neon or wall.gold) and Enum.Material.Neon or Enum.Material.SmoothPlastic
+			part(folder, origin, seg[1] * CFrame.new(0, h / 2 + 0.3, 0), Vector3.new(seg[2].X, 0.6, seg[2].Z), capColor, capMat, { CanCollide = false })
+		end
+	end
+end
+
+local function buildGate(folder, origin, visual, info)
+	local h = (visual.wall and visual.wall.height or 4) + 6
+	local z = Layout.HALF_Z - 0.75
+	local pillarColor = (visual.wall and visual.wall.gold) and GOLD or info.primary
+	for _, x in ipairs({ -11, 11 }) do
+		part(folder, origin, CFrame.new(x, h / 2, z), Vector3.new(2.5, h, 2.5), pillarColor, Enum.Material.SmoothPlastic)
+	end
+	local beam = part(folder, origin, CFrame.new(0, h + 1.5, z), Vector3.new(25, 3, 2.5), info.secondary, Enum.Material.SmoothPlastic, { Name = "Gate" })
+	if visual.gateText then
+		local function content(gui)
+			local t = Instance.new("TextLabel")
+			t.Size = UDim2.fromScale(1, 1)
+			t.BackgroundColor3 = info.primary
+			t.TextColor3 = info.secondaryText
+			t.Font = Enum.Font.GothamBlack
+			t.TextScaled = true
+			t.Text = info.crestSymbol .. " " .. string.upper(info.clubName) .. " · " .. info.stageName
+			t.Parent = gui
+		end
+		surfaceText(beam, Enum.NormalId.Front, content)
+		surfaceText(beam, Enum.NormalId.Back, content)
+	end
+end
+
+-- Esquinas cerradas: 3 bloques escalonados por esquina, anclados en la esquina exterior.
+local function buildCorners(folder, origin, standsLevel, design, info)
+	if standsLevel < 3 then
+		return -- hacen falta las 4 gradas
+	end
+	local rows = ROWS_BY_LEVEL[math.clamp(standsLevel, 1, #ROWS_BY_LEVEL)]
+	local a, b = 4, 4 + rows * ROW_DEPTH
+	local topY = rows * ROW_STEP
+	local mat = material(design.material, Enum.Material.Concrete)
+	for _, sx in ipairs({ -1, 1 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			local zEdge = PITCH_CENTER_Z + sz * PITCH_WIDTH / 2
+			for k = 1, 3 do
+				local size = (b - a) * k / 3
+				local height = topY * (4 - k) / 3
+				local cx = sx * (PITCH_LENGTH / 2 + b - size / 2)
+				local cz = zEdge + sz * (b - size / 2)
+				part(folder, origin, CFrame.new(cx, height / 2, cz), Vector3.new(size, height, size),
+					(k % 2 == 0) and info.secondary or info.primary, mat, { Name = "CornerStand" })
+			end
+		end
+	end
+end
+
+local function buildScreens(folder, origin, info)
+	for _, sx in ipairs({ -1, 1 }) do
+		local pos = Vector3.new(sx * 75, 30, -78)
+		part(folder, origin, CFrame.new(pos.X, 12, pos.Z), Vector3.new(1.5, 24, 1.5), Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
+		local worldPos = (origin * CFrame.new(pos)).Position
+		local target = (origin * CFrame.new(0, pos.Y, PITCH_CENTER_Z)).Position
+		local screen = Instance.new("Part")
+		screen.Name = "BigScreen"
+		screen.Anchored = true
+		screen.Size = Vector3.new(20, 11, 1)
+		screen.CFrame = CFrame.lookAt(worldPos, target)
+		screen.Color = Color3.fromRGB(10, 10, 15)
+		screen.Parent = folder
+		surfaceText(screen, Enum.NormalId.Front, function(gui)
+			local t = Instance.new("TextLabel")
+			t.Size = UDim2.fromScale(1, 1)
+			t.BackgroundColor3 = info.primary
+			t.TextColor3 = info.secondaryText
+			t.Font = Enum.Font.GothamBlack
+			t.TextScaled = true
+			t.Text = info.crestSymbol .. "\n" .. info.clubName
+			t.Parent = gui
+		end)
+	end
+end
+
+local function buildLightRing(folder, origin, standsLevel, info)
+	local rows = ROWS_BY_LEVEL[math.clamp(standsLevel, 1, #ROWS_BY_LEVEL)]
+	local b = 4 + rows * ROW_DEPTH
+	local y = rows * ROW_STEP + 12
+	local color = info.vip and GOLD or Color3.fromRGB(170, 220, 255)
+	local outerX = PITCH_LENGTH / 2 + b
+	local north, south = PITCH_CENTER_Z - PITCH_WIDTH / 2 - b, PITCH_CENTER_Z + PITCH_WIDTH / 2 + b
+	local props = { CanCollide = false, CanQuery = false, Name = "LightRing" }
+	part(folder, origin, CFrame.new(0, y, north), Vector3.new(outerX * 2, 0.6, 0.6), color, Enum.Material.Neon, props)
+	part(folder, origin, CFrame.new(0, y, south), Vector3.new(outerX * 2, 0.6, 0.6), color, Enum.Material.Neon, props)
+	part(folder, origin, CFrame.new(-outerX, y, (north + south) / 2), Vector3.new(0.6, 0.6, south - north), color, Enum.Material.Neon, props)
+	part(folder, origin, CFrame.new(outerX, y, (north + south) / 2), Vector3.new(0.6, 0.6, south - north), color, Enum.Material.Neon, props)
+end
+
+local function buildMonument(folder, origin, info)
+	local p = Layout.MONUMENT
+	part(folder, origin, CFrame.new(p.X, 2, p.Z), Vector3.new(6, 4, 6), Color3.fromRGB(235, 232, 225), Enum.Material.Marble)
+	local ball = part(folder, origin, CFrame.new(p.X, 7, p.Z), Vector3.new(6, 6, 6), GOLD, Enum.Material.Metal, { Reflectance = 0.35 })
+	ball.Shape = Enum.PartType.Ball
+	local sparkle = Instance.new("Sparkles")
+	sparkle.SparkleColor = GOLD
+	sparkle.Parent = ball
+	label(ball, info.crestSymbol .. " Monumento " .. info.clubName, 5, GOLD).MaxDistance = 100
+end
+
+local function buildStageExtras(folder, origin, info, standsLevel, standsDesign)
+	local visual = info.stageVisual or {}
+	if visual.plaza then
+		part(folder, origin, CFrame.new(0, 0.05, 87.5), Vector3.new(190, 0.1, 35), stageColor(visual.plaza),
+			material(visual.plaza, Enum.Material.Concrete), { Name = "Plaza" })
+	end
+	if visual.wall then
+		buildWalls(folder, origin, visual, info)
+	end
+	if visual.gate then
+		buildGate(folder, origin, visual, info)
+	end
+	if visual.corners then
+		buildCorners(folder, origin, standsLevel, standsDesign, info)
+	end
+	if visual.screens then
+		buildScreens(folder, origin, info)
+	end
+	if visual.lightRing then
+		buildLightRing(folder, origin, standsLevel, info)
+	end
+	if visual.monument then
+		buildMonument(folder, origin, info)
 	end
 end
 
@@ -606,20 +818,17 @@ function StadiumRenderer.Render(folder, origin, info)
 	local facilities = info.facilities
 	local standsDesign = CosmeticConfig.ById.design[info.appearance.standsDesign] or CosmeticConfig.ById.design.classic
 	local buildingDesign = CosmeticConfig.ById.design[info.appearance.buildingDesign] or CosmeticConfig.ById.design.brick
+	local standsLevel = facilities.stands or 1
 
+	buildStageExtras(folder, origin, info, standsLevel, standsDesign)
 	buildPitch(folder, origin, facilities.pitch or 1)
-	buildStands(folder, origin, facilities.stands or 1, standsDesign, info.primary, info.secondary)
+	buildStands(folder, origin, standsLevel, standsDesign, info.primary, info.secondary)
 	buildLighting(folder, origin, facilities.lighting or 0, info.vip)
 	buildScoreboard(folder, origin, facilities.scoreboard or 0, info)
-	local lockers = FacilityConfig.Get("lockers")
-	local shop = FacilityConfig.Get("shop")
-	local restaurant = FacilityConfig.Get("restaurant")
-	buildBuilding(folder, origin, Vector3.new(-88, 0, -68), facilities.lockers or 0, buildingDesign, info.primary, info.secondary, lockers.icon .. " " .. lockers.name)
-	buildBuilding(folder, origin, Vector3.new(-85, 0, 45), facilities.shop or 0, buildingDesign, info.primary, info.secondary, shop.icon .. " " .. shop.name)
-	buildBuilding(folder, origin, Vector3.new(85, 0, 45), facilities.restaurant or 0, buildingDesign, info.primary, info.secondary, restaurant.icon .. " " .. restaurant.name)
+	buildLaneFacilities(folder, origin, facilities, buildingDesign, info)
 	buildSign(folder, origin, info)
 	buildEffect(folder, origin, info.appearance.effect, info.primary, info.secondary)
-	buildDecorations(folder, origin, info.decorations, info.maxSlots, info)
+	buildDecorations(folder, origin, info.decorations, info.decorationVisible, info)
 end
 
 return StadiumRenderer

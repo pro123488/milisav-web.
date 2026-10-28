@@ -60,9 +60,9 @@ GamePassConfig.Passes = {
 		description = "Más diseños y herramientas de construcción, siempre dentro de las reglas de tu terreno.",
 		benefits = {
 			"Diseños de construcción exclusivos para gradas e instalaciones",
-			"Opciones adicionales de personalización de estilos",
+			"Herramientas de colocación: rejilla fina (1 stud) y rotación a 45°",
 			"Elementos decorativos especiales",
-			"Más espacios de decoración dentro de tu terreno",
+			"+6 decoraciones, siempre dentro de la zona de tu terreno",
 		},
 		priority = 2,
 		phase = 1,
@@ -96,7 +96,7 @@ GamePassConfig.Passes = {
 		description = "Acabados y estilos de élite para tu estadio evolutivo.",
 		benefits = { "Estilos visuales de élite para las 7 etapas del estadio" },
 		priority = 4,
-		phase = 2,
+		phase = 11, -- se activa con la Tienda Premium completa (FASE 11)
 	},
 	ELITE_ACADEMY = {
 		key = "ELITE_ACADEMY",
@@ -108,7 +108,7 @@ GamePassConfig.Passes = {
 		description = "Personalización ampliada de la cantera generacional.",
 		benefits = { "Opciones visuales y de gestión ampliadas para la academia" },
 		priority = 5,
-		phase = 4,
+		phase = 11, -- se activa con la Tienda Premium completa (FASE 11)
 	},
 	CLUB_LEGENDS = {
 		key = "CLUB_LEGENDS",
@@ -120,7 +120,7 @@ GamePassConfig.Passes = {
 		description = "Galería ampliada de leyendas e historia del club.",
 		benefits = { "Vitrinas y presentaciones especiales en la historia del club" },
 		priority = 6,
-		phase = 8,
+		phase = 11, -- se activa con la Tienda Premium completa (FASE 11)
 	},
 } :: { [string]: PassDefinition }
 

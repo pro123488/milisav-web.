@@ -20,6 +20,7 @@ local GamePassService = require(Services.GamePassService)
 local ClubService = require(Services.ClubService)
 local EconomyService = require(Services.EconomyService)
 local BuildService = require(Services.BuildService)
+local StadiumService = require(Services.StadiumService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -36,12 +37,8 @@ local function buildState(player)
 	if not data then
 		return nil
 	end
-	local stage = StadiumStages[data.stadium.stage] or StadiumStages[1]
-	-- Claves de texto: las tablas con claves numéricas dispersas no se replican bien.
-	local visibleDecorations = {}
-	for slot, decoId in pairs(BuildService.VisibleDecorations(player, data)) do
-		visibleDecorations[tostring(slot)] = decoId
-	end
+	local stage = StadiumStages.Get(data.stadium.stage)
+	local plot = PlotService.GetPlot(player)
 	return {
 		version = GameConfig.VERSION,
 		phase = MenuConfig.CURRENT_PHASE,
@@ -62,11 +59,13 @@ local function buildState(player)
 			stageDescription = stage.description,
 			maxStageThisPhase = StadiumStages.MAX_STAGE_THIS_PHASE,
 			facilities = data.stadium.facilities,
-			decorations = data.stadium.decorations,
-			visibleDecorations = visibleDecorations,
-			maxDecorationSlots = BuildService.MaxDecorationSlots(player),
-			plotIndex = PlotService.GetPlot(player) and PlotService.GetPlot(player).index or nil,
+			decorations = data.stadium.decorations, -- lista { id, x, z, r }
+			decorationVisible = BuildService.DecorationVisibility(player, data), -- lista de booleanos
+			maxDecorations = BuildService.MaxDecorations(player, data),
+			tools = BuildService.Tools(player), -- rejilla y paso de rotación permitidos
+			plotIndex = plot and plot.index or nil,
 		},
+		history = data.history,
 		economy = EconomyService.Summary(player, data),
 		premium = {
 			owned = GamePassService.OwnedList(player),
@@ -122,15 +121,22 @@ Actions.PlaceDecoration = function(player, payload)
 	if type(payload) ~= "table" then
 		return false, "Solicitud no válida."
 	end
-	local ok, msg = BuildService.PlaceDecoration(player, payload.slot, payload.decoration)
+	local ok, msg = BuildService.PlaceDecoration(player, payload)
+	return ok, msg, ok
+end
+
+Actions.MoveDecoration = function(player, payload)
+	local ok, msg = BuildService.MoveDecoration(player, payload)
 	return ok, msg, ok
 end
 
 Actions.RemoveDecoration = function(player, payload)
-	if type(payload) ~= "table" then
-		return false, "Solicitud no válida."
-	end
-	local ok, msg = BuildService.RemoveDecoration(player, payload.slot)
+	local ok, msg = BuildService.RemoveDecoration(player, payload)
+	return ok, msg, ok
+end
+
+Actions.UpgradeStage = function(player)
+	local ok, msg = StadiumService.UpgradeStage(player)
 	return ok, msg, ok
 end
 

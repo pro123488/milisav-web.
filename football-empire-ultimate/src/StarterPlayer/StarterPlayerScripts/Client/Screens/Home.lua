@@ -36,6 +36,13 @@ local function nextSteps(state, Format)
 			screen = "build",
 		})
 	end
+	local stageOk, _, nextStage = EconomyFormulas.CanUpgradeStage(pseudo)
+	if stageOk and nextStage then
+		table.insert(steps, 1, {
+			text = string.format("¡Puedes ascender tu estadio a %s! (%s)", nextStage.name, Format.Money(nextStage.upgradeCost)),
+			screen = "stadium",
+		})
+	end
 	if state.economy.debt > 0 then
 		table.insert(steps, { text = "Tienes deuda: págala en Economía para evitar intereses.", screen = "economy" })
 	end

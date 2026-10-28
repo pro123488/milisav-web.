@@ -2,8 +2,12 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: FASE 1 (base funcional + Tienda Premium y Game Passes integrados).**
-La documentación completa de la fase, con pruebas y lista de comprobación, está en [`docs/FASE_1.md`](docs/FASE_1.md).
+**Estado actual: FASE 2 (construcción avanzada y estadio evolutivo)**, sobre la base de la FASE 1 (club, economía, guardado, Tienda Premium y Game Passes integrados).
+
+| Fase | Documento |
+|---|---|
+| FASE 1 · Base funcional + Tienda Premium | [`docs/FASE_1.md`](docs/FASE_1.md) |
+| FASE 2 · Construcción avanzada y estadio evolutivo | [`docs/FASE_2.md`](docs/FASE_2.md) |
 
 > ⚠️ Los tres Game Passes (VIP Club, Constructor Pro, Expansión Cosmética) están **integrados en el código pero no publicados**. Sus IDs están en `0` (pendiente de configuración) en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Hasta que los crees en el Creator Dashboard y pegues sus IDs, la tienda los muestra como «Pendiente de configuración» con la compra desactivada.
 
@@ -12,19 +16,21 @@ La documentación completa de la fase, con pruebas y lista de comprobación, est
 ```
 football-empire-ultimate/
 ├── default.project.json              Proyecto Rojo (opcional)
-├── docs/FASE_1.md                    Entrega de la FASE 1
+├── docs/FASE_1.md, FASE_2.md         Entregas de cada fase
 └── src/
     ├── ReplicatedStorage/Shared/     Compartido (cliente + servidor)
     │   ├── Config/                   GamePassConfig, GameConfig, FacilityConfig,
     │   │                             CosmeticConfig, StadiumStages, MenuConfig
-    │   └── Modules/                  EconomyFormulas, Format, KitPattern, Remotes
+    │   └── Modules/                  EconomyFormulas, Format, KitPattern, Remotes,
+    │                                 StadiumLayout, PlacementRules
     ├── ServerScriptService/Server/   Solo servidor
     │   ├── Main.server.lua           Arranque + acciones remotas
     │   ├── Services/                 Data, GamePass, Club, Economy, Build,
-    │   │                             Plot, StadiumRenderer
+    │   │                             Stadium, Plot, StadiumRenderer
     │   └── Util/                     DefaultData, RateLimiter, Retry
     └── StarterPlayer/StarterPlayerScripts/Client/
         ├── Main.client.lua           Interfaz principal
+        ├── Controllers/              PlacementController (modo construcción)
         ├── UI/                       Theme, Components, Notifier, Premium
         └── Screens/                  Home, Club, Stadium, Build, Economy,
                                       Shop, Settings, ComingSoon
@@ -35,6 +41,6 @@ Convención de nombres (Rojo): `*.server.lua` = Script, `*.client.lua` = LocalSc
 ## Instalación rápida
 
 **Con Rojo:** `rojo serve` en esta carpeta y conecta el plugin de Rojo en Studio.
-**A mano:** sigue la tabla de la sección 6 de [`docs/FASE_1.md`](docs/FASE_1.md).
+**A mano:** sigue la tabla de la sección 6 de [`docs/FASE_1.md`](docs/FASE_1.md) y los archivos nuevos de la sección 6 de [`docs/FASE_2.md`](docs/FASE_2.md).
 
 Después, en Studio: *Game Settings › Security › Enable Studio Access to API Services* (para probar el guardado; el juego funciona igualmente sin él, en modo sin guardado).

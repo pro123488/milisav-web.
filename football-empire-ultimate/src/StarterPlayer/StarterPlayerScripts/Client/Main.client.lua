@@ -34,6 +34,7 @@ local Screens = {
 	settings = require(ScreensFolder.Settings),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
+local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
 
 local actionRemote = Remotes.Get("Action")
 local stateRemote = Remotes.Get("State")
@@ -80,6 +81,7 @@ function ctx.act(actionName, payload)
 end
 
 local renderCurrent -- declarada más abajo
+local buildTopBar -- declarada más abajo
 
 function ctx.navigate(screenId, params)
 	ctx.current = screenId
@@ -96,6 +98,23 @@ function ctx.close()
 	panel.Visible = false
 end
 
+-- Modo construcción: cierra el menú, coloca en el mundo y vuelve a Construcción › Decoración.
+function ctx.startPlacement(opts)
+	ctx.close()
+	buildTopBar()
+	local started = PlacementController.Start(ctx, {
+		decoId = opts.decoId,
+		moveIndex = opts.moveIndex,
+		onFinish = function()
+			ctx.navigate("build", { tab = "decor" })
+			buildTopBar()
+		end,
+	})
+	if not started then
+		ctx.navigate("build", { tab = "decor" })
+	end
+end
+
 function ctx.secondsToNextCycle()
 	if not ctx.state then
 		return 0
@@ -110,7 +129,7 @@ function ctx.secondsToNextCycle()
 end
 
 -- ===== Barra superior =====
-local function buildTopBar()
+buildTopBar = function()
 	if topBar then
 		topBar:Destroy()
 	end
@@ -401,7 +420,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then
 		return
 	end
-	if input.KeyCode == Enum.KeyCode.M then
+	if input.KeyCode == Enum.KeyCode.M and not PlacementController.Active then
 		panelOpen = not panelOpen
 		panel.Visible = panelOpen
 		buildTopBar()

@@ -47,6 +47,7 @@ FacilityConfig.Facilities = {
 			{ cost = 40000, upkeep = 140, staff = 35, reputation = 10, capacity = 4500, minStage = 2 },
 			{ cost = 90000, upkeep = 240, staff = 50, reputation = 16, capacity = 8000, minStage = 3 },
 			{ cost = 200000, upkeep = 400, staff = 70, reputation = 24, capacity = 14000, minStage = 4 },
+			{ cost = 450000, upkeep = 650, staff = 100, reputation = 32, capacity = 22000, minStage = 6 },
 		},
 	},
 	lighting = {
@@ -62,6 +63,7 @@ FacilityConfig.Facilities = {
 				requires = { pitch = 2 } },
 			{ cost = 30000, upkeep = 55, staff = 15, reputation = 7, attractiveness = 0.15, minStage = 2 },
 			{ cost = 70000, upkeep = 90, staff = 20, reputation = 11, attractiveness = 0.20, minStage = 3 },
+			{ cost = 150000, upkeep = 140, staff = 30, reputation = 15, attractiveness = 0.26, minStage = 5 },
 		},
 	},
 	scoreboard = {
@@ -108,6 +110,7 @@ FacilityConfig.Facilities = {
 				requires = { stands = 3 } },
 			{ cost = 45000, upkeep = 95, staff = 50, reputation = 5, shopSpend = 2.9, minStage = 2 },
 			{ cost = 100000, upkeep = 160, staff = 70, reputation = 7, shopSpend = 3.8, minStage = 3 },
+			{ cost = 220000, upkeep = 260, staff = 95, reputation = 10, shopSpend = 5.0, minStage = 5 },
 		},
 	},
 	restaurant = {
@@ -125,6 +128,7 @@ FacilityConfig.Facilities = {
 				requires = { stands = 3 } },
 			{ cost = 50000, upkeep = 100, staff = 50, reputation = 5, foodSpend = 3.4, minStage = 2 },
 			{ cost = 110000, upkeep = 170, staff = 70, reputation = 7, foodSpend = 4.4, minStage = 3 },
+			{ cost = 240000, upkeep = 280, staff = 95, reputation = 10, foodSpend = 5.6, minStage = 5 },
 		},
 	},
 
@@ -148,7 +152,7 @@ FacilityConfig.Facilities = {
 		name = "Centro de entrenamiento",
 		icon = "🏋️",
 		category = "Deportivo",
-		description = "Mejora el desarrollo de la plantilla (efecto deportivo desde la FASE 4).",
+		description = "Aumenta la reputación del club. Mejorará el desarrollo de la plantilla en la FASE 4.",
 		startLevel = 0,
 		designable = true,
 		levels = {
@@ -162,7 +166,7 @@ FacilityConfig.Facilities = {
 		name = "Academia juvenil",
 		icon = "🧒",
 		category = "Deportivo",
-		description = "Base de la CANTERA GENERACIONAL (FASE 4).",
+		description = "Aumenta la reputación del club. Será la base de la CANTERA GENERACIONAL (FASE 4).",
 		startLevel = 0,
 		designable = true,
 		levels = {
@@ -176,12 +180,13 @@ FacilityConfig.Facilities = {
 		name = "Sala de trofeos",
 		icon = "🏆",
 		category = "Club",
-		description = "Exhibe los títulos reales del club (HISTORIA DEL CLUB, FASE 8).",
+		description = "Atractivo para los visitantes. Exhibirá los títulos reales del club (FASES 7-8).",
 		startLevel = 0,
 		designable = true,
 		levels = {
 			{ cost = 30000, upkeep = 40, staff = 10, reputation = 5, attractiveness = 0.03, minStage = 2 },
 			{ cost = 90000, upkeep = 80, staff = 20, reputation = 9, attractiveness = 0.06, minStage = 4 },
+			{ cost = 250000, upkeep = 150, staff = 35, reputation = 14, attractiveness = 0.09, minStage = 6 },
 		},
 	},
 }

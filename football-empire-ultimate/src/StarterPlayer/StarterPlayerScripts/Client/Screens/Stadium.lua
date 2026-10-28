@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
+local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
 
 local Stadium = {}
 
@@ -23,11 +24,16 @@ function Stadium.Render(container, ctx)
 		end),
 	}, 16))
 
-	-- Etapa evolutiva
+	-- Etapa evolutiva actual
+	local current = StadiumStages.Get(state.stadium.stage)
 	local stageCard = C.Card({ BackgroundColor3 = Theme.Panel }, {
-		C.Label("ETAPA " .. state.stadium.stage .. " DE " .. #StadiumStages, { TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 13 }),
-		C.Title(state.stadium.stageName, 24),
-		C.Label(state.stadium.stageDescription, { TextColor3 = Theme.TextDim }),
+		C.Label("ESTADIO EVOLUTIVO · ETAPA " .. state.stadium.stage .. " DE " .. #StadiumStages, { TextColor3 = Theme.Accent, Font = Theme.FontBold, TextSize = 13 }),
+		C.Title(current.name, 24),
+		C.Label(current.description, { TextColor3 = Theme.TextDim }),
+		C.Label(string.format("Efectos de la etapa: atractivo +%s · patrocinio +%s · reputación +%d · %d decoraciones · operación %s/jornada",
+			Format.Percent(current.effects.attractiveness), Format.Money(current.effects.sponsorBonus),
+			current.effects.reputation, current.effects.freeDecorations, Format.Money(current.effects.upkeep)),
+			{ TextSize = 13 }),
 	})
 	local track = C.Row({}, 6)
 	for i, stage in ipairs(StadiumStages) do
@@ -38,9 +44,56 @@ function Stadium.Render(container, ctx)
 		badge.Parent = track
 	end
 	track.Parent = stageCard
-	C.Label("El ascenso a las siguientes etapas (con costes, requisitos y nuevas instalaciones) se implementa en la FASE 2: ESTADIO EVOLUTIVO.",
-		{ TextColor3 = Theme.TextMuted, TextSize = 13 }).Parent = stageCard
 	add(stageCard)
+
+	-- Siguiente etapa: requisitos reales calculados con las mismas fórmulas que el servidor
+	local pseudo = {
+		stadium = state.stadium,
+		economy = { money = state.economy.money, debt = state.economy.debt },
+		club = { reputationEarned = 0 },
+	}
+	local ok, reason, nextStage, checks = EconomyFormulas.CanUpgradeStage(pseudo)
+	if nextStage then
+		local nextCard = C.Card({}, {
+			C.Title("⬆️ Siguiente etapa: " .. nextStage.name, 20),
+			C.Label(nextStage.description, { TextColor3 = Theme.TextDim, TextSize = 14 }),
+			C.Label(string.format("Al ascender: atractivo +%s · patrocinio +%s/jornada · reputación +%d · %d decoraciones · operación %s/jornada",
+				Format.Percent(nextStage.effects.attractiveness), Format.Money(nextStage.effects.sponsorBonus),
+				nextStage.effects.reputation, nextStage.effects.freeDecorations, Format.Money(nextStage.effects.upkeep)),
+				{ TextSize = 13, TextColor3 = Theme.Accent }),
+		})
+		local unlocks = {}
+		for _, id in ipairs(FacilityConfig.Order) do
+			local def = FacilityConfig.Get(id)
+			for level, data in ipairs(def.levels) do
+				if data.minStage == nextStage.stage then
+					table.insert(unlocks, string.format("%s %s Nv %d", def.icon, def.name, level))
+				end
+			end
+		end
+		if #unlocks > 0 then
+			C.Label("<b>Desbloquea:</b> " .. table.concat(unlocks, " · "), { TextSize = 13 }).Parent = nextCard
+		end
+		for _, check in ipairs(checks) do
+			C.Label((check.met and "✅ " or "❌ ") .. check.text, {
+				TextSize = 14, TextColor3 = check.met and Theme.Text or Theme.Warning,
+			}).Parent = nextCard
+		end
+		local button = C.Button(string.format("Ascender a %s · %s", nextStage.name, Format.Money(nextStage.upgradeCost)), "gold", function()
+			ctx.act("UpgradeStage")
+		end)
+		C.SetEnabled(button, ok)
+		button.Parent = nextCard
+		if not ok and reason then
+			C.Label("🔒 " .. reason, { TextColor3 = Theme.Warning, TextSize = 13 }).Parent = nextCard
+		end
+		add(nextCard)
+	else
+		add(C.Card({ BackgroundColor3 = Color3.fromRGB(60, 45, 10) }, {
+			C.Title("🏆 ¡Estadio legendario!", 20),
+			C.Label("Has alcanzado la etapa máxima del estadio evolutivo.", { TextColor3 = Theme.TextDim }),
+		}))
+	end
 
 	-- Métricas
 	local eco = state.economy

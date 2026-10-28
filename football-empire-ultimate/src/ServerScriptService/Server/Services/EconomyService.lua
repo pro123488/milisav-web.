@@ -126,7 +126,7 @@ function EconomyService.RunCycle(player)
 
 	local summary = string.format("%d espectadores", result.attendance)
 	EconomyService.AddTransaction(data, result.totalIncome, "Jornada", "Ingresos · " .. summary)
-	EconomyService.AddTransaction(data, -result.totalExpenses, "Jornada", "Gastos (mantenimiento, personal, intereses)")
+	EconomyService.AddTransaction(data, -result.totalExpenses, "Jornada", "Gastos (mantenimiento, personal, estadio, intereses)")
 	if newDebt > 0 then
 		EconomyService.AddTransaction(data, 0, C.DEBT, string.format("Déficit de %d convertido en deuda", newDebt))
 	end

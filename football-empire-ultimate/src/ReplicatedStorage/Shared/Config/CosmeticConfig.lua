@@ -85,28 +85,29 @@ CosmeticConfig.BuildDesigns = {
 	{ id = "neon_pro", name = "Neón Pro", appliesTo = "building", material = "Neon", requiredPass = "CONSTRUCTOR_PRO" },
 }
 
--- ===== Decoraciones (se compran con dinero del juego y se colocan en espacios del terreno) =====
+-- ===== Decoraciones (se compran con dinero del juego y se colocan libremente en la plaza del terreno) =====
+-- w, d = huella en planta (studs) sin rotar; la usa PlacementRules para validar la colocación.
 CosmeticConfig.Decorations = {
-	{ id = "flags", name = "Banderas del club", cost = 500 },
-	{ id = "planters", name = "Jardineras", cost = 400 },
-	{ id = "bench", name = "Banco de aficionados", cost = 300 },
-	{ id = "ball_statue", name = "Balón monumental", cost = 1500 },
+	{ id = "flags", name = "Banderas del club", cost = 500, w = 10, d = 3 },
+	{ id = "planters", name = "Jardineras", cost = 400, w = 6, d = 4 },
+	{ id = "bench", name = "Banco de aficionados", cost = 300, w = 8, d = 3 },
+	{ id = "ball_statue", name = "Balón monumental", cost = 1500, w = 6, d = 6 },
 	-- Constructor Pro
-	{ id = "pro_arch", name = "Arco de entrada Pro", cost = 2500, requiredPass = "CONSTRUCTOR_PRO" },
-	{ id = "pro_fountain", name = "Fuente Pro", cost = 2000, requiredPass = "CONSTRUCTOR_PRO" },
-	{ id = "pro_screen", name = "Pantalla gigante Pro", cost = 3000, requiredPass = "CONSTRUCTOR_PRO" },
+	{ id = "pro_arch", name = "Arco de entrada Pro", cost = 2500, w = 12, d = 3, requiredPass = "CONSTRUCTOR_PRO" },
+	{ id = "pro_fountain", name = "Fuente Pro", cost = 2000, w = 10, d = 10, requiredPass = "CONSTRUCTOR_PRO" },
+	{ id = "pro_screen", name = "Pantalla gigante Pro", cost = 3000, w = 11, d = 2, requiredPass = "CONSTRUCTOR_PRO" },
 	-- Expansión Cosmética
-	{ id = "cos_banner", name = "Pancarta gigante", cost = 1200, requiredPass = "COSMETIC_EXPANSION" },
-	{ id = "cos_fireworks", name = "Torre de fuegos artificiales", cost = 1800, requiredPass = "COSMETIC_EXPANSION" },
+	{ id = "cos_banner", name = "Pancarta gigante", cost = 1200, w = 11, d = 2, requiredPass = "COSMETIC_EXPANSION" },
+	{ id = "cos_fireworks", name = "Torre de fuegos artificiales", cost = 1800, w = 3, d = 3, requiredPass = "COSMETIC_EXPANSION" },
 	-- VIP Club
-	{ id = "vip_carpet", name = "Alfombra roja VIP", cost = 1000, requiredPass = "VIP_CLUB" },
-	{ id = "vip_statue", name = "Estatua dorada VIP", cost = 2500, requiredPass = "VIP_CLUB" },
+	{ id = "vip_carpet", name = "Alfombra roja VIP", cost = 1000, w = 6, d = 12, requiredPass = "VIP_CLUB" },
+	{ id = "vip_statue", name = "Estatua dorada VIP", cost = 2500, w = 5, d = 5, requiredPass = "VIP_CLUB" },
 }
 
 -- Reembolso al retirar una decoración.
 CosmeticConfig.DECORATION_REFUND = 0.5
--- Bonificación de atractivo por espacio ocupado. Solo cuentan los espacios GRATUITOS,
--- de modo que Constructor Pro no da ventaja económica.
+-- Bonificación de atractivo por decoración. Solo cuentan tantas decoraciones como permita
+-- la etapa del estadio (límite gratuito), de modo que Constructor Pro no da ventaja económica.
 CosmeticConfig.DECORATION_ATTRACTIVENESS = 0.01
 
 CosmeticConfig.Defaults = {
