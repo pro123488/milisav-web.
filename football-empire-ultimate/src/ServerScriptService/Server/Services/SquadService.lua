@@ -369,6 +369,8 @@ local function publicPlayer(p, scouts, multiplier)
 		releaseCost = FootballFormulas.ReleaseCost(p),
 		focus = p.focus,
 		origin = p.origin,
+		fitness = math.floor((p.fitness or 100) + 0.5),
+		injury = p.injury or 0,
 		stats = p.stats,
 		growth = math.floor(FootballFormulas.GrowthPerCycle(p, multiplier or 1) * FootballConfig.SEASON_LENGTH * 10 + 0.5) / 10, -- media prevista por temporada
 		signFee = p.origin == "academy" and FootballFormulas.YouthSignFee(p.potential) or nil,

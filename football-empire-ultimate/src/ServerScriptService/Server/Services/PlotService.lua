@@ -193,6 +193,7 @@ function PlotService.BuildRenderInfo(player, data)
 		stageName = stage.name,
 		stageVisual = stage.visual,
 		trophyCount = #data.trophies,
+		lastMatch = data.matches[#data.matches],
 		vip = ClubService.IsVip(player),
 		decorations = data.stadium.decorations,
 		sponsors = {

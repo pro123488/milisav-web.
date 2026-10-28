@@ -65,6 +65,8 @@ function PlayerFactory.Create(data, opts)
 		origin = opts.origin or "start",
 		joinedSeason = data.season.number,
 		stats = { apps = 0, goals = 0, assists = 0 },
+		fitness = 100, -- forma física 0-100 (FASE 5)
+		injury = 0, -- jornadas de baja (FASE 5)
 	}
 	local ovr = FootballFormulas.Overall(player)
 	player.potential = opts.potential or potentialFor(opts.age, ovr)

@@ -52,8 +52,14 @@ function Squad.PlayerCard(ctx, p, opts)
 		Size = UDim2.new(0, 46, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextXAlignment = Enum.TextXAlignment.Center,
 	}).Parent = header
 	local potential = p.potentialLow == p.potentialHigh and tostring(p.potentialLow) or (p.potentialLow .. "-" .. p.potentialHigh)
-	C.Label(string.format("<b>%s</b>%s\n<font color='#A0AFC8'>%s %s · %d años · potencial %s</font>",
-		p.name, p.star and "  ⭐" or "", pos.icon, pos.short, p.age, potential), {
+	local condition = ""
+	if (p.injury or 0) > 0 then
+		condition = string.format(" · 🚑 %d j.", p.injury)
+	elseif p.fitness and p.fitness < 100 then
+		condition = string.format(" · 💪 %d", p.fitness)
+	end
+	C.Label(string.format("<b>%s</b>%s\n<font color='#A0AFC8'>%s %s · %d años · potencial %s%s</font>",
+		p.name, p.star and "  ⭐" or "", pos.icon, pos.short, p.age, potential, condition), {
 		Position = UDim2.fromOffset(54, 0), Size = UDim2.new(1, -170, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14,
 	}).Parent = header
 	local right = p.contract and p.contract > 0

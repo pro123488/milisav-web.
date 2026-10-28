@@ -17,6 +17,7 @@ local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
 local FootballConfig = require(Shared.Config.FootballConfig)
+local TacticsConfig = require(Shared.Config.TacticsConfig)
 
 local DefaultData = {}
 
@@ -84,6 +85,9 @@ function DefaultData.Create(player)
 		training = { intensity = "NORMAL" },
 		season = { number = 1, cycle = 0 },
 		legends = {}, -- jugadores legendarios retirados
+		tactics = { formation = TacticsConfig.DEFAULT_FORMATION, mentality = "BALANCED", style = "POSSESSION", lineup = {} }, -- FASE 5
+		friendlies = { offers = {}, lastCycle = -1 },
+		matches = {}, -- últimos partidos
 		nextPlayerId = 0,
 		trophies = {},
 		records = {},
@@ -206,6 +210,8 @@ local function validPlayer(p)
 			assists = math.max(0, math.floor(tonumber(stats.assists) or 0)),
 		},
 		loan = type(p.loan) == "table" and p.loan or nil, -- cesiones (FASE 6)
+		fitness = math.clamp(tonumber(p.fitness) or 100, 0, 100),
+		injury = math.clamp(math.floor(tonumber(p.injury) or 0), 0, 30),
 	}
 end
 
@@ -410,6 +416,40 @@ function DefaultData.Reconcile(data, player)
 	bump(data.academy.youths)
 	bump(data.academy.reports)
 	data.nextPlayerId = maxId
+
+	-- Tácticas y partidos (FASE 5)
+	if type(data.tactics) ~= "table" then
+		data.tactics = {}
+	end
+	data.tactics.formation = TacticsConfig.Formation(data.tactics.formation).id
+	data.tactics.mentality = TacticsConfig.Mentality(data.tactics.mentality).id
+	data.tactics.style = TacticsConfig.Style(data.tactics.style).id
+	local lineup = {}
+	for i = 1, 11 do
+		local id = type(data.tactics.lineup) == "table" and data.tactics.lineup[i]
+		lineup[i] = type(id) == "string" and id or ""
+	end
+	data.tactics.lineup = lineup
+	if type(data.friendlies) ~= "table" then
+		data.friendlies = {}
+	end
+	data.friendlies.offers = type(data.friendlies.offers) == "table" and data.friendlies.offers or {}
+	for _, offer in ipairs(data.friendlies.offers) do
+		if type(offer) ~= "table" or not finiteNumber(offer.strength) or type(offer.name) ~= "string" then
+			data.friendlies.offers = {}
+			break
+		end
+	end
+	data.friendlies.lastCycle = math.floor(tonumber(data.friendlies.lastCycle) or -1)
+	if type(data.matches) ~= "table" then
+		data.matches = {}
+	end
+	while #data.matches > TacticsConfig.MAX_MATCH_HISTORY do
+		table.remove(data.matches, 1)
+	end
+	if type(data.records) ~= "table" then
+		data.records = {}
+	end
 	if type(economy.transactions) ~= "table" then
 		economy.transactions = {}
 	end

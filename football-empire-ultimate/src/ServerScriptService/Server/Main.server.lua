@@ -23,6 +23,7 @@ local BuildService = require(Services.BuildService)
 local StadiumService = require(Services.StadiumService)
 local SponsorService = require(Services.SponsorService)
 local SquadService = require(Services.SquadService)
+local MatchService = require(Services.MatchService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -72,6 +73,7 @@ local function buildState(player)
 		history = data.history,
 		sponsors = data.sponsors,
 		football = SquadService.BuildState(data), -- plantilla, cantera, temporada, leyendas (FASE 4)
+		matchday = MatchService.BuildState(data), -- tácticas, amistosos, historial, récords (FASE 5)
 		economy = EconomyService.Summary(player, data),
 		premium = {
 			owned = GamePassService.OwnedList(player),
@@ -182,6 +184,34 @@ Actions.SignYouthReport = function(player, payload)
 	return SquadService.SignReport(player, payload)
 end
 
+-- ===== Partidos y tácticas (FASE 5) =====
+Actions.SetFormation = function(player, payload)
+	return MatchService.SetFormation(player, payload)
+end
+
+Actions.SetTactic = function(player, payload)
+	return MatchService.SetTactic(player, payload)
+end
+
+Actions.SetLineupSlot = function(player, payload)
+	return MatchService.SetLineupSlot(player, payload)
+end
+
+Actions.AutoLineup = function(player)
+	return MatchService.AutoLineupAction(player)
+end
+
+Actions.PlayFriendly = function(player, payload)
+	local data = DataService.Get(player)
+	local ok, msg, result = MatchService.PlayFriendly(player, payload, ClubService.DisplayName(data), ClubService.ShortName(data))
+	if ok then
+		for _, message in ipairs(result.messages) do
+			notifyRemote:FireClient(player, "warning", message)
+		end
+	end
+	return ok, msg, ok, result -- el 4.º valor viaja al cliente como "data" (resumen del partido)
+end
+
 Actions.SetPricePolicy = function(player, payload)
 	if type(payload) ~= "table" then
 		return false, "Solicitud no válida."
@@ -268,7 +298,7 @@ actionRemote.OnServerInvoke = function(player, actionName, payload)
 		return { ok = false, message = "Procesando la acción anterior…" }
 	end
 	busy[player] = true
-	local success, ok, message, rerender = pcall(Actions[actionName], player, payload)
+	local success, ok, message, rerender, extra = pcall(Actions[actionName], player, payload)
 	busy[player] = nil
 	if not success then
 		warn("[Main] Error en la acción ", actionName, " de ", player.Name, ": ", ok)
@@ -278,7 +308,7 @@ actionRemote.OnServerInvoke = function(player, actionName, payload)
 		PlotService.RequestRender(player)
 	end
 	pushState(player)
-	return { ok = ok == true, message = message }
+	return { ok = ok == true, message = message, data = extra }
 end
 
 -- ===== Ciclo de vida de los jugadores =====
@@ -298,6 +328,7 @@ local function onPlayerAdded(player)
 		notifyRemote:FireClient(player, "error", "El servidor está lleno de estadios. Tu club funciona, pero tu estadio no se mostrará en este servidor.")
 	end
 	SquadService.EnsureSquad(data)
+	MatchService.PlayerReady(player)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
@@ -350,6 +381,9 @@ EconomyService.OnCycle(function(player, cycle)
 		PlotService.RequestRender(player) -- quita vallas o nombre del estadio caducados
 	end
 	for _, message in ipairs(SquadService.AfterCycle(player)) do
+		notifyRemote:FireClient(player, "info", message)
+	end
+	for _, message in ipairs(MatchService.AfterCycle(player)) do
 		notifyRemote:FireClient(player, "info", message)
 	end
 	PlotService.UpdateCrowd(player, cycle.occupancy)

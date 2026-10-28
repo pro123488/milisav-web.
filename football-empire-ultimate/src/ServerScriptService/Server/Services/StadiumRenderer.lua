@@ -303,7 +303,13 @@ local function buildScoreboard(folder, origin, level, info)
 		score.Font = Enum.Font.Code
 		score.TextScaled = true
 		score.TextColor3 = Color3.fromRGB(255, 190, 40)
-		score.Text = info.shortName .. "  0 - 0  ---"
+		local last = info.lastMatch
+		if last then
+			score.Text = last.home and string.format("%s  %d - %d  %s", info.shortName, last.gf, last.ga, last.short)
+				or string.format("%s  %d - %d  %s", last.short, last.ga, last.gf, info.shortName)
+		else
+			score.Text = info.shortName .. "  0 - 0  ---"
+		end
 		score.Parent = bg
 		local bottom = Instance.new("TextLabel")
 		bottom.Position = UDim2.fromScale(0, 0.8)
@@ -312,7 +318,7 @@ local function buildScoreboard(folder, origin, level, info)
 		bottom.Font = Enum.Font.Gotham
 		bottom.TextScaled = true
 		bottom.TextColor3 = Color3.fromRGB(180, 190, 200)
-		bottom.Text = "Partidos disponibles en la FASE 5"
+		bottom.Text = last and string.format("Último partido · %s · Temporada %d", last.competition or "", last.season or 1) or "Sin partidos todavía"
 		bottom.Parent = bg
 	end)
 end
