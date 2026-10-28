@@ -35,6 +35,7 @@ local Screens = {
 	squad = require(ScreensFolder.Squad),
 	academy = require(ScreensFolder.Academy),
 	matches = require(ScreensFolder.Matches),
+	transfers = require(ScreensFolder.Transfers),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))

@@ -53,7 +53,11 @@ function Squad.PlayerCard(ctx, p, opts)
 	}).Parent = header
 	local potential = p.potentialLow == p.potentialHigh and tostring(p.potentialLow) or (p.potentialLow .. "-" .. p.potentialHigh)
 	local condition = ""
-	if (p.injury or 0) > 0 then
+	if p.loan then
+		condition = p.loan.type == "out" and (" · ➡️ cedido a " .. p.loan.club) or (" · ⬅️ cedido por " .. p.loan.club)
+	elseif p.listed == "sale" then
+		condition = " · 🏷️ en venta"
+	elseif (p.injury or 0) > 0 then
 		condition = string.format(" · 🚑 %d j.", p.injury)
 	elseif p.fitness and p.fitness < 100 then
 		condition = string.format(" · 💪 %d", p.fitness)
@@ -203,13 +207,13 @@ function Squad.Render(container, ctx)
 					local release = C.Button("Rescindir · " .. Format.Money(p.releaseCost), "danger", function()
 						ctx.act("ReleasePlayer", { id = p.id })
 					end)
-					C.SetEnabled(release, #squad > FootballConfig.MIN_SQUAD and state.economy.money >= p.releaseCost)
+					C.SetEnabled(release, not p.loan and #squad > FootballConfig.MIN_SQUAD and state.economy.money >= p.releaseCost)
 					release.Parent = card
 				end,
 			}))
 		end
 	end
-	add(C.Label("Toca un jugador para ver sus atributos, su foco de entrenamiento y su contrato. Los fichajes llegan en la FASE 6.",
+	add(C.Label("Toca un jugador para ver sus atributos, su foco de entrenamiento y su contrato. Compra, vende y cede en «Fichajes».",
 		{ TextColor3 = Theme.TextMuted, TextSize = 13 }))
 end
 

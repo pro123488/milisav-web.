@@ -18,6 +18,7 @@ local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
 local FootballConfig = require(Shared.Config.FootballConfig)
 local TacticsConfig = require(Shared.Config.TacticsConfig)
+local TransferConfig = require(Shared.Config.TransferConfig)
 
 local DefaultData = {}
 
@@ -88,6 +89,8 @@ function DefaultData.Create(player)
 		tactics = { formation = TacticsConfig.DEFAULT_FORMATION, mentality = "BALANCED", style = "POSSESSION", lineup = {} }, -- FASE 5
 		friendlies = { offers = {}, lastCycle = -1 },
 		matches = {}, -- últimos partidos
+		market = { listings = {}, rejected = {}, nextRefresh = 0 }, -- mercado de fichajes (FASE 6)
+		transferOffers = {}, -- ofertas recibidas por tus jugadores
 		nextPlayerId = 0,
 		trophies = {},
 		records = {},
@@ -160,6 +163,18 @@ local function cleanSponsors(raw)
 	return clean
 end
 
+local function validLoan(loan)
+	if type(loan) ~= "table" or (loan.type ~= "in" and loan.type ~= "out") or type(loan.club) ~= "string" then
+		return nil
+	end
+	return {
+		type = loan.type,
+		club = loan.club:sub(1, 40),
+		fee = math.max(0, math.floor(tonumber(loan.fee) or 0)),
+		endSeason = math.max(1, math.floor(tonumber(loan.endSeason) or 1)),
+	}
+end
+
 local function validPlayer(p)
 	if type(p) ~= "table" or type(p.id) ~= "string" or #p.id > 20 or type(p.name) ~= "string" or #p.name > 40 then
 		return nil
@@ -209,7 +224,8 @@ local function validPlayer(p)
 			goals = math.max(0, math.floor(tonumber(stats.goals) or 0)),
 			assists = math.max(0, math.floor(tonumber(stats.assists) or 0)),
 		},
-		loan = type(p.loan) == "table" and p.loan or nil, -- cesiones (FASE 6)
+		loan = validLoan(p.loan), -- cesiones (FASE 6)
+		listed = (p.listed == "sale" or p.listed == "loan") and p.listed or nil,
 		fitness = math.clamp(tonumber(p.fitness) or 100, 0, 100),
 		injury = math.clamp(math.floor(tonumber(p.injury) or 0), 0, 30),
 	}
@@ -449,6 +465,44 @@ function DefaultData.Reconcile(data, player)
 	end
 	if type(data.records) ~= "table" then
 		data.records = {}
+	end
+
+	-- Mercado (FASE 6)
+	if type(data.market) ~= "table" then
+		data.market = {}
+	end
+	local listings = {}
+	for _, l in ipairs(type(data.market.listings) == "table" and data.market.listings or {}) do
+		local p = type(l) == "table" and validPlayer(l.player)
+		if p and type(l.id) == "string" and (l.kind == "buy" or l.kind == "free" or l.kind == "loan")
+			and finiteNumber(l.asking) and finiteNumber(l.loanFee) and finiteNumber(l.bonus) and type(l.club) == "string" then
+			table.insert(listings, { id = l.id, kind = l.kind, club = l.club, asking = l.asking, loanFee = l.loanFee, bonus = l.bonus, player = p })
+		end
+	end
+	data.market.listings = listings
+	data.market.rejected = type(data.market.rejected) == "table" and data.market.rejected or {}
+	data.market.nextRefresh = math.max(0, math.floor(tonumber(data.market.nextRefresh) or 0))
+	local offers = {}
+	for _, o in ipairs(type(data.transferOffers) == "table" and data.transferOffers or {}) do
+		if type(o) == "table" and type(o.id) == "string" and type(o.playerId) == "string" and finiteNumber(o.fee)
+			and o.fee >= 0 and finiteNumber(o.expires) and type(o.club) == "string" then
+			table.insert(offers, o)
+		end
+	end
+	data.transferOffers = offers
+	local share = tonumber(economy.transferShare)
+	local shareOk = false
+	for _, allowed in ipairs(TransferConfig.BudgetShares) do
+		if share == allowed then
+			shareOk = true
+		end
+	end
+	economy.transferShare = shareOk and share or TransferConfig.DEFAULT_BUDGET_SHARE
+	for _, l in ipairs(listings) do
+		local n = tonumber(l.player.id:match("^p(%d+)$"))
+		if n and n > data.nextPlayerId then
+			data.nextPlayerId = n
+		end
 	end
 	if type(economy.transactions) ~= "table" then
 		economy.transactions = {}

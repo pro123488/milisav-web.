@@ -21,6 +21,7 @@ local INCOME_LABELS = {
 	{ "contracts", "🤝 Contratos de patrocinio" },
 	{ "vip", "🥂 Zona VIP" },
 	{ "tour", "🗺️ Tour del estadio" },
+	{ "loans", "🔁 Cesiones a otros clubes" },
 }
 local EXPENSE_LABELS = {
 	{ "maintenance", "🔧 Mantenimiento" },
@@ -28,6 +29,7 @@ local EXPENSE_LABELS = {
 	{ "stadium", "🏟️ Operación del estadio" },
 	{ "wages", "👕 Salarios de la plantilla" },
 	{ "scouts", "🔎 Ojeadores" },
+	{ "loans", "🔁 Cuotas de cesiones recibidas" },
 	{ "interest", "📉 Intereses de deuda" },
 }
 
@@ -74,7 +76,7 @@ local function renderSummary(add, ctx)
 		stat.LayoutOrder = i
 		stat.Parent = grid
 	end
-	add(C.Label("El presupuesto salarial orienta cuánto gastar en salarios; el de fichajes se usará en el mercado (FASE 6).",
+	add(C.Label("El presupuesto salarial orienta cuánto gastar en salarios. El de fichajes (25 %) es orientativo: el límite real se elige en Fichajes.",
 		{ TextColor3 = Theme.TextMuted, TextSize = 13 }))
 
 	-- Precio de entradas

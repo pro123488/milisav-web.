@@ -24,6 +24,7 @@ local StadiumService = require(Services.StadiumService)
 local SponsorService = require(Services.SponsorService)
 local SquadService = require(Services.SquadService)
 local MatchService = require(Services.MatchService)
+local TransferService = require(Services.TransferService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -74,6 +75,9 @@ local function buildState(player)
 		sponsors = data.sponsors,
 		football = SquadService.BuildState(data), -- plantilla, cantera, temporada, leyendas (FASE 4)
 		matchday = MatchService.BuildState(data), -- tácticas, amistosos, historial, récords (FASE 5)
+		transfers = TransferService.BuildState(data, function(p) -- mercado, ofertas y presupuesto (FASE 6)
+			return SquadService.PublicPlayer(p, data.academy.scouts)
+		end),
 		economy = EconomyService.Summary(player, data),
 		premium = {
 			owned = GamePassService.OwnedList(player),
@@ -212,6 +216,27 @@ Actions.PlayFriendly = function(player, payload)
 	return ok, msg, ok, result -- el 4.º valor viaja al cliente como "data" (resumen del partido)
 end
 
+-- ===== Mercado de fichajes (FASE 6) =====
+Actions.BuyPlayer = function(player, payload)
+	return TransferService.Buy(player, payload)
+end
+
+Actions.SetTransferListing = function(player, payload)
+	return TransferService.SetListing(player, payload)
+end
+
+Actions.AcceptTransferOffer = function(player, payload)
+	return TransferService.AcceptOffer(player, payload)
+end
+
+Actions.RejectTransferOffer = function(player, payload)
+	return TransferService.RejectOffer(player, payload)
+end
+
+Actions.SetTransferBudget = function(player, payload)
+	return TransferService.SetBudgetShare(player, payload)
+end
+
 Actions.SetPricePolicy = function(player, payload)
 	if type(payload) ~= "table" then
 		return false, "Solicitud no válida."
@@ -329,6 +354,7 @@ local function onPlayerAdded(player)
 	end
 	SquadService.EnsureSquad(data)
 	MatchService.PlayerReady(player)
+	TransferService.PlayerReady(player)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
@@ -381,6 +407,9 @@ EconomyService.OnCycle(function(player, cycle)
 		PlotService.RequestRender(player) -- quita vallas o nombre del estadio caducados
 	end
 	for _, message in ipairs(SquadService.AfterCycle(player)) do
+		notifyRemote:FireClient(player, "info", message)
+	end
+	for _, message in ipairs(TransferService.AfterCycle(player)) do -- después de SquadService (fin de cesiones)
 		notifyRemote:FireClient(player, "info", message)
 	end
 	for _, message in ipairs(MatchService.AfterCycle(player)) do

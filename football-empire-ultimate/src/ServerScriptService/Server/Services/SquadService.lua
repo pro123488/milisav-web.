@@ -37,6 +37,16 @@ local function findIn(list, id)
 end
 SquadService.FindIn = findIn
 
+local function activeCount(data)
+	local n = 0
+	for _, p in ipairs(data.squad) do
+		if not (p.loan and p.loan.type == "out") then
+			n += 1
+		end
+	end
+	return n
+end
+
 local function academyLevel(data)
 	return data.stadium.facilities.academy or 0
 end
@@ -100,6 +110,9 @@ function SquadService.Renew(player, payload)
 	if not years or years ~= math.floor(years) or years < 1 or years > FootballConfig.CONTRACT_MAX_SEASONS then
 		return false, "Duración no válida."
 	end
+	if target.loan then
+		return false, "No se puede renovar a un jugador cedido."
+	end
 	if target.contract > FootballConfig.RENEW_WINDOW then
 		return false, string.format("Solo se puede renovar cuando quedan %d temporadas o menos.", FootballConfig.RENEW_WINDOW)
 	end
@@ -118,7 +131,10 @@ function SquadService.Release(player, payload)
 	if not target then
 		return false, "Ese jugador no es de tu plantilla."
 	end
-	if #data.squad <= FootballConfig.MIN_SQUAD then
+	if target.loan then
+		return false, "No se puede rescindir a un jugador cedido."
+	end
+	if activeCount(data) <= FootballConfig.MIN_SQUAD then
 		return false, string.format("Necesitas al menos %d jugadores en la plantilla.", FootballConfig.MIN_SQUAD)
 	end
 	local cost = FootballFormulas.ReleaseCost(target)
@@ -140,7 +156,7 @@ function SquadService.PromoteYouth(player, payload)
 	if youth.age < FootballConfig.YOUTH_MIN_PROMOTE_AGE then
 		return false, string.format("Debe tener al menos %d años.", FootballConfig.YOUTH_MIN_PROMOTE_AGE)
 	end
-	if #data.squad >= FootballConfig.MAX_SQUAD then
+	if activeCount(data) >= FootballConfig.MAX_SQUAD then
 		return false, string.format("La plantilla está llena (%d). Haz sitio primero.", FootballConfig.MAX_SQUAD)
 	end
 	table.remove(data.academy.youths, index)
@@ -256,7 +272,7 @@ local function seasonEnd(data, messages)
 			local legend = legendCheck(data, p)
 			StadiumService.LogEvent(data, "player_retired", { name = p.name, age = p.age, peak = math.floor(p.peak + 0.5), legend = legend })
 			table.insert(messages, string.format("👋 %s se retira con %d años%s.", p.name, p.age, legend and " y entra en las leyendas del club" or ""))
-		elseif p.contract <= 0 then
+		elseif p.contract <= 0 and not p.loan then
 			StadiumService.LogEvent(data, "player_left", { name = p.name, reason = "contract" })
 			table.insert(messages, p.name .. " termina su contrato y deja el club.")
 		else
@@ -370,11 +386,17 @@ local function publicPlayer(p, scouts, multiplier)
 		focus = p.focus,
 		origin = p.origin,
 		fitness = math.floor((p.fitness or 100) + 0.5),
+		loan = p.loan,
+		listed = p.listed,
 		injury = p.injury or 0,
 		stats = p.stats,
 		growth = math.floor(FootballFormulas.GrowthPerCycle(p, multiplier or 1) * FootballConfig.SEASON_LENGTH * 10 + 0.5) / 10, -- media prevista por temporada
 		signFee = p.origin == "academy" and FootballFormulas.YouthSignFee(p.potential) or nil,
 	}
+end
+
+function SquadService.PublicPlayer(p, scouts)
+	return publicPlayer(p, scouts, 1)
 end
 
 function SquadService.BuildState(data)

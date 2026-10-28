@@ -98,9 +98,28 @@ end
 function EconomyFormulas.Wages(data)
 	local total = 0
 	for _, playerData in ipairs(data.squad or {}) do
-		total += tonumber(playerData.salary) or 0
+		-- Los jugadores cedidos a otro club cobran de ese club
+		if not (playerData.loan and playerData.loan.type == "out") then
+			total += tonumber(playerData.salary) or 0
+		end
 	end
 	return math.floor(total)
+end
+
+-- Cuotas de cesión por jornada: { ingresos (cedidos), gastos (recibidos) } (FASE 6)
+function EconomyFormulas.LoanFees(data)
+	local income, expense = 0, 0
+	for _, playerData in ipairs(data.squad or {}) do
+		local loan = playerData.loan
+		if loan then
+			if loan.type == "out" then
+				income += tonumber(loan.fee) or 0
+			elseif loan.type == "in" then
+				expense += tonumber(loan.fee) or 0
+			end
+		end
+	end
+	return math.floor(income), math.floor(expense)
 end
 
 function EconomyFormulas.FanCap(capacity, attractiveness, reputation)
@@ -187,6 +206,7 @@ function EconomyFormulas.Cycle(data)
 	-- La satisfacción multiplica el gasto en tienda y restauración (0,75 a 1,25).
 	local spendMultiplier = 0.75 + satisfaction / 200
 	local contractTotal, contractDetails = EconomyFormulas.ContractIncome(data.sponsors, occupancy, satisfaction, members)
+	local loanIncome, loanExpense = EconomyFormulas.LoanFees(data)
 
 	local income = {
 		tickets = casual * ticket.price,
@@ -197,6 +217,7 @@ function EconomyFormulas.Cycle(data)
 		contracts = contractTotal,
 		vip = totals.vipIncome,
 		tour = math.floor(reputation * totals.tourRate),
+		loans = loanIncome, -- cesiones a otros clubes (FASE 6)
 	}
 	local expenses = {
 		maintenance = totals.upkeep,
@@ -204,6 +225,7 @@ function EconomyFormulas.Cycle(data)
 		stadium = stageEffects.upkeep, -- operación del estadio según su etapa
 		wages = EconomyFormulas.Wages(data), -- salarios de la plantilla (FASE 4)
 		scouts = FootballConfig.SCOUT_COSTS[(data.academy and data.academy.scouts) or 0] or 0, -- ojeadores (FASE 4)
+		loans = loanExpense, -- jugadores recibidos en cesión (FASE 6)
 		interest = math.floor((economy.debt or 0) * GameConfig.DEBT_INTEREST_PER_CYCLE),
 	}
 

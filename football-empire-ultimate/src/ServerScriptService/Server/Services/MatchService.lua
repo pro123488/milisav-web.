@@ -29,7 +29,7 @@ local rng = Random.new()
 -- ===== Alineación =====
 
 local function available(p)
-	return (p.injury or 0) <= 0
+	return (p.injury or 0) <= 0 and not (p.loan and p.loan.type == "out")
 end
 
 local function slotScore(p, slotPos)
