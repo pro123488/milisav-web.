@@ -7,12 +7,12 @@
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.6.0-fase6"
+GameConfig.VERSION = "0.7.0-fase7"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
 GameConfig.DATASTORE_NAME = "FEU_Clubs_v1"
-GameConfig.DATA_VERSION = 6 -- v6: mercado de fichajes, ofertas y cesiones
+GameConfig.DATA_VERSION = 7 -- v7: ligas, copa, palmarés y modo carrera
 GameConfig.AUTOSAVE_SECONDS = 120
 GameConfig.SESSION_LOCK_SECONDS = 600 -- un bloqueo más antiguo se considera abandonado
 GameConfig.MAX_TRANSACTIONS = 60

@@ -91,6 +91,7 @@ function DefaultData.Create(player)
 		matches = {}, -- últimos partidos
 		market = { listings = {}, rejected = {}, nextRefresh = 0 }, -- mercado de fichajes (FASE 6)
 		transferOffers = {}, -- ofertas recibidas por tus jugadores
+		league = nil, -- liga, copa y modo carrera (FASE 7): la crea LeagueService
 		nextPlayerId = 0,
 		trophies = {},
 		records = {},
@@ -466,6 +467,36 @@ function DefaultData.Reconcile(data, player)
 	if type(data.records) ~= "table" then
 		data.records = {}
 	end
+
+	-- Liga y palmarés (FASE 7). Si la estructura no es válida se descarta y
+	-- LeagueService crea una liga nueva (el historial de temporadas se conserva si es válido).
+	local league = data.league
+	if league ~= nil then
+		local valid = type(league) == "table" and finiteNumber(league.season) and finiteNumber(league.division)
+			and type(league.teams) == "table" and type(league.fixtures) == "table" and type(league.results) == "table"
+			and type(league.cup) == "table" and type(league.cupTeams) == "table"
+		if valid then
+			for _, t in ipairs(league.teams) do
+				if type(t) ~= "table" or type(t.id) ~= "string" or type(t.name) ~= "string" or not finiteNumber(t.strength) then
+					valid = false
+				end
+			end
+		end
+		if not valid then
+			local history = type(league) == "table" and type(league.history) == "table" and league.history or nil
+			data.league = history and { history = history } or nil
+			if data.league then
+				data.league.season = nil
+			end
+		end
+	end
+	local trophies = {}
+	for _, t in ipairs(type(data.trophies) == "table" and data.trophies or {}) do
+		if type(t) == "table" and type(t.kind) == "string" and type(t.name) == "string" and finiteNumber(t.season) then
+			table.insert(trophies, t)
+		end
+	end
+	data.trophies = trophies
 
 	-- Mercado (FASE 6)
 	if type(data.market) ~= "table" then

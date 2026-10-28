@@ -180,7 +180,7 @@ local function renderFriendlies(add, ctx)
 	add(C.Card({ BackgroundColor3 = Theme.Panel }, {
 		C.Label("ℹ️ Los partidos son <b>simulaciones</b>: el servidor calcula el resultado a partir de la calidad de tus jugadores, su forma física, la alineación, la táctica y el factor campo, y después lo ves como resumen. El modo jugable en tiempo real llegará en una fase posterior.",
 			{ TextSize = 13 }),
-		C.Label(string.format("Media de tu mejor once: <b>%.1f</b> · Un amistoso por jornada · Las ligas llegan en la FASE 7.", md.strength), { TextSize = 13, TextColor3 = Theme.TextDim }),
+		C.Label(string.format("Media de tu mejor once: <b>%.1f</b> · Un amistoso por jornada, además de los partidos de liga y copa (se juegan solos en cada jornada).", md.strength), { TextSize = 13, TextColor3 = Theme.TextDim }),
 	}))
 	if md.friendlyPlayed then
 		add(C.Label(string.format("Ya has jugado el amistoso de esta jornada. Nuevos rivales en %s.", Format.Duration(ctx.secondsToNextCycle())),
@@ -260,6 +260,13 @@ function Matches.Render(container, ctx)
 	scroll.Parent = container
 	local add = C.Stack(scroll)
 	add(C.Title("⚽ Partidos", 26))
+	if ctx.lastMatch then
+		local m = ctx.lastMatch
+		add(C.Button(string.format("▶ Ver último partido simulado (%s: %s %d - %d %s)", m.competition or "", m.home.short, m.home.goals, m.away.goals, m.away.short),
+			"gold", function()
+				MatchViewer.Show(ctx.lastMatch)
+			end))
+	end
 	local tabs = {
 		{ id = "friendlies", label = "Amistosos" },
 		{ id = "lineup", label = "Alineación" },

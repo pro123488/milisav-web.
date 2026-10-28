@@ -36,6 +36,7 @@ local Screens = {
 	academy = require(ScreensFolder.Academy),
 	matches = require(ScreensFolder.Matches),
 	transfers = require(ScreensFolder.Transfers),
+	leagues = require(ScreensFolder.Leagues),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
@@ -405,6 +406,12 @@ shopRemote.OnClientEvent:Connect(function(shop)
 end)
 
 notifyRemote.OnClientEvent:Connect(function(kind, message)
+	if kind == "match" and type(message) == "table" then
+		-- Resumen de un partido de liga o copa: se guarda para verlo en Partidos
+		ctx.lastMatch = message
+		Notifier.Show("info", "Partido simulado disponible en Partidos › Ver último partido.")
+		return
+	end
 	notify(kind, message)
 end)
 

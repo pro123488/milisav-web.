@@ -25,6 +25,7 @@ local SponsorService = require(Services.SponsorService)
 local SquadService = require(Services.SquadService)
 local MatchService = require(Services.MatchService)
 local TransferService = require(Services.TransferService)
+local LeagueService = require(Services.LeagueService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -75,6 +76,7 @@ local function buildState(player)
 		sponsors = data.sponsors,
 		football = SquadService.BuildState(data), -- plantilla, cantera, temporada, leyendas (FASE 4)
 		matchday = MatchService.BuildState(data), -- tácticas, amistosos, historial, récords (FASE 5)
+		league = LeagueService.BuildState(data, ClubService.DisplayName(data), ClubService.ShortName(data)), -- ligas, copa y carrera (FASE 7)
 		transfers = TransferService.BuildState(data, function(p) -- mercado, ofertas y presupuesto (FASE 6)
 			return SquadService.PublicPlayer(p, data.academy.scouts)
 		end),
@@ -355,6 +357,7 @@ local function onPlayerAdded(player)
 	SquadService.EnsureSquad(data)
 	MatchService.PlayerReady(player)
 	TransferService.PlayerReady(player)
+	LeagueService.PlayerReady(player)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
@@ -405,6 +408,18 @@ EconomyService.OnCycle(function(player, cycle)
 	end
 	if #sponsorMessages > 0 then
 		PlotService.RequestRender(player) -- quita vallas o nombre del estadio caducados
+	end
+	-- Liga y copa ANTES de que SquadService avance el reloj de la temporada
+	local clubData = DataService.Get(player)
+	if clubData then
+		local leagueOut = LeagueService.AfterCycle(player, ClubService.DisplayName(clubData), ClubService.ShortName(clubData))
+		for _, message in ipairs(leagueOut.messages) do
+			notifyRemote:FireClient(player, "info", message)
+		end
+		if leagueOut.result then
+			notifyRemote:FireClient(player, "match", leagueOut.result) -- resumen para el visor de partidos
+			PlotService.RequestRender(player) -- marcador y sala de trofeos
+		end
 	end
 	for _, message in ipairs(SquadService.AfterCycle(player)) do
 		notifyRemote:FireClient(player, "info", message)
