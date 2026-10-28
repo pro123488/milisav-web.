@@ -121,7 +121,10 @@ function PlotService.CreateWorld()
 		local stadium = Instance.new("Folder")
 		stadium.Name = "Stadium"
 		stadium.Parent = model
-		local plot = { index = i, origin = origin, model = model, stadium = stadium, owner = nil }
+		local crowd = Instance.new("Folder")
+		crowd.Name = "Crowd"
+		crowd.Parent = model
+		local plot = { index = i, origin = origin, model = model, stadium = stadium, crowd = crowd, owner = nil }
 		plots[i] = plot
 		setFreeSign(plot)
 	end
@@ -155,6 +158,8 @@ function PlotService.Release(player)
 	plot.model:SetAttribute("OwnerUserId", nil)
 	plot.model:SetAttribute("OwnerName", nil)
 	plot.stadium:ClearAllChildren()
+	plot.crowd:ClearAllChildren()
+	plot.crowdKey = nil
 	setFreeSign(plot)
 end
 
@@ -190,6 +195,11 @@ function PlotService.BuildRenderInfo(player, data)
 		trophyCount = #data.trophies,
 		vip = ClubService.IsVip(player),
 		decorations = data.stadium.decorations,
+		sponsors = {
+			shirt = data.sponsors.contracts.shirt and data.sponsors.contracts.shirt.brand or nil,
+			boards = data.sponsors.contracts.boards and data.sponsors.contracts.boards.brand or nil,
+			naming = data.sponsors.contracts.naming and data.sponsors.contracts.naming.brand or nil,
+		},
 		decorationVisible = BuildService.DecorationVisibility(player, data),
 	}
 end
@@ -241,6 +251,28 @@ local function updateNameTag(player, data)
 	club.Parent = tag
 end
 
+-- Afición en las gradas: solo se reconstruye cuando cambia la ocupación (en tramos del 10 %)
+-- o el tamaño/colores de las gradas, para no recrear piezas en cada jornada.
+function PlotService.UpdateCrowd(player, occupancy)
+	local plot = playerPlot[player]
+	local data = DataService.Get(player)
+	if not plot or not data then
+		return
+	end
+	occupancy = math.clamp(tonumber(occupancy) or 0, 0, 1)
+	local info = PlotService.BuildRenderInfo(player, data)
+	local standsLevel = data.stadium.facilities.stands or 1
+	local key = string.format("%d|%d|%s|%s", math.floor(occupancy * 10 + 0.5), standsLevel, info.appearance.palette, tostring(info.stageVisual and info.stageVisual.corners))
+	if plot.crowdKey == key then
+		return
+	end
+	plot.crowdKey = key
+	local ok, err = pcall(StadiumRenderer.RenderCrowd, plot.crowd, plot.origin, standsLevel, math.floor(occupancy * 10 + 0.5) / 10, info)
+	if not ok then
+		warn("[PlotService] Error dibujando la afición de ", player.Name, ": ", err)
+	end
+end
+
 function PlotService.Render(player)
 	local plot = playerPlot[player]
 	local data = DataService.Get(player)
@@ -254,6 +286,9 @@ function PlotService.Render(player)
 		warn("[PlotService] Error construyendo el estadio de ", player.Name, ": ", err)
 	end
 	updateNameTag(player, data)
+	plot.crowdKey = nil
+	local last = data.economy.lastCycle
+	PlotService.UpdateCrowd(player, last and last.occupancy or 0)
 end
 
 -- Agrupa varios cambios seguidos en una sola reconstrucción.

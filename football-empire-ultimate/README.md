@@ -2,12 +2,15 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: FASE 2 (construcción avanzada y estadio evolutivo)**, sobre la base de la FASE 1 (club, economía, guardado, Tienda Premium y Game Passes integrados).
+**Estado actual: FASE 3 (aficionados, ingresos, tiendas y patrocinadores)**, sobre las FASES 1‑2.
+
+**👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
 | Fase | Documento |
 |---|---|
 | FASE 1 · Base funcional + Tienda Premium | [`docs/FASE_1.md`](docs/FASE_1.md) |
 | FASE 2 · Construcción avanzada y estadio evolutivo | [`docs/FASE_2.md`](docs/FASE_2.md) |
+| FASE 3 · Aficionados, ingresos, tiendas y patrocinadores | [`docs/FASE_3.md`](docs/FASE_3.md) |
 
 > ⚠️ Los tres Game Passes (VIP Club, Constructor Pro, Expansión Cosmética) están **integrados en el código pero no publicados**. Sus IDs están en `0` (pendiente de configuración) en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Hasta que los crees en el Creator Dashboard y pegues sus IDs, la tienda los muestra como «Pendiente de configuración» con la compra desactivada.
 
@@ -15,18 +18,21 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 
 ```
 football-empire-ultimate/
+├── FootballEmpireUltimate.rbxlx      Lugar listo para abrir en Studio (generado)
 ├── default.project.json              Proyecto Rojo (opcional)
-├── docs/FASE_1.md, FASE_2.md         Entregas de cada fase
+├── tools/                            build_place.py, luau_check.py, field_check.py
+├── docs/                             COMO_PROBAR.md y FASE_N.md de cada fase
 └── src/
     ├── ReplicatedStorage/Shared/     Compartido (cliente + servidor)
     │   ├── Config/                   GamePassConfig, GameConfig, FacilityConfig,
-    │   │                             CosmeticConfig, StadiumStages, MenuConfig
+    │   │                             CosmeticConfig, StadiumStages, MenuConfig,
+    │   │                             CommercialConfig, SponsorConfig
     │   └── Modules/                  EconomyFormulas, Format, KitPattern, Remotes,
     │                                 StadiumLayout, PlacementRules
     ├── ServerScriptService/Server/   Solo servidor
     │   ├── Main.server.lua           Arranque + acciones remotas
     │   ├── Services/                 Data, GamePass, Club, Economy, Build,
-    │   │                             Stadium, Plot, StadiumRenderer
+    │   │                             Stadium, Sponsor, Plot, StadiumRenderer
     │   └── Util/                     DefaultData, RateLimiter, Retry
     └── StarterPlayer/StarterPlayerScripts/Client/
         ├── Main.client.lua           Interfaz principal

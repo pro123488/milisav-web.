@@ -7,12 +7,12 @@
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.2.0-fase2"
+GameConfig.VERSION = "0.3.0-fase3"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
 GameConfig.DATASTORE_NAME = "FEU_Clubs_v1"
-GameConfig.DATA_VERSION = 2 -- v2: decoraciones con posición libre e historial de eventos
+GameConfig.DATA_VERSION = 3 -- v3: socios, satisfacción, políticas de precios y patrocinadores
 GameConfig.AUTOSAVE_SECONDS = 120
 GameConfig.SESSION_LOCK_SECONDS = 600 -- un bloqueo más antiguo se considera abandonado
 GameConfig.MAX_TRANSACTIONS = 60
@@ -24,9 +24,9 @@ GameConfig.STARTING_FANS = 250
 
 -- Precio de entradas: decisión del jugador con efecto real sobre la asistencia.
 GameConfig.TICKET_PRICES = {
-	{ id = "LOW", name = "Económico", price = 3, demand = 1.20 },
-	{ id = "NORMAL", name = "Normal", price = 5, demand = 1.00 },
-	{ id = "HIGH", name = "Premium", price = 8, demand = 0.72 },
+	{ id = "LOW", name = "Económico", price = 3, demand = 1.20, satisfaction = 10 },
+	{ id = "NORMAL", name = "Normal", price = 5, demand = 1.00, satisfaction = 0 },
+	{ id = "HIGH", name = "Premium", price = 8, demand = 0.72, satisfaction = -12 },
 }
 GameConfig.DEFAULT_TICKET = "NORMAL"
 
@@ -37,9 +37,31 @@ GameConfig.FAN_GROWTH_RATE = 0.03
 GameConfig.FAN_CAP_PER_SEAT = 2
 GameConfig.FAN_CAP_PER_REPUTATION = 20
 
--- Patrocinio básico (los contratos completos llegan en la FASE 3).
-GameConfig.SPONSOR_BASE = 100
-GameConfig.SPONSOR_PER_REPUTATION = 4
+-- Patrocinio local básico (además de los contratos de SponsorConfig).
+GameConfig.SPONSOR_BASE = 50
+GameConfig.SPONSOR_PER_REPUTATION = 2
+
+-- ===== Aficionados (FASE 3) =====
+GameConfig.SATISFACTION_START = 60
+GameConfig.SATISFACTION_SPEED = 0.10 -- se acerca un 10 % a su objetivo en cada jornada
+GameConfig.SATISFACTION_BASE = 50
+GameConfig.SATISFACTION_PER_STAGE = 2
+GameConfig.SATISFACTION_ATTRACTIVENESS = 40 -- por cada +100 % de atractivo
+GameConfig.SATISFACTION_ATTRACTIVENESS_MAX = 30
+GameConfig.OVERCROWD_THRESHOLD = 1.2 -- demanda > 120 % del aforo
+GameConfig.OVERCROWD_PENALTY = 8
+GameConfig.FAN_DECLINE_SATISFACTION = 25 -- por debajo, los aficionados se van
+GameConfig.FAN_DECLINE_RATE = 0.01
+-- Socios (abonados): pagan cuota en cada jornada y siempre ocupan su asiento.
+GameConfig.MEMBER_RATE_MIN = 0.08 -- proporción de aficionados que se hacen socios con satisfacción 0
+GameConfig.MEMBER_RATE_MAX = 0.35 -- ... y con satisfacción 100
+GameConfig.MEMBER_SEAT_SHARE = 0.6 -- como máximo el 60 % de los asientos son de socios
+GameConfig.MEMBER_SPEED = 0.05
+GameConfig.MEMBER_PRICES = {
+	{ id = "LOW", name = "Económica", fee = 1, demand = 1.25, satisfaction = 5 },
+	{ id = "NORMAL", name = "Normal", fee = 2, demand = 1.00, satisfaction = 0 },
+	{ id = "HIGH", name = "Premium", fee = 3.5, demand = 0.70, satisfaction = -10 },
+}
 
 -- Personal: coste fijo + coste por instalación construida.
 GameConfig.STAFF_BASE = 60

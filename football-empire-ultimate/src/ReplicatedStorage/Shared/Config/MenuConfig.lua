@@ -27,6 +27,6 @@ local MenuConfig = {
 }
 
 -- Fase actualmente implementada: las entradas con phase <= CURRENT_PHASE están activas.
-MenuConfig.CURRENT_PHASE = 2
+MenuConfig.CURRENT_PHASE = 3
 
 return MenuConfig

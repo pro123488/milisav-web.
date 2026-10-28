@@ -14,6 +14,8 @@ local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
+local CommercialConfig = require(Shared.Config.CommercialConfig)
+local SponsorConfig = require(Shared.Config.SponsorConfig)
 
 local DefaultData = {}
 
@@ -34,6 +36,8 @@ function DefaultData.Create(player)
 			named = false,
 			founded = os.time(),
 			fans = GameConfig.STARTING_FANS,
+			members = 0, -- socios (FASE 3)
+			satisfaction = GameConfig.SATISFACTION_START, -- 0-100 (FASE 3)
 			reputationEarned = 0,
 			ownerName = displayName,
 			appearance = table.clone(CosmeticConfig.Defaults),
@@ -47,6 +51,9 @@ function DefaultData.Create(player)
 			money = GameConfig.STARTING_MONEY,
 			debt = 0,
 			ticketPrice = GameConfig.DEFAULT_TICKET,
+			memberPrice = "NORMAL",
+			shopPrice = CommercialConfig.DEFAULT_POLICY,
+			foodPrice = CommercialConfig.DEFAULT_POLICY,
 			totalEarned = 0,
 			totalSpent = 0,
 			lastCycle = nil,
@@ -64,6 +71,11 @@ function DefaultData.Create(player)
 		},
 		premium = {
 			purchaseLog = {}, -- solo informativo
+		},
+		sponsors = {
+			contracts = {}, -- [huecoId] = { brand, payment, objective, cyclesLeft, duration, signedAt }
+			offers = {}, -- [huecoId] = { { id, brand, payment, bonus, duration, objective } }
+			nextRefresh = 0, -- nº de jornada en la que se renuevan las ofertas
 		},
 		-- ===== Reservado para fases posteriores =====
 		squad = {},
@@ -84,6 +96,60 @@ local V1_SLOT_POSITIONS = {
 
 local function finiteNumber(n)
 	return type(n) == "number" and n == n and n ~= math.huge and n ~= -math.huge
+end
+
+local function validObjective(objective)
+	if type(objective) ~= "table" or not finiteNumber(objective.target) then
+		return false
+	end
+	for _, def in ipairs(SponsorConfig.Objectives) do
+		if def.id == objective.type then
+			return true
+		end
+	end
+	return false
+end
+
+local function validOffer(offer)
+	return type(offer) == "table" and type(offer.id) == "string" and type(offer.brand) == "string"
+		and #offer.brand <= 40 and finiteNumber(offer.payment) and offer.payment >= 0
+		and finiteNumber(offer.bonus) and offer.bonus >= 0
+		and finiteNumber(offer.duration) and offer.duration >= 1 and validObjective(offer.objective)
+end
+
+local function cleanSponsors(raw)
+	local clean = { contracts = {}, offers = {}, nextRefresh = 0 }
+	if type(raw) ~= "table" then
+		return clean
+	end
+	clean.nextRefresh = math.max(0, math.floor(tonumber(raw.nextRefresh) or 0))
+	for _, slot in ipairs(SponsorConfig.Slots) do
+		local contract = type(raw.contracts) == "table" and raw.contracts[slot.id]
+		if type(contract) == "table" and type(contract.brand) == "string" and #contract.brand <= 40
+			and finiteNumber(contract.payment) and contract.payment >= 0
+			and finiteNumber(contract.cyclesLeft) and contract.cyclesLeft >= 1
+			and validObjective(contract.objective) then
+			clean.contracts[slot.id] = {
+				brand = contract.brand,
+				payment = math.floor(contract.payment),
+				objective = { type = contract.objective.type, target = contract.objective.target },
+				cyclesLeft = math.floor(contract.cyclesLeft),
+				duration = math.floor(tonumber(contract.duration) or contract.cyclesLeft),
+				signedAt = tonumber(contract.signedAt) or os.time(),
+			}
+		end
+		local offers = type(raw.offers) == "table" and raw.offers[slot.id]
+		if type(offers) == "table" then
+			local list = {}
+			for _, offer in ipairs(offers) do
+				if validOffer(offer) and #list < SponsorConfig.OFFERS_PER_SLOT then
+					table.insert(list, offer)
+				end
+			end
+			clean.offers[slot.id] = list
+		end
+	end
+	return clean
 end
 
 local function cleanDecorations(raw)
@@ -167,6 +233,8 @@ function DefaultData.Reconcile(data, player)
 	local club = data.club
 	club.fans = math.floor(clampNumber(club.fans, 0, 1e9, GameConfig.STARTING_FANS))
 	club.reputationEarned = math.floor(clampNumber(club.reputationEarned, 0, 1e6, 0))
+	club.members = math.floor(clampNumber(club.members, 0, club.fans, 0))
+	club.satisfaction = clampNumber(club.satisfaction, 0, 100, GameConfig.SATISFACTION_START)
 	if type(club.name) ~= "string" then
 		club.name = ""
 	end
@@ -217,6 +285,26 @@ function DefaultData.Reconcile(data, player)
 	if not validTicket then
 		economy.ticketPrice = GameConfig.DEFAULT_TICKET
 	end
+	local function validId(list, id)
+		for _, option in ipairs(list) do
+			if option.id == id then
+				return true
+			end
+		end
+		return false
+	end
+	if not validId(GameConfig.MEMBER_PRICES, economy.memberPrice) then
+		economy.memberPrice = "NORMAL"
+	end
+	if not validId(CommercialConfig.PricePolicies, economy.shopPrice) then
+		economy.shopPrice = CommercialConfig.DEFAULT_POLICY
+	end
+	if not validId(CommercialConfig.PricePolicies, economy.foodPrice) then
+		economy.foodPrice = CommercialConfig.DEFAULT_POLICY
+	end
+
+	-- Patrocinadores
+	data.sponsors = cleanSponsors(data.sponsors)
 	if type(economy.transactions) ~= "table" then
 		economy.transactions = {}
 	end

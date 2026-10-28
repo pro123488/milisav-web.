@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
+local CommercialConfig = require(Shared.Config.CommercialConfig)
 
 local DataService = require(script.Parent.DataService)
 
@@ -35,6 +36,7 @@ EconomyService.Category = {
 	DECORATION = "Decoración",
 	DEBT = "Deuda",
 	REFUND = "Reembolso",
+	SPONSOR = "Patrocinio",
 }
 local C = EconomyService.Category
 
@@ -108,6 +110,8 @@ function EconomyService.RunCycle(player)
 	end
 
 	data.club.fans = math.max(0, data.club.fans + result.fanDelta)
+	data.club.members = math.clamp((data.club.members or 0) + result.memberDelta, 0, data.club.fans)
+	data.club.satisfaction = math.clamp((data.club.satisfaction or GameConfig.SATISFACTION_START) + result.satisfactionDelta, 0, 100)
 	data.stats.cycles += 1
 
 	economy.lastCycle = {
@@ -120,6 +124,10 @@ function EconomyService.RunCycle(player)
 		totalExpenses = result.totalExpenses,
 		net = result.net,
 		fanDelta = result.fanDelta,
+		memberDelta = result.memberDelta,
+		satisfaction = data.club.satisfaction,
+		occupancy = result.occupancy,
+		contracts = result.contracts,
 		newDebt = newDebt,
 		repaid = repaid,
 	}
@@ -171,6 +179,28 @@ function EconomyService.SetTicketPrice(player, optionId)
 	return false, "Precio no válido."
 end
 
+-- kind: "shop" | "food" | "member"
+function EconomyService.SetPricePolicy(player, kind, optionId)
+	local data = DataService.Get(player)
+	local field, list, label
+	if kind == "shop" then
+		field, list, label = "shopPrice", CommercialConfig.PricePolicies, "Precios de la tienda"
+	elseif kind == "food" then
+		field, list, label = "foodPrice", CommercialConfig.PricePolicies, "Precios de restauración"
+	elseif kind == "member" then
+		field, list, label = "memberPrice", GameConfig.MEMBER_PRICES, "Precio de los abonos"
+	else
+		return false, "Solicitud no válida."
+	end
+	for _, option in ipairs(list) do
+		if option.id == optionId then
+			data.economy[field] = option.id
+			return true, label .. ": " .. option.name
+		end
+	end
+	return false, "Opción no válida."
+end
+
 function EconomyService.SecondsToNextCycle(player)
 	local at = nextCycleAt[player]
 	if not at then
@@ -204,7 +234,19 @@ function EconomyService.Summary(player, data)
 			totalExpenses = forecast.totalExpenses,
 			net = forecast.net,
 			fanCap = forecast.fanCap,
+			occupancy = forecast.occupancy,
+			overcrowded = forecast.overcrowded,
+			membersAttending = forecast.membersAttending,
+			casual = forecast.casual,
+			satisfactionTarget = forecast.satisfactionTarget,
+			satisfactionFactors = forecast.satisfactionFactors,
+			spendMultiplier = forecast.spendMultiplier,
+			memberTarget = forecast.memberTarget,
+			contracts = forecast.contracts,
 		},
+		memberPrice = data.economy.memberPrice,
+		shopPrice = data.economy.shopPrice,
+		foodPrice = data.economy.foodPrice,
 		reputation = forecast.reputation,
 		cycleSeconds = GameConfig.ECONOMY_CYCLE_SECONDS,
 		nextCycleIn = EconomyService.SecondsToNextCycle(player),

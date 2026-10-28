@@ -178,6 +178,7 @@ buildTopBar = function()
 		if not ctx.compact then
 			add(stat("👥 " .. Format.Short(state.club.fans)))
 			add(stat("⭐ " .. tostring(state.economy.reputation)))
+			add(stat("😊 " .. tostring(math.floor((state.club.satisfaction or 0) + 0.5))))
 		end
 		countdownLabel = add(stat("⏱️ --:--", Theme.TextDim))
 		if not state.saveEnabled then

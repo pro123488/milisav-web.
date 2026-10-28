@@ -21,6 +21,7 @@ local ClubService = require(Services.ClubService)
 local EconomyService = require(Services.EconomyService)
 local BuildService = require(Services.BuildService)
 local StadiumService = require(Services.StadiumService)
+local SponsorService = require(Services.SponsorService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -50,6 +51,8 @@ local function buildState(player)
 			ownerName = player.DisplayName,
 			founded = data.club.founded,
 			fans = data.club.fans,
+			members = data.club.members,
+			satisfaction = data.club.satisfaction,
 			appearance = data.club.appearance, -- selección guardada
 			effectiveAppearance = ClubService.EffectiveAppearance(player, data), -- lo que se muestra
 		},
@@ -66,6 +69,7 @@ local function buildState(player)
 			plotIndex = plot and plot.index or nil,
 		},
 		history = data.history,
+		sponsors = data.sponsors,
 		economy = EconomyService.Summary(player, data),
 		premium = {
 			owned = GamePassService.OwnedList(player),
@@ -137,6 +141,26 @@ end
 
 Actions.UpgradeStage = function(player)
 	local ok, msg = StadiumService.UpgradeStage(player)
+	if ok then
+		SponsorService.RefreshOffers(DataService.Get(player), false) -- nuevos huecos desbloqueados
+	end
+	return ok, msg, ok
+end
+
+Actions.SetPricePolicy = function(player, payload)
+	if type(payload) ~= "table" then
+		return false, "Solicitud no válida."
+	end
+	return EconomyService.SetPricePolicy(player, payload.kind, payload.option)
+end
+
+Actions.AcceptSponsor = function(player, payload)
+	local ok, msg = SponsorService.Accept(player, payload)
+	return ok, msg, ok
+end
+
+Actions.TerminateSponsor = function(player, payload)
+	local ok, msg = SponsorService.Terminate(player, payload)
 	return ok, msg, ok
 end
 
@@ -239,6 +263,7 @@ local function onPlayerAdded(player)
 		notifyRemote:FireClient(player, "error", "El servidor está lleno de estadios. Tu club funciona, pero tu estadio no se mostrará en este servidor.")
 	end
 	EconomyService.PlayerReady(player)
+	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
 	if player.Character then
 		PlotService.TeleportHome(player)
@@ -281,6 +306,14 @@ GamePassService.OnPurchaseConfirmed(function(player, passKey)
 end)
 
 EconomyService.OnCycle(function(player, cycle)
+	local sponsorMessages = SponsorService.AfterCycle(player)
+	for _, message in ipairs(sponsorMessages) do
+		notifyRemote:FireClient(player, "info", message)
+	end
+	if #sponsorMessages > 0 then
+		PlotService.RequestRender(player) -- quita vallas o nombre del estadio caducados
+	end
+	PlotService.UpdateCrowd(player, cycle.occupancy)
 	pushState(player)
 	local data = DataService.Get(player)
 	if data and data.settings.notifications then

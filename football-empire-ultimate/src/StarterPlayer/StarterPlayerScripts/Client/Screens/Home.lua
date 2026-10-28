@@ -6,6 +6,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
+local SponsorConfig = require(Shared.Config.SponsorConfig)
 
 local Home = {}
 
@@ -42,6 +43,18 @@ local function nextSteps(state, Format)
 			text = string.format("¡Puedes ascender tu estadio a %s! (%s)", nextStage.name, Format.Money(nextStage.upgradeCost)),
 			screen = "stadium",
 		})
+	end
+	local freeSlots = 0
+	for _, slot in ipairs(SponsorConfig.Slots) do
+		if state.stadium.stage >= slot.minStage and not state.sponsors.contracts[slot.id] then
+			freeSlots += 1
+		end
+	end
+	if freeSlots > 0 then
+		table.insert(steps, { text = string.format("Tienes %d hueco(s) de patrocinio libres: firma un contrato.", freeSlots), screen = "economy", params = { tab = "sponsors" } })
+	end
+	if (state.club.satisfaction or 50) < 40 then
+		table.insert(steps, { text = "La afición está descontenta: revisa precios en Economía › Aficionados.", screen = "economy", params = { tab = "fans" } })
 	end
 	if state.economy.debt > 0 then
 		table.insert(steps, { text = "Tienes deuda: págala en Economía para evitar intereses.", screen = "economy" })
@@ -89,7 +102,8 @@ function Home.Render(container, ctx)
 		{ "💰", "Dinero", Format.Money(eco.money), Theme.Gold },
 		{ "📈", "Balance por jornada", Format.SignedMoney(eco.forecast.net), eco.forecast.net >= 0 and Theme.Accent or Theme.Danger },
 		{ "🏦", "Valor del club", Format.Money(eco.clubValue) },
-		{ "👥", "Aficionados", Format.Thousands(state.club.fans) },
+		{ "👥", "Aficionados / socios", Format.Short(state.club.fans) .. " / " .. Format.Short(state.club.members or 0) },
+		{ "😊", "Satisfacción", tostring(math.floor((state.club.satisfaction or 0) + 0.5)) .. " / 100" },
 		{ "⭐", "Reputación", tostring(eco.reputation) },
 		{ "🎟️", "Asistencia prevista", string.format("%s / %s", Format.Thousands(eco.forecast.attendance), Format.Thousands(eco.forecast.capacity)) },
 	}
@@ -105,7 +119,7 @@ function Home.Render(container, ctx)
 		local row = C.Row({
 			C.Label("• " .. step.text, { Size = UDim2.new(1, -110, 0, 0) }),
 			C.Button("Ir", "secondary", function()
-				ctx.navigate(step.screen)
+				ctx.navigate(step.screen, step.params)
 			end, { Size = UDim2.new(0, 90, 0, 32), AutomaticSize = Enum.AutomaticSize.None }),
 		})
 		row.Parent = steps

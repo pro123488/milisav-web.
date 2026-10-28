@@ -8,7 +8,7 @@
 --   reputation  reputación que aporta
 --   minStage    etapa del estadio evolutivo necesaria (ver StadiumStages)
 --   requires    { idInstalación = nivelMínimo } necesarios para ese nivel
--- y efectos concretos: capacity, attractiveness, shopSpend, foodSpend.
+-- y efectos concretos: capacity, attractiveness, shopSpend, foodSpend, vipIncome, tourRate.
 --
 -- Para añadir una instalación nueva basta con añadir una entrada aquí y,
 -- opcionalmente, un constructor visual en StadiumRenderer.
@@ -132,6 +132,34 @@ FacilityConfig.Facilities = {
 		},
 	},
 
+	-- ===== Instalaciones comerciales (FASE 3) =====
+	kiosks = {
+		id = "kiosks",
+		name = "Quioscos",
+		icon = "🌭",
+		category = "Comercial",
+		description = "Puestos de comida junto a las gradas: más gasto en restauración por espectador.",
+		startLevel = 0,
+		levels = {
+			{ cost = 2500, upkeep = 8, staff = 10, reputation = 1, foodSpend = 0.3, minStage = 1 },
+			{ cost = 7000, upkeep = 16, staff = 15, reputation = 1, foodSpend = 0.6, minStage = 1 },
+			{ cost = 18000, upkeep = 30, staff = 25, reputation = 2, foodSpend = 1.0, minStage = 2 },
+		},
+	},
+	tour = {
+		id = "tour",
+		name = "Tour del estadio",
+		icon = "🗺️",
+		category = "Comercial",
+		description = "Visitas guiadas: ingresos en cada jornada según la reputación del club.",
+		startLevel = 0,
+		levels = {
+			{ cost = 25000, upkeep = 40, staff = 20, reputation = 2, tourRate = 8, minStage = 2 },
+			{ cost = 80000, upkeep = 80, staff = 35, reputation = 4, tourRate = 15, minStage = 3 },
+			{ cost = 220000, upkeep = 150, staff = 60, reputation = 7, tourRate = 25, minStage = 5 },
+		},
+	},
+
 	-- ===== Instalaciones que se desbloquean con el ESTADIO EVOLUTIVO (FASE 2+) =====
 	vip = {
 		id = "vip",
@@ -194,7 +222,7 @@ FacilityConfig.Facilities = {
 -- Orden en la interfaz de construcción.
 FacilityConfig.Order = {
 	"pitch", "stands", "lighting", "scoreboard", "lockers", "shop", "restaurant",
-	"vip", "training", "academy", "trophyRoom",
+	"kiosks", "tour", "vip", "training", "academy", "trophyRoom",
 }
 
 function FacilityConfig.Get(id)

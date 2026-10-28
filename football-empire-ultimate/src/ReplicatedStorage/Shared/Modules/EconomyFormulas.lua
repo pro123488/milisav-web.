@@ -10,6 +10,8 @@ local GameConfig = require(Config.GameConfig)
 local FacilityConfig = require(Config.FacilityConfig)
 local CosmeticConfig = require(Config.CosmeticConfig)
 local StadiumStages = require(Config.StadiumStages)
+local CommercialConfig = require(Config.CommercialConfig)
+local SponsorConfig = require(Config.SponsorConfig)
 
 local EconomyFormulas = {}
 
@@ -31,6 +33,7 @@ function EconomyFormulas.FacilityTotals(facilities)
 		shopSpend = 0,
 		foodSpend = 0,
 		vipIncome = 0,
+		tourRate = 0,
 		upkeep = 0,
 		staff = 0,
 		reputation = 0,
@@ -50,6 +53,7 @@ function EconomyFormulas.FacilityTotals(facilities)
 			totals.shopSpend += data.shopSpend or 0
 			totals.foodSpend += data.foodSpend or 0
 			totals.vipIncome += data.vipIncome or 0
+			totals.tourRate += data.tourRate or 0
 			totals.upkeep += data.upkeep or 0
 			totals.staff += data.staff or 0
 			totals.reputation += data.reputation or 0
@@ -89,41 +93,116 @@ function EconomyFormulas.Reputation(data)
 	return totals.reputation + EconomyFormulas.StageEffects(data.stadium.stage).reputation + (data.club.reputationEarned or 0)
 end
 
+-- Salarios de la plantilla por jornada (la plantilla llega en la FASE 4).
+function EconomyFormulas.Wages(data)
+	local total = 0
+	for _, playerData in ipairs(data.squad or {}) do
+		total += tonumber(playerData.salary) or 0
+	end
+	return math.floor(total)
+end
+
 function EconomyFormulas.FanCap(capacity, attractiveness, reputation)
 	return math.floor(capacity * GameConfig.FAN_CAP_PER_SEAT * attractiveness
 		+ reputation * GameConfig.FAN_CAP_PER_REPUTATION)
+end
+
+local function memberOption(id)
+	for _, option in ipairs(GameConfig.MEMBER_PRICES) do
+		if option.id == id then
+			return option
+		end
+	end
+	return GameConfig.MEMBER_PRICES[2]
+end
+EconomyFormulas.MemberOption = memberOption
+
+-- Ingresos por contratos de patrocinio activos (pago + bonus si se cumple el objetivo).
+function EconomyFormulas.ContractIncome(sponsors, occupancy, satisfaction, members)
+	local total, details = 0, {}
+	for slotId, contract in pairs((sponsors and sponsors.contracts) or {}) do
+		local met = SponsorConfig.ObjectiveMet(contract.objective, occupancy, satisfaction, members)
+		local amount = contract.payment + (met and math.floor(contract.payment * SponsorConfig.OBJECTIVE_BONUS) or 0)
+		total += amount
+		details[slotId] = { amount = amount, objectiveMet = met }
+	end
+	return total, details
+end
+
+-- Satisfacción objetivo de la afición y sus factores (para mostrarlos en la interfaz).
+function EconomyFormulas.SatisfactionTarget(data, attractiveness, overcrowded)
+	local economy = data.economy
+	local ticket = ticketOption(economy.ticketPrice)
+	local member = memberOption(economy.memberPrice)
+	local shopPolicy = CommercialConfig.Policy(economy.shopPrice)
+	local foodPolicy = CommercialConfig.Policy(economy.foodPrice)
+	local factors = {
+		{ label = "Base", value = GameConfig.SATISFACTION_BASE },
+		{ label = "Precio de entradas", value = ticket.satisfaction or 0 },
+		{ label = "Precio de abonos", value = member.satisfaction or 0 },
+		{ label = "Precios de la tienda", value = shopPolicy.satisfaction },
+		{ label = "Precios de restauración", value = foodPolicy.satisfaction },
+		{ label = "Atractivo del estadio", value = math.floor(math.clamp((attractiveness - 1) * GameConfig.SATISFACTION_ATTRACTIVENESS, 0, GameConfig.SATISFACTION_ATTRACTIVENESS_MAX)) },
+		{ label = "Etapa del estadio", value = (data.stadium.stage or 1) * GameConfig.SATISFACTION_PER_STAGE },
+	}
+	if overcrowded then
+		table.insert(factors, { label = "Aficionados sin entrada", value = -GameConfig.OVERCROWD_PENALTY })
+	end
+	local target = 0
+	for _, f in ipairs(factors) do
+		target += f.value
+	end
+	return math.clamp(target, 0, 100), factors
 end
 
 -- Calcula un ciclo económico completo a partir de los datos del club.
 -- Devuelve un desglose; el servidor es quien lo aplica.
 function EconomyFormulas.Cycle(data)
 	local facilities = data.stadium.facilities
+	local economy = data.economy
+	local club = data.club
 	local totals = EconomyFormulas.FacilityTotals(facilities)
 	local stageEffects = EconomyFormulas.StageEffects(data.stadium.stage)
 	local attractiveness = totals.attractiveness + stageEffects.attractiveness
 		+ EconomyFormulas.DecorationBonus(data.stadium.decorations, data.stadium.stage)
-	local reputation = totals.reputation + stageEffects.reputation + (data.club.reputationEarned or 0)
-	local ticket = ticketOption(data.economy.ticketPrice)
+	local reputation = totals.reputation + stageEffects.reputation + (club.reputationEarned or 0)
+	local ticket = ticketOption(economy.ticketPrice)
+	local member = memberOption(economy.memberPrice)
+	local shopPolicy = CommercialConfig.Policy(economy.shopPrice)
+	local foodPolicy = CommercialConfig.Policy(economy.foodPrice)
+	local satisfaction = club.satisfaction or GameConfig.SATISFACTION_START
 
-	local fans = data.club.fans
-	local attendance = math.floor(math.min(
-		totals.capacity,
-		fans * GameConfig.TURNOUT_RATE * ticket.demand * attractiveness
-	))
+	-- Asistencia: los socios ocupan primero su asiento; el resto compra entrada.
+	local fans = club.fans
+	local members = math.min(club.members or 0, fans)
+	local capacity = totals.capacity
+	local membersAttending = math.min(members, capacity)
+	local casualDemand = (fans - members) * GameConfig.TURNOUT_RATE * ticket.demand * attractiveness
+	local casual = math.floor(math.max(0, math.min(capacity - membersAttending, casualDemand)))
+	local attendance = membersAttending + casual
+	local occupancy = capacity > 0 and attendance / capacity or 0
+	local overcrowded = membersAttending + casualDemand > capacity * GameConfig.OVERCROWD_THRESHOLD
+
+	-- La satisfacción multiplica el gasto en tienda y restauración (0,75 a 1,25).
+	local spendMultiplier = 0.75 + satisfaction / 200
+	local contractTotal, contractDetails = EconomyFormulas.ContractIncome(data.sponsors, occupancy, satisfaction, members)
 
 	local income = {
-		tickets = attendance * ticket.price,
-		shop = math.floor(attendance * totals.shopSpend),
-		restaurant = math.floor(attendance * totals.foodSpend),
+		tickets = casual * ticket.price,
+		members = math.floor(members * member.fee),
+		shop = math.floor(attendance * totals.shopSpend * shopPolicy.spend * spendMultiplier),
+		restaurant = math.floor(attendance * totals.foodSpend * foodPolicy.spend * spendMultiplier),
 		sponsors = GameConfig.SPONSOR_BASE + reputation * GameConfig.SPONSOR_PER_REPUTATION + stageEffects.sponsorBonus,
+		contracts = contractTotal,
 		vip = totals.vipIncome,
+		tour = math.floor(reputation * totals.tourRate),
 	}
 	local expenses = {
 		maintenance = totals.upkeep,
 		staff = GameConfig.STAFF_BASE + totals.staff,
 		stadium = stageEffects.upkeep, -- operación del estadio según su etapa
-		wages = 0, -- salarios de la plantilla: FASE 4
-		interest = math.floor((data.economy.debt or 0) * GameConfig.DEBT_INTEREST_PER_CYCLE),
+		wages = EconomyFormulas.Wages(data), -- salarios de la plantilla (FASE 4)
+		interest = math.floor((economy.debt or 0) * GameConfig.DEBT_INTEREST_PER_CYCLE),
 	}
 
 	local totalIncome, totalExpenses = 0, 0
@@ -134,15 +213,36 @@ function EconomyFormulas.Cycle(data)
 		totalExpenses += v
 	end
 
-	local fanCap = EconomyFormulas.FanCap(totals.capacity, attractiveness, reputation)
-	local fanDelta = math.floor((fanCap - fans) * GameConfig.FAN_GROWTH_RATE)
-	if fanDelta == 0 and fans < fanCap then
-		fanDelta = 1
+	-- Afición: satisfacción, socios y crecimiento
+	local satisfactionTarget, satisfactionFactors = EconomyFormulas.SatisfactionTarget(data, attractiveness, overcrowded)
+	local satisfactionDelta = (satisfactionTarget - satisfaction) * GameConfig.SATISFACTION_SPEED
+
+	local fanCap = EconomyFormulas.FanCap(capacity, attractiveness, reputation)
+	local fanDelta
+	if satisfaction < GameConfig.FAN_DECLINE_SATISFACTION then
+		fanDelta = -math.ceil(fans * GameConfig.FAN_DECLINE_RATE)
+	else
+		local growth = 0.5 + satisfaction / 100
+		fanDelta = math.floor((fanCap - fans) * GameConfig.FAN_GROWTH_RATE * growth)
+		if fanDelta == 0 and fans < fanCap then
+			fanDelta = 1
+		end
+	end
+
+	local memberRate = GameConfig.MEMBER_RATE_MIN + (GameConfig.MEMBER_RATE_MAX - GameConfig.MEMBER_RATE_MIN) * satisfaction / 100
+	local memberTarget = math.floor(math.min(fans * memberRate * member.demand, capacity * GameConfig.MEMBER_SEAT_SHARE))
+	local memberDelta = math.floor((memberTarget - members) * GameConfig.MEMBER_SPEED + 0.5)
+	if memberDelta == 0 and memberTarget ~= members then
+		memberDelta = memberTarget > members and 1 or -1
 	end
 
 	return {
 		attendance = attendance,
-		capacity = totals.capacity,
+		membersAttending = membersAttending,
+		casual = casual,
+		capacity = capacity,
+		occupancy = occupancy,
+		overcrowded = overcrowded,
 		attractiveness = attractiveness,
 		reputation = reputation,
 		ticket = ticket,
@@ -153,6 +253,15 @@ function EconomyFormulas.Cycle(data)
 		net = totalIncome - totalExpenses,
 		fanCap = fanCap,
 		fanDelta = fanDelta,
+		satisfaction = satisfaction,
+		satisfactionTarget = satisfactionTarget,
+		satisfactionDelta = satisfactionDelta,
+		satisfactionFactors = satisfactionFactors,
+		spendMultiplier = spendMultiplier,
+		members = members,
+		memberTarget = memberTarget,
+		memberDelta = memberDelta,
+		contracts = contractDetails,
 	}
 end
 

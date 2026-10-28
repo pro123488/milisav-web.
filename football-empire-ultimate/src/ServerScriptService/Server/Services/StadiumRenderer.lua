@@ -436,7 +436,8 @@ local function buildSign(folder, origin, info)
 		sub.TextScaled = true
 		sub.TextXAlignment = Enum.TextXAlignment.Left
 		sub.TextColor3 = Color3.fromRGB(190, 200, 215)
-		sub.Text = "Presidente: " .. info.ownerName .. " · " .. info.stageName
+		local naming = info.sponsors and info.sponsors.naming
+		sub.Text = (naming and ("🏟️ Estadio " .. naming .. " · ") or "") .. "Presidente: " .. info.ownerName .. " · " .. info.stageName
 		sub.Parent = frame
 		if info.vip then
 			local tag = Instance.new("TextLabel")
@@ -465,6 +466,21 @@ local function buildSign(folder, origin, info)
 		holder.BorderSizePixel = 0
 		holder.Parent = gui
 		KitPattern.Build(holder, info.kitPattern, info.primary, info.secondary)
+		local shirtSponsor = info.sponsors and info.sponsors.shirt
+		if shirtSponsor then
+			local t = Instance.new("TextLabel")
+			t.Name = "KitPart"
+			t.BackgroundTransparency = 1
+			t.Position = UDim2.fromScale(0.1, 0.35)
+			t.Size = UDim2.fromScale(0.8, 0.25)
+			t.Font = Enum.Font.GothamBlack
+			t.TextScaled = true
+			t.TextColor3 = info.secondaryText
+			t.TextStrokeTransparency = 0.5
+			t.Text = string.upper(shirtSponsor)
+			t.ZIndex = 5
+			t.Parent = holder
+		end
 	end
 	surfaceText(kitBoard, Enum.NormalId.Front, kit)
 	surfaceText(kitBoard, Enum.NormalId.Back, kit)
@@ -643,6 +659,101 @@ local function buildDecorations(folder, origin, decorations, visibleFlags, info)
 	end
 end
 
+-- ===== Comercial y patrocinio (FASE 3) =====
+
+-- Vallas publicitarias alrededor del campo: muestran el patrocinador de vallas real.
+local function buildAdBoards(folder, origin, info)
+	local brand = info.sponsors and info.sponsors.boards
+	local text = brand and string.upper(brand) or "¡ANÚNCIATE AQUÍ!"
+	for _, sz in ipairs({ -1, 1 }) do
+		for _, x in ipairs({ -25, 25 }) do
+			local z = PITCH_CENTER_Z + sz * (PITCH_WIDTH / 2 + 2.5)
+			local board = part(folder, origin, CFrame.new(x, 0.8, z), Vector3.new(40, 1.6, 0.4), Color3.fromRGB(15, 15, 20),
+				Enum.Material.SmoothPlastic, { Name = "AdBoard" })
+			local function content(gui)
+				local t = Instance.new("TextLabel")
+				t.Size = UDim2.fromScale(1, 1)
+				t.BackgroundColor3 = brand and info.primary or Color3.fromRGB(30, 30, 40)
+				t.TextColor3 = brand and info.secondaryText or Color3.fromRGB(200, 200, 210)
+				t.Font = Enum.Font.GothamBlack
+				t.TextScaled = true
+				t.Text = text
+				t.Parent = gui
+			end
+			surfaceText(board, Enum.NormalId.Front, content)
+			surfaceText(board, Enum.NormalId.Back, content)
+		end
+	end
+end
+
+local function buildKiosks(folder, origin, level, info)
+	if level < 1 then
+		return
+	end
+	local xs = { -60, 60 }
+	if level >= 2 then
+		table.insert(xs, -80)
+		table.insert(xs, 80)
+	end
+	if level >= 3 then
+		table.insert(xs, -40)
+		table.insert(xs, 40)
+	end
+	for i, x in ipairs(xs) do
+		local counter = part(folder, origin, CFrame.new(x, 1.5, 72), Vector3.new(5, 3, 3), Color3.fromRGB(200, 170, 120), Enum.Material.WoodPlanks)
+		part(folder, origin, CFrame.new(x, 4.2, 72), Vector3.new(6, 0.4, 4), info.primary, Enum.Material.Fabric)
+		if i == 1 then
+			label(counter, string.format("🌭 Quioscos · Nv %d", level), 4).MaxDistance = 80
+		end
+	end
+end
+
+local function buildTourBooth(folder, origin, level, info)
+	if level < 1 then
+		return
+	end
+	local booth = part(folder, origin, CFrame.new(20, 2.5, 72), Vector3.new(6, 5, 3), Color3.fromRGB(240, 240, 235), Enum.Material.SmoothPlastic)
+	part(folder, origin, CFrame.new(20, 5.3, 72), Vector3.new(7, 0.6, 4), info.secondary, Enum.Material.SmoothPlastic)
+	label(booth, string.format("🗺️ Tour del estadio · Nv %d", level), 4).MaxDistance = 80
+end
+
+-- Afición en las gradas (se dibuja en una carpeta aparte y solo cuando cambia la ocupación).
+function StadiumRenderer.RenderCrowd(folder, origin, standsLevel, occupancy, info)
+	folder:ClearAllChildren()
+	if standsLevel < 1 or occupancy <= 0 then
+		return
+	end
+	local rows = ROWS_BY_LEVEL[math.clamp(standsLevel, 1, #ROWS_BY_LEVEL)]
+	local filled = math.clamp(math.floor(rows * occupancy + 0.5), 1, rows)
+	local sides = { "N" }
+	if standsLevel >= 2 then
+		sides = { "N", "S" }
+	end
+	if standsLevel >= 3 then
+		sides = { "N", "S", "W", "E" }
+	end
+	local colors = { info.primary, info.secondary, Color3.fromRGB(235, 235, 235) }
+	local props = { CanCollide = false, CanQuery = false, CastShadow = false, Name = "Crowd" }
+	for _, side in ipairs(sides) do
+		local length = (side == "N" or side == "S") and PITCH_LENGTH - 2 or PITCH_WIDTH - 2
+		for r = 1, filled do
+			local y = r * ROW_STEP + 0.35
+			local dist = 4 + (r - 0.5) * ROW_DEPTH
+			local cf, size
+			if side == "N" then
+				cf, size = CFrame.new(0, y, PITCH_CENTER_Z - PITCH_WIDTH / 2 - dist), Vector3.new(length, 0.7, 1.6)
+			elseif side == "S" then
+				cf, size = CFrame.new(0, y, PITCH_CENTER_Z + PITCH_WIDTH / 2 + dist), Vector3.new(length, 0.7, 1.6)
+			elseif side == "W" then
+				cf, size = CFrame.new(-PITCH_LENGTH / 2 - dist, y, PITCH_CENTER_Z), Vector3.new(1.6, 0.7, length)
+			else
+				cf, size = CFrame.new(PITCH_LENGTH / 2 + dist, y, PITCH_CENTER_Z), Vector3.new(1.6, 0.7, length)
+			end
+			part(folder, origin, cf, size, colors[(r % 3) + 1], Enum.Material.Fabric, props)
+		end
+	end
+end
+
 -- ===== Estadio evolutivo: elementos de cada etapa =====
 
 local function stageColor(name)
@@ -701,7 +812,9 @@ local function buildGate(folder, origin, visual, info)
 			t.TextColor3 = info.secondaryText
 			t.Font = Enum.Font.GothamBlack
 			t.TextScaled = true
-			t.Text = info.crestSymbol .. " " .. string.upper(info.clubName) .. " · " .. info.stageName
+			local naming = info.sponsors and info.sponsors.naming
+			t.Text = info.crestSymbol .. " " .. string.upper(info.clubName) .. " · "
+				.. (naming and ("ESTADIO " .. string.upper(naming)) or info.stageName)
 			t.Parent = gui
 		end
 		surfaceText(beam, Enum.NormalId.Front, content)
@@ -826,6 +939,9 @@ function StadiumRenderer.Render(folder, origin, info)
 	buildLighting(folder, origin, facilities.lighting or 0, info.vip)
 	buildScoreboard(folder, origin, facilities.scoreboard or 0, info)
 	buildLaneFacilities(folder, origin, facilities, buildingDesign, info)
+	buildKiosks(folder, origin, facilities.kiosks or 0, info)
+	buildTourBooth(folder, origin, facilities.tour or 0, info)
+	buildAdBoards(folder, origin, info)
 	buildSign(folder, origin, info)
 	buildEffect(folder, origin, info.appearance.effect, info.primary, info.secondary)
 	buildDecorations(folder, origin, info.decorations, info.decorationVisible, info)
