@@ -285,19 +285,74 @@ local function updateRecords(data, entry)
 	end
 end
 
--- Juega un partido del usuario contra un rival ficticio y aplica todo.
--- competition: "Amistoso" | "Liga" | "Copa" ... · prizeScale: multiplicador de premios
+local matchCallbacks = {}
+
+-- Avisa a otros servicios de cada partido de un usuario (eventos comunitarios, etc.).
+function MatchService.OnUserMatch(callback)
+	table.insert(matchCallbacks, callback)
+end
+
+local function fireMatch(player, result, us, them)
+	for _, callback in ipairs(matchCallbacks) do
+		task.spawn(callback, player, result, us, them)
+	end
+end
+
+MatchService.ApplyPlayerEffects = applyPlayerEffects
+
+function MatchService.SimulateSheets(homeSheet, awaySheet, crowd)
+	return MatchEngine.Simulate(homeSheet, awaySheet, rng, { crowd = crowd or 0.5 })
+end
+
+-- Registra un partido en el historial, los totales y los récords del club.
+-- entry = { competition, opponent, short, home, gf, ga, scorers, mvp, prize }
+function MatchService.RecordMatch(data, entry)
+	entry.t = os.time()
+	entry.season = data.season.number
+	entry.outcome = entry.gf > entry.ga and "W" or (entry.gf == entry.ga and "D" or "L")
+	table.insert(data.matches, entry)
+	while #data.matches > TacticsConfig.MAX_MATCH_HISTORY do
+		table.remove(data.matches, 1)
+	end
+	local s = data.stats
+	s.matchesPlayed = (s.matchesPlayed or 0) + 1
+	s.wins = (s.wins or 0) + (entry.outcome == "W" and 1 or 0)
+	s.draws = (s.draws or 0) + (entry.outcome == "D" and 1 or 0)
+	s.losses = (s.losses or 0) + (entry.outcome == "L" and 1 or 0)
+	s.goalsFor = (s.goalsFor or 0) + entry.gf
+	s.goalsAgainst = (s.goalsAgainst or 0) + entry.ga
+	updateRecords(data, entry)
+	if math.abs(entry.gf - entry.ga) >= 4 then
+		StadiumService.LogEvent(data, "big_result", { opponent = entry.opponent, gf = entry.gf, ga = entry.ga, competition = entry.competition })
+	end
+	return entry.outcome
+end
+
+function MatchService.Scorers(result, side)
+	local scorers = {}
+	for _, event in ipairs(result.events) do
+		if event.type == "goal" and event.side == side then
+			table.insert(scorers, string.format("%s %d'", event.player, event.minute))
+		end
+	end
+	return scorers
+end
+
+-- Juega un partido del usuario y aplica todo.
+-- opponent: rival ficticio { name, short, strength, ... } o, con opts.opponentSheet, un club real (hoja pública).
+-- opts: competition ("Amistoso", "Liga", "Copa", "Reto", "Torneo"...), home, prizeScale,
+--       noEconomy = true -> sin premio, reputación ni satisfacción (partidos entre usuarios y torneos)
 function MatchService.Play(player, opponent, opts)
 	local data = DataService.Get(player)
 	local userSheet = MatchService.BuildUserSheet(data, opts.clubName, opts.clubShort)
-	local aiSheet = MatchService.BuildAISheet(opponent)
+	local opponentSheet = opts.opponentSheet or MatchService.BuildAISheet(opponent)
 	local home = opts.home ~= false
 	local crowd = (data.economy.lastCycle and data.economy.lastCycle.occupancy) or 0
 	local result
 	if home then
-		result = MatchEngine.Simulate(userSheet, aiSheet, rng, { crowd = crowd })
+		result = MatchEngine.Simulate(userSheet, opponentSheet, rng, { crowd = crowd })
 	else
-		result = MatchEngine.Simulate(aiSheet, userSheet, rng, { crowd = 0.7 })
+		result = MatchEngine.Simulate(opponentSheet, userSheet, rng, { crowd = 0.7 })
 	end
 	local us = home and result.home or result.away
 	local them = home and result.away or result.home
@@ -306,59 +361,36 @@ function MatchService.Play(player, opponent, opts)
 
 	-- Premios, reputación y satisfacción
 	local outcome = us.goals > them.goals and "W" or (us.goals == them.goals and "D" or "L")
-	local prize = TacticsConfig.FRIENDLY_PRIZE_BASE * (opponent.strength / 50) ^ 2 * (opts.prizeScale or 1)
-		* UniverseConfig.Multiplier("matchPrize") -- evento del universo
-	if outcome == "D" then
-		prize *= TacticsConfig.PRIZE_DRAW
-	elseif outcome == "L" then
-		prize *= TacticsConfig.PRIZE_LOSS
-	end
-	prize = math.floor(prize)
-	EconomyService.Earn(player, prize, EconomyService.Category.PRIZE, string.format("%s vs %s (%d-%d)", opts.competition, opponent.name, us.goals, them.goals))
-	local repGain = 0
-	if outcome == "W" and opponent.strength >= MatchService.TeamStrength(data) - 3 then
-		repGain = TacticsConfig.REPUTATION_WIN * (opts.reputationScale or 1)
-		data.club.reputationEarned += repGain
-	end
-	local satisfaction = outcome == "W" and TacticsConfig.SATISFACTION_WIN or (outcome == "L" and TacticsConfig.SATISFACTION_LOSS or 0)
-	data.club.satisfaction = math.clamp(data.club.satisfaction + satisfaction, 0, 100)
-
-	-- Historial
-	local scorers = {}
-	for _, event in ipairs(result.events) do
-		if event.type == "goal" and event.side == (home and 1 or 2) then
-			table.insert(scorers, string.format("%s %d'", event.player, event.minute))
+	local prize, repGain, satisfaction = 0, 0, 0
+	if not opts.noEconomy then
+		prize = TacticsConfig.FRIENDLY_PRIZE_BASE * (opponent.strength / 50) ^ 2 * (opts.prizeScale or 1)
+			* UniverseConfig.Multiplier("matchPrize") -- evento del universo
+		if outcome == "D" then
+			prize *= TacticsConfig.PRIZE_DRAW
+		elseif outcome == "L" then
+			prize *= TacticsConfig.PRIZE_LOSS
 		end
+		prize = math.floor(prize)
+		EconomyService.Earn(player, prize, EconomyService.Category.PRIZE, string.format("%s vs %s (%d-%d)", opts.competition, opponent.name, us.goals, them.goals))
+		if outcome == "W" and opponent.strength >= MatchService.TeamStrength(data) - 3 then
+			repGain = TacticsConfig.REPUTATION_WIN * (opts.reputationScale or 1)
+			data.club.reputationEarned += repGain
+		end
+		satisfaction = outcome == "W" and TacticsConfig.SATISFACTION_WIN or (outcome == "L" and TacticsConfig.SATISFACTION_LOSS or 0)
+		data.club.satisfaction = math.clamp(data.club.satisfaction + satisfaction, 0, 100)
 	end
-	local entry = {
-		t = os.time(),
-		season = data.season.number,
+
+	MatchService.RecordMatch(data, {
 		competition = opts.competition,
 		opponent = opponent.name,
 		short = opponent.short,
 		home = home,
 		gf = us.goals,
 		ga = them.goals,
-		outcome = outcome,
-		scorers = scorers,
+		scorers = MatchService.Scorers(result, home and 1 or 2),
 		mvp = result.mvp and result.mvp.name or nil,
 		prize = prize,
-	}
-	table.insert(data.matches, entry)
-	while #data.matches > TacticsConfig.MAX_MATCH_HISTORY do
-		table.remove(data.matches, 1)
-	end
-	local s = data.stats
-	s.matchesPlayed = (s.matchesPlayed or 0) + 1
-	s.wins = (s.wins or 0) + (outcome == "W" and 1 or 0)
-	s.draws = (s.draws or 0) + (outcome == "D" and 1 or 0)
-	s.losses = (s.losses or 0) + (outcome == "L" and 1 or 0)
-	s.goalsFor = (s.goalsFor or 0) + us.goals
-	s.goalsAgainst = (s.goalsAgainst or 0) + them.goals
-	updateRecords(data, entry)
-	if math.abs(us.goals - them.goals) >= 4 then
-		StadiumService.LogEvent(data, "big_result", { opponent = opponent.name, gf = us.goals, ga = them.goals, competition = opts.competition })
-	end
+	})
 
 	result.userSide = home and 1 or 2
 	result.prize = prize
@@ -367,9 +399,44 @@ function MatchService.Play(player, opponent, opts)
 	result.outcome = outcome
 	result.competition = opts.competition
 	result.messages = messages
+	fireMatch(player, result, us.goals, them.goals)
 	result.playerStats = nil -- no hace falta en el cliente (ya se resume en los eventos)
 	result.ratings = nil
 	return result, messages
+end
+
+-- Partido entre dos usuarios conectados (FASE 9). Aplica efectos y registros a ambos.
+-- Devuelve el resultado (sin datos internos) o nil y un motivo.
+function MatchService.PlayUsers(homePlayer, awayPlayer, competition, homeInfo, awayInfo)
+	local homeData, awayData = DataService.Get(homePlayer), DataService.Get(awayPlayer)
+	if not homeData or not awayData then
+		return nil, "Uno de los clubes no está disponible."
+	end
+	local homeSheet = MatchService.BuildUserSheet(homeData, homeInfo.name, homeInfo.short)
+	local awaySheet = MatchService.BuildUserSheet(awayData, awayInfo.name, awayInfo.short)
+	if #homeSheet.players < 11 or #awaySheet.players < 11 then
+		return nil, "Uno de los clubes no tiene 11 jugadores disponibles."
+	end
+	local crowd = (homeData.economy.lastCycle and homeData.economy.lastCycle.occupancy) or 0
+	local result = MatchEngine.Simulate(homeSheet, awaySheet, rng, { crowd = crowd })
+	local sides = { { player = homePlayer, data = homeData, sheet = homeSheet, side = 1, other = awayInfo },
+		{ player = awayPlayer, data = awayData, sheet = awaySheet, side = 2, other = homeInfo } }
+	for _, entry in ipairs(sides) do
+		applyPlayerEffects(entry.data, entry.sheet, result, {})
+		local us = entry.side == 1 and result.home or result.away
+		local them = entry.side == 1 and result.away or result.home
+		MatchService.RecordMatch(entry.data, {
+			competition = competition, opponent = entry.other.name, short = entry.other.short, home = entry.side == 1,
+			gf = us.goals, ga = them.goals, scorers = MatchService.Scorers(result, entry.side),
+			mvp = result.mvp and result.mvp.name or nil, prize = 0,
+		})
+		fireMatch(entry.player, result, us.goals, them.goals)
+	end
+	result.playerStats = nil
+	result.ratings = nil
+	result.competition = competition
+	result.prize, result.reputation, result.satisfaction = 0, 0, 0
+	return result
 end
 
 function MatchService.PlayFriendly(player, payload, clubName, clubShort)
