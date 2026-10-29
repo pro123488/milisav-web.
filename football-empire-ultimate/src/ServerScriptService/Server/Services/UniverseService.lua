@@ -290,6 +290,7 @@ function UniverseService.BuildState(player, data)
 		local otherData = DataService.Get(other)
 		if otherData then
 			local profile = UniverseService.PublicProfile(other, otherData)
+			profile.sheet = nil -- la hoja del equipo no hace falta en la interfaz
 			profile.inServer = true
 			profile.isMe = other == player
 			table.insert(directory, profile)

@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: FASE 8 (universo futbolístico e historia del club)**, sobre las FASES 1‑7.
+**Estado actual: FASE 9 (red de clubes y multijugador)**, sobre las FASES 1‑8.
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -18,6 +18,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | FASE 6 · Mercado de fichajes | [`docs/FASE_6.md`](docs/FASE_6.md) |
 | FASE 7 · Ligas y modo carrera | [`docs/FASE_7.md`](docs/FASE_7.md) |
 | FASE 8 · Universo futbolístico e historia del club | [`docs/FASE_8.md`](docs/FASE_8.md) |
+| FASE 9 · Red de clubes y multijugador | [`docs/FASE_9.md`](docs/FASE_9.md) |
 
 > ⚠️ Los tres Game Passes (VIP Club, Constructor Pro, Expansión Cosmética) están **integrados en el código pero no publicados**. Sus IDs están en `0` (pendiente de configuración) en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Hasta que los crees en el Creator Dashboard y pegues sus IDs, la tienda los muestra como «Pendiente de configuración» con la compra desactivada.
 

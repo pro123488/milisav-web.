@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UniverseConfig = require(ReplicatedStorage:WaitForChild("Shared").Config.UniverseConfig)
+local Network = require(script.Parent.Network)
 
 local Universe = {}
 
@@ -63,6 +64,9 @@ local function renderRankings(add, ctx)
 		local value = which == "value" and Format.Money(e.value) or Format.Thousands(e.value)
 		C.Label(string.format("%s%d. %s <b>%s</b> · %s · %s", e.userId == game:GetService("Players").LocalPlayer.UserId and "👉 " or "",
 			e.rank, e.crest, e.clubName, e.ownerName, value), { TextSize = 14 }).Parent = card
+		if e.userId and e.userId ~= game:GetService("Players").LocalPlayer.UserId then
+			Network.ClubActions(ctx, { userId = e.userId, clubName = e.clubName }).Parent = card
+		end
 	end
 	add(card)
 end
@@ -111,6 +115,7 @@ local function renderDirectory(add, ctx)
 			}),
 			C.Label(string.format("⭐ %d · 🏦 %s · 🏆 %d · 👥 %s · 🏟️ %s · División %d", club.reputation, Format.Money(club.value), club.titles,
 				Format.Short(club.fans), club.stageName, club.division), { TextSize = 13, TextColor3 = Theme.TextDim }),
+			Network.ClubActions(ctx, club),
 		}))
 	end
 end

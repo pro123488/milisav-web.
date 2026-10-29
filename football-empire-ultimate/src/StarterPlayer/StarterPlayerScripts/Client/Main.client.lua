@@ -39,8 +39,10 @@ local Screens = {
 	leagues = require(ScreensFolder.Leagues),
 	universe = require(ScreensFolder.Universe),
 	history = require(ScreensFolder.History),
+	network = require(ScreensFolder.Network),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
+local InvitePrompt = require(UI:WaitForChild("InvitePrompt"))
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
 
 local actionRemote = Remotes.Get("Action")
@@ -442,7 +444,10 @@ local function playTrick(info)
 end
 
 notifyRemote.OnClientEvent:Connect(function(kind, message)
-	if kind == "open" and type(message) == "table" then
+	if kind == "invite" and type(message) == "table" then
+		InvitePrompt.Show(ctx, message)
+		return
+	elseif kind == "open" and type(message) == "table" then
 		-- Indicación (tecla E) en una instalación del propio estadio
 		ctx.navigate(message.screen, message.params)
 		buildTopBar()

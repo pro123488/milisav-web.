@@ -96,6 +96,7 @@ function DefaultData.Create(player)
 		allTimeStats = {}, -- [idJugador] = { name, pos, origin, apps, goals, assists } (FASE 8)
 		halloween = { candy = 0, total = 0 }, -- evento «Doces ou Travessuras»
 		unlocks = {}, -- cosméticos gratuitos desbloqueados en eventos
+		network = { h2h = {}, points = 0, challenges = { day = -1, count = 0, targets = {} }, tournamentCooldown = 0 }, -- FASE 9
 		reputationHistory = {}, -- { season, cycle, value } (FASE 8)
 		universe = { claimedWeek = -1, week = -1, weekPoints = 0 }, -- competición semanal (FASE 8)
 		nextPlayerId = 0,
@@ -535,6 +536,34 @@ function DefaultData.Reconcile(data, player)
 	data.universe.claimedWeek = math.floor(tonumber(data.universe.claimedWeek) or -1)
 	data.universe.week = math.floor(tonumber(data.universe.week) or -1)
 	data.universe.weekPoints = math.max(0, math.floor(tonumber(data.universe.weekPoints) or 0))
+
+	-- Red de clubes (FASE 9)
+	if type(data.network) ~= "table" then
+		data.network = {}
+	end
+	local net = data.network
+	net.points = math.max(0, math.floor(tonumber(net.points) or 0))
+	net.tournamentCooldown = math.max(0, math.floor(tonumber(net.tournamentCooldown) or 0))
+	local h2h, h2hCount = {}, 0
+	for key, h in pairs(type(net.h2h) == "table" and net.h2h or {}) do
+		if type(key) == "string" and tonumber(key) and type(h) == "table" and type(h.name) == "string" and h2hCount < 60 then
+			h2hCount += 1
+			h2h[key] = {
+				name = h.name:sub(1, 40),
+				w = math.max(0, math.floor(tonumber(h.w) or 0)), d = math.max(0, math.floor(tonumber(h.d) or 0)),
+				l = math.max(0, math.floor(tonumber(h.l) or 0)), gf = math.max(0, math.floor(tonumber(h.gf) or 0)),
+				ga = math.max(0, math.floor(tonumber(h.ga) or 0)),
+				last = type(h.last) == "table" and h.last or nil,
+			}
+		end
+	end
+	net.h2h = h2h
+	local ch = type(net.challenges) == "table" and net.challenges or {}
+	net.challenges = {
+		day = math.floor(tonumber(ch.day) or -1),
+		count = math.max(0, math.floor(tonumber(ch.count) or 0)),
+		targets = type(ch.targets) == "table" and ch.targets or {},
+	}
 
 	-- Evento de Halloween y desbloqueos
 	if type(data.halloween) ~= "table" then

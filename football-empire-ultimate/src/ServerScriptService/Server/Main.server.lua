@@ -30,6 +30,9 @@ local UniverseService = require(Services.UniverseService)
 local HistoryService = require(Services.HistoryService)
 local InteractionService = require(Services.InteractionService)
 local HalloweenService = require(Services.HalloweenService)
+local NetworkService = require(Services.NetworkService)
+local TournamentService = require(Services.TournamentService)
+local CommunityService = require(Services.CommunityService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -84,6 +87,9 @@ local function buildState(player)
 		universe = UniverseService.BuildState(player, data), -- universo futbolístico (FASE 8)
 		clubHistory = HistoryService.BuildState(data), -- historia del club (FASE 8)
 		halloween = HalloweenService.BuildState(data), -- evento «Doces ou Travessuras»
+		network = NetworkService.BuildState(player, data), -- red de clubes (FASE 9)
+		tournament = TournamentService.BuildState(player),
+		community = CommunityService.BuildState(player),
 		unlocks = data.unlocks,
 		transfers = TransferService.BuildState(data, function(p) -- mercado, ofertas y presupuesto (FASE 6)
 			return SquadService.PublicPlayer(p, data.academy.scouts)
@@ -247,6 +253,39 @@ Actions.SetTransferBudget = function(player, payload)
 	return TransferService.SetBudgetShare(player, payload)
 end
 
+-- ===== Red de clubes (FASE 9) =====
+Actions.InviteMatch = function(player, payload)
+	return NetworkService.Invite(player, payload)
+end
+
+Actions.RespondInvite = function(player, payload)
+	local ok, msg = NetworkService.RespondInvite(player, payload)
+	return ok, msg, ok
+end
+
+Actions.ChallengeClub = function(player, payload)
+	local ok, msg, result = NetworkService.Challenge(player, payload)
+	return ok, msg, ok, result
+end
+
+Actions.CompareClub = function(player, payload)
+	local ok, msg, comparison = NetworkService.Compare(player, payload)
+	return ok, msg, false, comparison
+end
+
+Actions.RefreshFriends = function(player)
+	task.spawn(NetworkService.RefreshFriends, player)
+	return true, "Actualizando la lista de amigos…"
+end
+
+Actions.CreateTournament = function(player, payload)
+	return TournamentService.Create(player, payload)
+end
+
+Actions.JoinTournament = function(player)
+	return TournamentService.Join(player)
+end
+
 -- ===== Evento de Halloween =====
 Actions.HalloweenExchange = function(player, payload)
 	local ok, msg = HalloweenService.Exchange(player, payload)
@@ -378,6 +417,7 @@ local function onPlayerAdded(player)
 	TransferService.PlayerReady(player)
 	LeagueService.PlayerReady(player)
 	UniverseService.PlayerReady(player)
+	NetworkService.PlayerReady(player)
 	task.spawn(function()
 		local rewardMessage = UniverseService.ClaimWeekly(player)
 		if rewardMessage then
@@ -407,6 +447,7 @@ local function onPlayerRemoving(player)
 	busy[player] = nil
 	UniverseService.PlayerRemoving(player) -- último perfil público antes de liberar los datos
 	HalloweenService.PlayerRemoving(player)
+	NetworkService.PlayerRemoving(player)
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -479,6 +520,8 @@ EconomyService.Start()
 UniverseService.Start()
 InteractionService.OnFacility(HalloweenService.AttachDoor)
 InteractionService.Start()
+TournamentService.Start()
+CommunityService.Start()
 HalloweenService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
