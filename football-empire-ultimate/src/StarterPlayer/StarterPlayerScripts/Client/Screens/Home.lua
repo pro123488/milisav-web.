@@ -53,6 +53,14 @@ local function nextSteps(state, Format)
 	if freeSlots > 0 then
 		table.insert(steps, { text = string.format("Tienes %d hueco(s) de patrocinio libres: firma un contrato.", freeSlots), screen = "economy", params = { tab = "sponsors" } })
 	end
+	if state.missions then
+		for _, d in ipairs(state.missions.daily) do
+			if d.progress >= d.target and not d.claimed then
+				table.insert(steps, 1, { text = "Tienes misiones diarias completadas: ¡reclama la recompensa!", screen = "missions" })
+				break
+			end
+		end
+	end
 	if (state.club.satisfaction or 50) < 40 then
 		table.insert(steps, { text = "La afición está descontenta: revisa precios en Economía › Aficionados.", screen = "economy", params = { tab = "fans" } })
 	end

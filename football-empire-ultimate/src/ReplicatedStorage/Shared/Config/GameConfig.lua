@@ -7,12 +7,12 @@
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.9.0-fase9"
+GameConfig.VERSION = "0.10.0-fase10"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
 GameConfig.DATASTORE_NAME = "FEU_Clubs_v1"
-GameConfig.DATA_VERSION = 9 -- v9: red de clubes (enfrentamientos, retos, puntos de red)
+GameConfig.DATA_VERSION = 10 -- v10: misiones y logros
 GameConfig.AUTOSAVE_SECONDS = 120
 GameConfig.SESSION_LOCK_SECONDS = 600 -- un bloqueo más antiguo se considera abandonado
 GameConfig.MAX_TRANSACTIONS = 60

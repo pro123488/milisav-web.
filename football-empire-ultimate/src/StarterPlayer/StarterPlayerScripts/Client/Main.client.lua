@@ -40,6 +40,8 @@ local Screens = {
 	universe = require(ScreensFolder.Universe),
 	history = require(ScreensFolder.History),
 	network = require(ScreensFolder.Network),
+	missions = require(ScreensFolder.Missions),
+	achievements = require(ScreensFolder.Achievements),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)
 local InvitePrompt = require(UI:WaitForChild("InvitePrompt"))

@@ -102,7 +102,7 @@ function DefaultData.Create(player)
 		nextPlayerId = 0,
 		trophies = {},
 		records = {},
-		missions = {},
+		missions = { day = -1, daily = {}, counters = {}, chainLevels = {}, achievements = {} }, -- FASE 10
 		history = {}, -- eventos reales del club: { t, kind, ... } (base de la HISTORIA DEL CLUB)
 	}
 end
@@ -536,6 +536,32 @@ function DefaultData.Reconcile(data, player)
 	data.universe.claimedWeek = math.floor(tonumber(data.universe.claimedWeek) or -1)
 	data.universe.week = math.floor(tonumber(data.universe.week) or -1)
 	data.universe.weekPoints = math.max(0, math.floor(tonumber(data.universe.weekPoints) or 0))
+
+	-- Misiones y logros (FASE 10)
+	if type(data.missions) ~= "table" then
+		data.missions = {}
+	end
+	local missions = data.missions
+	missions.day = math.floor(tonumber(missions.day) or -1)
+	local daily = {}
+	for _, d in ipairs(type(missions.daily) == "table" and missions.daily or {}) do
+		if type(d) == "table" and type(d.id) == "string" and finiteNumber(d.target) and finiteNumber(d.progress) and #daily < 5 then
+			table.insert(daily, { id = d.id, target = math.max(1, math.floor(d.target)), progress = math.max(0, math.floor(d.progress)), claimed = d.claimed == true })
+		end
+	end
+	missions.daily = daily
+	local function numberMap(map, maxValue)
+		local clean = {}
+		for k, v in pairs(type(map) == "table" and map or {}) do
+			if type(k) == "string" and finiteNumber(v) then
+				clean[k] = math.clamp(math.floor(v), 0, maxValue)
+			end
+		end
+		return clean
+	end
+	missions.counters = numberMap(missions.counters, 1e9)
+	missions.chainLevels = numberMap(missions.chainLevels, 10)
+	missions.achievements = numberMap(missions.achievements, 2 ^ 40)
 
 	-- Red de clubes (FASE 9)
 	if type(data.network) ~= "table" then

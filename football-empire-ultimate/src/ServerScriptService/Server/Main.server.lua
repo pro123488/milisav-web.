@@ -33,6 +33,7 @@ local HalloweenService = require(Services.HalloweenService)
 local NetworkService = require(Services.NetworkService)
 local TournamentService = require(Services.TournamentService)
 local CommunityService = require(Services.CommunityService)
+local MissionService = require(Services.MissionService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -90,6 +91,7 @@ local function buildState(player)
 		network = NetworkService.BuildState(player, data), -- red de clubes (FASE 9)
 		tournament = TournamentService.BuildState(player),
 		community = CommunityService.BuildState(player),
+		missions = MissionService.BuildState(data), -- misiones y logros (FASE 10)
 		unlocks = data.unlocks,
 		transfers = TransferService.BuildState(data, function(p) -- mercado, ofertas y presupuesto (FASE 6)
 			return SquadService.PublicPlayer(p, data.academy.scouts)
@@ -253,6 +255,27 @@ Actions.SetTransferBudget = function(player, payload)
 	return TransferService.SetBudgetShare(player, payload)
 end
 
+-- ===== Misiones y logros (FASE 10) =====
+Actions.ClaimDailyMission = function(player, payload)
+	return MissionService.ClaimDaily(player, payload)
+end
+
+Actions.ClaimChainMission = function(player, payload)
+	return MissionService.ClaimChain(player, payload)
+end
+
+-- Acciones que cuentan para las misiones cuando salen bien
+local ACTION_METRICS = {
+	UpgradeFacility = "build",
+	PlaceDecoration = "decorate",
+	AcceptSponsor = "sponsor",
+	PromoteYouth = "promote",
+	BuyPlayer = "sign",
+	UpgradeStage = "stage",
+	PlayFriendly = "friendly",
+	ChallengeClub = "challenge",
+}
+
 -- ===== Red de clubes (FASE 9) =====
 Actions.InviteMatch = function(player, payload)
 	return NetworkService.Invite(player, payload)
@@ -392,6 +415,12 @@ actionRemote.OnServerInvoke = function(player, actionName, payload)
 	if rerender then
 		PlotService.RequestRender(player)
 	end
+	if ok == true and ACTION_METRICS[actionName] then
+		MissionService.Track(player, ACTION_METRICS[actionName], 1)
+	end
+	if ok == true then
+		MissionService.EvaluateAchievements(player)
+	end
 	pushState(player)
 	return { ok = ok == true, message = message, data = extra }
 end
@@ -502,6 +531,8 @@ EconomyService.OnCycle(function(player, cycle)
 		notifyRemote:FireClient(player, "info", message)
 	end
 	HistoryService.AfterCycle(player)
+	MissionService.Track(player, "cycles", 1)
+	MissionService.EvaluateAchievements(player)
 	PlotService.UpdateCrowd(player, cycle.occupancy)
 	pushState(player)
 	local data = DataService.Get(player)
@@ -522,6 +553,16 @@ InteractionService.OnFacility(HalloweenService.AttachDoor)
 InteractionService.Start()
 TournamentService.Start()
 CommunityService.Start()
+MatchService.OnUserMatch(function(player, _, goalsFor, goalsAgainst)
+	MissionService.Track(player, "matches", 1)
+	MissionService.Track(player, "goals", goalsFor)
+	if goalsFor > goalsAgainst then
+		MissionService.Track(player, "wins", 1)
+	end
+end)
+HalloweenService.OnCandy(function(player, amount)
+	MissionService.Track(player, "candy", amount)
+end)
 HalloweenService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)

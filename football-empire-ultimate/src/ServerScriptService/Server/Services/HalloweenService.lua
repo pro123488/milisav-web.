@@ -23,6 +23,18 @@ local StadiumService = require(script.Parent.StadiumService)
 
 local HalloweenService = {}
 
+local candyCallbacks = {}
+-- Avisa de cada caramelo conseguido (misiones, etc.)
+function HalloweenService.OnCandy(callback)
+	table.insert(candyCallbacks, callback)
+end
+
+local function fireCandy(player, amount)
+	for _, callback in ipairs(candyCallbacks) do
+		task.spawn(callback, player, amount)
+	end
+end
+
 local notifyRemote = Remotes.Get("Notify")
 local rng = Random.new()
 local doorCooldowns = {} -- [player] = { [clave de puerta] = os.clock() }
@@ -63,6 +75,7 @@ local function collect(player, candy, plot)
 	data.halloween.candy += value
 	data.halloween.total += value
 	notifyRemote:FireClient(player, "candy", { candy = data.halloween.candy, gained = value })
+	fireCandy(player, value)
 	task.delay(HalloweenConfig.CANDY_RESPAWN_SECONDS, function()
 		if plotFolders[plot] and plotFolders[plot].Parent then
 			spawnCandy(plot)
@@ -195,6 +208,7 @@ local function knock(player, plot, facilityId)
 		data.halloween.candy += amount
 		data.halloween.total += amount
 		notifyRemote:FireClient(player, "candy", { candy = data.halloween.candy, gained = amount, treat = true })
+		fireCandy(player, amount)
 	else
 		applyTrick(player, HalloweenConfig.Tricks[rng:NextInteger(1, #HalloweenConfig.Tricks)])
 	end
