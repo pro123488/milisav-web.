@@ -1,0 +1,183 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;padding:0;background:#000}
+svg{display:block}
+</style></head><body>
+<script>
+const P = new URLSearchParams(location.search);
+const W = +P.get('w') || 1920, H = +P.get('h') || 1080;
+const HALLOWEEN = P.get('halloween') === '1';
+const ICON = P.get('icon') === '1';
+
+function ball(cx, cy, r, rot) {
+  // pentágono central + 5 pentágonos parciales recortados por el círculo
+  const pent = (x, y, s, a0) => {
+    let pts = [];
+    for (let i = 0; i < 5; i++) {
+      const a = a0 + i * 2 * Math.PI / 5 - Math.PI / 2;
+      pts.push((x + s * Math.cos(a)).toFixed(1) + ',' + (y + s * Math.sin(a)).toFixed(1));
+    }
+    return `<polygon points="${pts.join(' ')}" fill="#15171c"/>`;
+  };
+  const id = 'b' + Math.round(cx) + Math.round(cy);
+  let inner = pent(0, 0, r * 0.32, 0);
+  let seams = '';
+  for (let i = 0; i < 5; i++) {
+    const a = i * 2 * Math.PI / 5 - Math.PI / 2;
+    const vx = r * 0.32 * Math.cos(a), vy = r * 0.32 * Math.sin(a);
+    const ox = r * 0.88 * Math.cos(a + Math.PI / 5), oy = r * 0.88 * Math.sin(a + Math.PI / 5);
+    inner += pent(ox * 1.08, oy * 1.08, r * 0.3, Math.PI / 5 + i * 2 * Math.PI / 5 + Math.PI);
+    const ex = r * 0.62 * Math.cos(a), ey = r * 0.62 * Math.sin(a);
+    seams += `<line x1="${vx}" y1="${vy}" x2="${ex}" y2="${ey}" stroke="#2a2d35" stroke-width="${r*0.03}"/>`;
+  }
+  return `<g transform="translate(${cx},${cy}) rotate(${rot})">
+    <defs><clipPath id="${id}"><circle r="${r}"/></clipPath>
+    <radialGradient id="${id}g" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ffffff"/><stop offset="0.65" stop-color="#e9edf3"/><stop offset="1" stop-color="#9aa4b4"/></radialGradient></defs>
+    <circle r="${r}" fill="url(#${id}g)"/>
+    <g clip-path="url(#${id})">${inner}</g>
+    <circle r="${r}" fill="none" stroke="#0b0d12" stroke-width="${r*0.04}"/>
+    <ellipse cx="${-r*0.35}" cy="${-r*0.42}" rx="${r*0.28}" ry="${r*0.14}" fill="#fff" opacity="0.55" transform="rotate(-30 ${-r*0.35} ${-r*0.42})"/>
+  </g>`;
+}
+
+function pumpkin(x, y, s) {
+  return `<g transform="translate(${x},${y}) scale(${s})">
+    <ellipse cx="0" cy="8" rx="78" ry="14" fill="#000" opacity="0.35"/>
+    <ellipse cx="-38" cy="-40" rx="40" ry="48" fill="#d9600f"/>
+    <ellipse cx="38" cy="-40" rx="40" ry="48" fill="#d9600f"/>
+    <ellipse cx="0" cy="-42" rx="44" ry="52" fill="#f47a1a"/>
+    <ellipse cx="-20" cy="-44" rx="18" ry="48" fill="#ff8f2e" opacity="0.6"/>
+    <rect x="-7" y="-108" width="14" height="24" rx="4" fill="#4b6b1e" transform="rotate(8)"/>
+    <polygon points="-36,-58 -16,-58 -26,-76" fill="#ffd34d"/>
+    <polygon points="16,-58 36,-58 26,-76" fill="#ffd34d"/>
+    <path d="M-42,-30 Q0,0 42,-30 L32,-22 L22,-30 L10,-20 L0,-30 L-10,-20 L-22,-30 L-32,-22 Z" fill="#ffd34d"/>
+    <ellipse cx="0" cy="-40" rx="70" ry="60" fill="#ffb347" opacity="0.08"/>
+  </g>`;
+}
+
+function scene() {
+  const cx = W / 2;
+  const sky = HALLOWEEN ? ['#1a0b2e', '#3b1658', '#6b2a5c'] : ['#06122b', '#0d2a5c', '#1b4f8f'];
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky[0]}"/><stop offset="0.55" stop-color="${sky[1]}"/><stop offset="1" stop-color="${sky[2]}"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2"/><stop offset="0.45" stop-color="#ffd23f"/><stop offset="1" stop-color="#e08a00"/></linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${HALLOWEEN ? '#ff9a3c' : '#ff4d4d'}"/><stop offset="1" stop-color="${HALLOWEEN ? '#c2410c' : '#b3121b'}"/></linearGradient>
+    <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2f9e3f"/><stop offset="1" stop-color="#1f7a2e"/></linearGradient>
+    <linearGradient id="stand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2740"/><stop offset="1" stop-color="#2b3a5e"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff9dc" stop-opacity="1"/><stop offset="0.3" stop-color="#fff2a8" stop-opacity="0.6"/><stop offset="1" stop-color="#fff2a8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c8" stop-opacity="0.55"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></linearGradient>
+    <radialGradient id="vign" cx="50%" cy="50%" r="75%"><stop offset="0.6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.6"/></radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="${H*0.012}" stdDeviation="${H*0.008}" flood-color="#000" flood-opacity="0.75"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="${H*0.01}"/></filter>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#sky)"/>`;
+  // estrellas
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 140; i++) s += `<circle cx="${rnd()*W}" cy="${rnd()*H*0.45}" r="${(rnd()*1.6+0.4)*H/1080}" fill="#fff" opacity="${0.3+rnd()*0.7}"/>`;
+  // luna
+  const mx = W * 0.83, my = H * 0.15, mr = H * 0.075;
+  s += `<circle cx="${mx}" cy="${my}" r="${mr*2.2}" fill="${HALLOWEEN ? '#ffb347' : '#cfe3ff'}" opacity="0.12" filter="url(#soft)"/>
+        <circle cx="${mx}" cy="${my}" r="${mr}" fill="${HALLOWEEN ? '#ffcf7a' : '#eef4ff'}"/>`;
+  if (HALLOWEEN) {
+    // murciélagos
+    const bat = (x, y, k) => `<path transform="translate(${x},${y}) scale(${k})" d="M0,0 Q-14,-14 -34,-8 Q-26,-2 -24,8 Q-14,2 -8,8 Q-4,2 0,6 Q4,2 8,8 Q14,2 24,8 Q26,-2 34,-8 Q14,-14 0,0 Z" fill="#0d0614"/>`;
+    s += bat(mx - mr*0.3, my + mr*0.1, H/1080*1.4) + bat(W*0.7, H*0.1, H/1080) + bat(W*0.2, H*0.12, H/1080*1.2) + bat(W*0.28, H*0.2, H/1080*0.8);
+  }
+  // estadio: cuenco de gradas
+  const horizon = H * 0.52;
+  s += `<path d="M0,${horizon+H*0.06} Q${cx},${horizon-H*0.2} ${W},${horizon+H*0.06} L${W},${H} L0,${H} Z" fill="url(#stand)"/>`;
+  // filas de público (puntos de colores)
+  for (let row = 0; row < 9; row++) {
+    const t = row / 9;
+    const yEdge = horizon + H * 0.06 + t * H * 0.08, yMid = horizon - H * 0.2 * (1 - t) * 0.5 + t * H * 0.11;
+    s += `<path d="M0,${yEdge} Q${cx},${yMid - H*0.1*(1-t)} ${W},${yEdge}" fill="none" stroke="${row%2? '#3b4f7c':'#33456d'}" stroke-width="${H*0.012}"/>`;
+  }
+  for (let i = 0; i < 900; i++) {
+    const x = rnd() * W; const u = (x - cx) / cx; const top = horizon - H*0.07 + u*u*H*0.13;
+    const y = top + rnd() * H * 0.12;
+    const cols = HALLOWEEN ? ['#ff8a1f','#a855f7','#ffd23f','#ffffff','#22c55e'] : ['#ffd23f','#ffffff','#ef4444','#3b82f6','#22c55e'];
+    s += `<circle cx="${x}" cy="${y}" r="${H*0.0035}" fill="${cols[i%5]}" opacity="0.85"/>`;
+  }
+  // focos
+  const towers = [W*0.08, W*0.3, W*0.7, W*0.92];
+  towers.forEach((tx, k) => {
+    const ty = H * (k===0||k===3 ? 0.2 : 0.14);
+    s += `<polygon points="${tx},${ty} ${tx-W*0.12},${H*0.95} ${tx+W*0.12},${H*0.95}" fill="url(#beam)" opacity="0.35"/>
+      <rect x="${tx-H*0.004}" y="${ty}" width="${H*0.008}" height="${horizon-ty+H*0.05}" fill="#0a0f1d"/>
+      <rect x="${tx-H*0.04}" y="${ty-H*0.03}" width="${H*0.08}" height="${H*0.035}" rx="${H*0.005}" fill="#0a0f1d"/>`;
+    for (let j = 0; j < 4; j++) s += `<circle cx="${tx-H*0.03+j*H*0.02}" cy="${ty-H*0.013}" r="${H*0.007}" fill="#fffbe6"/>`;
+    s += `<circle cx="${tx}" cy="${ty-H*0.013}" r="${H*0.09}" fill="url(#glow)"/>`;
+  });
+  // césped en perspectiva
+  const top = horizon + H*0.03, bot = H*1.02, topHalf = W*0.3, botHalf = W*0.75;
+  s += `<polygon points="${cx-topHalf},${top} ${cx+topHalf},${top} ${cx+botHalf},${bot} ${cx-botHalf},${bot}" fill="url(#pitch)"/>`;
+  for (let i = 0; i < 8; i += 2) {
+    const y1 = top + (bot-top)*Math.pow(i/8,1.4), y2 = top + (bot-top)*Math.pow((i+1)/8,1.4);
+    const h1 = topHalf + (botHalf-topHalf)*(y1-top)/(bot-top), h2 = topHalf + (botHalf-topHalf)*(y2-top)/(bot-top);
+    s += `<polygon points="${cx-h1},${y1} ${cx+h1},${y1} ${cx+h2},${y2} ${cx-h2},${y2}" fill="#3cb24c" opacity="0.45"/>`;
+  }
+  const lw = H*0.005;
+  s += `<polygon points="${cx-topHalf*0.92},${top+H*0.01} ${cx+topHalf*0.92},${top+H*0.01} ${cx+botHalf*0.92},${bot} ${cx-botHalf*0.92},${bot}" fill="none" stroke="#e8ffe8" stroke-width="${lw}" opacity="0.85"/>`;
+  const midY = top + (bot-top)*0.42, midH = topHalf + (botHalf-topHalf)*0.42;
+  s += `<line x1="${cx-midH*0.92}" y1="${midY}" x2="${cx+midH*0.92}" y2="${midY}" stroke="#e8ffe8" stroke-width="${lw}" opacity="0.85"/>
+        <ellipse cx="${cx}" cy="${midY}" rx="${W*0.11}" ry="${H*0.05}" fill="none" stroke="#e8ffe8" stroke-width="${lw}" opacity="0.85"/>`;
+  // portería del fondo
+  s += `<rect x="${cx-W*0.05}" y="${top-H*0.045}" width="${W*0.1}" height="${H*0.055}" fill="none" stroke="#fff" stroke-width="${H*0.006}"/>`;
+  s += `<rect width="${W}" height="${H}" fill="url(#vign)"/>`;
+  if (HALLOWEEN) s += pumpkin(W*0.12, H*0.97, H/1080*1.6) + pumpkin(W*0.25, H*1.0, H/1080*1.0) + pumpkin(W*0.88, H*0.99, H/1080*1.2);
+  // balón protagonista
+  s += `<ellipse cx="${W*0.75}" cy="${H*0.975}" rx="${H*0.14}" ry="${H*0.028}" fill="#000" opacity="0.45"/>`;
+  for (let k = 1; k <= 3; k++) s += `<line x1="${W*0.75 - H*0.2 - k*H*0.07}" y1="${H*0.8 + k*H*0.03}" x2="${W*0.75 - H*0.18}" y2="${H*0.82+k*H*0.025}" stroke="#fff" stroke-width="${H*0.012/k}" stroke-linecap="round" opacity="${0.5/k}"/>`;
+  s += ball(W*0.75, H*0.82, H*0.15, -18);
+  // título
+  const t1 = H * 0.165;
+  s += `<g filter="url(#shadow)" font-family="Inter Display, Inter, sans-serif" font-weight="900" text-anchor="middle">
+    <text x="${cx}" y="${H*0.24}" font-size="${t1}" letter-spacing="${H*0.004}" fill="url(#gold)" stroke="#3a1d00" stroke-width="${H*0.012}" paint-order="stroke">FOOTBALL</text>
+    <text x="${cx}" y="${H*0.24 + t1*0.95}" font-size="${t1}" letter-spacing="${H*0.004}" fill="url(#gold)" stroke="#3a1d00" stroke-width="${H*0.012}" paint-order="stroke">EMPIRE</text>
+  </g>`;
+  const by = H*0.24 + t1*1.12, bw = W*0.36, bh = H*0.1;
+  s += `<g filter="url(#shadow)">
+    <polygon points="${cx-bw/2-bh*0.4},${by} ${cx+bw/2+bh*0.4},${by} ${cx+bw/2},${by+bh} ${cx-bw/2},${by+bh}" fill="url(#red)" stroke="#fff" stroke-width="${H*0.005}"/>
+    <text x="${cx}" y="${by+bh*0.76}" text-anchor="middle" font-family="Inter Display, Inter, sans-serif" font-weight="900" font-size="${bh*0.78}" letter-spacing="${H*0.02}" fill="#fff">ULTIMATE</text>
+  </g>`;
+  // etiquetas
+  const tags = HALLOWEEN ? ['DULCE O TRUCO', 'CONSTRUYE', 'FICHA', 'GANA LIGAS'] : ['CONSTRUYE TU ESTADIO', 'FICHA ESTRELLAS', 'GANA LIGAS'];
+  const ty = by + bh + H*0.05, th = H*0.055, fs = th*0.5;
+  const widths = tags.map(t => t.length * fs * 0.68 + th);
+  const gap = H*0.02; let x = cx - (widths.reduce((a,b)=>a+b,0) + gap*(tags.length-1))/2;
+  tags.forEach((t, i) => {
+    const hl = HALLOWEEN && i === 0;
+    s += `<g filter="url(#shadow)"><rect x="${x}" y="${ty}" width="${widths[i]}" height="${th}" rx="${th/2}" fill="${hl ? '#f97316' : '#0b1430'}" fill-opacity="${hl?1:0.82}" stroke="${hl ? '#ffd23f' : '#ffd23f'}" stroke-width="${H*0.003}"/>
+      <text x="${x+widths[i]/2}" y="${ty+th*0.68}" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="${fs}" fill="#fff">${t}</text></g>`;
+    x += widths[i] + gap;
+  });
+  return s + '</svg>';
+}
+
+function icon() {
+  const S = W;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="${HALLOWEEN?'#6b2a8c':'#1f5fbf'}"/><stop offset="1" stop-color="${HALLOWEEN?'#1a0b2e':'#071633'}"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2"/><stop offset="0.45" stop-color="#ffd23f"/><stop offset="1" stop-color="#e08a00"/></linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4d4d"/><stop offset="1" stop-color="#b3121b"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity="0.7"/></filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M0,380 Q256,300 512,380 L512,512 L0,512 Z" fill="#23903a"/>
+  <path d="M0,420 Q256,350 512,420" fill="none" stroke="#e8ffe8" stroke-width="5" opacity="0.7"/>
+  <g filter="url(#shadow)">
+    <path d="M256,40 L420,96 L420,250 Q420,370 256,440 Q92,370 92,250 L92,96 Z" fill="#0b1430" stroke="url(#gold)" stroke-width="16"/>
+    <polygon points="156,120 196,160 256,104 316,160 356,120 340,200 172,200" fill="url(#gold)" stroke="#3a1d00" stroke-width="5"/>
+  </g>
+  ${ball(256, 300, 92, -18)}
+  <g filter="url(#shadow)">
+    <polygon points="60,410 452,410 432,480 80,480" fill="url(#red)" stroke="#fff" stroke-width="5"/>
+    <text x="256" y="464" text-anchor="middle" font-family="Inter Display, Inter, sans-serif" font-weight="900" font-size="54" letter-spacing="2" fill="#fff">EMPIRE</text>
+  </g>
+  ${HALLOWEEN ? pumpkin(438, 392, 0.55) : ''}
+  </svg>`;
+  return s;
+}
+document.body.innerHTML = ICON ? icon() : scene();
+</script></body></html>
