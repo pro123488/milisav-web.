@@ -28,6 +28,8 @@ local TransferService = require(Services.TransferService)
 local LeagueService = require(Services.LeagueService)
 local UniverseService = require(Services.UniverseService)
 local HistoryService = require(Services.HistoryService)
+local InteractionService = require(Services.InteractionService)
+local HalloweenService = require(Services.HalloweenService)
 local PlotService = require(Services.PlotService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -81,6 +83,8 @@ local function buildState(player)
 		league = LeagueService.BuildState(data, ClubService.DisplayName(data), ClubService.ShortName(data)), -- ligas, copa y carrera (FASE 7)
 		universe = UniverseService.BuildState(player, data), -- universo futbolístico (FASE 8)
 		clubHistory = HistoryService.BuildState(data), -- historia del club (FASE 8)
+		halloween = HalloweenService.BuildState(data), -- evento «Doces ou Travessuras»
+		unlocks = data.unlocks,
 		transfers = TransferService.BuildState(data, function(p) -- mercado, ofertas y presupuesto (FASE 6)
 			return SquadService.PublicPlayer(p, data.academy.scouts)
 		end),
@@ -243,6 +247,12 @@ Actions.SetTransferBudget = function(player, payload)
 	return TransferService.SetBudgetShare(player, payload)
 end
 
+-- ===== Evento de Halloween =====
+Actions.HalloweenExchange = function(player, payload)
+	local ok, msg = HalloweenService.Exchange(player, payload)
+	return ok, msg, ok
+end
+
 -- ===== Universo (FASE 8) =====
 Actions.VisitClub = function(player, payload)
 	return UniverseService.Visit(player, payload, PlotService)
@@ -396,6 +406,7 @@ local function onPlayerRemoving(player)
 	limiter:Remove(player)
 	busy[player] = nil
 	UniverseService.PlayerRemoving(player) -- último perfil público antes de liberar los datos
+	HalloweenService.PlayerRemoving(player)
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -466,6 +477,9 @@ DataService.Start()
 GamePassService.Start()
 EconomyService.Start()
 UniverseService.Start()
+InteractionService.OnFacility(HalloweenService.AttachDoor)
+InteractionService.Start()
+HalloweenService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)

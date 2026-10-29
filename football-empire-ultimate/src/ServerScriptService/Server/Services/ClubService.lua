@@ -86,6 +86,13 @@ local function catalogItem(slot, itemId)
 end
 
 function ClubService.CanUse(player, item)
+	if item.requiredUnlock then
+		-- Desbloqueos gratuitos de eventos (guardados en los datos del club)
+		local data = DataService.Get(player)
+		if not (data and data.unlocks[item.requiredUnlock]) then
+			return false
+		end
+	end
 	return item.requiredPass == nil or GamePassService.Owns(player, item.requiredPass)
 end
 
@@ -99,6 +106,9 @@ function ClubService.SetAppearance(player, slot, itemId)
 		return false, "Esa opción no existe."
 	end
 	if not ClubService.CanUse(player, item) then
+		if item.requiredUnlock then
+			return false, string.format("«%s» se consigue canjeando caramelos en el evento de Halloween.", item.name)
+		end
 		local pass = GamePassConfig.Get(item.requiredPass)
 		return false, string.format("Necesitas el pase %s para usar «%s».", pass and pass.name or "?", item.name)
 	end

@@ -94,6 +94,30 @@ function Home.Render(container, ctx)
 		}))
 	end
 
+	-- Evento «Doces ou Travessuras»
+	local hw = state.halloween
+	if hw and hw.active then
+		local card = C.Card({ BackgroundColor3 = Color3.fromRGB(45, 20, 55) }, {
+			C.Title("🎃 Evento: " .. hw.name, 22),
+			C.Label("Camina por tu estadio (y por los de otros clubes) y toca los <b>caramelos</b> brillantes del césped, la plaza y los carriles. "
+				.. "En las puertas de las instalaciones pulsa <b>F</b>: ¿truco o trato? A veces caen caramelos… y a veces un buen susto. "
+				.. "Además, en el campo hay un <b>balón</b>: ¡chuta y marca gol!", { TextSize = 14 }),
+			C.Label(string.format("🍬 Caramelos: <b>%d</b> · recogidos en total: %d", hw.candy, hw.total), { TextSize = 16 }),
+		})
+		for _, reward in ipairs(hw.rewards) do
+			local button = C.Button(reward.owned and "✔ Conseguido" or string.format("Canjear · %d 🍬", reward.cost), "primary", function()
+				ctx.act("HalloweenExchange", { reward = reward.id })
+			end, { Size = UDim2.new(0, 150, 0, 32), AutomaticSize = Enum.AutomaticSize.None, TextSize = 13 })
+			C.SetEnabled(button, not reward.owned and hw.candy >= reward.cost)
+			C.Row({
+				C.Label(string.format("%s %s%s", reward.icon, reward.name, reward.money and (" (" .. Format.Money(reward.money) .. ")") or ""),
+					{ Size = UDim2.new(1, -170, 0, 0), TextSize = 14 }),
+				button,
+			}).Parent = card
+		end
+		add(card)
+	end
+
 	-- KPIs
 	local grid = C.Grid(200, 78, 10)
 	add(grid)

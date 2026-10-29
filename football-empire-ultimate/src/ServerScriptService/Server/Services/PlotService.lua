@@ -21,6 +21,8 @@ local DataService = require(script.Parent.DataService)
 local ClubService = require(script.Parent.ClubService)
 local BuildService = require(script.Parent.BuildService)
 local StadiumRenderer = require(script.Parent.StadiumRenderer)
+local InteractionService = require(script.Parent.InteractionService)
+local HalloweenService = require(script.Parent.HalloweenService)
 
 local PlotService = {}
 
@@ -141,6 +143,8 @@ function PlotService.Assign(player)
 			plot.model:SetAttribute("OwnerName", player.DisplayName)
 			playerPlot[player] = plot
 			setFreeSign(plot)
+			InteractionService.EnsureBall(plot, player) -- balón jugable en el campo
+			HalloweenService.SetupPlot(plot) -- caramelos y calabazas (solo durante el evento)
 			return plot
 		end
 	end
@@ -160,6 +164,8 @@ function PlotService.Release(player)
 	plot.stadium:ClearAllChildren()
 	plot.crowd:ClearAllChildren()
 	plot.crowdKey = nil
+	InteractionService.RemoveBall(plot)
+	HalloweenService.ClearPlot(plot)
 	setFreeSign(plot)
 end
 
@@ -282,7 +288,9 @@ function PlotService.Render(player)
 		return
 	end
 	local ok, err = pcall(function()
-		StadiumRenderer.Render(plot.stadium, plot.origin, PlotService.BuildRenderInfo(player, data))
+		local info = PlotService.BuildRenderInfo(player, data)
+		StadiumRenderer.Render(plot.stadium, plot.origin, info)
+		InteractionService.Attach(plot, player, info.clubName) -- indicaciones E/F en las instalaciones
 	end)
 	if not ok then
 		warn("[PlotService] Error construyendo el estadio de ", player.Name, ": ", err)

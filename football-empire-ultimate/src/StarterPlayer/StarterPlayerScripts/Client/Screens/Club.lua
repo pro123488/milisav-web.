@@ -21,7 +21,7 @@ local function appearanceSection(ctx, title, slot, items, makeVisual)
 	for i, item in ipairs(items) do
 		local locked = Premium.IsLocked(state, item)
 		local selected = state.club.appearance[slot] == item.id
-		local tile = C.OptionTile(item.name, item.requiredPass and Premium.PassName(item.requiredPass) or "Gratis", {
+		local tile = C.OptionTile(item.name, item.requiredPass and Premium.PassName(item.requiredPass) or (item.requiredUnlock and "🎃 Evento" or "Gratis"), {
 			selected = selected,
 			locked = locked,
 			lockText = Premium.LockText(item),

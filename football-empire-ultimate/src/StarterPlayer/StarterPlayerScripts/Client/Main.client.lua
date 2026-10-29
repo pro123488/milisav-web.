@@ -63,7 +63,7 @@ local ctx = {
 }
 
 local gui, panel, content, navFrame, topBar, uiScale, countdownLabel
-local panelOpen = true
+local panelOpen = false -- se empieza jugando en el estadio; el menú se abre con M o el botón MENÚ
 
 local function notify(kind, message)
 	if ctx.state and ctx.state.settings and ctx.state.settings.notifications == false and kind == "success" then
@@ -188,6 +188,9 @@ buildTopBar = function()
 			add(stat("😊 " .. tostring(math.floor((state.club.satisfaction or 0) + 0.5))))
 		end
 		countdownLabel = add(stat("⏱️ --:--", Theme.TextDim))
+		if state.halloween and state.halloween.active then
+			add(stat("🍬 " .. tostring(state.halloween.candy), Color3.fromRGB(255, 150, 40)))
+		end
 		if not state.saveEnabled then
 			add(C.Badge("⚠️ Sin guardado", Theme.Warning, Color3.fromRGB(40, 20, 0)))
 		end
@@ -384,6 +387,11 @@ renderCurrent(false)
 
 stateRemote.OnClientEvent:Connect(function(state)
 	local firstState = ctx.state == nil
+	if firstState then
+		task.delay(2, function()
+			Notifier.Show("info", "🏟️ ¡Bienvenido a tu estadio! Camina, chuta el balón y acércate a los edificios (tecla E). Pulsa M o MENÚ para gestionar tu club.", 8)
+		end)
+	end
 	local layoutChanged = ctx.state == nil
 		or ctx.state.settings.compactMenu ~= state.settings.compactMenu
 		or ctx.state.settings.uiScale ~= state.settings.uiScale
@@ -407,7 +415,50 @@ shopRemote.OnClientEvent:Connect(function(shop)
 	end
 end)
 
+-- Efectos visuales de los «trucos» del evento de Halloween (solo en este cliente)
+local function playTrick(info)
+	if info.id == "scare" then
+		local scare = C.New("TextLabel", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.2,
+			Text = "👻",
+			TextScaled = true,
+			ZIndex = 100,
+		}, gui)
+		task.delay(1.2, function()
+			scare:Destroy()
+		end)
+	elseif info.id == "fog" then
+		local Lighting = game:GetService("Lighting")
+		local fogEnd, fogColor = Lighting.FogEnd, Lighting.FogColor
+		Lighting.FogColor = Color3.fromRGB(60, 50, 80)
+		Lighting.FogEnd = 45
+		task.delay(info.seconds or 10, function()
+			Lighting.FogEnd = fogEnd
+			Lighting.FogColor = fogColor
+		end)
+	end
+end
+
 notifyRemote.OnClientEvent:Connect(function(kind, message)
+	if kind == "open" and type(message) == "table" then
+		-- Indicación (tecla E) en una instalación del propio estadio
+		ctx.navigate(message.screen, message.params)
+		buildTopBar()
+		return
+	elseif kind == "candy" and type(message) == "table" then
+		if ctx.state and ctx.state.halloween then
+			ctx.state.halloween.candy = message.candy
+			buildTopBar()
+		end
+		Notifier.Show("success", string.format("%s +%d 🍬 (tienes %d)", message.treat and "🎃 ¡Trato!" or "🍬", message.gained, message.candy), 2)
+		return
+	elseif kind == "trick" and type(message) == "table" then
+		Notifier.Show("warning", message.text or "¡Truco!")
+		playTrick(message)
+		return
+	end
 	if kind == "match" and type(message) == "table" then
 		-- Resumen de un partido de liga o copa: se guarda para verlo en Partidos
 		ctx.lastMatch = message

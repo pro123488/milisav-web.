@@ -323,7 +323,8 @@ local function buildScoreboard(folder, origin, level, info)
 	end)
 end
 
-local function buildBuilding(folder, origin, pos, level, design, primary, secondary, title)
+-- facilityId: se guarda como atributo "Facility" para que InteractionService le añada interacción.
+local function buildBuilding(folder, origin, pos, level, design, primary, secondary, title, facilityId)
 	if level < 1 then
 		return
 	end
@@ -339,6 +340,9 @@ local function buildBuilding(folder, origin, pos, level, design, primary, second
 	part(folder, origin, CFrame.new(pos.X, size.Y + 0.5, pos.Z), Vector3.new(size.X + 1, 1, size.Z + 1),
 		isNeon and secondary or primary, isNeon and Enum.Material.Neon or Enum.Material.SmoothPlastic)
 	label(body, string.format("%s · Nv %d", title, level), size.Y / 2 + 3)
+	if facilityId then
+		body:SetAttribute("Facility", facilityId)
+	end
 	return body, size
 end
 
@@ -365,14 +369,14 @@ local function buildLaneFacilities(folder, origin, facilities, design, info)
 		local def = FacilityConfig.Get(id)
 		return def.icon .. " " .. def.name
 	end
-	buildBuilding(folder, origin, F.lockers, facilities.lockers or 0, design, info.primary, info.secondary, title("lockers"))
-	buildBuilding(folder, origin, F.shop, facilities.shop or 0, design, info.primary, info.secondary, title("shop"))
-	buildBuilding(folder, origin, F.restaurant, facilities.restaurant or 0, design, info.primary, info.secondary, title("restaurant"))
+	buildBuilding(folder, origin, F.lockers, facilities.lockers or 0, design, info.primary, info.secondary, title("lockers"), "lockers")
+	buildBuilding(folder, origin, F.shop, facilities.shop or 0, design, info.primary, info.secondary, title("shop"), "shop")
+	buildBuilding(folder, origin, F.restaurant, facilities.restaurant or 0, design, info.primary, info.secondary, title("restaurant"), "restaurant")
 
 	-- Zona VIP: pabellón de cristal con remate dorado
 	local vipLevel = facilities.vip or 0
 	if vipLevel > 0 then
-		local body, size = buildBuilding(folder, origin, F.vip, vipLevel, GLASS_DESIGN, info.primary, info.secondary, title("vip"))
+		local body, size = buildBuilding(folder, origin, F.vip, vipLevel, GLASS_DESIGN, info.primary, info.secondary, title("vip"), "vip")
 		part(folder, origin, CFrame.new(F.vip.X, size.Y + 1.2, F.vip.Z), Vector3.new(size.X + 1.4, 0.4, size.Z + 1.4), GOLD, Enum.Material.Neon, { CanCollide = false })
 		body.Color = Color3.fromRGB(190, 220, 240)
 	end
@@ -380,21 +384,21 @@ local function buildLaneFacilities(folder, origin, facilities, design, info)
 	-- Centro de entrenamiento: edificio + campo de entrenamiento
 	local trainingLevel = facilities.training or 0
 	if trainingLevel > 0 then
-		buildBuilding(folder, origin, F.training + Vector3.new(0, 0, 12), trainingLevel, design, info.primary, info.secondary, title("training"))
+		buildBuilding(folder, origin, F.training + Vector3.new(0, 0, 12), trainingLevel, design, info.primary, info.secondary, title("training"), "training")
 		miniPitch(folder, origin, F.training + Vector3.new(0, 0, -18), 20 + trainingLevel * 3, 14, trainingLevel >= 2)
 	end
 
 	-- Academia juvenil: edificio + campo pequeño
 	local academyLevel = facilities.academy or 0
 	if academyLevel > 0 then
-		buildBuilding(folder, origin, F.academy + Vector3.new(0, 0, -6), academyLevel, design, info.primary, info.secondary, title("academy"))
+		buildBuilding(folder, origin, F.academy + Vector3.new(0, 0, -6), academyLevel, design, info.primary, info.secondary, title("academy"), "academy")
 		miniPitch(folder, origin, F.academy + Vector3.new(0, 0, 12), 18 + academyLevel * 2, 8, academyLevel >= 2)
 	end
 
 	-- Sala de trofeos: edificio con copa y contador REAL de títulos
 	local trophyLevel = facilities.trophyRoom or 0
 	if trophyLevel > 0 then
-		local _, size = buildBuilding(folder, origin, F.trophyRoom, trophyLevel, design, info.primary, info.secondary, title("trophyRoom"))
+		local _, size = buildBuilding(folder, origin, F.trophyRoom, trophyLevel, design, info.primary, info.secondary, title("trophyRoom"), "trophyRoom")
 		local cup = part(folder, origin, CFrame.new(F.trophyRoom.X, size.Y + 3, F.trophyRoom.Z) * CFrame.Angles(0, 0, math.rad(90)),
 			Vector3.new(4, 3, 3), GOLD, Enum.Material.Metal, { Reflectance = 0.3 })
 		cup.Shape = Enum.PartType.Cylinder
@@ -438,6 +442,7 @@ local function buildSign(folder, origin, info)
 		part(folder, origin, CFrame.new(x, 4, Layout.SIGN.Z), Vector3.new(1, 8, 1), info.vip and GOLD or Color3.fromRGB(60, 60, 70), Enum.Material.Metal)
 	end
 	local board = part(folder, origin, CFrame.new(0, 11, Layout.SIGN.Z), Vector3.new(26, 10, 1), info.primary, Enum.Material.SmoothPlastic, { Name = "ClubSign" })
+	board:SetAttribute("Facility", "sign")
 	local function content(gui)
 		local frame = Instance.new("Frame")
 		frame.Size = UDim2.fromScale(1, 1)
@@ -556,6 +561,14 @@ local function buildEffect(folder, origin, effectId, primary, secondary)
 		e.Rate = 6
 		e.Lifetime = NumberRange.new(4, 6)
 		e.Speed = NumberRange.new(2, 4)
+	elseif effectId == "bats" then
+		e.Color = ColorSequence.new(Color3.fromRGB(40, 20, 50), Color3.fromRGB(10, 10, 10))
+		e.Size = NumberSequence.new(1.2, 0.6)
+		e.Rate = 12
+		e.Lifetime = NumberRange.new(4, 6)
+		e.Speed = NumberRange.new(6, 10)
+		e.SpreadAngle = Vector2.new(60, 60)
+		e.RotSpeed = NumberRange.new(-90, 90)
 	elseif effectId == "vip_gold" then
 		e.Color = ColorSequence.new(GOLD)
 		e.LightEmission = 1
@@ -683,6 +696,22 @@ end
 
 -- Decoraciones en posición libre: cada una se construye en su propio marco local
 -- (posición + rotación), así los constructores no necesitan saber de rotaciones.
+DecorationBuilders.pumpkin_giant = function(f, o, p)
+	local body = part(f, o, CFrame.new(p.X, 2.6, p.Z), Vector3.new(6, 5, 6), Color3.fromRGB(240, 120, 20), Enum.Material.SmoothPlastic)
+	body.Shape = Enum.PartType.Ball
+	part(f, o, CFrame.new(p.X, 5.6, p.Z), Vector3.new(0.8, 1.4, 0.8), Color3.fromRGB(60, 120, 40), Enum.Material.Wood)
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 150, 50)
+	glow.Brightness = 2
+	glow.Range = 14
+	glow.Parent = body
+	-- Cara iluminada
+	for _, dx in ipairs({ -1.2, 1.2 }) do
+		part(f, o, CFrame.new(p.X + dx, 3.4, p.Z - 2.7), Vector3.new(0.9, 0.9, 0.3), Color3.fromRGB(255, 220, 90), Enum.Material.Neon, { CanCollide = false })
+	end
+	part(f, o, CFrame.new(p.X, 2, p.Z - 2.7), Vector3.new(2.6, 0.6, 0.3), Color3.fromRGB(255, 220, 90), Enum.Material.Neon, { CanCollide = false })
+end
+
 local function buildDecorations(folder, origin, decorations, visibleFlags, info)
 	for index, entry in ipairs(decorations) do
 		local builder = DecorationBuilders[entry.id]
@@ -742,6 +771,7 @@ local function buildKiosks(folder, origin, level, info)
 		if i == 1 then
 			label(counter, string.format("🌭 Quioscos · Nv %d", level), 4).MaxDistance = 80
 		end
+		counter:SetAttribute("Facility", "kiosks")
 	end
 end
 
@@ -752,6 +782,7 @@ local function buildTourBooth(folder, origin, level, info)
 	local booth = part(folder, origin, CFrame.new(20, 2.5, 72), Vector3.new(6, 5, 3), Color3.fromRGB(240, 240, 235), Enum.Material.SmoothPlastic)
 	part(folder, origin, CFrame.new(20, 5.3, 72), Vector3.new(7, 0.6, 4), info.secondary, Enum.Material.SmoothPlastic)
 	label(booth, string.format("🗺️ Tour del estadio · Nv %d", level), 4).MaxDistance = 80
+	booth:SetAttribute("Facility", "tour")
 end
 
 -- Afición en las gradas (se dibuja en una carpeta aparte y solo cuando cambia la ocupación).

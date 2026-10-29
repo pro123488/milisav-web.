@@ -55,6 +55,8 @@ local function describe(e)
 		return "🤝", string.format("Termina el patrocinio de %s", tostring(e.brand))
 	elseif k == "season_end" then
 		return "📅", string.format("Fin de la temporada %s", tostring(e.season))
+	elseif k == "halloween_reward" then
+		return "🎃", string.format("Premio del evento de Halloween: %s", tostring(e.name))
 	elseif k == "weekly_reward" then
 		return "🌎", string.format("Puesto %s en la competición semanal del universo", tostring(e.rank))
 	end

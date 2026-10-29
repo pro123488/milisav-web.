@@ -27,6 +27,8 @@ CosmeticConfig.Crests = {
 	-- VIP Club
 	{ id = "vip_crown", name = "Corona VIP", symbol = "👑", requiredPass = "VIP_CLUB" },
 	{ id = "vip_diamond", name = "Diamante VIP", symbol = "💎", requiredPass = "VIP_CLUB" },
+	-- Evento «Doces ou Travessuras» (gratis: se canjea con caramelos)
+	{ id = "pumpkin", name = "Calabaza", symbol = "🎃", requiredUnlock = "crest_pumpkin" },
 }
 
 -- ===== Paletas de colores (primario / secundario) =====
@@ -47,6 +49,8 @@ CosmeticConfig.Palettes = {
 	-- VIP Club
 	{ id = "vip_gold", name = "Oro VIP", primary = Color3.fromRGB(212, 175, 55), secondary = Color3.fromRGB(20, 20, 20), requiredPass = "VIP_CLUB" },
 	{ id = "vip_platinum", name = "Platino VIP", primary = Color3.fromRGB(220, 225, 230), secondary = Color3.fromRGB(212, 175, 55), requiredPass = "VIP_CLUB" },
+	-- Evento de Halloween
+	{ id = "halloween", name = "Noche de Halloween", primary = Color3.fromRGB(240, 120, 20), secondary = Color3.fromRGB(35, 15, 45), requiredUnlock = "palette_halloween" },
 }
 
 -- ===== Plantillas de equipación =====
@@ -69,6 +73,7 @@ CosmeticConfig.Effects = {
 	{ id = "sparkles", name = "Destellos", requiredPass = "COSMETIC_EXPANSION" },
 	{ id = "smoke", name = "Bengalas de humo (colores del club)", requiredPass = "COSMETIC_EXPANSION" },
 	{ id = "vip_gold", name = "Brillo dorado VIP", requiredPass = "VIP_CLUB" },
+	{ id = "bats", name = "Murciélagos", requiredUnlock = "effect_bats" }, -- evento de Halloween
 }
 
 -- ===== Diseños de construcción (Constructor Pro) =====
@@ -102,6 +107,8 @@ CosmeticConfig.Decorations = {
 	-- VIP Club
 	{ id = "vip_carpet", name = "Alfombra roja VIP", cost = 1000, w = 6, d = 12, requiredPass = "VIP_CLUB" },
 	{ id = "vip_statue", name = "Estatua dorada VIP", cost = 2500, w = 5, d = 5, requiredPass = "VIP_CLUB" },
+	-- Evento de Halloween (se desbloquea con caramelos)
+	{ id = "pumpkin_giant", name = "Calabaza gigante", cost = 300, w = 6, d = 6, requiredUnlock = "deco_pumpkin" },
 }
 
 -- Reembolso al retirar una decoración.

@@ -6,6 +6,8 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
+🎃 **Nuevo:** estadio interactivo (balón jugable, edificios con tecla E) y evento de Halloween «Doces ou Travessuras» → [`docs/ESTADIO_INTERACTIVO_Y_HALLOWEEN.md`](docs/ESTADIO_INTERACTIVO_Y_HALLOWEEN.md)
+
 | Fase | Documento |
 |---|---|
 | FASE 1 · Base funcional + Tienda Premium | [`docs/FASE_1.md`](docs/FASE_1.md) |

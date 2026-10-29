@@ -19,6 +19,7 @@ local SponsorConfig = require(Shared.Config.SponsorConfig)
 local FootballConfig = require(Shared.Config.FootballConfig)
 local TacticsConfig = require(Shared.Config.TacticsConfig)
 local TransferConfig = require(Shared.Config.TransferConfig)
+local HalloweenConfig = require(Shared.Config.HalloweenConfig)
 
 local DefaultData = {}
 
@@ -93,6 +94,8 @@ function DefaultData.Create(player)
 		transferOffers = {}, -- ofertas recibidas por tus jugadores
 		league = nil, -- liga, copa y modo carrera (FASE 7): la crea LeagueService
 		allTimeStats = {}, -- [idJugador] = { name, pos, origin, apps, goals, assists } (FASE 8)
+		halloween = { candy = 0, total = 0 }, -- evento «Doces ou Travessuras»
+		unlocks = {}, -- cosméticos gratuitos desbloqueados en eventos
 		reputationHistory = {}, -- { season, cycle, value } (FASE 8)
 		universe = { claimedWeek = -1, week = -1, weekPoints = 0 }, -- competición semanal (FASE 8)
 		nextPlayerId = 0,
@@ -532,6 +535,20 @@ function DefaultData.Reconcile(data, player)
 	data.universe.claimedWeek = math.floor(tonumber(data.universe.claimedWeek) or -1)
 	data.universe.week = math.floor(tonumber(data.universe.week) or -1)
 	data.universe.weekPoints = math.max(0, math.floor(tonumber(data.universe.weekPoints) or 0))
+
+	-- Evento de Halloween y desbloqueos
+	if type(data.halloween) ~= "table" then
+		data.halloween = {}
+	end
+	data.halloween.candy = math.max(0, math.floor(tonumber(data.halloween.candy) or 0))
+	data.halloween.total = math.max(data.halloween.candy, math.floor(tonumber(data.halloween.total) or 0))
+	local unlocks = {}
+	for _, reward in ipairs(HalloweenConfig.Rewards) do
+		if reward.unlock and type(data.unlocks) == "table" and data.unlocks[reward.unlock] == true then
+			unlocks[reward.unlock] = true
+		end
+	end
+	data.unlocks = unlocks
 
 	-- Mercado (FASE 6)
 	if type(data.market) ~= "table" then

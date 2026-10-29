@@ -77,6 +77,9 @@ local function readPlacement(payload)
 end
 
 local function passCheck(player, item)
+	if item.requiredUnlock and not DataService.Get(player).unlocks[item.requiredUnlock] then
+		return false, string.format("«%s» se consigue canjeando caramelos en el evento de Halloween.", item.name)
+	end
 	if item.requiredPass and not GamePassService.Owns(player, item.requiredPass) then
 		local pass = GamePassConfig.Get(item.requiredPass)
 		return false, string.format("«%s» requiere el pase %s.", item.name, pass and pass.name or "?")
@@ -185,6 +188,7 @@ function BuildService.DecorationVisibility(player, data)
 		local item = CosmeticConfig.ById.decoration[entry.id]
 		local ok = item ~= nil and shown < max
 			and (item.requiredPass == nil or GamePassService.Owns(player, item.requiredPass))
+			and (item.requiredUnlock == nil or data.unlocks[item.requiredUnlock] == true)
 		if ok then
 			shown += 1
 		end

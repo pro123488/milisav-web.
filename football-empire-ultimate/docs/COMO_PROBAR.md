@@ -28,12 +28,13 @@ El proyecto incluye un archivo de lugar ya montado con todos los scripts en su s
 Deberías ver:
 - En *Output*: `[FOOTBALL EMPIRE ULTIMATE] Servidor iniciado · versión …`
 - Tu avatar en la plaza de tu terreno, frente a un campo de fútbol.
-- El menú del juego abierto en **Inicio**. La tecla **M** o el botón **MENÚ** lo abren y cierran.
+- Tu estadio con el menú cerrado y un mensaje de bienvenida. La tecla **M** o el botón **MENÚ** abren la gestión del club.
 - Un aviso naranja «Guardado desactivado…»: es normal hasta que hagas el paso 7.
 
 Para parar la prueba: botón ■ **Stop** (Mayús+F5).
 
 ## 6. Qué probar primero (5 minutos)
+0. **Juega en el estadio:** chuta el balón hacia una portería, acércate a los edificios y pulsa **E**, y (en Halloween) recoge caramelos 🍬 y pulsa **F** en las puertas.
 1. **Mi club** › escribe un nombre y 3 letras › *Guardar nombre*. El cartel del estadio cambia.
 2. Espera 1 minuto: llega la notificación «Jornada: N espectadores…» y sube el dinero.
 3. **Construcción** › *Iluminación* › *Construir*. Aparecen torres de focos.
