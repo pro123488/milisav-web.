@@ -25,6 +25,11 @@ local UniverseService = require(script.Parent.UniverseService)
 
 local NetworkService = {}
 
+-- FASE 12: un UserId enviado por el cliente debe ser un entero positivo (descarta NaN, inf y decimales).
+local function validUserId(userId)
+	return type(userId) == "number" and userId == math.floor(userId) and userId > 0 and userId < 2 ^ 53
+end
+
 local notifyRemote = Remotes.Get("Notify")
 local invites = {} -- [jugador invitado] = { from, expires }
 local friendsCache = {} -- [player] = { time, list }
@@ -214,7 +219,7 @@ end
 function NetworkService.Challenge(player, payload)
 	local data = DataService.Get(player)
 	local userId = tonumber(type(payload) == "table" and payload.userId)
-	if not userId or userId == player.UserId then
+	if not validUserId(userId) or userId == player.UserId then
 		return false, "Club no válido."
 	end
 	local c = data.network.challenges
@@ -342,7 +347,7 @@ end
 function NetworkService.Compare(player, payload)
 	local data = DataService.Get(player)
 	local userId = tonumber(type(payload) == "table" and payload.userId)
-	if not userId then
+	if not validUserId(userId) then
 		return false, "Club no válido."
 	end
 	local live = Players:GetPlayerByUserId(userId)

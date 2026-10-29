@@ -157,7 +157,7 @@ function EconomyService.RepayDebt(player, amount)
 		return false, "No tienes deuda."
 	end
 	amount = math.floor(tonumber(amount) or 0)
-	if amount <= 0 then
+	if amount ~= amount or amount <= 0 or amount == math.huge then -- NaN/inf enviados por un cliente = pagar todo lo posible
 		amount = economy.debt -- 0 o vacío = pagar todo lo posible
 	end
 	amount = math.min(amount, economy.debt, economy.money)

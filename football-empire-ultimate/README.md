@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: FASE 10 (misiones y logros)**, sobre las FASES 1‑9.
+**Estado actual: las 12 fases están implementadas** (versión `0.12.0-fase12`). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -21,8 +21,9 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | FASE 9 · Red de clubes y multijugador | [`docs/FASE_9.md`](docs/FASE_9.md) |
 | FASE 10 · Misiones y logros | [`docs/FASE_10.md`](docs/FASE_10.md) |
 | FASE 11 · Pases avanzados (Estadio de Élite, Academia de Élite, Leyendas) | [`docs/FASE_11.md`](docs/FASE_11.md) |
+| FASE 12 · Optimización, seguridad y pruebas integrales | [`docs/FASE_12.md`](docs/FASE_12.md) |
 
-> ⚠️ Los tres Game Passes (VIP Club, Constructor Pro, Expansión Cosmética) están **integrados en el código pero no publicados**. Sus IDs están en `0` (pendiente de configuración) en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Hasta que los crees en el Creator Dashboard y pegues sus IDs, la tienda los muestra como «Pendiente de configuración» con la compra desactivada.
+> ⚠️ Los seis Game Passes (VIP Club, Constructor Pro, Expansión Cosmética, Estadio de Élite, Academia de Élite y Leyendas del Club) están **integrados en el código pero no publicados**. Sus IDs están en `0` (pendiente de configuración) en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Hasta que los crees en el Creator Dashboard y pegues sus IDs, la tienda los muestra como «Pendiente de configuración» con la compra desactivada.
 
 ## Estructura
 
@@ -30,7 +31,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 football-empire-ultimate/
 ├── FootballEmpireUltimate.rbxlx      Lugar listo para abrir en Studio (generado)
 ├── default.project.json              Proyecto Rojo (opcional)
-├── tools/                            build_place.py, luau_check.py, field_check.py
+├── tools/                            check_all.sh, build_place.py, luau_check.py, field_check.py, security_check.py
 ├── docs/                             COMO_PROBAR.md y FASE_N.md de cada fase
 └── src/
     ├── ReplicatedStorage/Shared/     Compartido (cliente + servidor)

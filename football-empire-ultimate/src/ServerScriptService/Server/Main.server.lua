@@ -5,6 +5,7 @@
 -- Toda acción pasa por: límite de frecuencia -> datos cargados -> validación del
 -- servicio correspondiente -> envío del estado actualizado al jugador.
 
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -105,12 +106,43 @@ local function buildState(player)
 	}
 end
 
+-- FASE 12 · Envío incremental: solo viajan las secciones de primer nivel que han cambiado
+-- desde el último envío. El primero (y tras GetState) es siempre completo.
+local lastSent = {} -- [player] = { [sección] = JSON enviado }
+
 local function pushState(player)
-	if player.Parent then
-		local state = buildState(player)
-		if state then
-			stateRemote:FireClient(player, state)
+	if not player.Parent then
+		return
+	end
+	local state = buildState(player)
+	if not state then
+		return
+	end
+	local previous = lastSent[player]
+	local signatures, delta, changed = {}, { _partial = true }, false
+	for section, value in pairs(state) do
+		local ok, encoded = pcall(HttpService.JSONEncode, HttpService, value)
+		signatures[section] = ok and encoded or "?"
+		if not previous or not ok or previous[section] ~= encoded then
+			delta[section] = value
+			changed = true
 		end
+	end
+	if previous then
+		-- Secciones que han dejado de existir (p. ej. el torneo terminó)
+		for section in pairs(previous) do
+			if state[section] == nil then
+				delta._removed = delta._removed or {}
+				table.insert(delta._removed, section)
+				changed = true
+			end
+		end
+	end
+	lastSent[player] = signatures
+	if not previous then
+		stateRemote:FireClient(player, state)
+	elseif changed then
+		stateRemote:FireClient(player, delta)
 	end
 end
 
@@ -120,6 +152,7 @@ end
 local Actions = {}
 
 Actions.GetState = function(player)
+	lastSent[player] = nil -- el siguiente envío será completo
 	return true, nil, false
 end
 
@@ -482,6 +515,7 @@ local function onPlayerRemoving(player)
 	GamePassService.PlayerRemoving(player)
 	limiter:Remove(player)
 	busy[player] = nil
+	lastSent[player] = nil
 	UniverseService.PlayerRemoving(player) -- último perfil público antes de liberar los datos
 	HalloweenService.PlayerRemoving(player)
 	NetworkService.PlayerRemoving(player)

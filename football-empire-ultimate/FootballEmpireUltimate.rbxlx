@@ -653,7 +653,7 @@ return FootballConfig
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.11.0-fase11"
+GameConfig.VERSION = "0.12.0-fase12"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
@@ -1101,7 +1101,7 @@ local MenuConfig = {
 }
 
 -- Fase actualmente implementada: las entradas con phase <= CURRENT_PHASE están activas.
-MenuConfig.CURRENT_PHASE = 11
+MenuConfig.CURRENT_PHASE = 12
 
 return MenuConfig
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">MissionConfig</string><ProtectedString name="Source"><![CDATA[-- MissionConfig (ModuleScript)
@@ -2697,6 +2697,7 @@ return StadiumLayout
 -- Toda acción pasa por: límite de frecuencia -> datos cargados -> validación del
 -- servicio correspondiente -> envío del estado actualizado al jugador.
 
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -2797,12 +2798,43 @@ local function buildState(player)
 	}
 end
 
+-- FASE 12 · Envío incremental: solo viajan las secciones de primer nivel que han cambiado
+-- desde el último envío. El primero (y tras GetState) es siempre completo.
+local lastSent = {} -- [player] = { [sección] = JSON enviado }
+
 local function pushState(player)
-	if player.Parent then
-		local state = buildState(player)
-		if state then
-			stateRemote:FireClient(player, state)
+	if not player.Parent then
+		return
+	end
+	local state = buildState(player)
+	if not state then
+		return
+	end
+	local previous = lastSent[player]
+	local signatures, delta, changed = {}, { _partial = true }, false
+	for section, value in pairs(state) do
+		local ok, encoded = pcall(HttpService.JSONEncode, HttpService, value)
+		signatures[section] = ok and encoded or "?"
+		if not previous or not ok or previous[section] ~= encoded then
+			delta[section] = value
+			changed = true
 		end
+	end
+	if previous then
+		-- Secciones que han dejado de existir (p. ej. el torneo terminó)
+		for section in pairs(previous) do
+			if state[section] == nil then
+				delta._removed = delta._removed or {}
+				table.insert(delta._removed, section)
+				changed = true
+			end
+		end
+	end
+	lastSent[player] = signatures
+	if not previous then
+		stateRemote:FireClient(player, state)
+	elseif changed then
+		stateRemote:FireClient(player, delta)
 	end
 end
 
@@ -2812,6 +2844,7 @@ end
 local Actions = {}
 
 Actions.GetState = function(player)
+	lastSent[player] = nil -- el siguiente envío será completo
 	return true, nil, false
 end
 
@@ -3174,6 +3207,7 @@ local function onPlayerRemoving(player)
 	GamePassService.PlayerRemoving(player)
 	limiter:Remove(player)
 	busy[player] = nil
+	lastSent[player] = nil
 	UniverseService.PlayerRemoving(player) -- último perfil público antes de liberar los datos
 	HalloweenService.PlayerRemoving(player)
 	NetworkService.PlayerRemoving(player)
@@ -4121,7 +4155,7 @@ function EconomyService.RepayDebt(player, amount)
 		return false, "No tienes deuda."
 	end
 	amount = math.floor(tonumber(amount) or 0)
-	if amount <= 0 then
+	if amount ~= amount or amount <= 0 or amount == math.huge then -- NaN/inf enviados por un cliente = pagar todo lo posible
 		amount = economy.debt -- 0 o vacío = pagar todo lo posible
 	end
 	amount = math.min(amount, economy.debt, economy.money)
@@ -6656,6 +6690,11 @@ local UniverseService = require(script.Parent.UniverseService)
 
 local NetworkService = {}
 
+-- FASE 12: un UserId enviado por el cliente debe ser un entero positivo (descarta NaN, inf y decimales).
+local function validUserId(userId)
+	return type(userId) == "number" and userId == math.floor(userId) and userId > 0 and userId < 2 ^ 53
+end
+
 local notifyRemote = Remotes.Get("Notify")
 local invites = {} -- [jugador invitado] = { from, expires }
 local friendsCache = {} -- [player] = { time, list }
@@ -6845,7 +6884,7 @@ end
 function NetworkService.Challenge(player, payload)
 	local data = DataService.Get(player)
 	local userId = tonumber(type(payload) == "table" and payload.userId)
-	if not userId or userId == player.UserId then
+	if not validUserId(userId) or userId == player.UserId then
 		return false, "Club no válido."
 	end
 	local c = data.network.challenges
@@ -6973,7 +7012,7 @@ end
 function NetworkService.Compare(player, payload)
 	local data = DataService.Get(player)
 	local userId = tonumber(type(payload) == "table" and payload.userId)
-	if not userId then
+	if not validUserId(userId) then
 		return false, "Club no válido."
 	end
 	local live = Players:GetPlayerByUserId(userId)
@@ -11743,6 +11782,22 @@ buildTopBar()
 renderCurrent(false)
 
 stateRemote.OnClientEvent:Connect(function(state)
+	-- FASE 12: el servidor puede enviar solo las secciones que cambiaron.
+	if state._partial then
+		if ctx.state == nil then
+			return -- falta el estado completo; el bucle de GetState lo pedirá
+		end
+		local merged = table.clone(ctx.state)
+		for section, value in pairs(state) do
+			if section ~= "_partial" and section ~= "_removed" then
+				merged[section] = value
+			end
+		end
+		for _, section in ipairs(state._removed or {}) do
+			merged[section] = nil
+		end
+		state = merged
+	end
 	local firstState = ctx.state == nil
 	if firstState then
 		task.delay(2, function()

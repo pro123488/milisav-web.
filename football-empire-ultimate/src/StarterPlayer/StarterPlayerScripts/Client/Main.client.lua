@@ -390,6 +390,22 @@ buildTopBar()
 renderCurrent(false)
 
 stateRemote.OnClientEvent:Connect(function(state)
+	-- FASE 12: el servidor puede enviar solo las secciones que cambiaron.
+	if state._partial then
+		if ctx.state == nil then
+			return -- falta el estado completo; el bucle de GetState lo pedirá
+		end
+		local merged = table.clone(ctx.state)
+		for section, value in pairs(state) do
+			if section ~= "_partial" and section ~= "_removed" then
+				merged[section] = value
+			end
+		end
+		for _, section in ipairs(state._removed or {}) do
+			merged[section] = nil
+		end
+		state = merged
+	end
 	local firstState = ctx.state == nil
 	if firstState then
 		task.delay(2, function()
