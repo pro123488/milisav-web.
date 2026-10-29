@@ -23,6 +23,7 @@ local BuildService = require(script.Parent.BuildService)
 local StadiumRenderer = require(script.Parent.StadiumRenderer)
 local InteractionService = require(script.Parent.InteractionService)
 local HalloweenService = require(script.Parent.HalloweenService)
+local GamePassService = require(script.Parent.GamePassService)
 
 local PlotService = {}
 
@@ -200,6 +201,11 @@ function PlotService.BuildRenderInfo(player, data)
 		stageVisual = stage.visual,
 		trophyCount = #data.trophies,
 		trophies = data.trophies,
+		-- Pases de la FASE 11 (solo visuales; dependen de la propiedad confirmada por Roblox)
+		eliteStadium = GamePassService.Owns(player, "ELITE_STADIUM"),
+		eliteAcademy = GamePassService.Owns(player, "ELITE_ACADEMY"),
+		clubLegends = GamePassService.Owns(player, "CLUB_LEGENDS"),
+		legends = data.legends,
 		lastMatch = data.matches[#data.matches],
 		vip = ClubService.IsVip(player),
 		decorations = data.stadium.decorations,

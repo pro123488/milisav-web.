@@ -234,6 +234,7 @@ local function validPlayer(p)
 		},
 		loan = validLoan(p.loan), -- cesiones (FASE 6)
 		listed = (p.listed == "sale" or p.listed == "loan") and p.listed or nil,
+		nickname = (type(p.nickname) == "string" and utf8.len(p.nickname) and utf8.len(p.nickname) <= 20) and p.nickname or nil,
 		fitness = math.clamp(tonumber(p.fitness) or 100, 0, 100),
 		seasonStats = {
 			apps = math.max(0, math.floor(tonumber(type(p.seasonStats) == "table" and p.seasonStats.apps) or 0)),

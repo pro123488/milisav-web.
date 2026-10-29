@@ -133,7 +133,7 @@ function MatchService.BuildUserSheet(data, name, short)
 		local p = byId[lineup[index]]
 		if p then
 			table.insert(players, {
-				id = p.id, name = p.name, pos = p.pos, slotPos = slotPos, attrs = p.attrs, fitness = p.fitness or 100,
+				id = p.id, name = p.nickname or p.name, pos = p.pos, slotPos = slotPos, attrs = p.attrs, fitness = p.fitness or 100,
 			})
 		end
 	end

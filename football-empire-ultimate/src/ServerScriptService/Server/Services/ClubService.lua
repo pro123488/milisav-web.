@@ -43,6 +43,15 @@ local function cleanInput(text, maxLen)
 	return text
 end
 
+-- Filtro de texto de Roblox reutilizable (devuelve nil si no se pudo filtrar o si cambia el texto).
+function ClubService.FilterExact(player, text)
+	local filtered = filterText(player, text)
+	if filtered == nil or filtered ~= text then
+		return nil
+	end
+	return filtered
+end
+
 -- Devuelve ok, mensaje
 function ClubService.SetName(player, name, shortName)
 	local data = DataService.Get(player)

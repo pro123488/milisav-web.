@@ -159,6 +159,9 @@ function Shop.Render(container, ctx)
 	local addH = C.Stack(header)
 	addH(C.Row({
 		C.Title("💎 TIENDA PREMIUM", 30),
+		C.Button("🔄 Comprobar mis pases", "secondary", function()
+			ctx.act("RecheckPasses")
+		end),
 		C.Button("✕ Cerrar tienda", "secondary", function()
 			ctx.close()
 		end),

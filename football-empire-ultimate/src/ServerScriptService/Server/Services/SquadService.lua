@@ -20,6 +20,8 @@ local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local StadiumService = require(script.Parent.StadiumService)
 local PlayerFactory = require(script.Parent.Parent.Util.PlayerFactory)
+local GamePassService = require(script.Parent.GamePassService)
+local ClubService = require(script.Parent.ClubService)
 
 local SquadService = {}
 
@@ -178,6 +180,34 @@ function SquadService.ReleaseYouth(player, payload)
 	end
 	table.remove(data.academy.youths, index)
 	return true, youth.name .. " deja la academia."
+end
+
+-- Academia de Élite: apodos personalizados (texto filtrado por Roblox). Vacío = quitar apodo.
+function SquadService.SetNickname(player, payload)
+	local data = DataService.Get(player)
+	if not GamePassService.Owns(player, "ELITE_ACADEMY") then
+		return false, "Los apodos son una ventaja del pase Academia de Élite."
+	end
+	if type(payload) ~= "table" then
+		return false, "Solicitud no válida."
+	end
+	local target = findIn(data.squad, payload.id) or findIn(data.academy.youths, payload.id)
+	if not target then
+		return false, "Ese jugador no es de tu club."
+	end
+	local nickname = type(payload.nickname) == "string" and payload.nickname:gsub("^%s+", ""):gsub("%s+$", "") or ""
+	if nickname == "" then
+		target.nickname = nil
+		return true, "Apodo eliminado."
+	end
+	if utf8.len(nickname) == nil or utf8.len(nickname) > 20 then
+		return false, "El apodo debe tener como máximo 20 caracteres."
+	end
+	if not ClubService.FilterExact(player, nickname) then
+		return false, "Ese apodo no está permitido."
+	end
+	target.nickname = nickname
+	return true, string.format("%s ahora se llama «%s».", target.name, nickname)
 end
 
 function SquadService.SetScouts(player, payload)
@@ -373,7 +403,9 @@ local function publicPlayer(p, scouts, multiplier)
 	end
 	return {
 		id = p.id,
-		name = p.name,
+		name = p.nickname or p.name,
+		realName = p.name,
+		nickname = p.nickname,
 		age = p.age,
 		pos = p.pos,
 		attrs = attrs,

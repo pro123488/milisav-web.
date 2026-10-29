@@ -390,6 +390,14 @@ Actions.RefreshShop = function(player)
 	return true
 end
 
+Actions.RecheckPasses = function(player)
+	return GamePassService.Recheck(player)
+end
+
+Actions.SetNickname = function(player, payload)
+	return SquadService.SetNickname(player, payload)
+end
+
 local busy = {} -- evita que un jugador ejecute dos acciones a la vez
 
 actionRemote.OnServerInvoke = function(player, actionName, payload)

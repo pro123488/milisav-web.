@@ -93,7 +93,7 @@ end
 
 -- ===== Elementos del estadio =====
 
-local function buildPitch(folder, origin, level)
+local function buildPitch(folder, origin, level, elite)
 	local greens = {
 		Color3.fromRGB(96, 140, 64),
 		Color3.fromRGB(78, 150, 62),
@@ -110,6 +110,15 @@ local function buildPitch(folder, origin, level)
 		for i = 0, 4 do
 			local x = -PITCH_LENGTH / 2 + 10 + i * 20
 			part(folder, origin, CFrame.new(x, 0.21, PITCH_CENTER_Z), Vector3.new(10, 0.02, PITCH_WIDTH), stripe, Enum.Material.Grass, { CanCollide = false })
+		end
+	end
+	-- Estadio de Élite: corte de ajedrez (franjas cruzadas semitransparentes)
+	if elite then
+		local cross = base:Lerp(Color3.new(1, 1, 1), 0.08)
+		for i = 0, 2 do
+			local z = PITCH_CENTER_Z - PITCH_WIDTH / 2 + 10.7 + i * 21.3
+			part(folder, origin, CFrame.new(0, 0.215, z), Vector3.new(PITCH_LENGTH, 0.02, 10.7), cross, Enum.Material.Grass,
+				{ CanCollide = false, Transparency = 0.45 })
 		end
 	end
 	-- Líneas
@@ -159,7 +168,7 @@ local function buildStandSide(folder, origin, side, rows, design, primary, secon
 			cf = CFrame.new(PITCH_LENGTH / 2 + dist, height / 2, PITCH_CENTER_Z)
 			size = Vector3.new(ROW_DEPTH, height, length)
 		end
-		part(folder, origin, cf, size, (r % 2 == 0) and secondary or primary, mat, { Name = "StandRow" })
+		part(folder, origin, cf, size, (r % 2 == 0) and (design.gold and GOLD or secondary) or primary, mat, { Name = "StandRow" })
 	end
 
 	local backDist = 4 + rows * ROW_DEPTH
@@ -171,7 +180,7 @@ local function buildStandSide(folder, origin, side, rows, design, primary, secon
 			or (side == "W" and CFrame.new(-PITCH_LENGTH / 2 - 3.6, 1, PITCH_CENTER_Z))
 			or CFrame.new(PITCH_LENGTH / 2 + 3.6, 1, PITCH_CENTER_Z)
 		local size = (side == "N" or side == "S") and Vector3.new(length, 0.4, 0.4) or Vector3.new(0.4, 0.4, length)
-		part(folder, origin, cf, size, secondary, Enum.Material.Neon, { CanCollide = false })
+		part(folder, origin, cf, size, design.gold and GOLD or secondary, Enum.Material.Neon, { CanCollide = false })
 	end
 	-- Cubierta
 	if design.roof then
@@ -194,7 +203,7 @@ local function buildStandSide(folder, origin, side, rows, design, primary, secon
 			size = Vector3.new(depth, 0.6, length + 2)
 		end
 		local roofMat = design.canopy and Enum.Material.Metal or Enum.Material.SmoothPlastic
-		part(folder, origin, cf, size, Color3.fromRGB(230, 232, 236), roofMat,
+		part(folder, origin, cf, size, design.gold and Color3.fromRGB(212, 175, 55) or Color3.fromRGB(230, 232, 236), roofMat,
 			{ Name = "StandRoof", Transparency = design.material == "Glass" and 0.35 or 0 })
 		-- Pilares en la parte trasera
 		for _, t in ipairs({ -0.45, 0.45 }) do
@@ -338,7 +347,7 @@ local function buildBuilding(folder, origin, pos, level, design, primary, second
 	local body = part(folder, origin, CFrame.new(pos.X, size.Y / 2, pos.Z), size, bodyColor, bodyMat,
 		{ Transparency = design.material == "Glass" and 0.25 or 0 })
 	part(folder, origin, CFrame.new(pos.X, size.Y + 0.5, pos.Z), Vector3.new(size.X + 1, 1, size.Z + 1),
-		isNeon and secondary or primary, isNeon and Enum.Material.Neon or Enum.Material.SmoothPlastic)
+		design.gold and GOLD or (isNeon and secondary or primary), (isNeon or design.gold) and Enum.Material.Neon or Enum.Material.SmoothPlastic)
 	label(body, string.format("%s · Nv %d", title, level), size.Y / 2 + 3)
 	if facilityId then
 		body:SetAttribute("Facility", facilityId)
@@ -362,6 +371,7 @@ local function miniPitch(folder, origin, pos, length, width, withGoals)
 end
 
 local GLASS_DESIGN = { material = "Glass" }
+local ELITE_CAMPUS = { material = "Glass", gold = true }
 
 local function buildLaneFacilities(folder, origin, facilities, design, info)
 	local F = Layout.Facilities
@@ -391,7 +401,10 @@ local function buildLaneFacilities(folder, origin, facilities, design, info)
 	-- Academia juvenil: edificio + campo pequeño
 	local academyLevel = facilities.academy or 0
 	if academyLevel > 0 then
-		buildBuilding(folder, origin, F.academy + Vector3.new(0, 0, -6), academyLevel, design, info.primary, info.secondary, title("academy"), "academy")
+		-- Academia de Élite: edificio «Campus de Élite»
+		local academyDesign = info.eliteAcademy and ELITE_CAMPUS or design
+		local academyTitle = info.eliteAcademy and "🧬 Campus de Élite" or title("academy")
+		buildBuilding(folder, origin, F.academy + Vector3.new(0, 0, -6), academyLevel, academyDesign, info.primary, info.secondary, academyTitle, "academy")
 		miniPitch(folder, origin, F.academy + Vector3.new(0, 0, 12), 18 + academyLevel * 2, 8, academyLevel >= 2)
 	end
 
@@ -856,9 +869,10 @@ local function buildWalls(folder, origin, visual, info)
 	for _, seg in ipairs(segments) do
 		part(folder, origin, seg[1], seg[2], color, mat, props)
 		-- Remate superior: franja del club, neón o dorado según la etapa
-		if wall.stripe or wall.neon or wall.gold then
-			local capColor = wall.gold and GOLD or (wall.neon and info.secondary or info.primary)
-			local capMat = (wall.neon or wall.gold) and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		if wall.stripe or wall.neon or wall.gold or info.eliteStadium then
+			local gold = wall.gold or info.eliteStadium -- Estadio de Élite: remates dorados
+			local capColor = gold and GOLD or (wall.neon and info.secondary or info.primary)
+			local capMat = (wall.neon or gold) and Enum.Material.Neon or Enum.Material.SmoothPlastic
 			part(folder, origin, seg[1] * CFrame.new(0, h / 2 + 0.3, 0), Vector3.new(seg[2].X, 0.6, seg[2].Z), capColor, capMat, { CanCollide = false })
 		end
 	end
@@ -944,7 +958,7 @@ local function buildLightRing(folder, origin, standsLevel, info)
 	local rows = ROWS_BY_LEVEL[math.clamp(standsLevel, 1, #ROWS_BY_LEVEL)]
 	local b = 4 + rows * ROW_DEPTH
 	local y = rows * ROW_STEP + 12
-	local color = info.vip and GOLD or Color3.fromRGB(170, 220, 255)
+	local color = (info.vip or info.eliteStadium) and GOLD or Color3.fromRGB(170, 220, 255)
 	local outerX = PITCH_LENGTH / 2 + b
 	local north, south = PITCH_CENTER_Z - PITCH_WIDTH / 2 - b, PITCH_CENTER_Z + PITCH_WIDTH / 2 + b
 	local props = { CanCollide = false, CanQuery = false, Name = "LightRing" }
@@ -963,6 +977,39 @@ local function buildMonument(folder, origin, info)
 	sparkle.SparkleColor = GOLD
 	sparkle.Parent = ball
 	label(ball, info.crestSymbol .. " Monumento " .. info.clubName, 5, GOLD).MaxDistance = 100
+end
+
+-- Leyendas del Club: estatuas de las leyendas retiradas (las 6 más recientes) y placa de títulos.
+local LEGEND_SPOTS = {
+	Vector3.new(-112, 0, -40), Vector3.new(112, 0, -40), Vector3.new(-112, 0, 13),
+	Vector3.new(112, 0, 13), Vector3.new(-112, 0, 63), Vector3.new(112, 0, 63),
+}
+local function buildLegendsWalk(folder, origin, info)
+	local legends = info.legends or {}
+	local spot = 0
+	for i = #legends, math.max(1, #legends - #LEGEND_SPOTS + 1), -1 do
+		local l = legends[i]
+		spot += 1
+		local p = LEGEND_SPOTS[spot]
+		part(folder, origin, CFrame.new(p.X, 1.5, p.Z), Vector3.new(4, 3, 4), Color3.fromRGB(235, 232, 225), Enum.Material.Marble)
+		part(folder, origin, CFrame.new(p.X, 5.5, p.Z), Vector3.new(1.8, 5, 1.2), GOLD, Enum.Material.Metal, { Reflectance = 0.3 })
+		local head = part(folder, origin, CFrame.new(p.X, 8.7, p.Z), Vector3.new(1.5, 1.5, 1.5), GOLD, Enum.Material.Metal, { Reflectance = 0.3 })
+		head.Shape = Enum.PartType.Ball
+		label(head, string.format("🏅 %s · media %d", l.name, l.peak or 0), 2.5, GOLD).MaxDistance = 70
+	end
+	local plaque = part(folder, origin, CFrame.new(-22, 3.5, 103), Vector3.new(12, 5, 0.4), Color3.fromRGB(30, 25, 15), Enum.Material.Wood)
+	local function content(gui)
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.TextColor3 = GOLD
+		t.Font = Enum.Font.GothamBlack
+		t.TextScaled = true
+		t.Text = string.format("📜 %s\n%d títulos · %d leyendas", info.clubName, info.trophyCount or 0, #legends)
+		t.Parent = gui
+	end
+	surfaceText(plaque, Enum.NormalId.Front, content)
+	surfaceText(plaque, Enum.NormalId.Back, content)
 end
 
 local function buildStageExtras(folder, origin, info, standsLevel, standsDesign)
@@ -986,6 +1033,9 @@ local function buildStageExtras(folder, origin, info, standsLevel, standsDesign)
 	if visual.lightRing then
 		buildLightRing(folder, origin, standsLevel, info)
 	end
+	if info.clubLegends then
+		buildLegendsWalk(folder, origin, info)
+	end
 	if visual.monument then
 		buildMonument(folder, origin, info)
 	end
@@ -1002,7 +1052,7 @@ function StadiumRenderer.Render(folder, origin, info)
 	local standsLevel = facilities.stands or 1
 
 	buildStageExtras(folder, origin, info, standsLevel, standsDesign)
-	buildPitch(folder, origin, facilities.pitch or 1)
+	buildPitch(folder, origin, facilities.pitch or 1, info.eliteStadium)
 	buildStands(folder, origin, standsLevel, standsDesign, info.primary, info.secondary)
 	buildLighting(folder, origin, facilities.lighting or 0, info.vip)
 	buildScoreboard(folder, origin, facilities.scoreboard or 0, info)

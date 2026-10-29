@@ -63,7 +63,7 @@ function Squad.PlayerCard(ctx, p, opts)
 		condition = string.format(" · 💪 %d", p.fitness)
 	end
 	C.Label(string.format("<b>%s</b>%s\n<font color='#A0AFC8'>%s %s · %d años · potencial %s%s</font>",
-		p.name, p.star and "  ⭐" or "", pos.icon, pos.short, p.age, potential, condition), {
+		p.name .. ((p.origin == "academy" and ctx.state.premium.owned.ELITE_ACADEMY) and "  🧬" or ""), p.star and "  ⭐" or "", pos.icon, pos.short, p.age, potential, condition), {
 		Position = UDim2.fromOffset(54, 0), Size = UDim2.new(1, -170, 1, 0), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14,
 	}).Parent = header
 	local right = p.contract and p.contract > 0
@@ -95,6 +95,29 @@ function Squad.PlayerCard(ctx, p, opts)
 		end
 		C.Label("🎯 Foco de entrenamiento:", { TextSize = 13, TextColor3 = Theme.TextDim }).Parent = card
 		C.Row(focusButtons, 6).Parent = card
+		-- Academia de Élite (FASE 11): apodo personalizado. El servidor comprueba el pase y filtra el texto.
+		if ctx.state.premium.owned.ELITE_ACADEMY then
+			local box = C.New("TextBox", {
+				PlaceholderText = "Apodo (máx. 20, vacío = quitar)",
+				Text = p.nickname or "",
+				ClearTextOnFocus = false,
+				Font = Theme.Font,
+				TextSize = 14,
+				TextColor3 = Theme.Text,
+				PlaceholderColor3 = Theme.TextMuted,
+				BackgroundColor3 = Theme.Panel,
+				Size = UDim2.new(0, 220, 0, 30),
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Children = { C.Corner(Theme.RadiusSmall), C.Stroke(), C.Padding(2, 8) },
+			})
+			C.Row({
+				C.Label("🧬 Apodo:", { TextSize = 13, TextColor3 = Theme.TextDim }),
+				box,
+				C.Button("Guardar", "primary", function()
+					ctx.act("SetNickname", { id = p.id, nickname = box.Text })
+				end, { Size = UDim2.new(0, 0, 0, 30), TextSize = 13 }),
+			}, 6).Parent = card
+		end
 		if opts.actions then
 			opts.actions(card)
 		end

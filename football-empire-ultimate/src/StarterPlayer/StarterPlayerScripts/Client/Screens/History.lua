@@ -107,14 +107,22 @@ local function renderPlayers(add, ctx)
 	add(leaderboard(ctx, "⚽ Máximos goleadores de la historia", h.topScorers, "goles"))
 	add(leaderboard(ctx, "🎯 Máximos asistentes", h.topAssists, "asistencias"))
 	add(leaderboard(ctx, "👕 Más partidos", h.topApps, "partidos"))
-	local legends = C.Card({}, { C.Title("🏛️ Jugadores legendarios", 18) })
+	-- Pase Leyendas del Club (FASE 11): galería dorada. Solo estética; la propiedad la confirma el servidor.
+	local gold = state.premium.owned.CLUB_LEGENDS == true
+	local legends = C.Card(gold and { BackgroundColor3 = Color3.fromRGB(60, 48, 18) } or {}, {
+		C.Title(gold and "🏛️ Paseo de las Leyendas" or "🏛️ Jugadores legendarios", 18),
+	})
+	if gold then
+		C.Stroke(Theme.Gold, 2).Parent = legends
+		C.Label("Las 6 últimas leyendas tienen estatua dorada en la plaza de tu estadio.", { TextColor3 = Theme.Gold, TextSize = 12 }).Parent = legends
+	end
 	if #h.legends == 0 then
 		C.Label("Todavía no hay leyendas retiradas.", { TextColor3 = Theme.TextMuted, TextSize = 13 }).Parent = legends
 	end
 	for i = #h.legends, 1, -1 do
 		local l = h.legends[i]
 		C.Label(string.format("🏅 <b>%s</b> · media máx. %d · %d partidos · %d goles · %s · retirado en la T%d", l.name, l.peak, l.apps or 0, l.goals or 0,
-			l.origin == "academy" and "canterano" or "fichaje", l.retiredSeason), { TextSize = 13 }).Parent = legends
+			l.origin == "academy" and "canterano" or "fichaje", l.retiredSeason), { TextSize = 13, TextColor3 = gold and Theme.Gold or Theme.Text }).Parent = legends
 	end
 	add(legends)
 end

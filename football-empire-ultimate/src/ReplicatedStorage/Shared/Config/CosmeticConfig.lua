@@ -83,11 +83,13 @@ CosmeticConfig.BuildDesigns = {
 	{ id = "modern", name = "Moderno", appliesTo = "stands", material = "SmoothPlastic", roof = true },
 	{ id = "cantilever_pro", name = "Voladizo Pro", appliesTo = "stands", material = "Metal", roof = true, canopy = true, requiredPass = "CONSTRUCTOR_PRO" },
 	{ id = "arena_pro", name = "Arena Futurista", appliesTo = "stands", material = "Glass", roof = true, neon = true, requiredPass = "CONSTRUCTOR_PRO" },
+	{ id = "elite_gold", name = "Élite Oro", appliesTo = "stands", material = "Metal", roof = true, canopy = true, neon = true, gold = true, requiredPass = "ELITE_STADIUM" },
 
 	{ id = "brick", name = "Ladrillo", appliesTo = "building", material = "Brick" },
 	{ id = "glass", name = "Cristal", appliesTo = "building", material = "Glass" },
 	{ id = "steel_pro", name = "Acero Pro", appliesTo = "building", material = "DiamondPlate", requiredPass = "CONSTRUCTOR_PRO" },
 	{ id = "neon_pro", name = "Neón Pro", appliesTo = "building", material = "Neon", requiredPass = "CONSTRUCTOR_PRO" },
+	{ id = "elite_glass", name = "Cristal Élite", appliesTo = "building", material = "Glass", gold = true, requiredPass = "ELITE_STADIUM" },
 }
 
 -- ===== Decoraciones (se compran con dinero del juego y se colocan libremente en la plaza del terreno) =====

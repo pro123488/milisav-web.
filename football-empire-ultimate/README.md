@@ -20,6 +20,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | FASE 8 · Universo futbolístico e historia del club | [`docs/FASE_8.md`](docs/FASE_8.md) |
 | FASE 9 · Red de clubes y multijugador | [`docs/FASE_9.md`](docs/FASE_9.md) |
 | FASE 10 · Misiones y logros | [`docs/FASE_10.md`](docs/FASE_10.md) |
+| FASE 11 · Pases avanzados (Estadio de Élite, Academia de Élite, Leyendas) | [`docs/FASE_11.md`](docs/FASE_11.md) |
 
 > ⚠️ Los tres Game Passes (VIP Club, Constructor Pro, Expansión Cosmética) están **integrados en el código pero no publicados**. Sus IDs están en `0` (pendiente de configuración) en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Hasta que los crees en el Creator Dashboard y pegues sus IDs, la tienda los muestra como «Pendiente de configuración» con la compra desactivada.
 

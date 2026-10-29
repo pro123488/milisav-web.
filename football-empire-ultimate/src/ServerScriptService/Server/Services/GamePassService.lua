@@ -183,6 +183,21 @@ function GamePassService.OwnedList(player)
 	return result
 end
 
+-- Vuelve a consultar a Roblox los pases que no constan como comprados (botón «Comprobar mis pases»).
+local lastRecheck = {} -- [player] = os.clock()
+function GamePassService.Recheck(player)
+	if lastRecheck[player] and os.clock() - lastRecheck[player] < 30 then
+		return false, string.format("Ya lo comprobamos hace poco. Inténtalo en %d s.", math.ceil(30 - (os.clock() - lastRecheck[player])))
+	end
+	lastRecheck[player] = os.clock()
+	for _, passKey in ipairs(GamePassConfig.Order) do
+		local status = ownership[player] and ownership[player][passKey]
+		if status ~= S.OWNED and status ~= S.CHECKING then
+			task.spawn(checkOwnership, player, passKey)
+		end
+	end	return true, "Comprobando tus pases con Roblox…"
+end
+
 function GamePassService.OnOwnershipChanged(callback)
 	table.insert(changedCallbacks, callback)
 end
@@ -198,6 +213,7 @@ end
 function GamePassService.PlayerRemoving(player)
 	ownership[player] = nil
 	promptOpen[player] = nil
+	lastRecheck[player] = nil
 end
 
 -- Solicitud de compra enviada por el cliente. Devuelve ok, mensaje.
