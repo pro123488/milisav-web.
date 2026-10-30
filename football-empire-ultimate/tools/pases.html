@@ -1,0 +1,90 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}svg{display:block}</style></head><body>
+<script>
+// Logos de los Game Passes (512×512). Roblox recorta la imagen en círculo: todo va dentro del círculo central.
+const PASSES = {
+  constructor: { c1: '#38c6ff', c2: '#0059a8', label: 'PRO', title: 'CONSTRUCTOR' },
+  cosmetica:   { c1: '#ff6fb5', c2: '#9c1259', label: 'ESTILO', title: 'COSMÉTICA' },
+  estadio:     { c1: '#a98bff', c2: '#3d1d9e', label: 'ÉLITE', title: 'ESTADIO' },
+  academia:    { c1: '#4fe3a0', c2: '#0b7a48', label: 'ÉLITE', title: 'ACADEMIA' },
+  leyendas:    { c1: '#ffa15c', c2: '#a8420a', label: 'CLUB', title: 'LEYENDAS DEL' },
+};
+const key = new URLSearchParams(location.search).get('p');
+const P = PASSES[key];
+
+function ball(cx, cy, r) {
+  let pents = '';
+  const pent = (x, y, s, a0) => { let p = []; for (let i = 0; i < 5; i++) { const a = a0 + i * 2 * Math.PI / 5 - Math.PI / 2; p.push((x + s * Math.cos(a)) + ',' + (y + s * Math.sin(a))); } return `<polygon points="${p.join(' ')}" fill="#15171c"/>`; };
+  pents += pent(0, 0, r * 0.32, 0);
+  for (let i = 0; i < 5; i++) { const a = i * 2 * Math.PI / 5 - Math.PI / 2 + Math.PI / 5; pents += pent(r * 0.95 * Math.cos(a), r * 0.95 * Math.sin(a), r * 0.3, Math.PI / 5 + i * 2 * Math.PI / 5 + Math.PI); }
+  return `<g transform="translate(${cx},${cy})"><defs><clipPath id="bc"><circle r="${r}"/></clipPath>
+    <radialGradient id="bg2" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff"/><stop offset="0.7" stop-color="#e6ebf2"/><stop offset="1" stop-color="#97a2b3"/></radialGradient></defs>
+    <circle r="${r}" fill="url(#bg2)"/><g clip-path="url(#bc)">${pents}</g><circle r="${r}" fill="none" stroke="#0b0d12" stroke-width="${r * 0.05}"/></g>`;
+}
+
+const ART = {
+  constructor: () => `
+    <g transform="rotate(-35 256 250)"><rect x="244" y="120" width="24" height="190" rx="10" fill="#cfd6e0" stroke="#1d2433" stroke-width="6"/>
+      <path d="M226,110 a40,40 0 1 1 60,0 l-14,-6 l0,-26 l-32,0 l0,26 z" fill="#cfd6e0" stroke="#1d2433" stroke-width="6"/></g>
+    <g transform="rotate(35 256 250)"><rect x="246" y="150" width="20" height="170" rx="8" fill="#8b5a2b" stroke="#1d2433" stroke-width="6"/>
+      <rect x="206" y="118" width="100" height="46" rx="10" fill="#cfd6e0" stroke="#1d2433" stroke-width="6"/></g>
+    <path d="M150,262 Q150,170 256,166 Q362,170 362,262 Z" fill="url(#gold)" stroke="#3a1d00" stroke-width="8"/>
+    <rect x="232" y="160" width="48" height="104" rx="10" fill="#ffe27a" stroke="#3a1d00" stroke-width="6"/>
+    <rect x="124" y="254" width="264" height="34" rx="17" fill="url(#gold)" stroke="#3a1d00" stroke-width="8"/>`,
+  cosmetica: () => `
+    <path d="M256,130 C350,130 396,190 392,250 C388,300 340,300 318,296 C292,292 282,318 296,338 C312,362 290,384 252,382 C170,378 120,322 120,256 C120,186 176,130 256,130 Z" fill="#f4e3c8" stroke="#3a2410" stroke-width="8"/>
+    <circle cx="190" cy="220" r="24" fill="#ef4444" stroke="#3a2410" stroke-width="5"/>
+    <circle cx="250" cy="182" r="24" fill="#ffd23f" stroke="#3a2410" stroke-width="5"/>
+    <circle cx="316" cy="202" r="24" fill="#22c55e" stroke="#3a2410" stroke-width="5"/>
+    <circle cx="178" cy="292" r="24" fill="#3b82f6" stroke="#3a2410" stroke-width="5"/>
+    <circle cx="240" cy="334" r="22" fill="#a855f7" stroke="#3a2410" stroke-width="5"/>
+    <g transform="rotate(40 330 290)"><rect x="318" y="190" width="24" height="150" rx="10" fill="#8b5a2b" stroke="#3a2410" stroke-width="6"/>
+      <rect x="316" y="176" width="28" height="22" fill="#cfd6e0" stroke="#3a2410" stroke-width="5"/>
+      <path d="M316,178 Q330,120 344,178 Z" fill="#ff4fa3" stroke="#3a2410" stroke-width="5"/></g>`,
+  estadio: () => `
+    <path d="M110,310 L110,236 Q256,176 402,236 L402,310 Q256,282 110,310 Z" fill="#2a2f45" stroke="url(#gold)" stroke-width="10"/>
+    <path d="M128,252 Q256,204 384,252" fill="none" stroke="#ffd23f" stroke-width="7"/>
+    <path d="M128,276 Q256,232 384,276" fill="none" stroke="#c9a227" stroke-width="7"/>
+    <ellipse cx="256" cy="304" rx="120" ry="22" fill="#2fae47" stroke="#fff" stroke-width="4"/>
+    <rect x="132" y="150" width="10" height="100" fill="#1d2433"/><rect x="370" y="150" width="10" height="100" fill="#1d2433"/>
+    <rect x="116" y="138" width="42" height="18" rx="4" fill="#ffd23f" stroke="#3a1d00" stroke-width="4"/>
+    <rect x="354" y="138" width="42" height="18" rx="4" fill="#ffd23f" stroke="#3a1d00" stroke-width="4"/>
+    <polygon points="196,170 214,126 240,156 256,110 272,156 298,126 316,170" fill="url(#gold)" stroke="#3a1d00" stroke-width="6"/>`,
+  academia: () => `
+    <path d="M168,150 C220,190 292,210 344,250 M168,250 C220,210 292,190 344,150" fill="none" stroke="#b8ffe0" stroke-width="7" opacity="0.55" transform="translate(0,-10)"/>
+    ${ball(256, 268, 92)}
+    <polygon points="256,128 372,170 256,212 140,170" fill="#1b2235" stroke="url(#gold)" stroke-width="7"/>
+    <path d="M196,190 L196,224 Q256,252 316,224 L316,190" fill="#1b2235" stroke="url(#gold)" stroke-width="7"/>
+    <path d="M372,170 L372,226" stroke="url(#gold)" stroke-width="7"/><circle cx="372" cy="234" r="12" fill="url(#gold)" stroke="#3a1d00" stroke-width="4"/>`,
+  leyendas: () => `
+    <g fill="none" stroke="url(#gold)" stroke-width="10" stroke-linecap="round">
+      <path d="M170,330 Q110,250 150,150"/><path d="M342,330 Q402,250 362,150"/></g>
+    ${[0,1,2,3,4].map(i => { const t = i / 4; const y = 320 - t * 160; return `<ellipse cx="${150 - 20*Math.sin(t*3) }" cy="${y}" rx="20" ry="11" fill="url(#gold)" stroke="#3a1d00" stroke-width="3" transform="rotate(${-40 + t*20} ${150 - 20*Math.sin(t*3)} ${y})"/>
+      <ellipse cx="${362 + 20*Math.sin(t*3)}" cy="${y}" rx="20" ry="11" fill="url(#gold)" stroke="#3a1d00" stroke-width="3" transform="rotate(${40 - t*20} ${362 + 20*Math.sin(t*3)} ${y})"/>`; }).join('')}
+    <path d="M196,140 L316,140 L310,210 Q300,262 256,268 Q212,262 202,210 Z" fill="url(#gold)" stroke="#3a1d00" stroke-width="8"/>
+    <path d="M200,156 Q160,156 166,192 Q172,222 206,226" fill="none" stroke="#3a1d00" stroke-width="16"/>
+    <path d="M200,156 Q160,156 166,192 Q172,222 206,226" fill="none" stroke="url(#gold)" stroke-width="9"/>
+    <path d="M312,156 Q352,156 346,192 Q340,222 306,226" fill="none" stroke="#3a1d00" stroke-width="16"/>
+    <path d="M312,156 Q352,156 346,192 Q340,222 306,226" fill="none" stroke="url(#gold)" stroke-width="9"/>
+    <rect x="240" y="266" width="32" height="30" fill="url(#gold)" stroke="#3a1d00" stroke-width="6"/>
+    <rect x="206" y="294" width="100" height="30" rx="6" fill="#4a2a0a" stroke="#3a1d00" stroke-width="6"/>
+    <polygon points="256,160 264,184 290,184 269,199 277,224 256,209 235,224 243,199 222,184 248,184" fill="#fff6c2"/>`,
+};
+
+document.body.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="${P.c1}"/><stop offset="1" stop-color="${P.c2}"/></radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2"/><stop offset="0.45" stop-color="#ffd23f"/><stop offset="1" stop-color="#e08a00"/></linearGradient>
+  <filter id="sh"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity="0.55"/></filter>
+</defs>
+<circle cx="256" cy="256" r="250" fill="url(#bg)"/>
+<circle cx="256" cy="256" r="236" fill="none" stroke="url(#gold)" stroke-width="16"/>
+<circle cx="256" cy="256" r="222" fill="none" stroke="#000" stroke-opacity="0.25" stroke-width="4"/>
+${Array.from({length: 18}, (_, i) => { const a = i * Math.PI / 9; return `<circle cx="${256 + 200*Math.cos(a)}" cy="${256 + 200*Math.sin(a)}" r="3" fill="#fff" opacity="0.35"/>`; }).join('')}
+<text x="256" y="104" text-anchor="middle" font-family="Inter, sans-serif" font-weight="900" font-size="34" letter-spacing="3" fill="#fff" filter="url(#sh)">${P.title}</text>
+<g filter="url(#sh)">${key === 'constructor' ? `<g transform="translate(256,262) scale(0.82) translate(-256,-236)">${ART[key]()}</g>` : ART[key]()}</g>
+<g filter="url(#sh)">
+  <path d="M106,360 L406,360 L390,426 L122,426 Z" fill="#0b1430" stroke="url(#gold)" stroke-width="7"/>
+  <text x="256" y="410" text-anchor="middle" font-family="Inter Display, Inter, sans-serif" font-weight="900" font-size="${P.label.length > 6 ? 46 : 54}" letter-spacing="3" fill="url(#gold)">${P.label}</text>
+</g>
+</svg>`;
+</script></body></html>
