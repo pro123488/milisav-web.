@@ -4,9 +4,8 @@
 -- Configuración CENTRALIZADA de los Game Passes de FOOTBALL EMPIRE ULTIMATE.
 --
 -- ⚠️ IMPORTANTE
---   * Todos los identificadores están en 0 = "PENDIENTE DE CONFIGURACIÓN".
---   * Ninguno de estos pases existe todavía en Roblox hasta que los crees en el
---     Creator Dashboard (Monetización > Pases) y copies aquí su ID numérico.
+--   * Los 6 pases están creados en el Creator Dashboard (Monetización > Pases) y sus IDs
+--     reales están configurados abajo (30/10/2026). Si creas un pase nuevo, pon aquí su ID.
 --   * Mientras el ID sea 0, la tienda muestra "Pendiente de configuración",
 --     el botón de compra está desactivado y NUNCA se conceden ventajas.
 --   * El precio NO se escribe aquí: se obtiene de Roblox con GetProductInfo.
@@ -35,7 +34,7 @@ GamePassConfig.PENDING_ID = 0
 GamePassConfig.Passes = {
 	VIP_CLUB = {
 		key = "VIP_CLUB",
-		id = 0, -- TODO: pega aquí el ID del pase "VIP Club" del Creator Dashboard
+		id = 2057725511, -- VIP Club (Creator Dashboard)
 		active = true,
 		name = "VIP Club",
 		icon = "👑",
@@ -52,7 +51,7 @@ GamePassConfig.Passes = {
 	},
 	CONSTRUCTOR_PRO = {
 		key = "CONSTRUCTOR_PRO",
-		id = 0, -- TODO: pega aquí el ID del pase "Constructor Pro"
+		id = 2057881522, -- Constructor Pro
 		active = true,
 		name = "Constructor Pro",
 		icon = "🏗️",
@@ -69,7 +68,7 @@ GamePassConfig.Passes = {
 	},
 	COSMETIC_EXPANSION = {
 		key = "COSMETIC_EXPANSION",
-		id = 0, -- TODO: pega aquí el ID del pase "Expansión Cosmética"
+		id = 2061504152, -- Expansión Cosmética
 		active = true,
 		name = "Expansión Cosmética",
 		icon = "🎨",
@@ -88,7 +87,7 @@ GamePassConfig.Passes = {
 	-- ===== Pases preparados para fases posteriores (no se venden aún) =====
 	ELITE_STADIUM = {
 		key = "ELITE_STADIUM",
-		id = 0,
+		id = 2062481816, -- Estadio de Élite
 		active = true,
 		name = "Estadio de Élite",
 		icon = "🏟️",
@@ -105,7 +104,7 @@ GamePassConfig.Passes = {
 	},
 	ELITE_ACADEMY = {
 		key = "ELITE_ACADEMY",
-		id = 0,
+		id = 2062973704, -- Academia de Élite
 		active = true,
 		name = "Academia de Élite",
 		icon = "🧬",
@@ -122,7 +121,7 @@ GamePassConfig.Passes = {
 	},
 	CLUB_LEGENDS = {
 		key = "CLUB_LEGENDS",
-		id = 0,
+		id = 2060358837, -- Leyendas del Club
 		active = true,
 		name = "Leyendas del Club",
 		icon = "📜",
