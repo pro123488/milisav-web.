@@ -412,17 +412,118 @@ assert(data.Quests.Completed["properties_owned_1"], "logro de primera propiedad"
 must(player, "Prop.Sell", { id = "garage" })
 assert(data.Properties.garage == nil)
 
+-- PATROCINIOS, FORMATOS, EVENTOS, DIRECTOS Y REDES
+local Sponsor = req(ServerScriptService.Server.Services.SponsorService)
+local Events = req(ServerScriptService.Server.Services.EventService)
+local EventData = req(Shared.EventData)
+data.Money = 50000
+data.Reputation = 30
+data.BizRep = 50
+-- Oferta controlada (gift de una cámara de acción, categoría reseñas)
+local sp = Sponsor.state(data)
+sp.OffersDay = data.Home.PlayDays
+sp.Offers = { { Id = "otest", Brand = "pixelia", Kind = "gift", Category = "review", Product = "cam_action", MinQ = 10, Days = 3, Pay = 500, Bonus = 100 } }
+must(player, "Sponsor.Accept", { id = "otest" })
+local gift = sp.Active.otest.ItemUid
+assert(gift and data.Inventory[gift].Id == "cam_action", "el patrocinador envía el producto")
+-- Proyecto de reseña que NO muestra el producto: se rechaza al publicar con patrocinio
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+data.Inventory[gift].Loc = "backpack"
+local rp = must(player, "Video.CreateProject", { category = "review" }).data.pid
+must(player, "Video.StartRecording", { pid = rp })
+for i = 1, 3 do
+	M.clock = M.clock + 5
+	must(player, "Video.RecordScene", { shot = i == 1 and "talking" or "wide" })
+end
+Computer.onPrompt(player, room.DeskPrompt.Parent, "home", player.UserId)
+must(player, "Video.Import", { pid = rp })
+local function editAll(pidX)
+	local tlx = {}
+	for _, scx in ipairs(data.Projects[pidX].Scenes) do
+		if scx.Imp then
+			tlx[#tlx + 1] = { k = "s", id = scx.Id, trim = 1, tr = "cut" }
+		end
+	end
+	must(player, "Video.SaveEdit", { pid = pidX, edit = { Timeline = tlx } })
+	local exx = must(player, "Video.Export", { pid = pidX })
+	M.time = M.time + exx.data.secs + 1
+end
+editAll(rp)
+local noProd = call(player, "Video.Publish", { pid = rp, title = "Reseña de la cámara de acción", sponsor = "otest" })
+assert(not noProd.ok and noProd.msg:find("producto"), "no se puede cumplir un patrocinio sin mostrar el producto: " .. tostring(noProd.msg))
+-- Grabar el plano de producto con el producto propio y volver a exportar
+must(player, "Video.StartRecording", { pid = rp })
+M.clock = M.clock + 5
+must(player, "Video.RecordScene", { shot = "product", featuredUid = gift })
+must(player, "Video.Import", { pid = rp })
+editAll(rp)
+local short = call(player, "Video.Publish", { pid = rp, title = "Reseña corta de la cámara", format = "short" })
+assert(not short.ok, "un short no puede durar más de 75 s")
+local moneyS = data.Money
+must(player, "Video.Publish", { pid = rp, title = "Reseña de la cámara de acción Pixelia", sponsor = "otest" })
+assert(sp.Active.otest == nil and data.Money > moneyS, "contrato cumplido y pagado")
+assert(data.Videos[1].Sponsor == "pixelia" and data.Counters.sponsors_done == 1)
+assert(data.Inventory[gift] ~= nil, "el regalo se queda")
+-- Préstamo incumplido: se devuelve el equipo y baja la reputación comercial
+sp.Offers = { { Id = "oloan", Brand = "zenit", Kind = "loan", Category = "tech", Product = "phone_pro", MinQ = 50, Days = 1, Pay = 900, Bonus = 100 } }
+must(player, "Sponsor.Accept", { id = "oloan" })
+local loanUid = sp.Active.oloan.ItemUid
+assert(not call(player, "Inv.Sell", { uid = loanUid }).ok, "el equipo prestado no se vende")
+local biz = data.BizRep
+data.Home.PlayDays = data.Home.PlayDays + 5
+Sponsor.onNewDay(player)
+assert(data.Inventory[loanUid] == nil and data.BizRep == biz - 10, "incumplimiento: equipo devuelto y reputación comercial baja")
+
+-- Evento del día: ir al lugar, grabar allí y publicar
+local ev = Events.current()
+local evSpot = WorldData.SpotById[ev.Spot]
+M.time = M.time + 0 -- mismo día
+local evProg = Events.progress(data)
+M.moveTo(player, evSpot.X, 3, evSpot.Z)
+local wasActive = Events.isActive()
+if wasActive then
+	assert(Events.atEvent(player))
+	Events.onScene(player, evSpot)
+	assert(evProg.Scenes == 1, "escena contada en el evento")
+end
+local disc = 0
+for _, def in pairs(req(Shared.ItemCatalog).Items) do
+	if Events.priceMultiplier(def) < 1 then
+		disc = disc + 1
+	end
+end
+assert(ev.Effects.Discount == nil or disc > 0, "los descuentos del evento se aplican")
+
+-- Directo
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+Computer.onPrompt(player, room.DeskPrompt.Parent, "home", player.UserId)
+req(ServerScriptService.Server.Services.InventoryService).add(player, "web_hd", { loc = "home" })
+data.LastLive = 0
+must(player, "Live.Start", { topic = "qa" })
+assert(not call(player, "Live.Start", { topic = "qa" }).ok, "no hay dos directos a la vez")
+M.time = M.time + 10
+M.stepBackground()
+M.time = M.time + 100
+M.stepBackground()
+assert(data.Counters.lives == 1 and #data.Lives == 1, "el directo termina y queda registrado")
+
+-- Publicación en redes
+local subsP = data.Channel.Subs
+must(player, "Social.Post", { photoId = data.Photos[1].Id, caption = "Mi rincón favorito" })
+assert(#data.Posts == 1 and data.Posts[1].Likes > 0)
+assert(not call(player, "Social.Post", { photoId = data.Photos[1].Id, caption = "otra" }).ok, "espera entre publicaciones")
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]
 assert(saved and saved.__lock == nil, "el bloqueo de sesión debe liberarse al salir")
-assert(#saved.Videos == 1, "el vídeo debe quedar guardado")
+assert(#saved.Videos == 2, "los vídeos deben quedar guardados")
 
 -- Recarga: los datos persisten
 local p2 = M.newPlayer(Players, 101, "Tester")
 Players.PlayerAdded:Fire(p2)
 local d2 = Data.get(p2)
-assert(d2 and #d2.Videos == 1 and d2.Channel.TotalViews > 0, "los datos se recuperan")
+assert(d2 and #d2.Videos == 2 and d2.Channel.TotalViews > 0, "los datos se recuperan")
 
 -- Bloqueo de sesión de otro servidor: no se sobrescribe y se expulsa con mensaje claro (servidor real)
 M.store["u_202"] = { Money = 999999, __lock = { Job = "otro-servidor", T = M.time } }

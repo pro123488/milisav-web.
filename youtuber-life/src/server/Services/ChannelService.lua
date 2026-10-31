@@ -111,13 +111,13 @@ function Channel.tickPlayer(player, capSeconds)
 					table.insert(v.CommentList, pickComment(v, v.Comments))
 				end
 			end
-			local subs = new * F.subConversion(v.Q)
+			local subs = new * F.subConversion(v.Q) * (v.SubMult or 1)
 			ch.SubFrac = ch.SubFrac + subs
 			local whole = math.floor(ch.SubFrac)
 			ch.SubFrac = ch.SubFrac - whole
 			ch.Subs = ch.Subs + whole
 			v.SubsGained = (v.SubsGained or 0) + whole
-			local rev = new * F.revenuePerView(v.Cat, partner)
+			local rev = new * F.revenuePerView(v.Cat, partner) * (v.RpmMult or 1)
 			if v.Unlisted then
 				rev = 0
 			end

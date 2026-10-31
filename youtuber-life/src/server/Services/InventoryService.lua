@@ -263,6 +263,9 @@ function Inventory.Start()
 		if rec.Loc:sub(1, 5) == "prop:" then
 			return "Está colocado en una propiedad. Recógelo primero con el modo construcción."
 		end
+		if rec.Loan then
+			return "Es equipo prestado por un patrocinador: se devuelve al terminar el contrato."
+		end
 		if def.Slot == "phone" then
 			local phones = 0
 			for _, r in pairs(data.Inventory) do

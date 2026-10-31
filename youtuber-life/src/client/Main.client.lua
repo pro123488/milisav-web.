@@ -111,6 +111,44 @@ Net.on("profile", function(data)
 		UI.ReduceMotion = st.ReduceMotion
 	end
 end)
+local liveFrame
+local function liveOverlay(d)
+	State.setLive(d)
+	if d.kind == "end" then
+		if liveFrame then
+			liveFrame:Destroy()
+			liveFrame = nil
+		end
+		Notify.banner("🔴 Directo terminado", "Pico " .. d.peak .. " · $" .. (d.total or 0) .. " ganados · +" .. d.subs .. " subs", T.Accent)
+		return
+	end
+	if not liveFrame then
+		liveFrame = UI.frame(gui, { Size = UDim2.fromOffset(380, 0), Auto = Enum.AutomaticSize.Y, Position = UDim2.new(1, -12, 0, 84), Anchor = Vector2.new(1, 0), Color = T.Panel, Name = "LiveOverlay" })
+		UI.stroke(liveFrame, T.Accent, 2)
+		UI.padding(liveFrame, 8)
+		UI.list(liveFrame, Enum.FillDirection.Vertical, 4)
+	end
+	UI.clear(liveFrame)
+	UI.label(liveFrame, "🔴 EN DIRECTO · 👀 " .. d.viewers .. " · 💸 $" .. d.donations .. " · +" .. d.subs .. " subs · " .. d.left .. " s", { Font = Enum.Font.GothamBold, TextSize = 13 })
+	if d.donation then
+		Notify.toast("💸 Donación de $" .. d.donation .. " en el directo", "gold")
+	end
+	if d.question then
+		UI.label(liveFrame, "💬 " .. d.question, { TextSize = 13, Color = T.Gold, Height = 0, Auto = Enum.AutomaticSize.Y })
+		for i, a in ipairs(d.answers) do
+			UI.button(liveFrame, a, function()
+				Net.call("Live.Answer", { choice = i })
+				for _, c in ipairs(liveFrame:GetChildren()) do
+					if c:IsA("TextButton") then
+						c:Destroy()
+					end
+				end
+			end, { Size = UDim2.new(1, 0, 0, 30), TextSize = 12, Color = T.Panel2 })
+		end
+	end
+end
+Net.on("live", liveOverlay)
+
 Net.on("notify", function(d)
 	Notify.toast(d.text, d.style)
 end)

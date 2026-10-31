@@ -211,7 +211,7 @@ function Video.recordScene(player, p)
 		goldenHour = F.isGoldenHour(hour),
 		weather = S.Time.Weather,
 		spotTags = spot.Tags,
-		spotInterest = spot.Interest,
+		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0),
 		spotNoise = spot.Noise,
 		busy = spot.Busy,
 		categoryTags = cat.Tags,
@@ -257,6 +257,10 @@ function Video.recordScene(player, p)
 		data.Visited.Recorded[spot.District] = true
 	end
 	S.Progress.addXp(player, S.Progress.Xp.Scene)
+	S.Events.onScene(player, spot)
+	if S.Needs then
+		S.Needs.spend(player, 1)
+	end
 	S.Quest.tutorialEvent(player, "record_scene")
 	S.Quest.check(player)
 	local msg = "🎬 " .. shot.Name .. " en " .. spot.Name .. " — calidad " .. math.floor(scene.Q)
@@ -376,8 +380,9 @@ function Video.takePhoto(player, p)
 	end
 	S.Progress.addXp(player, S.Progress.Xp.Photo)
 	S.Quest.check(player)
-	-- Encargos de fotógrafo (JobsService)
+	-- Encargos de fotógrafo (JobsService) y concursos de eventos
 	S.Jobs.onPhoto(player, photo)
+	S.Events.onPhoto(player, photo)
 	return true, "📸 Foto guardada (" .. mode.Name .. ", calidad " .. math.floor(photo.Q) .. ")", { photo = photo }
 end
 
@@ -601,6 +606,54 @@ function Video.publish(player, p)
 	local res = proj.Export.Res
 	local label, labelMult, labels, products, nOwned = classify(proj, cat)
 
+	-- Formato
+	local fmt = VideoData.FormatById[p.format or "video"] or VideoData.FormatById.video
+	if fmt.MaxSeconds and res.Seconds > fmt.MaxSeconds then
+		return false, "Un Short dura como máximo " .. fmt.MaxSeconds .. " s (el tuyo dura " .. res.Seconds .. " s). Recorta en el Editor."
+	end
+	if fmt.MinTalk then
+		local talk, audio = 0, 0
+		for _, sc in ipairs(proj.Scenes) do
+			if sc.Shot == "talking" or sc.Shot == "interview" then
+				talk = talk + 1
+				audio = audio + sc.Aud
+			end
+		end
+		if talk < fmt.MinTalk then
+			return false, "Un podcast necesita al menos " .. fmt.MinTalk .. " tomas de presentación o entrevista."
+		end
+		if audio / talk < fmt.MinAudio then
+			return false, "El audio de las tomas habladas es demasiado bajo para un podcast (usa un buen micrófono)."
+		end
+	end
+	if fmt.MinScenes and (#proj.Scenes < fmt.MinScenes or res.Seconds < fmt.MinSeconds) then
+		return false, "Un documental necesita al menos " .. fmt.MinScenes .. " escenas y " .. math.floor(fmt.MinSeconds / 60) .. " minutos."
+	end
+	local seriesName, episode, loyal = nil, nil, 1
+	if fmt.Series then
+		local n = Util.cleanText(p.series or "", 30)
+		if not n or #n < 2 then
+			return false, "Escribe el nombre de la serie."
+		end
+		seriesName = S.Text.filter(player, n)
+		if not seriesName then
+			return false, "No se pudo comprobar el nombre de la serie."
+		end
+		data.Series = data.Series or {}
+		episode = (data.Series[seriesName] or 0) + 1
+		loyal = 1 + math.min(0.3, 0.06 * (episode - 1))
+	end
+	-- Patrocinio
+	local contract, contractId = nil, nil
+	if type(p.sponsor) == "string" and p.sponsor ~= "" then
+		local c, err = S.Sponsor.fulfill(player, p.sponsor, proj, res.Final)
+		if not c then
+			return false, "No cumple el contrato: " .. err
+		end
+		contract, contractId = c, p.sponsor
+		labels[#labels + 1] = "Contenido patrocinado"
+	end
+
 	data.Counters.video_id = (data.Counters.video_id or 0) + 1
 	local vid = "v" .. data.Counters.video_id
 	local seed = vid .. ":" .. player.UserId
@@ -635,6 +688,7 @@ function Video.publish(player, p)
 		fatigue = fatigue,
 		viral = viral,
 	})
+	expected = math.floor(expected * (fmt.ViewMult or 1) * loyal * S.Events.viewMultiplier(proj.Category))
 	local unlisted = p.visibility == "unlisted"
 	if unlisted then
 		expected = math.floor(expected * 0.1)
@@ -669,6 +723,12 @@ function Video.publish(player, p)
 		Trend = trend > 1,
 		Viral = viral ~= nil,
 		Unlisted = unlisted,
+		Format = fmt.Id,
+		RpmMult = fmt.RpmMult or 1,
+		SubMult = fmt.SubMult or 1,
+		Series = seriesName,
+		Episode = episode,
+		Sponsor = contract and contract.Brand or nil,
 	}
 	table.insert(data.Videos, 1, video)
 	while #data.Videos > Config.MaxVideosKept do
@@ -680,6 +740,24 @@ function Video.publish(player, p)
 	end
 
 	-- Progreso
+	if seriesName then
+		data.Series[seriesName] = episode
+		data.Counters.series_eps = (data.Counters.series_eps or 0) + 1
+	end
+	if fmt.Id == "short" then
+		data.Counters.shorts = (data.Counters.shorts or 0) + 1
+	elseif fmt.Id == "podcast" then
+		data.Counters.podcasts = (data.Counters.podcasts or 0) + 1
+	elseif fmt.Id == "doc" then
+		data.Counters.docs = (data.Counters.docs or 0) + 1
+		if res.Final >= 65 then
+			data.Reputation = math.min(100, data.Reputation + 1)
+		end
+	end
+	if contractId then
+		S.Sponsor.complete(player, contractId, res.Final)
+	end
+	S.Events.onPublish(player, video)
 	data.Counters.published = (data.Counters.published or 0) + 1
 	data.Visited.Categories[proj.Category] = true
 	data.Counters.max_quality = math.max(data.Counters.max_quality or 0, math.floor(res.Final))

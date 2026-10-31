@@ -26,6 +26,24 @@ function State.on(fn)
 	end
 end
 
+-- Directo en curso (eventos "live" del servidor)
+State.Live = nil
+local liveListeners = {}
+function State.setLive(d)
+	State.Live = d
+	for _, fn in pairs(liveListeners) do
+		task.spawn(fn, d)
+	end
+end
+function State.onLive(fn)
+	nextId = nextId + 1
+	local id = nextId
+	liveListeners[id] = fn
+	return function()
+		liveListeners[id] = nil
+	end
+end
+
 function State.addMessage(text, style)
 	table.insert(State.Messages, 1, { Text = text, Style = style, T = os.time() })
 	while #State.Messages > 60 do

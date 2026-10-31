@@ -929,6 +929,37 @@ function Studio.build(container, ctx)
 					UI.cycle(card, "Visibilidad", vis, form.unlisted and 2 or 1, function(i)
 						form.unlisted = i == 2
 					end)
+					local fmtNames = {}
+					for i, f in ipairs(VideoData.Formats) do
+						fmtNames[i] = f.Name
+					end
+					form.formatIdx = form.formatIdx or 1
+					UI.cycle(card, "Formato", fmtNames, form.formatIdx, function(i)
+						form.formatIdx = i
+						render()
+					end, { ValueWidth = 200 })
+					local fdef = VideoData.Formats[form.formatIdx]
+					UI.label(card, fdef.Desc, { TextSize = 11, Color = T.Sub })
+					if fdef.Series then
+						local sb = UI.input(card, "Nombre de la serie (los episodios suman público fiel)", form.series or "")
+						sb:GetPropertyChangedSignal("Text"):Connect(function()
+							form.series = sb.Text
+						end)
+					end
+					local contracts = { { Id = false, Name = "Sin patrocinio" } }
+					for cid, c in pairs(data.Sponsors and data.Sponsors.Active or {}) do
+						contracts[#contracts + 1] = { Id = cid, Name = "🤝 " .. c.Brand:upper() .. " · " .. catName(c.Category) .. " Q" .. c.MinQ }
+					end
+					local cNames, cIdx = {}, 1
+					for i, c in ipairs(contracts) do
+						cNames[i] = c.Name
+						if c.Id == (form.sponsor or false) then
+							cIdx = i
+						end
+					end
+					UI.cycle(card, "Patrocinio", cNames, cIdx, function(i)
+						form.sponsor = contracts[i].Id or nil
+					end, { ValueWidth = 260 })
 					UI.label(card, "Puntuación del título: " .. math.floor(F.title(form.title or "", p.Category)) .. "/100", { TextSize = 12, Color = T.Sub })
 					local row = UI.row(card, 36)
 					UI.button(row, "🚀 Publicar", function()
@@ -936,7 +967,8 @@ function Studio.build(container, ctx)
 						for t in (form.tags or ""):gmatch("[^,]+") do
 							tags[#tags + 1] = Util.trim(t)
 						end
-						local r = Net.call("Video.Publish", { pid = p.Id, title = form.title, description = form.description or "", tags = tags, thumbId = form.thumbId, visibility = form.unlisted and "unlisted" or "public" })
+						local r = Net.call("Video.Publish", { pid = p.Id, title = form.title, description = form.description or "", tags = tags, thumbId = form.thumbId, visibility = form.unlisted and "unlisted" or "public",
+							format = VideoData.Formats[form.formatIdx or 1].Id, series = form.series, sponsor = form.sponsor })
 						if r.ok then
 							publishing = nil
 							form = {}
@@ -972,7 +1004,7 @@ function Studio.build(container, ctx)
 				UI.label(card, v.Title, { Position = UDim2.fromOffset(166, 6), Size = UDim2.new(1, -176, 0, 22), Font = Enum.Font.GothamBold })
 				UI.label(card, Util.formatInt(v.Views) .. " visitas · 👍 " .. Util.formatInt(v.Likes) .. " · 💬 " .. v.Comments .. " · $" .. string.format("%.2f", v.Revenue) .. " · +" .. (v.SubsGained or 0) .. " subs",
 					{ Position = UDim2.fromOffset(166, 30), Size = UDim2.new(1, -176, 0, 20), TextSize = 13 })
-				UI.label(card, "Calidad " .. math.floor(v.Q) .. " · CTR " .. v.Ctr .. "% · " .. catName(v.Cat) .. (v.Label and (" · " .. v.Label) or "") .. (v.Trend and " · 🔥 tendencia" or "") .. (v.Viral and " · 🚀 viral" or "") .. (v.Unlisted and " · oculto" or ""),
+				UI.label(card, "Calidad " .. math.floor(v.Q) .. " · CTR " .. v.Ctr .. "% · " .. catName(v.Cat) .. ((v.Format and v.Format ~= "video") and (" · " .. VideoData.FormatById[v.Format].Name .. (v.Episode and (" #" .. v.Episode) or "")) or "") .. (v.Sponsor and " · 🤝 patrocinado" or "") .. (v.Label and (" · " .. v.Label) or "") .. (v.Trend and " · 🔥 tendencia" or "") .. (v.Viral and " · 🚀 viral" or "") .. (v.Unlisted and " · oculto" or ""),
 					{ Position = UDim2.fromOffset(166, 52), Size = UDim2.new(1, -176, 0, 20), TextSize = 12, Color = T.Sub })
 				local c = v.CommentList and v.CommentList[1]
 				if c then

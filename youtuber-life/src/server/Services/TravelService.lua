@@ -141,7 +141,7 @@ function Travel.taxiTo(player, pos, label)
 	if dist < 60 then
 		return false, "Ya estás muy cerca."
 	end
-	local fare = math.floor(Config.TaxiBaseFare + dist * Config.TaxiPerStud + 0.5)
+	local fare = math.floor((Config.TaxiBaseFare + dist * Config.TaxiPerStud) * S.Events.taxiMultiplier() + 0.5)
 	if not S.Economy.spend(player, fare, "Transporte", "Taxi a " .. label) then
 		return false, "El taxi cuesta $" .. fare .. "."
 	end

@@ -22,6 +22,9 @@ local order = {
 	{ "World", "WorldBuilder" },
 	{ "Home", "HomeService" },
 	{ "Avatar", "AvatarService" },
+	{ "Events", "EventService" },
+	{ "Sponsor", "SponsorService" },
+	{ "Live", "LiveService" },
 	{ "Video", "VideoService" },
 	{ "Channel", "ChannelService" },
 	{ "Jobs", "JobsService" },
@@ -82,6 +85,7 @@ local function onPlayerAdded(player)
 	S.Channel.tickPlayer(player, Config.OfflineCatchUpHours * 3600)
 	data.LastSeen = os.time()
 	S.Shop.processOrders(player)
+	pcall(S.Sponsor.refreshOffers, player)
 	S.Quest.check(player)
 	if player.Character then
 		task.spawn(S.Avatar.onCharacter, player, player.Character)

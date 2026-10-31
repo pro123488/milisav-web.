@@ -44,6 +44,19 @@ VideoData.Durations = { { Id = "short", Name = "Corto (1-3 min)", Seconds = 120 
 VideoData.Goals = { "Ganar suscriptores", "Conseguir visitas", "Generar ingresos", "Mejorar la reputación", "Experimentar" }
 VideoData.Transport = { "Caminar", "Taxi", "Transporte público" }
 
+-- Formatos de publicación (cada uno con requisitos y resultados propios)
+VideoData.Formats = {
+	{ Id = "video", Name = "Vídeo", Desc = "Formato estándar." },
+	{ Id = "short", Name = "Short", Desc = "Máximo 75 s. Más visitas, menos ingresos por visita.", MaxSeconds = 75, ViewMult = 1.6, RpmMult = 0.35, SubMult = 0.7 },
+	{ Id = "podcast", Name = "Podcast", Desc = "Mínimo 3 tomas de presentación o entrevista con buen audio. Menos visitas, más ingresos y fidelidad.", MinTalk = 3, MinAudio = 50, ViewMult = 0.7, RpmMult = 1.8, SubMult = 1.3 },
+	{ Id = "series", Name = "Episodio de serie", Desc = "Cada episodio de la misma serie atrae a más público fiel (hasta +30%).", Series = true },
+	{ Id = "doc", Name = "Documental / reportaje", Desc = "Mínimo 8 escenas y 6 minutos. Más reputación si la calidad es alta.", MinScenes = 8, MinSeconds = 360, ViewMult = 0.9, RpmMult = 1.4, SubMult = 1.1 },
+}
+VideoData.FormatById = {}
+for _, f in ipairs(VideoData.Formats) do
+	VideoData.FormatById[f.Id] = f
+end
+
 -- Tipos de toma. Seconds = duración simulada en el vídeo final.
 VideoData.Shots = {
 	{ Id = "wide", Name = "Plano general", Seconds = 20, Interest = 6 },

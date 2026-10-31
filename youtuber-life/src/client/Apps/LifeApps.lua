@@ -383,6 +383,12 @@ function Album.build(container, ctx)
 		if #data.Photos == 0 then
 			UI.label(list, "Aún no hay fotos. Pulsa F (o el botón FOTO) para el modo fotógrafo.", { Color = T.Sub, Height = 40 })
 		end
+		if data.Posts and #data.Posts > 0 then
+			UI.label(list, "📲 Tus publicaciones", { Font = Enum.Font.GothamBold })
+			for _, post in ipairs(data.Posts) do
+				UI.label(list, "«" .. post.Caption .. "» · " .. post.Spot .. " · ❤️ " .. post.Likes .. " · +" .. post.Subs, { TextSize = 11, Color = T.Sub })
+			end
+		end
 		local ph = nil
 		for _, p in ipairs(data.Photos) do
 			if p.Id == selected then
@@ -400,6 +406,10 @@ function Album.build(container, ctx)
 			UI.cycle(right, "Mover a", data.Albums, Util.indexOf(data.Albums, ph.Album) or 1, function(i)
 				Net.call("Photo.SetAlbum", { id = ph.Id, album = data.Albums[i] })
 			end, { LabelWidth = 70 })
+			local cap = UI.input(right, "Texto para la publicación en redes", "")
+			UI.button(right, "📲 Publicar en redes", function()
+				Net.call("Social.Post", { photoId = ph.Id, caption = cap.Text })
+			end, { Width = 200, Color = T.Accent2 })
 			local row = UI.row(right, 34)
 			UI.button(row, "🖼 Usar en miniatura", function()
 				ctx.open("thumbs", { photoId = ph.Id })

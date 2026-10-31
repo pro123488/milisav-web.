@@ -57,6 +57,15 @@ local tracks = {
 	{ "furniture_placed", "Coloca %s muebles", { 1, 10, 30, 75 }, 60, 30, { [3] = "Interiorista" } },
 	{ "remodels", "Remodela %s veces una sala", { 1, 5, 15 }, 60, 30, {} },
 	{ "decor_max", "Consigue una decoración de %s puntos", { 10, 20, 30, 40 }, 120, 60, { [3] = "Estudio de ensueño" } },
+	{ "sponsors_done", "Cumple %s contratos de patrocinio", { 1, 5, 20 }, 200, 80, { [1] = "Patrocinado", [3] = "Embajador de marca" } },
+	{ "events_joined", "Participa en %s eventos", { 1, 5, 15 }, 100, 50, { [3] = "Alma de la fiesta" } },
+	{ "events_goals", "Cumple %s objetivos de eventos", { 3, 15, 40 }, 120, 60, {} },
+	{ "lives", "Haz %s directos", { 1, 10, 30 }, 120, 60, { [2] = "Streamer" } },
+	{ "posts", "Publica %s fotos en redes", { 1, 10, 50 }, 60, 30, { [3] = "Influencer" } },
+	{ "shorts", "Publica %s shorts", { 1, 10 }, 80, 40, {} },
+	{ "podcasts", "Publica %s podcasts", { 1, 10 }, 120, 60, { [2] = "Voz de la ciudad" } },
+	{ "series_eps", "Publica %s episodios de series", { 3, 10, 25 }, 120, 60, { [3] = "Showrunner" } },
+	{ "docs", "Publica %s documentales", { 1, 5 }, 150, 70, { [2] = "Documentalista" } },
 }
 
 QuestDefs.TrackNames = {
@@ -68,6 +77,8 @@ QuestDefs.TrackNames = {
 	reviews = "Reseñas", jobs_done = "Encargos", taxi_rides = "Taxis", exports = "Exportaciones",
 	golden_scenes = "Hora dorada", night_photos = "Fotos nocturnas", rentals = "Alquileres", properties_owned = "Propiedades",
 	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
+	sponsors_done = "Patrocinios", events_joined = "Eventos", events_goals = "Objetivos de eventos", lives = "Directos",
+	posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
 }
 
 local function fmt(n)

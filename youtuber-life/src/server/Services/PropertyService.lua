@@ -815,6 +815,7 @@ function Property.Start()
 			data.Counters.furniture_placed = (data.Counters.furniture_placed or 0) + 1
 		end
 		data.Counters.decor_max = math.max(data.Counters.decor_max or 0, math.floor(Property.decorScore(player, id)))
+		S.Events.onDecor(player, Property.decorScore(player, id))
 		Property.buildInterior(player, id)
 		S.Quest.check(player)
 		return true, (already and "Mueble movido." or "Mueble colocado.") .. " Decoración: " .. Property.decorScore(player, id) .. "/45"
@@ -914,6 +915,7 @@ function Property.Start()
 		rec.Spent = (rec.Spent or 0) + cost
 		data.Counters.remodels = (data.Counters.remodels or 0) + 1
 		data.Counters.decor_max = math.max(data.Counters.decor_max or 0, math.floor(Property.decorScore(player, id)))
+		S.Events.onDecor(player, Property.decorScore(player, id))
 		Property.buildInterior(player, id)
 		S.Quest.check(player)
 		return true, "Remodelación hecha ($" .. cost .. "). Decoración: " .. Property.decorScore(player, id) .. "/45"
