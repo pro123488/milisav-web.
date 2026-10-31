@@ -66,6 +66,9 @@ local tracks = {
 	{ "podcasts", "Publica %s podcasts", { 1, 10 }, 120, 60, { [2] = "Voz de la ciudad" } },
 	{ "series_eps", "Publica %s episodios de series", { 3, 10, 25 }, 120, 60, { [3] = "Showrunner" } },
 	{ "docs", "Publica %s documentales", { 1, 5 }, 150, 70, { [2] = "Documentalista" } },
+	{ "meals", "Come %s veces", { 1, 25, 100 }, 30, 15, {} },
+	{ "cooked", "Cocina %s platos", { 1, 10, 40 }, 60, 30, { [3] = "Chef casero" } },
+	{ "restaurant_meals", "Come %s veces en el restaurante", { 1, 10 }, 40, 20, {} },
 }
 
 QuestDefs.TrackNames = {
@@ -78,7 +81,7 @@ QuestDefs.TrackNames = {
 	golden_scenes = "Hora dorada", night_photos = "Fotos nocturnas", rentals = "Alquileres", properties_owned = "Propiedades",
 	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 	sponsors_done = "Patrocinios", events_joined = "Eventos", events_goals = "Objetivos de eventos", lives = "Directos",
-	posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
+	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
 }
 
 local function fmt(n)

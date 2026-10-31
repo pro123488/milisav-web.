@@ -112,6 +112,7 @@ district({ Id = "commercial", Name = "Zona comercial", Col = 4, Row = 3, Ground 
 district({ Id = "restaurants", Name = "Distrito de restaurantes", Col = 5, Row = 3, Ground = { 95, 85, 80 }, Material = "Brick",
 	Style = "shop", Count = 7, Palette = { { 200, 90, 60 }, { 240, 200, 150 }, { 90, 50, 40 } }, Trees = 6,
 	Tags = { "food", "urban" }, Noise = 4, Busy = 6,
+	Specials = { { Type = "store", StoreId = "market", X = -70, Z = -70 }, { Type = "restaurant", Name = "Restaurante La Plaza", X = 70, Z = -70 } },
 	Spots = { { Name = "Terraza gourmet", X = 0, Z = 0, Tags = { "food", "luxury" }, Interest = 10 },
 		{ Name = "Callejón de comida callejera", X = -70, Z = 70, Tags = { "food", "cheap" }, Interest = 9 } } })
 district({ Id = "tourist", Name = "Zona turística", Col = 6, Row = 3, Ground = { 200, 180, 140 }, Material = "Cobblestone",

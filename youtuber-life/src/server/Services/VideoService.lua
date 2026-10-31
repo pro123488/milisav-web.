@@ -258,6 +258,7 @@ function Video.recordScene(player, p)
 	end
 	S.Progress.addXp(player, S.Progress.Xp.Scene)
 	S.Events.onScene(player, spot)
+	S.Jobs.onScene(player, scene)
 	if S.Needs then
 		S.Needs.spend(player, 1)
 	end
@@ -1081,7 +1082,7 @@ function Video.Start()
 		end
 		local stats = S.Computer.sessionStats(player)
 		local res, cx = Video.evaluate(player, proj, stats)
-		local secs = F.exportSeconds(cx, stats, stats.EditSpeed, stats.Comfort)
+		local secs = math.floor(F.exportSeconds(cx, stats, stats.EditSpeed, stats.Comfort) * (S.Needs and S.Needs.exportMult(player) or 1) + 0.5)
 		if p.useToken and data.ExportTokens > 0 then
 			data.ExportTokens = data.ExportTokens - 1
 			secs = 1
@@ -1172,6 +1173,7 @@ function Video.Start()
 			proj.ThumbId = tid
 		end
 		data.Counters.thumbnails = (data.Counters.thumbnails or 0) + 1
+		S.Jobs.onThumb(player, design, score.Score)
 		S.Progress.addXp(player, S.Progress.Xp.Thumbnail)
 		S.Quest.tutorialEvent(player, "thumbnail")
 		S.Quest.check(player)

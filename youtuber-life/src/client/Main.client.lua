@@ -167,6 +167,8 @@ Net.on("openUI", function(d)
 		Shell.openPanel("product", { item = d.item, store = d.store })
 	elseif d.ui == "app" then
 		Shell.openPanel(d.app)
+	elseif d.ui == "food" then
+		Shell.openPanel("food", { tab = d.tab, place = d.place })
 	elseif d.ui == "realty" then
 		Shell.openPanel("realty", { listing = d.listing })
 	end

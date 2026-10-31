@@ -64,6 +64,8 @@ DataService.Template = {
 	Sponsors = { Offers = {}, Active = {}, History = {}, Seq = 0, OffersDay = -1 },
 	EventProg = { Day = 0, Done = {}, Scenes = 0, Published = 0, Joined = false },
 	Lives = {},
+	Needs = { Energy = 100, Mood = 70 },
+	FoodOrders = {},
 	Posts = {},
 	Series = {},
 	LastLive = 0,

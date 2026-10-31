@@ -33,6 +33,7 @@ local roleLines = {
 		"¿Vas a grabar una reseña? Puedes probar los productos de exposición mientras estés en la tienda." },
 	barista = { "Los computadores públicos son gratis. Perfectos para editar si aún no tienes uno bueno.",
 		"Aquí vienen muchos estudiantes a editar sus vídeos." },
+	waiter = { "¡Bienvenido! El menú del día es lo más popular. Pide en el mostrador.", "Comer bien sube tu energía y tu ánimo." },
 	banker = { "Desde el cajero puedes ahorrar, crear metas y pedir préstamos con un 10% fijo.",
 		"Revisa tu informe mensual: verás en qué gastas y cuánto ganas." },
 }

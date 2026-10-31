@@ -21,7 +21,7 @@ local weatherName = { Clear = "Despejado", Cloudy = "Nublado", Rain = "Lluvia", 
 
 function HUD.build(gui, actions)
 	-- Panel superior izquierdo: canal, nivel y rango
-	local left = UI.frame(gui, { Size = UDim2.fromOffset(300, 74), Position = UDim2.fromOffset(12, 12), Color = T.Panel, Transparency = 0.1, Name = "HudLeft" })
+	local left = UI.frame(gui, { Size = UDim2.fromOffset(300, 92), Position = UDim2.fromOffset(12, 12), Color = T.Panel, Transparency = 0.1, Name = "HudLeft" })
 	UI.padding(left, 8)
 	refs.channel = UI.label(left, "Cargando...", { Font = Enum.Font.GothamBlack, TextSize = 15, Height = 20 })
 	refs.rank = UI.label(left, "", { Position = UDim2.fromOffset(0, 20), TextSize = 12, Color = T.Gold, Height = 16 })
@@ -29,6 +29,12 @@ function HUD.build(gui, actions)
 	xpBg.Position = UDim2.fromOffset(0, 40)
 	refs.xpFill = xpFill
 	refs.level = UI.label(left, "", { Position = UDim2.fromOffset(0, 48), TextSize = 11, Color = T.Sub, Height = 14 })
+	local enBg, enFill = UI.progress(left, 1, T.Ok, { Size = UDim2.new(0.48, 0, 0, 6) })
+	enBg.Position = UDim2.fromOffset(0, 66)
+	refs.energy = enFill
+	local moBg, moFill = UI.progress(left, 0.7, T.Gold, { Size = UDim2.new(0.48, 0, 0, 6) })
+	moBg.Position = UDim2.new(0.52, 0, 0, 66)
+	refs.mood = moFill
 
 	-- Panel superior central: dinero y suscriptores
 	local mid = UI.frame(gui, { Size = UDim2.fromOffset(340, 44), Position = UDim2.new(0.5, 0, 0, 12), Anchor = Vector2.new(0.5, 0), Color = T.Panel, Transparency = 0.1, Name = "HudMid" })
@@ -47,7 +53,7 @@ function HUD.build(gui, actions)
 	end
 
 	-- Objetivo actual (tutorial)
-	local obj = UI.frame(gui, { Size = UDim2.fromOffset(300, 0), Auto = Enum.AutomaticSize.Y, Position = UDim2.fromOffset(12, 96), Color = Color3.fromRGB(30, 40, 70), Transparency = 0.1, Name = "Objective" })
+	local obj = UI.frame(gui, { Size = UDim2.fromOffset(300, 0), Auto = Enum.AutomaticSize.Y, Position = UDim2.fromOffset(12, 114), Color = Color3.fromRGB(30, 40, 70), Transparency = 0.1, Name = "Objective" })
 	UI.padding(obj, 8)
 	UI.list(obj, Enum.FillDirection.Vertical, 4)
 	refs.objTitle = UI.label(obj, "", { Font = Enum.Font.GothamBold, TextSize = 13, Auto = Enum.AutomaticSize.Y, Height = 0 })
@@ -99,6 +105,10 @@ function HUD.refresh()
 	refs.xpFill.Size = UDim2.new(math.clamp(data.XP / d.XpNext, 0, 1), 0, 1, 0)
 	refs.level.Text = "Nivel " .. data.Level .. " · " .. data.XP .. "/" .. d.XpNext .. " XP · Reputación " .. data.Reputation
 	refs.money.Text = "$" .. Util.formatInt(data.Money)
+	local n = data.Needs or { Energy = 100, Mood = 70 }
+	refs.energy.Size = UDim2.new(n.Energy / 100, 0, 1, 0)
+	refs.energy.BackgroundColor3 = n.Energy < 25 and T.Err or T.Ok
+	refs.mood.Size = UDim2.new(n.Mood / 100, 0, 1, 0)
 	refs.subs.Text = "👥 " .. Util.formatShort(data.Channel.Subs) .. " subs"
 	-- Objetivo
 	local q = data.Quests

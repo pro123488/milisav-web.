@@ -47,7 +47,7 @@ function Travel.currentSpot(player)
 	end
 	if S.Home.isAtHome(player) then
 		local _, _, decor = S.Inventory.best(player, "homeextra", "home", "Decor")
-		local tags = { "home" }
+		local tags = { "home", "food" }
 		if decor then
 			tags[#tags + 1] = "studio"
 		end

@@ -123,7 +123,7 @@ function Live.Start()
 			return false, "Necesitas una cámara web en casa o una cámara para emitir."
 		end
 		data.LastLive = os.time()
-		local s = { Topic = topic, Quality = q, Started = os.time(), Ends = os.time() + Live.Duration, Viewers = 1, Peak = 1, Donations = 0, Subs = 0, SubFrac = 0, Engagement = 0.5, Ticks = 0, ViewerSum = 0, Question = nil, NextQ = os.time() + 8 }
+		local s = { Topic = topic, Quality = q, Started = os.time(), Ends = os.time() + Live.Duration, Viewers = 1, Peak = 1, Donations = 0, Subs = 0, SubFrac = 0, Engagement = 0.35 + (S.Needs and S.Needs.mood(player) or 60) / 400, Ticks = 0, ViewerSum = 0, Question = nil, NextQ = os.time() + 8 }
 		sessions[player] = s
 		pushState(player, s, "start", { quality = math.floor(q) })
 		return true, "🔴 ¡Estás en directo! Responde al chat para mantener a la audiencia."
@@ -203,6 +203,9 @@ function Live.Start()
 					if not S.Computer.hasSession(player) then
 						finish(player)
 						return
+					end
+					if s.Ticks % 10 == 0 and S.Needs then
+						S.Needs.spend(player, 1)
 					end
 					local subs = data.Channel.Subs
 					local trend = S.Channel.trendFor(s.Topic.Cat)

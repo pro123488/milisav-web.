@@ -22,6 +22,7 @@ local order = {
 	{ "World", "WorldBuilder" },
 	{ "Home", "HomeService" },
 	{ "Avatar", "AvatarService" },
+	{ "Needs", "NeedsService" },
 	{ "Events", "EventService" },
 	{ "Sponsor", "SponsorService" },
 	{ "Live", "LiveService" },

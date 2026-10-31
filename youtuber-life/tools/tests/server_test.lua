@@ -513,6 +513,98 @@ must(player, "Social.Post", { photoId = data.Photos[1].Id, caption = "Mi rincón
 assert(#data.Posts == 1 and data.Posts[1].Likes > 0)
 assert(not call(player, "Social.Post", { photoId = data.Photos[1].Id, caption = "otra" }).ok, "espera entre publicaciones")
 
+-- COMIDA, ENERGÍA Y EMPLEOS NUEVOS
+local Needs = req(ServerScriptService.Server.Services.NeedsService)
+data.Money = 50000
+data.Needs.Energy = 20
+local market, restaurant
+for _, sp in ipairs(WorldData.Specials) do
+	if sp.StoreId == "market" then
+		market = sp
+	elseif sp.Type == "restaurant" then
+		restaurant = sp
+	end
+end
+M.moveTo(player, market.WX, 3, market.WZ)
+for i, id in ipairs({ "food_pasta", "food_tomato", "food_bar" }) do
+	must(player, "Shop.BuyInStore", { itemId = id, qty = 1, nonce = "food-" .. i })
+end
+assert(not call(player, "Food.Cook", { recipe = "meal_pasta" }).ok, "solo se cocina en casa")
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+must(player, "Food.Cook", { recipe = "meal_pasta" })
+assert(not call(player, "Food.Cook", { recipe = "meal_pasta" }).ok, "sin ingredientes no se cocina")
+local meal
+for uid, rec in pairs(data.Inventory) do
+	if rec.Id == "meal_pasta" then
+		meal = uid
+	end
+end
+assert(meal, "el plato cocinado está en la despensa")
+must(player, "Food.Eat", { uid = meal })
+assert(data.Needs.Energy > 50, "comer recupera energía")
+assert(not call(player, "Food.Order", { place = "restaurant", item = "r_menu" }).ok, "hay que estar en el restaurante")
+M.moveTo(player, restaurant.WX, 3, restaurant.WZ)
+must(player, "Food.Order", { place = "restaurant", item = "r_paella" })
+must(player, "Food.Delivery", { item = "meal_sushi" })
+M.time = M.time + 70
+M.stepBackground()
+local sushi = false
+for _, rec in pairs(data.Inventory) do
+	if rec.Id == "meal_sushi" then
+		sushi = true
+	end
+end
+assert(sushi, "la comida a domicilio llega a casa")
+data.Needs.Energy = 10
+assert(Needs.interestBonus(player) < 0 and Needs.exportMult(player) > 1, "poca energía: efecto leve")
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+Needs.rest(player)
+assert(data.Needs.Energy >= 60, "descansar recupera energía")
+-- Cajero
+M.moveTo(player, tech.WX, 3, tech.WZ)
+local cj = must(player, "Job.Start", { type = "cashier" })
+local ans = {}
+for i, r in ipairs(cj.data.rounds) do
+	ans[i] = r.Paid - r.Price
+end
+local mJ = data.Money
+must(player, "Job.Submit", { answers = ans })
+assert(data.Money > mJ, "turno de caja pagado")
+-- Técnico informático
+local tq = must(player, "Job.Start", { type = "tech" })
+local tans = {}
+local Cat = req(Shared.ItemCatalog)
+for i, q in ipairs(tq.data.questions) do
+	for _, opt in ipairs(q.Options) do
+		if Cat.get(opt).Compat.Socket == Cat.get(q.Cpu).Compat.Socket then
+			tans[i] = opt
+		end
+	end
+end
+must(player, "Job.Submit", { answers = tans })
+-- Diseñador de miniaturas
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+Computer.onPrompt(player, room.DeskPrompt.Parent, "home", player.UserId)
+must(player, "Job.Start", { type = "thumbs" })
+local kw = data.Job.Keyword
+data.Job.MinScore = 1
+local mT = data.Money
+must(player, "Thumb.Save", { design = { text = kw .. " HOY", font = "GothamBlack", textColor = 3, bg = 2, template = "left", stickers = { "arrow" }, photoId = data.Photos[1].Id } })
+assert(data.Money > mT and data.Job.Type == nil, "miniatura del cliente aceptada")
+-- Camarógrafo
+must(player, "Job.Start", { type = "camera" })
+local camSpot = WorldData.SpotById[data.Job.Spot]
+data.Job.MinQ = 1
+M.moveTo(player, camSpot.X, 3, camSpot.Z)
+local cpid = must(player, "Video.CreateProject", { category = "vlog" }).data.pid
+must(player, "Video.StartRecording", { pid = cpid })
+for i = 1, 2 do
+	M.clock = M.clock + 5
+	must(player, "Video.RecordScene", { shot = "wide" })
+end
+assert(data.Job.Type == nil and (data.Counters.job_camera or 0) == 1, "encargo de camarógrafo completado")
+must(player, "Video.StopRecording", {})
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]

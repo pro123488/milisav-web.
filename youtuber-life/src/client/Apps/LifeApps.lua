@@ -266,10 +266,17 @@ local jobInfo = {
 	{ Id = "edit", Name = "Editor de vídeos freelance", Req = "Estar usando un computador", Desc = "Ordena los clips de un cliente. Paga más con un PC mejor." },
 	{ Id = "photo", Name = "Fotógrafo por encargo", Req = "Cámara o teléfono", Desc = "Haz una foto concreta en un lugar de la ciudad. Paga según la calidad." },
 	{ Id = "delivery", Name = "Repartidor", Req = "Empezar dentro de una tienda", Desc = "Lleva un paquete a un lugar. Paga según la distancia." },
+	{ Id = "cashier", Name = "Cajero / dependiente", Req = "Empezar dentro de una tienda", Desc = "Calcula el cambio de tres clientes." },
+	{ Id = "camera", Name = "Camarógrafo", Req = "Cámara o teléfono", Desc = "Graba 2 escenas de calidad mínima en el lugar que pide el cliente." },
+	{ Id = "thumbs", Name = "Diseñador de miniaturas", Req = "Computador o tableta", Desc = "Diseña una miniatura con la palabra del cliente y buena puntuación." },
+	{ Id = "tech", Name = "Técnico informático", Req = "Conocer los zócalos", Desc = "Elige la placa base compatible con cada procesador." },
+	{ Id = "reporter", Name = "Periodista de eventos", Req = "Ir al evento del día", Desc = "Haz una foto y graba una escena en el evento de hoy." },
 }
 function Jobs.build(container, ctx)
 	local order = nil
-	local function render()
+	local answers = nil
+	local render
+	render = function()
 		UI.clear(container)
 		local data = State.Data
 		if not data then
@@ -303,6 +310,46 @@ function Jobs.build(container, ctx)
 					local r = Net.call("Job.Submit", { order = order })
 					order = nil
 				end, { Width = 180, Color = T.Ok })
+			elseif job.Type == "cashier" or job.Type == "tech" then
+				answers = answers or {}
+				local list = job.Type == "cashier" and job.Rounds or job.Questions
+				for i, q in ipairs(list) do
+					if job.Type == "cashier" then
+						local row = UI.row(card, 32)
+						UI.label(row, "Cliente " .. i .. ": compra $" .. q.Price .. " y paga con $" .. q.Paid .. ". Cambio:", { Size = UDim2.fromOffset(330, 28), TextSize = 13 })
+						local box = UI.input(row, "$", answers[i] and tostring(answers[i]) or "", { Size = UDim2.fromOffset(80, 28) })
+						box.FocusLost:Connect(function()
+							answers[i] = tonumber(box.Text)
+						end)
+					else
+						local cpu = require(Shared.ItemCatalog).get(q.Cpu)
+						UI.label(card, i .. ". Procesador " .. cpu.Name .. " — ¿qué placa es compatible?", { TextSize = 13 })
+						local row = UI.row(card, 30)
+						for _, opt in ipairs(q.Options) do
+							local mdef = require(Shared.ItemCatalog).get(opt)
+							UI.button(row, (answers[i] == opt and "● " or "") .. mdef.Name, function()
+								answers[i] = opt
+								render()
+							end, { Width = 190, Height = 26, TextSize = 11, Color = answers[i] == opt and T.Accent2 or T.Panel3 })
+						end
+					end
+				end
+				UI.button(card, "📤 Entregar", function()
+					Net.call("Job.Submit", { answers = answers })
+					answers = nil
+				end, { Width = 150, Color = T.Ok })
+			elseif job.Type == "camera" then
+				UI.label(card, "Graba 2 escenas de calidad " .. job.MinQ .. "+ en " .. job.SpotName .. " (llevas " .. (job.Count or 0) .. "/2).", { TextSize = 13, Height = 36 })
+				UI.button(card, "🚕 Taxi al lugar", function()
+					Net.call("Travel.TaxiSpot", { spot = job.Spot })
+				end, { Width = 150 })
+			elseif job.Type == "thumbs" then
+				UI.label(card, "El cliente quiere una miniatura con la palabra «" .. job.Keyword .. "» y puntuación " .. job.MinScore .. "+. Diséñala en la app Miniaturas.", { TextSize = 13, Height = 36 })
+			elseif job.Type == "reporter" then
+				UI.label(card, "Reportaje en " .. job.SpotName .. ": " .. (job.Photo and "✔" or "○") .. " foto · " .. (job.Scene and "✔" or "○") .. " escena", { TextSize = 13, Height = 36 })
+				UI.button(card, "🚕 Ir al evento", function()
+					Net.call("Travel.TaxiSpot", { spot = job.Spot })
+				end, { Width = 150 })
 			elseif job.Type == "photo" then
 				UI.label(card, "Haz una foto «" .. job.ModeName .. "» en " .. job.SpotName .. ". Usa el taxi si queda lejos.", { TextSize = 13, Height = 36 })
 				UI.button(card, "🚕 Taxi al lugar", function()

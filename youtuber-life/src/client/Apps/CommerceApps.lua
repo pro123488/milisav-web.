@@ -534,6 +534,11 @@ function Inventory.build(container, ctx)
 					Net.call("Inv.Move", { uid = uid, to = "home" })
 				end, { Width = 80, Height = 26, TextSize = 12 })
 			end
+			if def.Cat == "food" then
+				UI.button(row, "🍽 Comer", function()
+					Net.call("Food.Eat", { uid = uid })
+				end, { Width = 90, Height = 26, TextSize = 12, Color = T.Ok })
+			end
 			if def.Slot == "phone" and data.Equipped.Phone ~= uid then
 				UI.button(row, "Usar teléfono", function()
 					Net.call("Inv.EquipPhone", { uid = uid })

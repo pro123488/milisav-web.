@@ -159,6 +159,9 @@ function Property.spot(player)
 	local l = PropertyData.ById[id]
 	local rec = data.Properties[id]
 	local tags = { "home" }
+	if l.Kind == "home" then
+		tags[#tags + 1] = "food"
+	end
 	for _, t in ipairs(l.Tags or {}) do
 		if not Util.indexOf(tags, t) then
 			tags[#tags + 1] = t
@@ -421,6 +424,10 @@ function Property.buildInterior(player, id)
 		P(m, "Screen", Vector3.new(3, 1.8, 0.05), deskCF * CFrame.new(0, 1.4, -1.05), { 70, 140, 255 }, Enum.Material.Neon)
 		local anchor = P(m, "DeskAnchor", Vector3.new(8, 4, 4), deskCF * CFrame.new(0, -1.5, 0), { 0, 0, 0 }, nil, { Transparency = 1, NoCollide = true })
 		addPrompt(anchor, "computer_home", "Usar computador", l.Name, { Owner = player.UserId })
+		local kitchen = P(m, "Kitchen", Vector3.new(8, 4, 3), base * CFrame.new(W / 2 - 6, 2, D / 2 - 3), { 230, 230, 235 }, Enum.Material.Marble)
+		addPrompt(kitchen, "cook", "Cocinar", "Cocina")
+		local sofa = P(m, "RestSpot", Vector3.new(7, 1.5, 3), base * CFrame.new(-W / 2 + 5, 0.75, D / 2 - 4), { 90, 90, 110 }, Enum.Material.Fabric)
+		addPrompt(sofa, "rest", "Descansar", "Sofá cama")
 		local wardrobe = P(m, "Wardrobe", Vector3.new(2, 8, 5), base * CFrame.new(W / 2 - 1.6, 4, -D / 2 + 5), { 160, 120, 90 }, Enum.Material.WoodPlanks)
 		addPrompt(wardrobe, "wardrobe", "Vestidor", "Cambiar estilo", { Owner = player.UserId })
 	end

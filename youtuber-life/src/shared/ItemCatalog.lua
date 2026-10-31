@@ -25,6 +25,7 @@ ItemCatalog.Categories = {
 	{ Key = "tablet", Name = "Tabletas" },
 	{ Key = "gadget", Name = "Gadgets y consolas" },
 	{ Key = "decor", Name = "Muebles y decoración" },
+	{ Key = "food", Name = "Comida y bebida" },
 }
 
 ItemCatalog.Stores = {
@@ -33,6 +34,7 @@ ItemCatalog.Stores = {
 	phone = { Name = "Conecta Móvil", Cats = { "phone", "tablet", "gadget" } },
 	creator = { Name = "Creator Hub", Cats = { "accessory", "audio", "furniture", "peripheral" } },
 	home = { Name = "Hogar & Deco", Cats = { "decor", "furniture" } },
+	market = { Name = "Supermercado Fresco", Cats = { "food" } },
 }
 
 local Items = {}
@@ -498,6 +500,21 @@ for _, id in ipairs(Order) do
 		it.Foot = it.Shape == "chair" and { 3, 3, 4 } or { 8, 4, 3 }
 		it.Stats.Decor = math.floor(it.Quality / 25)
 	end
+end
+
+---------------------------------------------------------------------------
+-- COMIDA (consumible: se come desde el inventario, no ocupa espacio en la mochila)
+---------------------------------------------------------------------------
+local FoodData = require(script.Parent.FoodData)
+for _, g in ipairs(FoodData.Groceries) do
+	add("food", "Alimento", { Id = g[1], Name = g[2], Brand = "", Price = g[3], Quality = 40,
+		Desc = "Energía +" .. g[4] .. ", ánimo +" .. g[5] .. ". Se usa como ingrediente o se come tal cual.",
+		Stats = { Energy = g[4], Mood = g[5] }, Portable = true, Size = 0, Slot = "food", Color = { 230, 170, 90 } })
+end
+for _, m in ipairs(FoodData.Meals) do
+	add("food", "Plato", { Id = m[1], Name = m[2], Brand = "", Price = 0, Quality = 70,
+		Desc = "Plato preparado. Energía +" .. m[3] .. ", ánimo +" .. m[4] .. ".",
+		Stats = { Energy = m[3], Mood = m[4] }, Portable = true, Size = 0, Slot = "food", Hidden = true, Color = { 240, 120, 80 } })
 end
 
 ---------------------------------------------------------------------------

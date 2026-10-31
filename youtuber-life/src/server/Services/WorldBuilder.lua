@@ -23,6 +23,7 @@ World.SpotById = WorldData.SpotById
 World.HomeRooms = {}
 World.NpcPoints = {}
 World.TrafficLights = {}
+World.VendingMachines = {}
 
 local CELL = WorldData.CellSize
 local ROAD = WorldData.RoadWidth
@@ -442,6 +443,34 @@ local function buildCafe(parent, sp)
 		prompt(desk, "computer_public", "Usar computador público", "Cibercafé")
 	end
 	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(14, 0, 8)).Position, Look = (base * CFrame.new(0, 0, 8)).Position, Name = "Barista", Role = "barista" })
+	local bar = P(m, "CafeCounter", Vector3.new(10, 4, 3), base * CFrame.new(14, 2, 12), { 90, 60, 40 }, Enum.Material.Wood)
+	prompt(bar, "cafe", "Pedir", "Cafetería")
+end
+
+local function buildRestaurant(parent, sp)
+	local m = model(parent, "Restaurante")
+	local w, d, h = 54, 40, 14
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 250, 235, 215 }, { 120, 70, 50 })
+	local board = P(m, "RestaurantSign", Vector3.new(26, 3.5, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 0.6), { 20, 20, 24 })
+	sign(board, Enum.NormalId.Front, "🍽 " .. sp.Name, Color3.fromRGB(130, 30, 30), Color3.fromRGB(255, 230, 190))
+	for i = 0, 5 do
+		local tx, tz = -16 + (i % 3) * 16, -2 + math.floor(i / 3) * 12
+		P(m, "Table", Vector3.new(5, 0.4, 5), base * CFrame.new(tx, 3, tz), { 245, 245, 245 }, Enum.Material.Fabric)
+		P(m, "TableLeg", Vector3.new(0.6, 3, 0.6), base * CFrame.new(tx, 1.5, tz), { 60, 40, 30 }, Enum.Material.Wood)
+		for _, sx in ipairs({ -3.4, 3.4 }) do
+			P(m, "Chair", Vector3.new(2, 2, 2), base * CFrame.new(tx + sx, 1.6, tz), { 140, 40, 40 }, Enum.Material.Fabric)
+		end
+	end
+	local counter = P(m, "Counter", Vector3.new(16, 4, 3), base * CFrame.new(0, 2, -d / 2 + 6), { 90, 50, 35 }, Enum.Material.Wood)
+	prompt(counter, "restaurant", "Ver menú", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(0, 0, -d / 2 + 3)).Position, Look = (base * CFrame.new(0, 0, 0)).Position, Name = "Camarero", Role = "waiter" })
+end
+
+local function vending(parent, x, z)
+	local mach = P(parent, "VendingMachine", Vector3.new(4, 7, 3), Vector3.new(x, GROUND_TOP + 3.5, z), { 200, 30, 50 }, Enum.Material.SmoothPlastic)
+	P(parent, "VendingGlass", Vector3.new(2.6, 4, 0.2), Vector3.new(x, GROUND_TOP + 4.5, z + 1.55), { 180, 220, 255 }, Enum.Material.Glass, { Transparency = 0.3 })
+	prompt(mach, "vending", "Comprar", "Máquina expendedora")
+	table.insert(World.VendingMachines, Vector3.new(x, 0, z))
 end
 
 local function buildBank(parent, sp)
@@ -501,7 +530,8 @@ local function buildResidence(parent, sp)
 			-- alfombra, cama, ventana, luz, vestidor
 			local inward = -towardCorridor
 			P(m, "Rug", Vector3.new(10, 0.1, 8), rbase * CFrame.new(0, 0.65, 0), { 140 + (index * 13) % 80, 90, 110 }, Enum.Material.Fabric, { NoCollide = true })
-			P(m, "Bed", Vector3.new(6, 1.6, 9), rbase * CFrame.new(-7, 1.4, inward * 4), { 250, 250, 255 }, Enum.Material.Fabric)
+			local bed = P(m, "Bed", Vector3.new(6, 1.6, 9), rbase * CFrame.new(-7, 1.4, inward * 4), { 250, 250, 255 }, Enum.Material.Fabric)
+			prompt(bed, "rest", "Descansar", "Cama")
 			P(m, "BedFrame", Vector3.new(6.4, 1, 9.4), rbase * CFrame.new(-7, 0.9, inward * 4), { 110, 80, 60 }, Enum.Material.Wood)
 			P(m, "Pillow", Vector3.new(4, 0.6, 1.6), rbase * CFrame.new(-7, 2.4, inward * 7.6), { 255, 255, 255 }, Enum.Material.Fabric)
 			local lamp = P(m, "RoomLamp", Vector3.new(3, 0.3, 3), rbase * CFrame.new(0, h - 0.3, 0), { 255, 245, 220 }, Enum.Material.Neon, { NoShadow = true })
@@ -513,7 +543,8 @@ local function buildResidence(parent, sp)
 			win.CanCollide = true
 			local wardrobe = P(m, "Wardrobe", Vector3.new(2, 8, 5), rbase * CFrame.new(roomW / 2 - 1.6, 4, inward * -4), { 160, 120, 90 }, Enum.Material.WoodPlanks)
 			local wp = prompt(wardrobe, "wardrobe", "Vestidor", "Cambiar estilo", { Owner = 0 })
-			P(m, "Fridge", Vector3.new(3, 6, 3), rbase * CFrame.new(roomW / 2 - 2, 3, inward * 6), { 230, 235, 240 }, Enum.Material.Metal)
+			local fridge = P(m, "Fridge", Vector3.new(3, 6, 3), rbase * CFrame.new(roomW / 2 - 2, 3, inward * 6), { 230, 235, 240 }, Enum.Material.Metal)
+			prompt(fridge, "cook", "Cocinar", "Cocina")
 			-- Escritorio: los muebles visibles los dibuja HomeService según el inventario
 			local deskCF = rbase * CFrame.new(5, 3.4, inward * (roomD / 2 - 3)) * CFrame.Angles(0, (inward > 0) and 0 or math.pi, 0)
 			local anchor = P(m, "DeskAnchor", Vector3.new(8, 4, 4), deskCF * CFrame.new(0, -1.5, 0), { 0, 0, 0 }, Enum.Material.SmoothPlastic, { Transparency = 1, NoCollide = true })
@@ -604,6 +635,10 @@ local function buildDistrict(d)
 	sign(board, Enum.NormalId.Back, d.Name, Color3.fromRGB(20, 30, 50), Color3.new(1, 1, 1))
 	local taxi = P(m, "TaxiSign", Vector3.new(3, 1.6, 0.3), Vector3.new(stop.X + 4, GROUND_TOP + 6, stop.Z + 4), { 255, 210, 0 })
 	sign(taxi, Enum.NormalId.Front, "TAXI", Color3.fromRGB(255, 210, 0), Color3.fromRGB(20, 20, 20))
+
+	if (d.Busy or 0) >= 5 then
+		vending(m, stop.X - 14, stop.Z + 4)
+	end
 
 	-- Farolas en las aceras
 	local half = inner / 2 - 3
@@ -771,6 +806,8 @@ local function buildDistrict(d)
 				buildCafe(m, sp)
 			elseif sp.Type == "bank" then
 				buildBank(m, sp)
+			elseif sp.Type == "restaurant" then
+				buildRestaurant(m, sp)
 			elseif sp.Type == "home" then
 				buildResidence(m, sp)
 			end
@@ -885,6 +922,16 @@ local function onPrompt(pp, player)
 		S.Travel.teleport(player, World.VipLounge.Center)
 	elseif action == "vip_exit" then
 		S.Travel.teleport(player, World.VipLounge.Entry)
+	elseif action == "rest" then
+		S.Needs.rest(player)
+	elseif action == "cook" then
+		if not S.Home.isAtHome(player) then
+			S.Net.notify(player, "Esta cocina no es tuya.", "error")
+			return
+		end
+		S.Net.push(player, "openUI", { ui = "food", tab = "cook" })
+	elseif action == "vending" or action == "restaurant" or action == "cafe" then
+		S.Net.push(player, "openUI", { ui = "food", tab = "menu", place = action })
 	elseif action == "prop_view" then
 		S.Net.push(player, "openUI", { ui = "realty", listing = pp:GetAttribute("PropId") })
 	elseif action == "prop_enter" then
