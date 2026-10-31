@@ -538,7 +538,7 @@ end
 local function buildVipLounge(parent, cx, cz)
 	local m = model(parent, "SalaVIP")
 	-- La sala está elevada y cerrada: solo se entra con el aviso de la puerta.
-	local center = Vector3.new(cx, 60, cz)
+	local center = Vector3.new(cx, -60, cz) -- bajo tierra: invisible desde la ciudad
 	local base = CFrame.new(center)
 	local w, d, h = 40, 30, 12
 	P(m, "Floor", Vector3.new(w, 1, d), base, { 30, 20, 40 }, Enum.Material.Marble)
