@@ -1469,6 +1469,26 @@ QuestDefs.TrackNames = {
 	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
 }
 
+-- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
+local singular = {
+	{ "fotos nocturnas", "foto nocturna" }, { "proyectos", "proyecto" }, { "vídeos", "vídeo" }, { "veces", "vez" }, { "escenas", "escena" }, { "fotografías", "fotografía" }, { "miniaturas", "miniatura" },
+	{ "artículos", "artículo" }, { "cámaras distintas", "cámara" }, { "computadores", "computador" }, { "pruebas", "prueba" },
+	{ "comparativas", "comparativa" }, { "reseñas", "reseña" }, { "encargos", "encargo" }, { "distritos", "distrito" },
+	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos", "contrato" },
+	{ "eventos", "evento" }, { "directos", "directo" }, { "shorts", "short" }, { "podcasts", "podcast" }, { "documentales", "documental" },
+	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
+	{ "objetivos", "objetivo" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" },
+}
+local function singularize(text)
+	for _, pair in ipairs(singular) do
+		local a, b = text:find(pair[1], 1, true)
+		if a then
+			text = text:sub(1, a - 1) .. pair[2] .. text:sub(b + 1)
+		end
+	end
+	return text
+end
+
 local function fmt(n)
 	local s = tostring(n)
 	local out = s:reverse():gsub("(%d%d%d)", "%1."):reverse()
@@ -1488,7 +1508,7 @@ for _, t in ipairs(tracks) do
 			Counter = key,
 			Target = target,
 			Tier = i,
-			Name = string.format(tpl, fmt(target)),
+			Name = target == 1 and singularize(string.format(tpl, fmt(target))) or string.format(tpl, fmt(target)),
 			Group = QuestDefs.TrackNames[key] or key,
 			Reward = { Money = math.floor(money * (i ^ 1.6)), Xp = math.floor(xp * (i ^ 1.4)), Title = titles[i] },
 		}

@@ -10,6 +10,33 @@ se genera desde código Luau, así que funciona sin modelos externos ni IDs de r
 
 ---
 
+## 🎮 Versión 3D descargable (sin Roblox)
+
+**`build/YoutuberLife3D.html`** es el juego completo en **un solo archivo** (unos 1 MB): descárgalo y ábrelo
+con doble clic en cualquier navegador (Chrome, Edge, Firefox, Safari) en PC, portátil, tableta o móvil.
+No necesita instalar nada ni conexión a internet (Three.js va incluido).
+
+- Misma ciudad de 30 distritos, mismo catálogo (231 productos), mismas fórmulas, misiones y eventos que la
+  versión de Roblox (los datos se exportan automáticamente desde `src/shared`).
+- Tercera persona con avatar animado, peatones, tráfico, semáforos, día/noche, lluvia, niebla y tormentas.
+- Tu apartamento con computador, cama, cocina y vestidor; 5 tiendas con interior y expositores, cibercafé,
+  banco, restaurante, máquinas expendedoras, 68 lugares de grabación 🎥 y 8 secretos.
+- **Las escenas y las fotos son capturas reales del mundo 3D**: aparecen en el editor, en la vista previa y
+  en el diseñador de miniaturas, que genera una imagen real para cada vídeo.
+- Sistema operativo con ventanas, teléfono, 22 apps (Studio, Ideas, Editor, Miniaturas, Estadísticas, Tienda,
+  Comparador, Inventario, Montador de PC, Banco, Misiones, Mapa con taxi, Empleo, Álbum y redes, Comida,
+  Eventos, Patrocinios, Directo, Estilo, Mensajes, Ajustes).
+- Guardado automático en el navegador + **descargar/cargar partida** como archivo (Ajustes).
+- Controles: WASD/flechas, Shift correr, Espacio saltar, arrastrar el ratón para mirar, rueda zoom,
+  E interactuar, P teléfono, I inventario, M misiones, R grabar, F foto, N mapa, V estilo, C portátil.
+  En móvil: joystick a la izquierda, arrastra a la derecha para mirar y botones táctiles.
+- Solo en Roblox (por ahora): inmobiliaria y modo construcción, multijugador, Game Passes.
+
+Código fuente: `web/src/`. Para regenerar: `python3 tools/export_web_data.py && python3 tools/build_web.py`.
+Prueba automática en Chromium: `node tools/tests/web_test.js` (juega el ciclo completo y pulsa los botones de todas las apps).
+
+---
+
 ## Cómo abrirlo en Roblox Studio
 
 **Opción A — archivo listo (sin instalar nada):**
