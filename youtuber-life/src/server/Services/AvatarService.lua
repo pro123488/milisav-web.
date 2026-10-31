@@ -160,6 +160,27 @@ function Avatar.Start()
 		return true, "¡Nuevo estilo aplicado!"
 	end)
 
+	local settingRules = {
+		Music = { "number", 0, 1 }, Sfx = { "number", 0, 1 }, UIScale = { "number", 0.7, 1.4 }, Wallpaper = { "number", 1, 5 },
+		ReduceMotion = { "boolean" }, Hints = { "boolean" }, Shadows = { "boolean" },
+	}
+	Net.on("Settings.Set", function(player, p)
+		local data = S.Data.get(player)
+		local rule = settingRules[p.key or ""]
+		if not rule or type(p.value) ~= rule[1] then
+			return false, "Ajuste no válido."
+		end
+		local v = p.value
+		if rule[1] == "number" then
+			v = math.clamp(v, rule[2], rule[3])
+			if p.key == "Wallpaper" then
+				v = math.floor(v)
+			end
+		end
+		data.Settings[p.key] = v
+		return true, "Ajuste guardado."
+	end)
+
 	Net.on("Style.SaveOutfit", function(player, p)
 		local data = S.Data.get(player)
 		local slot = tonumber(p.slot)

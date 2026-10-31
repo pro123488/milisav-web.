@@ -135,6 +135,11 @@ function Quest.Start()
 		return true, n .. " recompensas cobradas."
 	end)
 
+	Net.on("Phone.Opened", function(player)
+		Quest.tutorialEvent(player, "open_phone")
+		return true
+	end)
+
 	Net.on("Quest.SkipTutorial", function(player)
 		local data = S.Data.get(player)
 		data.Quests.Skipped = true

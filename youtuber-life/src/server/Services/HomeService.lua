@@ -172,6 +172,7 @@ function Home.onPlayerReady(player)
 		S.Net.notify(player, "La residencia está llena en este servidor: usa el cibercafé de la Zona universitaria o tu portátil.", "warn")
 		return
 	end
+	player:SetAttribute("HomePos", room.Center + Vector3.new(0, 2, room.Size.Z / 2 + 3))
 	Home.refreshRoom(player)
 end
 

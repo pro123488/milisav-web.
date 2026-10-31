@@ -20,6 +20,9 @@ V3.__index = function(v, k)
 	end
 	return rawget(V3, k)
 end
+function V3.Dot(a, b)
+	return a.X * b.X + a.Y * b.Y + a.Z * b.Z
+end
 V3.__add = function(a, b)
 	return M.Vector3.new(a.X + b.X, a.Y + b.Y, a.Z + b.Z)
 end
@@ -116,14 +119,34 @@ M.CFrame = {
 }
 
 -------------------------------------------------------------------- Color3, UDim2, Enum, Random
+local C3 = {}
+C3.__index = C3
+function C3:Lerp(o, t)
+	return M.Color3.new(self.R + (o.R - self.R) * t, self.G + (o.G - self.G) * t, self.B + (o.B - self.B) * t)
+end
 M.Color3 = {
 	fromRGB = function(r, g, b)
-		return { R = r / 255, G = g / 255, B = b / 255, __type = "Color3" }
+		return setmetatable({ R = r / 255, G = g / 255, B = b / 255, __type = "Color3" }, C3)
 	end,
 	new = function(r, g, b)
-		return { R = r, G = g, B = b, __type = "Color3" }
+		return setmetatable({ R = r or 0, G = g or 0, B = b or 0, __type = "Color3" }, C3)
+	end,
+	fromHSV = function(h, s, v)
+		return setmetatable({ R = v, G = v, B = v, __type = "Color3" }, C3)
 	end,
 }
+M.Vector2 = { new = function(x, y)
+	return { X = x or 0, Y = y or 0, __type = "Vector2" }
+end }
+local function ctor(name)
+	return { new = function(...)
+		return { __type = name, ... }
+	end }
+end
+M.ColorSequence = ctor("ColorSequence")
+M.NumberSequence = ctor("NumberSequence")
+M.NumberRange = ctor("NumberRange")
+M.TweenInfo = ctor("TweenInfo")
 M.UDim2 = {
 	new = function(a, b, c, d)
 		return { a, b, c, d }
@@ -194,7 +217,9 @@ M.Signal = Signal
 
 -------------------------------------------------------------------- Instancias
 local EVENTS = { Triggered = true, OnServerEvent = true, OnClientEvent = true, PlayerAdded = true, PlayerRemoving = true,
-	CharacterAdded = true, Changed = true, Touched = true, PromptGamePassPurchaseFinished = true, Heartbeat = true }
+	CharacterAdded = true, Changed = true, Touched = true, PromptGamePassPurchaseFinished = true, Heartbeat = true,
+	MouseEnter = true, MouseLeave = true, MouseButton1Down = true, MouseButton1Up = true, Activated = true, FocusLost = true,
+	InputBegan = true, InputChanged = true, InputEnded = true, RenderStepped = true }
 
 local Inst = {}
 local tags = {}
@@ -249,6 +274,10 @@ end
 function M.newInstance(class, props)
 	M.instCount = M.instCount + 1
 	local o = setmetatable({ __props = { ClassName = class, Name = class, Attributes = {} }, __children = {}, __type = "Instance" }, Inst)
+	if class == "Part" or class == "WedgePart" or class == "SpawnLocation" then
+		o.__props.Transparency = 0
+		o.__props.Size = M.Vector3.new(4, 1, 2)
+	end
 	for k, v in pairs(props or {}) do
 		o[k] = v
 	end
@@ -340,9 +369,25 @@ end
 function Inst:LoadCharacter() end
 function Inst:FireClient(player, kind, data)
 	M.pushes[#M.pushes + 1] = { player = player, kind = kind, data = data }
+	if M.localPlayer and player == M.localPlayer and self.__props.OnClientEvent then
+		self.__props.OnClientEvent:Fire(kind, M.deepCopy(data))
+	end
 end
 function Inst:FireAllClients() end
 function Inst:FillBlock() end
+function Inst:GetPropertyChangedSignal()
+	return Signal.new()
+end
+function Inst:GetAttributeChangedSignal()
+	return Signal.new()
+end
+function Inst:InvokeServer(...)
+	return self.__props.OnServerInvoke(M.localPlayer, ...)
+end
+function Inst:CaptureFocus() end
+function Inst:Clone()
+	return M.newInstance(self.__props.ClassName, { Name = self.__props.Name })
+end
 M.pushes = {}
 
 -------------------------------------------------------------------- Servicios
