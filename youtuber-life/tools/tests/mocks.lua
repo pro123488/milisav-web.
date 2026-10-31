@@ -224,6 +224,7 @@ local EVENTS = { Triggered = true, OnServerEvent = true, OnClientEvent = true, P
 local Inst = {}
 local tags = {}
 M.tags = tags
+M.tagSignals = {}
 M.instCount = 0
 
 Inst.__index = function(self, k)
@@ -468,6 +469,13 @@ function M.build(game)
 		AddTag = function(_, inst, tag)
 			tags[tag] = tags[tag] or {}
 			table.insert(tags[tag], inst)
+			if M.tagSignals[tag] then
+				M.tagSignals[tag]:Fire(inst)
+			end
+		end,
+		GetInstanceAddedSignal = function(_, tag)
+			M.tagSignals[tag] = M.tagSignals[tag] or Signal.new()
+			return M.tagSignals[tag]
 		end,
 		GetTagged = function(_, tag)
 			return tags[tag] or {}

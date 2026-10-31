@@ -39,6 +39,8 @@ si se llena, el jugador usa el cibercafé o su portátil).
 | Modo fotógrafo | F | Botón 📸 |
 | Estilo / ropa | V | Botón 👕 |
 | Abrir portátil (si lo llevas) | C | Botón 💻 |
+| Modo construcción (dentro de tu propiedad) | B · R girar · Q cancelar · clic colocar | Botón 🔨 · tocar el suelo |
+| Entrar en una propiedad (en su puerta) | G | Tocar el aviso |
 | Cerrar ventana | Retroceso | ✕ |
 
 La interfaz se escala sola según la pantalla y tiene ajuste de tamaño, volumen, reducir animaciones,
@@ -74,10 +76,10 @@ COMPRAR CÁMARA (tienda física o online) → INVENTARIO → METER EN LA MOCHILA
   impuesto simulado del 8%, alquiler semanal con deuda y recargo (sin desalojar ni borrar progreso).
 - **Inventario por unidades**: cada objeto tiene condición, batería, ubicación (casa / mochila / instalado en PC),
   precio pagado. Mochila con capacidad (bolsas la amplían), limpiar, reparar, vender, devolver (3 días).
-- **Catálogo de 149 productos ficticios** con estadísticas reales que el juego usa: PC completos, portátiles,
+- **Catálogo de 202 productos ficticios** con estadísticas reales que el juego usa: PC completos, portátiles,
   monitores, periféricos, sillas/escritorios, almacenamiento, 8 tipos de componentes, cámaras, micrófonos,
   accesorios, teléfonos, tabletas y gadgets.
-- **4 tiendas físicas con interior** (MegaTec, FotoPro, Conecta Móvil, Creator Hub): expositores que se
+- **5 tiendas físicas con interior** (MegaTec, FotoPro, Conecta Móvil, Creator Hub, Hogar & Deco): expositores que se
   inspeccionan, mostrador con catálogo completo, dependiente NPC, compra inmediata.
 - **Tienda online**: filtros, orden, carrito, presupuesto, confirmación, entrega simulada, pedidos con estado,
   cancelación con reembolso. **Protección contra doble cobro** con identificador único por pedido.
@@ -89,9 +91,34 @@ COMPRAR CÁMARA (tienda física o online) → INVENTARIO → METER EN LA MOCHILA
   reloj, contador de notificaciones, ventanas que se mueven, minimizan, enfocan y cierran.
 - **Teléfono**: pantalla de inicio con apps; los mejores teléfonos hacen mejores fotos/vídeos, duran más
   y guardan más fotos. Las **tabletas** permiten diseñar miniaturas y (la Pro) editar fuera de casa.
-- **27 apps funcionales**: ViewTube Studio, Ideas, Editor, Miniaturas, Estadísticas, Tienda, Comparador,
+- **28 apps funcionales**: ViewTube Studio, Inmobiliaria, Ideas, Editor, Miniaturas, Estadísticas, Tienda, Comparador,
   Inventario, Montador de PC, Banco, Misiones, Mapa (taxi/autobús), Empleo, Álbum, Cámara, Estilo, Mensajes,
   Calendario, Tendencias, Noticias, Tareas, Música, Archivos (con papelera y uso de disco), Ajustes, etc.
+
+### Fase 2 — Propiedades y remodelación (implementada)
+- **Inmobiliaria con 20 anuncios** repartidos por la ciudad (habitación de hotel, apartamentos pequeño,
+  moderno y de lujo, loft, casa familiar, casa moderna, mansión, ático, casa de playa, casa rural, casa de
+  montaña, casa con piscina, estudio profesional, local comercial, oficina, estudio de grabación, almacén,
+  garaje y terreno edificable). Cada una tiene precio de compra y/o alquiler, mantenimiento, almacenamiento,
+  espacio para muebles, calidad del entorno, bonus de grabación, si se puede remodelar, reventa y requisitos.
+- App **Inmobiliaria** con filtros (tipo, precio, tamaño, distrito, calidad, piscina, apto para grabar, vistas)
+  y carteles físicos en cada distrito (E = ver anuncio, G = entrar).
+- **Contratos de alquiler** (primera semana + fianza), pagos cada 7 días jugados, recargo por impago y
+  rescisión tras 3 impagos **sin perder muebles** (vuelven al inventario). Convertir alquiler en compra,
+  vender (reventa + 50% de lo invertido), mudarse, varias propiedades según nivel (1 → 3 → 6).
+- **Interiores privados** que se construyen al entrar, con paredes, suelo, luces, ventana con vista,
+  piscina, puesto de trabajo con computador y vestidor. Al entrar al juego apareces en tu hogar.
+- **Modo construcción**: colocar con vista previa que sigue al ratón/dedo, girar, mover, recoger; validación
+  en el servidor (dentro de la sala, sin choques, sin bloquear la puerta ni el puesto de trabajo, límite de
+  muebles). 10 colores de pared, 6 suelos, 5 iluminaciones, cortinas, **12 estilos** (moderno, minimalista,
+  industrial, clásico, tecnológico, gamer, lujoso, económico, natural, futurista, profesional, creativo),
+  3 diseños guardados por propiedad, tabiques móviles para cambiar la distribución.
+- **53 muebles y decoraciones** (sofás, lámparas y cuadros de cada estilo, plantas, alfombras, estanterías,
+  camas, mesas, cortinas, paneles acústicos, focos de estudio, neón ON AIR, vitrina de trofeos, cámara de
+  seguridad...) en la nueva tienda **Hogar & Deco** y online.
+- **Conexión real con los vídeos**: la decoración (con bonus por 3 piezas del mismo estilo), los paneles
+  acústicos, el aislamiento, la seguridad y el rig de iluminación cambian el interés, el ruido y la luz de las
+  escenas grabadas dentro. La capacidad de almacenamiento limita las compras (se avisa antes de cobrar).
 
 ### Fase 3 — Creación de vídeos (completa)
 - 27 categorías de ideas, plan (estilo, duración, objetivo, transporte, hora, presupuesto, lugar, productos).
@@ -132,7 +159,7 @@ COMPRAR CÁMARA (tienda física o online) → INVENTARIO → METER EN LA MOCHILA
 - **Empleos** (3 de 20): editor freelance (minijuego de orden de clips), fotógrafo por encargo y repartidor,
   con requisitos, paga, experiencia, impuestos y ascensos.
 - **Tutorial de 16 pasos** con flecha guía, pistas desactivables, saltar paso u ocultar tutorial.
-- **113 logros** progresivos (cobro único, títulos cosméticos, estadísticas personales) y colección de cámaras.
+- **129 logros** progresivos (cobro único, títulos cosméticos, estadísticas personales) y colección de cámaras.
 - Pendiente: vehículos conducibles, viajes a otros destinos, más empleos, NPC creadores.
 
 ### Fase 7 — Monetización (completa a falta de tus IDs)
@@ -146,8 +173,6 @@ COMPRAR CÁMARA (tienda física o online) → INVENTARIO → METER EN LA MOCHILA
   de audio con licencia en `SoundConfig.lua`.
 
 ### Aún no implementado (siguientes fases)
-- Fase 2: mercado inmobiliario con muchas viviendas, compra/alquiler de varias propiedades, modo construcción
-  con colocación de muebles y estilos de decoración.
 - Comida y cocina, ropa por tiendas (ahora hay vestidor con colores y conjuntos), vehículos, viajes, mascotas,
   empresa y empleados, patrocinios, colaboraciones multijugador, eventos dinámicos, segunda mano entre jugadores,
   podcasts y directos.
@@ -164,7 +189,8 @@ youtuber-life/
 │   ├── Config.lua               Equilibrio del juego
 │   ├── MonetizationConfig.lua   ← TUS IDS DE GAME PASSES Y PRODUCTOS
 │   ├── SoundConfig.lua          ← tus IDs de música con licencia
-│   ├── ItemCatalog.lua          149 productos
+│   ├── ItemCatalog.lua          202 productos (incluye 53 muebles)
+│   ├── PropertyData.lua         20 propiedades, estilos, mejoras
 │   ├── PCBuild.lua              Compatibilidad y rendimiento de PC
 │   ├── VideoData.lua            Categorías, tomas, música, efectos, plantillas...
 │   ├── VideoFormulas.lua        Calidad, edición, miniaturas, visitas
@@ -174,11 +200,11 @@ youtuber-life/
 ├── src/server/                 ServerScriptService.Server
 │   ├── Main.server.lua          Arranque
 │   └── Services/                Data, Net, Economy, Inventory, Shop, Computer, Home, Video, Channel,
-│                                Quest, Progress, Monetization, Travel, Avatar, Jobs, NPC, World, Sync...
+│                                Quest, Progress, Monetization, Travel, Property, Avatar, Jobs, NPC, World, Sync...
 ├── src/client/                 StarterPlayerScripts.Client
 │   ├── Main.client.lua          Arranque del cliente
-│   ├── UIKit, Shell, HUD, CaptureUI, PhotoView, WorldFX, Notify, Sound, Net, State
-│   └── Apps/                    Las 27 aplicaciones
+│   ├── UIKit, Shell, HUD, CaptureUI, BuildUI, PhotoView, WorldFX, Notify, Sound, Net, State
+│   └── Apps/                    Las 28 aplicaciones
 └── tools/
     ├── build_rbxlx.py           Genera el .rbxlx
     └── tests/                   Pruebas (Lua 5.1 + lupa)
@@ -191,14 +217,17 @@ pip install lupa
 python3 tools/tests/run_tests.py
 ```
 
-- Compila los 48 scripts.
+- Compila los 52 scripts.
 - `shared_test`: catálogo, compatibilidad de PC, fórmulas, límites de visitas, misiones, mapa.
 - `server_test`: arranca **todo el servidor** (incluida la construcción de la ciudad) con la API de Roblox
   simulada y recorre el ciclo completo: kit inicial, mochila, idea, grabación en tienda, foto, compra con
   doble clic (no cobra dos veces), pedido online, cancelación, entrega, importar, editar, exportar, miniatura,
   publicar, estadísticas, logros (cobro único), montar PC (rechaza piezas incompatibles), devolución, banco,
-  empleo, taxi, guardado, recarga, bloqueo de sesión y modo de prueba de Studio.
+  empleo, taxi, **alquiler, interior, colocar/girar/recoger muebles (con choques y límites), remodelar,
+  diseños, decoración que afecta a la grabación, límite de almacenaje, rescisión por impago sin perder
+  muebles, compra y venta**, guardado, recarga, bloqueo de sesión y modo de prueba de Studio.
 - `client_test`: conecta el cliente real al servidor simulado, abre **todas las apps** en computador,
-  teléfono y panel, y **pulsa todos los botones** (casi 1.000) comprobando que no hay errores.
+  teléfono y panel, entra en una propiedad, abre el modo construcción y **pulsa todos los botones**
+  (más de 1.100) comprobando que no hay errores ni en el cliente ni en el servidor.
 
 Las pruebas no sustituyen a jugar en Studio: la física, el renderizado y la interfaz real solo se ven allí.

@@ -16,6 +16,7 @@ local Shell = require(Client.Shell)
 local HUD = require(Client.HUD)
 local Capture = require(Client.CaptureUI)
 local WorldFX = require(Client.WorldFX)
+local Build = require(Client.BuildUI)
 local T = UI.Theme
 
 local player = Players.LocalPlayer
@@ -37,6 +38,7 @@ Net.Notify = Notify
 Notify.init(gui, Sound)
 Shell.init(gui)
 Capture.init(gui, Sound)
+Build.init(gui)
 UI.attachScale(gui, function()
 	return State.Data and State.Data.Settings.UIScale or 1
 end)
@@ -86,6 +88,12 @@ HUD.build(gui, {
 	settings = function()
 		toggleApp("settings")
 	end,
+	build = function()
+		Build.toggle()
+	end,
+	realty = function()
+		toggleApp("realty")
+	end,
 })
 WorldFX.start()
 
@@ -121,6 +129,8 @@ Net.on("openUI", function(d)
 		Shell.openPanel("product", { item = d.item, store = d.store })
 	elseif d.ui == "app" then
 		Shell.openPanel(d.app)
+	elseif d.ui == "realty" then
+		Shell.openPanel("realty", { listing = d.listing })
 	end
 end)
 Net.on("openComputer", function(d)
@@ -232,6 +242,13 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		return
 	end
 	local k = input.KeyCode
+	if Build.isPlacing() then
+		return -- R/Q/clic los gestiona el modo construcción
+	end
+	if k == Enum.KeyCode.B then
+		Build.toggle()
+		return
+	end
 	if k == Enum.KeyCode.P then
 		Shell.togglePhone()
 	elseif k == Enum.KeyCode.I then

@@ -28,6 +28,7 @@ for i = 1, #ENTRIES do
 	end
 end
 
+local Quest
 local env = setmetatable({}, { __index = _G })
 local cache = {}
 local function req(inst)
@@ -249,7 +250,7 @@ Channel.tickPlayer(player)
 assert(v.Views >= views1, "las visitas no bajan")
 
 -- Logros: completar y cobrar una sola vez
-local Quest = req(ServerScriptService.Server.Services.QuestService)
+Quest = req(ServerScriptService.Server.Services.QuestService)
 Quest.check(player)
 assert(data.Quests.Completed["published_1"], "logro de primer vídeo")
 local c1 = must(player, "Quest.Claim", { id = "published_1" })
@@ -311,6 +312,105 @@ assert(data.Money > paid, "el encargo paga")
 
 -- Taxi
 must(player, "Travel.Taxi", { district = "beach" })
+
+-- FASE 2: inmobiliaria, interiores y modo construcción
+local Property = req(ServerScriptService.Server.Services.PropertyService)
+local Home = req(ServerScriptService.Server.Services.HomeService)
+data.Money = 100000
+data.Level = 6
+local mRent = data.Money
+must(player, "Prop.Rent", { id = "apt_small" })
+assert(mRent - data.Money == 440, "alquiler: semana + fianza")
+assert(data.HomeProperty == "apt_small", "se muda a su primer alquiler")
+assert(not call(player, "Prop.Rent", { id = "apt_small" }).ok, "no alquila dos veces")
+-- Entrar desde la puerta
+local ext = Property.exteriorOf("apt_small")
+M.moveTo(player, ext.X, ext.Y, ext.Z)
+must(player, "Prop.Enter", { id = "apt_small" })
+assert(Property.inside(player) == "apt_small", "dentro del interior")
+assert(Home.isAtHome(player), "el interior cuenta como casa")
+-- Muebles: comprar en Hogar & Deco y colocar
+local origin = Property.interiorInfo(player)
+for _, sp in ipairs(WorldData.Specials) do
+	if sp.StoreId == "home" then
+		M.moveTo(player, sp.WX, 3, sp.WZ)
+	end
+end
+for i, id in ipairs({ "dec_sofa_gamer", "dec_lamp_gamer", "dec_art_gamer", "dec_acoustic", "dec_plant_big" }) do
+	must(player, "Shop.BuyInStore", { itemId = id, qty = 1, nonce = "deco-" .. i })
+end
+for uid, rec in pairs(data.Inventory) do
+	if rec.Loc == "backpack" then
+		rec.Loc = "home"
+	end
+end
+local o = Property.interiorInfo(player).Origin
+M.moveTo(player, o[1], o[2] + 3, o[3])
+local function uidOf2(id)
+	for uid, rec in pairs(data.Inventory) do
+		if rec.Id == id then
+			return uid
+		end
+	end
+end
+local decor0 = Property.decorScore(player, "apt_small")
+must(player, "Prop.Place", { uid = uidOf2("dec_sofa_gamer"), x = 4, z = -4, r = 0 })
+local clash = call(player, "Prop.Place", { uid = uidOf2("dec_lamp_gamer"), x = 4, z = -4, r = 0 })
+assert(not clash.ok and clash.msg:find("Choca"), "no se superponen muebles: " .. tostring(clash.msg))
+local outside = call(player, "Prop.Place", { uid = uidOf2("dec_lamp_gamer"), x = 40, z = 0, r = 0 })
+assert(not outside.ok, "no se coloca fuera de la sala")
+must(player, "Prop.Place", { uid = uidOf2("dec_lamp_gamer"), x = 10, z = 0, r = 0 })
+must(player, "Prop.Place", { uid = uidOf2("dec_art_gamer"), x = 8, z = 6, r = 90 })
+must(player, "Prop.Place", { uid = uidOf2("dec_acoustic"), x = -6, z = 4, r = 0 })
+must(player, "Prop.Rotate", { uid = uidOf2("dec_sofa_gamer") })
+local decor1 = Property.decorScore(player, "apt_small")
+assert(decor1 > decor0 + 10, "la decoración sube (estilo completo): " .. decor0 .. " -> " .. decor1)
+assert(data.Inventory[uidOf2("dec_sofa_gamer")].Loc == "prop:apt_small")
+assert(not call(player, "Inv.Sell", { uid = uidOf2("dec_sofa_gamer") }).ok, "no se vende un mueble colocado")
+local mDec = data.Money
+must(player, "Prop.Decor", { wall = 8, light = 4, floor = 3 })
+assert(mDec - data.Money == 150, "remodelar cuesta 50 por cambio")
+must(player, "Prop.SavePreset", { name = "Gamer" })
+-- La decoración afecta a la grabación dentro de la propiedad
+local spot = req(ServerScriptService.Server.Services.TravelService).currentSpot(player)
+assert(spot.Id == "prop_apt_small" and spot.Decor > 15, "lugar de grabación de la propiedad con decoración")
+assert(spot.Noise < 2, "los paneles acústicos reducen el ruido")
+local pid2 = must(player, "Video.CreateProject", { category = "gaming" }).data.pid
+must(player, "Video.StartRecording", { pid = pid2 })
+M.clock = M.clock + 5
+local sc = must(player, "Video.RecordScene", { shot = "talking" }).data.scene
+assert(sc.SpotName == "Apartamento pequeño en la Zona de apartamentos", "la escena se graba en la propiedad")
+must(player, "Video.StopRecording", {})
+-- Recoger y cargar diseño
+must(player, "Prop.Pick", { uid = uidOf2("dec_plant_big") == nil and uidOf2("dec_lamp_gamer") or uidOf2("dec_lamp_gamer") })
+must(player, "Prop.LoadPreset", { index = 1 })
+assert(data.Properties.apt_small.Placed[uidOf2("dec_lamp_gamer")], "el diseño guardado se vuelve a aplicar")
+-- Capacidad de almacenamiento: no cobra si no cabe
+local capBefore = Property.storageCap(player)
+local savedCap = req(Shared.PropertyData).StarterStorage
+req(Shared.PropertyData).StarterStorage = -1000
+local mFull = data.Money
+local full = call(player, "Shop.Checkout", { nonce = "full-0001", items = { { id = "fan_basic", qty = 1 } } })
+assert(not full.ok and data.Money == mFull, "sin espacio no se cobra")
+req(Shared.PropertyData).StarterStorage = savedCap
+-- Impagos: tras 3 se rescinde el alquiler sin perder muebles
+must(player, "Prop.Exit", {})
+data.Money = 0
+for i = 1, 3 do
+	data.Home.PlayDays = data.Properties.apt_small and data.Properties.apt_small.NextDue or data.Home.PlayDays
+	Property.onNewDay(player)
+end
+assert(data.Properties.apt_small == nil, "contrato rescindido tras 3 impagos")
+assert(data.HomeProperty == "", "vuelve a la residencia")
+assert(data.Inventory[uidOf2("dec_sofa_gamer")].Loc == "home", "los muebles vuelven al inventario")
+-- Comprar y vender
+data.Money = 100000
+must(player, "Prop.Buy", { id = "garage" })
+assert(data.Properties.garage.Mode == "own")
+Quest.check(player)
+assert(data.Quests.Completed["properties_owned_1"], "logro de primera propiedad")
+must(player, "Prop.Sell", { id = "garage" })
+assert(data.Properties.garage == nil)
 
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)

@@ -52,6 +52,11 @@ local tracks = {
 	{ "exports", "Exporta %s proyectos", { 1, 10, 50 }, 60, 30, {} },
 	{ "golden_scenes", "Graba %s escenas en la hora dorada", { 1, 10, 50 }, 60, 30, { [3] = "Cazador de luz" } },
 	{ "night_photos", "Toma %s fotos nocturnas", { 1, 10, 25 }, 50, 25, {} },
+	{ "rentals", "Alquila %s viviendas", { 1, 3 }, 100, 50, {} },
+	{ "properties_owned", "Sé propietario de %s propiedades", { 1, 2, 4 }, 300, 120, { [1] = "Propietario", [3] = "Magnate inmobiliario" } },
+	{ "furniture_placed", "Coloca %s muebles", { 1, 10, 30, 75 }, 60, 30, { [3] = "Interiorista" } },
+	{ "remodels", "Remodela %s veces una sala", { 1, 5, 15 }, 60, 30, {} },
+	{ "decor_max", "Consigue una decoración de %s puntos", { 10, 20, 30, 40 }, 120, 60, { [3] = "Estudio de ensueño" } },
 }
 
 QuestDefs.TrackNames = {
@@ -61,7 +66,8 @@ QuestDefs.TrackNames = {
 	districts_recorded = "Distritos grabados", stores_visited = "Tiendas visitadas", categories_published = "Categorías",
 	secrets_found = "Secretos", level = "Nivel", max_quality = "Mejor calidad", comparisons = "Comparativas",
 	reviews = "Reseñas", jobs_done = "Encargos", taxi_rides = "Taxis", exports = "Exportaciones",
-	golden_scenes = "Hora dorada", night_photos = "Fotos nocturnas",
+	golden_scenes = "Hora dorada", night_photos = "Fotos nocturnas", rentals = "Alquileres", properties_owned = "Propiedades",
+	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 }
 
 local function fmt(n)

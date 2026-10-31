@@ -58,6 +58,9 @@ local function makeEnv()
 	env.Vector3, env.CFrame, env.Color3, env.UDim2, env.UDim, env.Enum, env.Random = M.Vector3, M.CFrame, M.Color3, M.UDim2, M.UDim, M.Enum, M.Random
 	env.Vector2, env.ColorSequence, env.NumberSequence, env.NumberRange, env.TweenInfo = M.Vector2, M.ColorSequence, M.NumberSequence, M.NumberRange, M.TweenInfo
 	env.task = M.makeTask(mainCo)
+	env.RaycastParams = { new = function()
+		return {}
+	end }
 	env.math = mathx
 	env.typeof = function(v)
 		if type(v) == "table" and rawget(v, "__type") then
@@ -247,6 +250,32 @@ local okP, errP = pcall(function()
 end)
 if not okP then
 	errors[#errors + 1] = "shell: " .. tostring(errP)
+end
+
+-- Modo construcción dentro de una propiedad
+local okB, errB = pcall(function()
+	local Data = senv.require(services.ServerScriptService.Server.Services.DataService)
+	local Property = senv.require(services.ServerScriptService.Server.Services.PropertyService)
+	local d = Data.get(player)
+	d.Money = 50000
+	d.Level = 5
+	Shell.close()
+	assert(call("Prop.Rent", { id = "apt_modern" }).ok, "alquiler")
+	local ext = Property.exteriorOf("apt_modern")
+	M.moveTo(player, ext.X, ext.Y, ext.Z)
+	assert(call("Prop.Enter", { id = "apt_modern" }).ok, "entrar")
+	local inv = senv.require(services.ServerScriptService.Server.Services.InventoryService)
+	inv.add(player, "dec_sofa_modern", { loc = "home" })
+	inv.add(player, "dec_lamp_modern", { loc = "home" })
+	M.stepBackground()
+	local Build = cenv.require(Client.BuildUI)
+	Build.toggle()
+	assert(Build.isOpen(), "el panel de construcción debe abrirse dentro de la propiedad")
+	clickAll(gui, "construcción", 120)
+	Build.cancelPlacing()
+end)
+if not okB then
+	errors[#errors + 1] = "construcción: " .. tostring(errB)
 end
 
 if #errors > 0 then

@@ -12,6 +12,7 @@ local Shared = ReplicatedStorage.Shared
 local WorldData = require(Shared.WorldData)
 local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
+local PropertyData = require(Shared.PropertyData)
 
 local World = {}
 local S
@@ -561,6 +562,27 @@ local function buildVipLounge(parent, cx, cz)
 	World.VipLounge = { Center = center + Vector3.new(0, 3, 0), Size = Vector3.new(w, h, d), Entry = Vector3.new(cx, GROUND_TOP + 3, cz + 26) }
 end
 
+-- Cartel de una propiedad en venta / alquiler
+local function buildPropertySign(parent, l)
+	local pos = S.Property.signPosition(l)
+	P(parent, "PropertyPost", Vector3.new(0.5, 7, 0.5), Vector3.new(pos.X, GROUND_TOP + 3.5, pos.Z), { 240, 240, 240 }, Enum.Material.Metal)
+	local board = P(parent, "PropertySign", Vector3.new(10, 5, 0.4), Vector3.new(pos.X, GROUND_TOP + 7.5, pos.Z), { 255, 255, 255 })
+	local price = {}
+	if l.Rent then
+		price[#price + 1] = "Alquiler $" .. Util.formatInt(l.Rent) .. "/sem"
+	end
+	if l.Buy then
+		price[#price + 1] = "Venta $" .. Util.formatInt(l.Buy)
+	end
+	local text = "🏠 " .. l.Type:upper() .. "\n" .. table.concat(price, " · ")
+	sign(board, Enum.NormalId.Back, text, Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1), Enum.Font.GothamBold)
+	sign(board, Enum.NormalId.Front, text, Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1), Enum.Font.GothamBold)
+	local base = P(parent, "PropertyDoor", Vector3.new(6, 8, 1), Vector3.new(pos.X, GROUND_TOP + 4, pos.Z - 4), { 90, 60, 40 }, Enum.Material.Wood)
+	prompt(base, "prop_view", "Ver anuncio", l.Name, { PropId = l.Id })
+	local enter = prompt(base, "prop_enter", "Entrar", l.Name, { PropId = l.Id })
+	enter.KeyboardKeyCode = Enum.KeyCode.G
+end
+
 ---------------------------------------------------------------------------
 -- Distritos
 ---------------------------------------------------------------------------
@@ -757,6 +779,11 @@ local function buildDistrict(d)
 	if d.Id == "events" then
 		buildVipLounge(m, cx + 90, cz - 90)
 	end
+	for _, l in ipairs(PropertyData.Listings) do
+		if l.District == d.Id then
+			buildPropertySign(m, l)
+		end
+	end
 
 	-- Ciudadanos (NPC) junto a lugares concurridos
 	if (d.Busy or 0) >= 4 then
@@ -858,6 +885,23 @@ local function onPrompt(pp, player)
 		S.Travel.teleport(player, World.VipLounge.Center)
 	elseif action == "vip_exit" then
 		S.Travel.teleport(player, World.VipLounge.Entry)
+	elseif action == "prop_view" then
+		S.Net.push(player, "openUI", { ui = "realty", listing = pp:GetAttribute("PropId") })
+	elseif action == "prop_enter" then
+		local id = pp:GetAttribute("PropId")
+		local data = S.Data.get(player)
+		if not data.Properties[id] then
+			S.Net.notify(player, "No es tuya. Alquílala o cómprala desde el anuncio (E) o la app Inmobiliaria.", "info")
+			return
+		end
+		local cf = S.Property.enterCFrame(player, id)
+		S.Travel.teleport(player, cf.Position)
+		S.Quest.tutorialEvent(player, "enter_home")
+	elseif action == "prop_exit" then
+		local id = S.Property.inside(player)
+		if id then
+			S.Travel.teleport(player, S.Property.exteriorOf(id))
+		end
 	end
 end
 World.onPrompt = onPrompt
@@ -892,14 +936,23 @@ function World.build()
 end
 
 function World.Start()
-	World.build()
-	for _, pp in ipairs(CollectionService:GetTagged("YTPrompt")) do
+	local function connect(pp)
+		pp:SetAttribute("Connected", true)
 		pp.Triggered:Connect(function(player)
 			local ok, err = pcall(onPrompt, pp, player)
 			if not ok then
 				S.Net.logError("prompt", err)
 			end
 		end)
+	end
+	-- Avisos creados más tarde (interiores de propiedades)
+	CollectionService:GetInstanceAddedSignal("YTPrompt"):Connect(connect)
+	World.build()
+	for _, pp in ipairs(CollectionService:GetTagged("YTPrompt")) do
+		if not pp:GetAttribute("Connected") then
+			pp:SetAttribute("Connected", true)
+			connect(pp)
+		end
 	end
 	-- Semáforos
 	task.spawn(function()

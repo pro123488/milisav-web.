@@ -69,6 +69,8 @@ function HUD.build(gui, actions)
 	action("📸", "Foto", "F", actions.photo)
 	action("👕", "Estilo", "V", actions.style)
 	refs.laptopBtn = action("💻", "Portátil", "C", actions.laptop)
+	refs.buildBtn = action("🔨", "Construir", "B", actions.build, Color3.fromRGB(40, 110, 70))
+	action("🏘", "Inmobiliaria", nil, actions.realty)
 	action("⚙", "Ajustes", nil, actions.settings)
 
 	HUD.refresh()
@@ -124,6 +126,7 @@ function HUD.refresh()
 		end
 	end
 	refs.laptopBtn.Visible = hasLaptop
+	refs.buildBtn.Visible = d.PropInside ~= nil
 end
 
 -- Texto flotante de dinero ganado

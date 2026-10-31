@@ -27,6 +27,9 @@ function Home.room(player)
 end
 
 function Home.isAtHome(player)
+	if S.Property.inside(player) then
+		return true
+	end
 	local room = assigned[player]
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if not room or not root then
@@ -37,6 +40,13 @@ function Home.isAtHome(player)
 end
 
 function Home.spawnCFrame(player)
+	local data = S.Data.get(player)
+	if data and data.HomeProperty ~= "" and data.Properties[data.HomeProperty] then
+		local cf = S.Property.enterCFrame(player, data.HomeProperty)
+		if cf then
+			return cf
+		end
+	end
 	local room = assigned[player]
 	if room then
 		return CFrame.new(room.Center + Vector3.new(0, 4, room.Size.Z / 2 - 5))
@@ -184,6 +194,12 @@ function Home.onNewDay(player)
 	end
 	local h = data.Home
 	h.PlayDays = h.PlayDays + 1
+	pcall(S.Property.onNewDay, player)
+	if data.HomeProperty ~= "" then
+		-- vive en otra propiedad: no se cobra la habitación de la residencia
+		h.NextDue = h.PlayDays + Config.RentPeriodDays
+		return
+	end
 	if h.PlayDays < h.NextDue then
 		return
 	end
@@ -224,6 +240,15 @@ function Home.Start()
 	end)
 
 	Net.on("Home.Teleport", function(player)
+		local data = S.Data.get(player)
+		if data.HomeProperty ~= "" and data.Properties[data.HomeProperty] then
+			local ok, msg = S.Travel.taxiTo(player, S.Property.exteriorOf(data.HomeProperty), "tu casa")
+			if ok then
+				local cf = S.Property.enterCFrame(player, data.HomeProperty)
+				S.Travel.teleport(player, cf.Position)
+			end
+			return ok, msg
+		end
 		local cf = Home.spawnCFrame(player)
 		if not cf or not player.Character then
 			return false, "No tienes habitación asignada."

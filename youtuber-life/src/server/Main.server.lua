@@ -18,6 +18,7 @@ local order = {
 	{ "Computer", "ComputerService" },
 	{ "Shop", "ShopService" },
 	{ "Travel", "TravelService" },
+	{ "Property", "PropertyService" },
 	{ "World", "WorldBuilder" },
 	{ "Home", "HomeService" },
 	{ "Avatar", "AvatarService" },

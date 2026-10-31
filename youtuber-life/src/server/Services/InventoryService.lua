@@ -117,7 +117,8 @@ function Inventory.best(player, slot, where, stat)
 	local bestUid, bestRec, bestDef, bestVal = nil, nil, nil, -1
 	for uid, rec in pairs(data.Inventory) do
 		local def = Catalog.get(rec.Id)
-		if def and def.Slot == slot and (where == "any" or rec.Loc == where) then
+		local here = where == "any" or rec.Loc == where or (where == "home" and rec.Loc:sub(1, 5) == "prop:")
+		if def and def.Slot == slot and here then
 			local v = stat and (def.Stats[stat] or 0) or def.Quality
 			if type(v) ~= "number" then
 				v = def.Quality
@@ -137,7 +138,7 @@ function Inventory.bestCatAtHome(player, cat, sub, stat)
 	local best, bestVal = nil, -1
 	for _, rec in pairs(data.Inventory) do
 		local def = Catalog.get(rec.Id)
-		if def and def.Cat == cat and (sub == nil or def.Sub == sub) and rec.Loc == "home" then
+		if def and def.Cat == cat and (sub == nil or def.Sub == sub) and (rec.Loc == "home" or rec.Loc:sub(1, 5) == "prop:") then
 			local v = def.Stats[stat] or 0
 			if v > bestVal then
 				best, bestVal = def, v
@@ -209,6 +210,9 @@ function Inventory.Start()
 		if rec.Loc:sub(1, 4) == "rig:" then
 			return false, "Está instalado en un computador. Desmóntalo en el Montador de PC."
 		end
+		if rec.Loc:sub(1, 5) == "prop:" then
+			return false, "Está colocado en una propiedad. Recógelo con el modo construcción."
+		end
 		if rec.Loc == to then
 			return true
 		end
@@ -255,6 +259,9 @@ function Inventory.Start()
 		end
 		if rec.Loc:sub(1, 4) == "rig:" then
 			return "Está instalado en un computador. Desmóntalo primero."
+		end
+		if rec.Loc:sub(1, 5) == "prop:" then
+			return "Está colocado en una propiedad. Recógelo primero con el modo construcción."
 		end
 		if def.Slot == "phone" then
 			local phones = 0

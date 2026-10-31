@@ -45,6 +45,12 @@ function Sync.build(player)
 		Recording = S.Video.isRecording(player),
 		Session = S.Computer.session(player) and S.Computer.sessionStats(player) or nil,
 		QuestValues = {},
+		PropInside = S.Property.inside(player),
+		Interior = S.Property.interiorInfo(player),
+		DecorScore = S.Property.inside(player) and S.Property.decorScore(player, S.Property.inside(player)) or nil,
+		StorageCap = S.Property.storageCap(player),
+		Stored = S.Property.storedCount(player),
+		MaxProps = require(Shared.PropertyData).maxProperties(data.Level),
 		Returnable = {},
 		SellValues = {},
 	}

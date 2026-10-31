@@ -67,6 +67,24 @@ function Shop.deliver(player, def, opts)
 	return loc == "backpack" and "tu mochila" or "tu casa"
 end
 
+local function units(def, qty)
+	if def.Parts then
+		local n = 0
+		for _, v in pairs(def.Parts) do
+			n = n + (type(v) == "table" and #v or 1)
+		end
+		return n * qty
+	end
+	return qty
+end
+
+local function storageError(player, n)
+	if not S.Property.canStore(player, n) then
+		return "Tu vivienda está llena (" .. S.Property.storedCount(player) .. "/" .. S.Property.storageCap(player) .. " objetos). Vende algo o consigue una propiedad con más almacenaje."
+	end
+	return nil
+end
+
 local function checkBuyable(player, def, qty)
 	local data = S.Data.get(player)
 	if not def or not Catalog.isForSale(def.Id) then
@@ -138,6 +156,10 @@ function Shop.Start()
 		if not Util.indexOf(def.Stores, storeId) then
 			return false, "Esta tienda no vende " .. def.Name .. "."
 		end
+		local serr = storageError(player, units(def, qty))
+		if serr then
+			return false, serr
+		end
 		local unit = Shop.priceOf(player, def)
 		local total = unit * qty
 		if not S.Economy.spend(player, total, "Compras", def.Name .. (qty > 1 and (" x" .. qty) or "")) then
@@ -179,7 +201,11 @@ function Shop.Start()
 			local unit = Shop.priceOf(player, def)
 			lines[#lines + 1] = { Id = def.Id, Qty = qty, Unit = unit }
 			total = total + unit * qty
-			count = count + qty
+			count = count + units(def, qty)
+		end
+		local serr = storageError(player, count)
+		if serr then
+			return false, serr
 		end
 		local shipping = total >= 500 and 0 or 15
 		total = total + shipping

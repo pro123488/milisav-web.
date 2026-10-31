@@ -24,6 +24,7 @@ ItemCatalog.Categories = {
 	{ Key = "phone", Name = "Teléfonos" },
 	{ Key = "tablet", Name = "Tabletas" },
 	{ Key = "gadget", Name = "Gadgets y consolas" },
+	{ Key = "decor", Name = "Muebles y decoración" },
 }
 
 ItemCatalog.Stores = {
@@ -31,6 +32,7 @@ ItemCatalog.Stores = {
 	camera = { Name = "FotoPro", Cats = { "camera", "accessory", "audio" } },
 	phone = { Name = "Conecta Móvil", Cats = { "phone", "tablet", "gadget" } },
 	creator = { Name = "Creator Hub", Cats = { "accessory", "audio", "furniture", "peripheral" } },
+	home = { Name = "Hogar & Deco", Cats = { "decor", "furniture" } },
 }
 
 local Items = {}
@@ -435,6 +437,67 @@ for _, g in ipairs(gadgets) do
 	add("gadget", g[3], { Id = g[1], Name = g[2], Brand = "", Price = g[4], Quality = g[5],
 		Desc = g[3] .. " para usar y reseñar. Llévalo en la mochila para grabar una prueba real.",
 		Stats = g[6], Portable = portable, Slot = g[1] == "drone_mini" and "drone" or "product", Size = (g[3] == "Consola" and 2) or 1 })
+end
+
+---------------------------------------------------------------------------
+-- MUEBLES Y DECORACIÓN (colocables en tus propiedades con el modo construcción)
+-- Decor = cuánto mejora la sala para grabar. Foot = huella {ancho, fondo, alto} en studs.
+---------------------------------------------------------------------------
+local styles = {
+	{ "modern", "Moderno", 1.0, { 230, 230, 235 } }, { "minimal", "Minimalista", 0.9, { 245, 245, 245 } },
+	{ "industrial", "Industrial", 1.0, { 90, 85, 80 } }, { "classic", "Clásico", 1.2, { 140, 90, 60 } },
+	{ "tech", "Tecnológico", 1.3, { 40, 120, 200 } }, { "gamer", "Gamer", 1.2, { 200, 40, 220 } },
+	{ "luxury", "Lujoso", 3.0, { 230, 190, 90 } }, { "budget", "Económico", 0.45, { 170, 170, 160 } },
+	{ "natural", "Natural", 1.0, { 120, 160, 100 } }, { "futuristic", "Futurista", 1.8, { 80, 230, 230 } },
+	{ "pro", "Profesional", 1.5, { 50, 55, 65 } }, { "creative", "Creativo", 1.1, { 255, 120, 90 } },
+}
+local pieces = {
+	{ "sofa", "Sofá", 220, 6, "sofa", { 8, 3, 3 } },
+	{ "lamp", "Lámpara", 60, 3, "lamp", { 2, 2, 6 } },
+	{ "art", "Cuadro", 90, 4, "painting", { 5, 1, 4 } },
+}
+for _, st in ipairs(styles) do
+	for _, pc in ipairs(pieces) do
+		local price = math.floor(pc[3] * st[3] / 5 + 0.5) * 5
+		local q = math.floor(math.min(98, 30 + st[3] * 22))
+		add("decor", pc[2], { Id = "dec_" .. pc[1] .. "_" .. st[1], Name = pc[2] .. " " .. st[2]:lower(), Brand = "", Price = price, Quality = q,
+			Desc = pc[2] .. " de estilo " .. st[2]:lower() .. ". Combina 3 piezas del mismo estilo para un bonus de decoración.",
+			Stats = { Decor = math.floor(pc[4] * (0.7 + st[3] * 0.3) + 0.5) }, Style = st[1], Placeable = true, Foot = pc[6], Shape = pc[5], Color = st[4],
+			Req = { Level = st[1] == "luxury" and 6 or 1 } })
+	end
+end
+local generic = {
+	{ "dec_plant_small", "Planta pequeña", "Planta", 25, 2, "plant", { 2, 2, 3 }, { 60, 150, 70 } },
+	{ "dec_plant_big", "Palmera de interior", "Planta", 80, 4, "plant", { 3, 3, 7 }, { 50, 140, 60 } },
+	{ "dec_rug", "Alfombra grande", "Alfombra", 70, 3, "rug", { 10, 7, 0.2 }, { 160, 60, 70 } },
+	{ "dec_bookshelf", "Estantería con libros", "Estantería", 130, 4, "shelf", { 6, 2, 8 }, { 120, 85, 55 } },
+	{ "dec_bed_single", "Cama individual", "Cama", 160, 3, "bed", { 5, 8, 2 }, { 240, 240, 250 } },
+	{ "dec_bed_double", "Cama de matrimonio", "Cama", 380, 5, "bed", { 8, 9, 2 }, { 230, 230, 245 } },
+	{ "dec_table", "Mesa de comedor", "Mesa", 150, 3, "table", { 8, 5, 3 }, { 140, 100, 70 } },
+	{ "dec_coffee", "Mesa de centro", "Mesa", 70, 2, "table", { 5, 3, 1.6 }, { 90, 70, 50 } },
+	{ "dec_curtain", "Cortinas de terciopelo", "Cortinas", 90, 3, "curtain", { 8, 1, 10 }, { 140, 30, 50 } },
+	{ "dec_acoustic", "Paneles acústicos", "Acústica", 240, 6, "panel", { 8, 1, 6 }, { 60, 60, 70 }, true },
+	{ "dec_rack", "Estantería de almacenaje", "Almacenaje", 110, 1, "shelf", { 6, 2, 8 }, { 80, 80, 85 } },
+	{ "dec_partition", "Tabique móvil", "Distribución", 120, 0, "partition", { 10, 1, 12 }, { 225, 220, 210 } },
+	{ "dec_lightstand", "Foco de estudio con soporte", "Iluminación", 320, 7, "lamp", { 2, 2, 8 }, { 255, 255, 240 } },
+	{ "dec_neon", "Letrero de neón ON AIR", "Decoración", 150, 6, "neon", { 6, 1, 2 }, { 255, 40, 80 } },
+	{ "dec_trophy", "Vitrina de trofeos", "Decoración", 260, 6, "shelf", { 5, 2, 7 }, { 230, 190, 90 } },
+	{ "dec_beanbag", "Puf gamer", "Asiento", 60, 2, "beanbag", { 3, 3, 2 }, { 200, 40, 220 } },
+	{ "dec_seccam", "Cámara de seguridad", "Seguridad", 140, 0, "seccam", { 1, 1, 1 }, { 30, 30, 34 } },
+}
+for _, g in ipairs(generic) do
+	add("decor", g[3], { Id = g[1], Name = g[2], Brand = "", Price = g[4], Quality = math.min(90, 30 + g[5] * 8),
+		Desc = g[2] .. (g[9] and ". Reduce el ruido al grabar en la sala." or ".") .. " Se coloca con el modo construcción.",
+		Stats = { Decor = g[5], Acoustic = g[9] and 2 or nil }, Placeable = true, Foot = g[7], Shape = g[6], Color = g[8] })
+end
+-- Las sillas y escritorios también se pueden colocar
+for _, id in ipairs(Order) do
+	local it = Items[id]
+	if it.Cat == "furniture" then
+		it.Placeable = true
+		it.Foot = it.Shape == "chair" and { 3, 3, 4 } or { 8, 4, 3 }
+		it.Stats.Decor = math.floor(it.Quality / 25)
+	end
 end
 
 ---------------------------------------------------------------------------

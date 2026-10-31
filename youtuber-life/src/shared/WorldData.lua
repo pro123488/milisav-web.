@@ -89,6 +89,7 @@ district({ Id = "hotels", Name = "Zona de hoteles", Col = 6, Row = 2, Ground = {
 district({ Id = "residential", Name = "Barrio residencial", Col = 1, Row = 3, Ground = { 110, 160, 100 }, Material = "Grass",
 	Style = "house", Count = 8, Palette = { { 230, 220, 200 }, { 200, 150, 120 }, { 170, 190, 210 } }, Trees = 14,
 	Tags = { "urban", "home" }, Noise = 2, Busy = 3,
+	Specials = { { Type = "store", StoreId = "home", X = 70, Z = -70 } },
 	Spots = { { Name = "Calle de los jardines", X = 0, Z = 0, Tags = { "urban", "home" }, Interest = 6 },
 		{ Name = "Parque infantil", X = -70, Z = 70, Tags = { "fun", "urban" }, Interest = 6 } } })
 district({ Id = "creators", Name = "Barrio de creadores", Col = 2, Row = 3, Ground = { 80, 80, 90 }, Material = "Concrete",

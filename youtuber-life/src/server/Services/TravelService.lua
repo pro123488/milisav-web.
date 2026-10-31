@@ -22,6 +22,7 @@ local storeTags = {
 	camera = { "shop", "tech", "studio" },
 	phone = { "shop", "tech" },
 	creator = { "shop", "studio" },
+	home = { "shop", "home" },
 }
 
 function Travel.Init(services)
@@ -40,6 +41,10 @@ function Travel.currentSpot(player)
 	end
 	local pos = root.Position
 	local district = WorldData.districtAt(pos.X, pos.Z)
+	local pspot = S.Property.spot(player)
+	if pspot then
+		return pspot
+	end
 	if S.Home.isAtHome(player) then
 		local _, _, decor = S.Inventory.best(player, "homeextra", "home", "Decor")
 		local tags = { "home" }

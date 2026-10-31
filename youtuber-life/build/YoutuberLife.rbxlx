@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX000001"><Properties><string name="Name">Workspace</string><bool name="StreamingEnabled">false</bool></Properties></Item><Item class="Lighting" referent="RBX000002"><Properties><string name="Name">Lighting</string><float name="Brightness">2.5</float><bool name="GlobalShadows">true</bool></Properties></Item><Item class="ReplicatedStorage" referent="RBX000015"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX000003"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX000004"><Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX000001"><Properties><string name="Name">Workspace</string><bool name="StreamingEnabled">false</bool></Properties></Item><Item class="Lighting" referent="RBX000002"><Properties><string name="Name">Lighting</string><float name="Brightness">2.5</float><bool name="GlobalShadows">true</bool></Properties></Item><Item class="ReplicatedStorage" referent="RBX000016"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX000003"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX000004"><Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Config: valores de equilibrio del juego. Cambia aquí sin tocar la lógica.
 
 local Config = {}
@@ -91,6 +91,7 @@ ItemCatalog.Categories = {
 	{ Key = "phone", Name = "Teléfonos" },
 	{ Key = "tablet", Name = "Tabletas" },
 	{ Key = "gadget", Name = "Gadgets y consolas" },
+	{ Key = "decor", Name = "Muebles y decoración" },
 }
 
 ItemCatalog.Stores = {
@@ -98,6 +99,7 @@ ItemCatalog.Stores = {
 	camera = { Name = "FotoPro", Cats = { "camera", "accessory", "audio" } },
 	phone = { Name = "Conecta Móvil", Cats = { "phone", "tablet", "gadget" } },
 	creator = { Name = "Creator Hub", Cats = { "accessory", "audio", "furniture", "peripheral" } },
+	home = { Name = "Hogar & Deco", Cats = { "decor", "furniture" } },
 }
 
 local Items = {}
@@ -502,6 +504,67 @@ for _, g in ipairs(gadgets) do
 	add("gadget", g[3], { Id = g[1], Name = g[2], Brand = "", Price = g[4], Quality = g[5],
 		Desc = g[3] .. " para usar y reseñar. Llévalo en la mochila para grabar una prueba real.",
 		Stats = g[6], Portable = portable, Slot = g[1] == "drone_mini" and "drone" or "product", Size = (g[3] == "Consola" and 2) or 1 })
+end
+
+---------------------------------------------------------------------------
+-- MUEBLES Y DECORACIÓN (colocables en tus propiedades con el modo construcción)
+-- Decor = cuánto mejora la sala para grabar. Foot = huella {ancho, fondo, alto} en studs.
+---------------------------------------------------------------------------
+local styles = {
+	{ "modern", "Moderno", 1.0, { 230, 230, 235 } }, { "minimal", "Minimalista", 0.9, { 245, 245, 245 } },
+	{ "industrial", "Industrial", 1.0, { 90, 85, 80 } }, { "classic", "Clásico", 1.2, { 140, 90, 60 } },
+	{ "tech", "Tecnológico", 1.3, { 40, 120, 200 } }, { "gamer", "Gamer", 1.2, { 200, 40, 220 } },
+	{ "luxury", "Lujoso", 3.0, { 230, 190, 90 } }, { "budget", "Económico", 0.45, { 170, 170, 160 } },
+	{ "natural", "Natural", 1.0, { 120, 160, 100 } }, { "futuristic", "Futurista", 1.8, { 80, 230, 230 } },
+	{ "pro", "Profesional", 1.5, { 50, 55, 65 } }, { "creative", "Creativo", 1.1, { 255, 120, 90 } },
+}
+local pieces = {
+	{ "sofa", "Sofá", 220, 6, "sofa", { 8, 3, 3 } },
+	{ "lamp", "Lámpara", 60, 3, "lamp", { 2, 2, 6 } },
+	{ "art", "Cuadro", 90, 4, "painting", { 5, 1, 4 } },
+}
+for _, st in ipairs(styles) do
+	for _, pc in ipairs(pieces) do
+		local price = math.floor(pc[3] * st[3] / 5 + 0.5) * 5
+		local q = math.floor(math.min(98, 30 + st[3] * 22))
+		add("decor", pc[2], { Id = "dec_" .. pc[1] .. "_" .. st[1], Name = pc[2] .. " " .. st[2]:lower(), Brand = "", Price = price, Quality = q,
+			Desc = pc[2] .. " de estilo " .. st[2]:lower() .. ". Combina 3 piezas del mismo estilo para un bonus de decoración.",
+			Stats = { Decor = math.floor(pc[4] * (0.7 + st[3] * 0.3) + 0.5) }, Style = st[1], Placeable = true, Foot = pc[6], Shape = pc[5], Color = st[4],
+			Req = { Level = st[1] == "luxury" and 6 or 1 } })
+	end
+end
+local generic = {
+	{ "dec_plant_small", "Planta pequeña", "Planta", 25, 2, "plant", { 2, 2, 3 }, { 60, 150, 70 } },
+	{ "dec_plant_big", "Palmera de interior", "Planta", 80, 4, "plant", { 3, 3, 7 }, { 50, 140, 60 } },
+	{ "dec_rug", "Alfombra grande", "Alfombra", 70, 3, "rug", { 10, 7, 0.2 }, { 160, 60, 70 } },
+	{ "dec_bookshelf", "Estantería con libros", "Estantería", 130, 4, "shelf", { 6, 2, 8 }, { 120, 85, 55 } },
+	{ "dec_bed_single", "Cama individual", "Cama", 160, 3, "bed", { 5, 8, 2 }, { 240, 240, 250 } },
+	{ "dec_bed_double", "Cama de matrimonio", "Cama", 380, 5, "bed", { 8, 9, 2 }, { 230, 230, 245 } },
+	{ "dec_table", "Mesa de comedor", "Mesa", 150, 3, "table", { 8, 5, 3 }, { 140, 100, 70 } },
+	{ "dec_coffee", "Mesa de centro", "Mesa", 70, 2, "table", { 5, 3, 1.6 }, { 90, 70, 50 } },
+	{ "dec_curtain", "Cortinas de terciopelo", "Cortinas", 90, 3, "curtain", { 8, 1, 10 }, { 140, 30, 50 } },
+	{ "dec_acoustic", "Paneles acústicos", "Acústica", 240, 6, "panel", { 8, 1, 6 }, { 60, 60, 70 }, true },
+	{ "dec_rack", "Estantería de almacenaje", "Almacenaje", 110, 1, "shelf", { 6, 2, 8 }, { 80, 80, 85 } },
+	{ "dec_partition", "Tabique móvil", "Distribución", 120, 0, "partition", { 10, 1, 12 }, { 225, 220, 210 } },
+	{ "dec_lightstand", "Foco de estudio con soporte", "Iluminación", 320, 7, "lamp", { 2, 2, 8 }, { 255, 255, 240 } },
+	{ "dec_neon", "Letrero de neón ON AIR", "Decoración", 150, 6, "neon", { 6, 1, 2 }, { 255, 40, 80 } },
+	{ "dec_trophy", "Vitrina de trofeos", "Decoración", 260, 6, "shelf", { 5, 2, 7 }, { 230, 190, 90 } },
+	{ "dec_beanbag", "Puf gamer", "Asiento", 60, 2, "beanbag", { 3, 3, 2 }, { 200, 40, 220 } },
+	{ "dec_seccam", "Cámara de seguridad", "Seguridad", 140, 0, "seccam", { 1, 1, 1 }, { 30, 30, 34 } },
+}
+for _, g in ipairs(generic) do
+	add("decor", g[3], { Id = g[1], Name = g[2], Brand = "", Price = g[4], Quality = math.min(90, 30 + g[5] * 8),
+		Desc = g[2] .. (g[9] and ". Reduce el ruido al grabar en la sala." or ".") .. " Se coloca con el modo construcción.",
+		Stats = { Decor = g[5], Acoustic = g[9] and 2 or nil }, Placeable = true, Foot = g[7], Shape = g[6], Color = g[8] })
+end
+-- Las sillas y escritorios también se pueden colocar
+for _, id in ipairs(Order) do
+	local it = Items[id]
+	if it.Cat == "furniture" then
+		it.Placeable = true
+		it.Foot = it.Shape == "chair" and { 3, 3, 4 } or { 8, 4, 3 }
+		it.Stats.Decor = math.floor(it.Quality / 25)
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -1031,7 +1094,110 @@ Progression.Xp = {
 }
 
 return Progression
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000009"><Properties><string name="Name">QuestDefs</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000009"><Properties><string name="Name">PropertyData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- PropertyData: mercado inmobiliario (Fase 2). Cada anuncio es una propiedad concreta en un distrito,
+-- con precio de compra y/o alquiler, mantenimiento, almacenamiento, espacio para muebles, calidad del entorno,
+-- espacio para grabar, posibilidad de remodelar, valor de reventa y requisitos.
+
+local PropertyData = {}
+
+PropertyData.Kinds = {
+	home = "Vivienda", studio = "Estudio", business = "Negocio", garage = "Garaje", land = "Terreno",
+}
+
+-- Mejora: coste y efecto real (lo aplica PropertyService)
+PropertyData.Upgrades = {
+	soundproof = { Name = "Aislamiento acústico", Cost = 2000, Desc = "−3 de ruido en las grabaciones dentro de la propiedad." },
+	security = { Name = "Sistema de seguridad", Cost = 1500, Desc = "+5 de calidad del entorno (tranquilidad para grabar)." },
+	storage = { Name = "Ampliación de almacenaje", Cost = 2500, Desc = "+50% de capacidad de almacenamiento." },
+	lightrig = { Name = "Rig de iluminación de estudio", Cost = 3000, Desc = "+20 de luz en grabaciones y fotos de interior." },
+}
+
+PropertyData.Walls = {
+	{ "Blanco", { 240, 240, 236 } }, { "Gris cálido", { 190, 182, 170 } }, { "Grafito", { 60, 62, 70 } }, { "Azul noche", { 30, 40, 80 } },
+	{ "Verde salvia", { 150, 175, 145 } }, { "Terracota", { 190, 110, 80 } }, { "Rosa pastel", { 240, 190, 200 } }, { "Negro gamer", { 20, 20, 26 } },
+	{ "Madera", { 150, 110, 75 } }, { "Ladrillo", { 160, 80, 60 } },
+}
+PropertyData.Floors = {
+	{ "Parqué", "WoodPlanks", { 160, 120, 85 } }, { "Mármol", "Marble", { 235, 235, 235 } }, { "Moqueta", "Fabric", { 90, 90, 110 } },
+	{ "Hormigón pulido", "Concrete", { 150, 150, 150 } }, { "Baldosa", "Slate", { 120, 115, 110 } }, { "Madera oscura", "Wood", { 90, 60, 40 } },
+}
+PropertyData.Lights = {
+	{ "Cálida", { 255, 220, 170 }, 1.2 }, { "Neutra", { 255, 250, 240 }, 1.4 }, { "Fría", { 200, 225, 255 }, 1.4 },
+	{ "Neón gamer", { 200, 80, 255 }, 1.6 }, { "Estudio", { 255, 255, 255 }, 2.2 },
+}
+
+-- Estilos de decoración: combinación sugerida de pared/suelo/luz
+PropertyData.Styles = {
+	{ Id = "modern", Name = "Moderno", Wall = 1, Floor = 1, Light = 2 },
+	{ Id = "minimal", Name = "Minimalista", Wall = 1, Floor = 4, Light = 2 },
+	{ Id = "industrial", Name = "Industrial", Wall = 10, Floor = 4, Light = 1 },
+	{ Id = "classic", Name = "Clásico", Wall = 2, Floor = 6, Light = 1 },
+	{ Id = "tech", Name = "Tecnológico", Wall = 3, Floor = 4, Light = 3 },
+	{ Id = "gamer", Name = "Gamer", Wall = 8, Floor = 3, Light = 4 },
+	{ Id = "luxury", Name = "Lujoso", Wall = 2, Floor = 2, Light = 1 },
+	{ Id = "budget", Name = "Económico", Wall = 1, Floor = 5, Light = 2 },
+	{ Id = "natural", Name = "Natural", Wall = 5, Floor = 1, Light = 1 },
+	{ Id = "futuristic", Name = "Futurista", Wall = 4, Floor = 2, Light = 3 },
+	{ Id = "pro", Name = "Profesional", Wall = 3, Floor = 3, Light = 5 },
+	{ Id = "creative", Name = "Creativo", Wall = 7, Floor = 1, Light = 2 },
+}
+PropertyData.StyleById = {}
+for _, s in ipairs(PropertyData.Styles) do
+	PropertyData.StyleById[s.Id] = s
+end
+
+-- Anuncios. W/D = tamaño interior. Slots = muebles colocables. Storage = objetos guardados.
+-- Env = calidad del entorno (0-100). Studio = bonus de interés al grabar dentro.
+local L = {}
+local function listing(t)
+	t.Resale = t.Resale or 0.8
+	t.Req = t.Req or { Level = 1, Subs = 0 }
+	t.Remodel = t.Remodel ~= false
+	L[#L + 1] = t
+end
+
+listing({ Id = "hotel_room", Name = "Habitación en el Gran Hotel", Type = "Habitación de hotel", Kind = "home", District = "hotels", Rent = 300, Upkeep = 0, Storage = 40, Slots = 6, Env = 70, Studio = 2, W = 26, D = 22, Remodel = false, Tags = { "luxury", "tourism" } })
+listing({ Id = "apt_small", Name = "Apartamento pequeño en la Zona de apartamentos", Type = "Apartamento pequeño", Kind = "home", District = "apartments", Buy = 9000, Rent = 220, Upkeep = 30, Storage = 90, Slots = 10, Env = 45, Studio = 3, W = 30, D = 26, Tags = { "urban", "home" } })
+listing({ Id = "apt_modern", Name = "Apartamento moderno con balcón", Type = "Apartamento moderno", Kind = "home", District = "apartments", Buy = 22000, Rent = 450, Upkeep = 60, Storage = 130, Slots = 14, Env = 60, Studio = 5, W = 36, D = 30, Tags = { "urban", "home" } })
+listing({ Id = "apt_luxury", Name = "Apartamento de lujo en el Centro financiero", Type = "Apartamento de lujo", Kind = "home", District = "financial", Buy = 85000, Rent = 1200, Upkeep = 200, Storage = 180, Slots = 20, Env = 80, Studio = 8, W = 44, D = 36, Req = { Level = 8, Subs = 0 }, Tags = { "luxury", "home", "business" } })
+listing({ Id = "house_family", Name = "Casa familiar con jardín", Type = "Casa familiar", Kind = "home", District = "residential", Buy = 45000, Rent = 700, Upkeep = 120, Storage = 220, Slots = 22, Env = 65, Studio = 6, W = 46, D = 40, Tags = { "home", "urban" } })
+listing({ Id = "house_modern", Name = "Casa moderna de diseño", Type = "Casa moderna", Kind = "home", District = "residential", Buy = 70000, Rent = 1000, Upkeep = 160, Storage = 240, Slots = 26, Env = 75, Studio = 8, W = 50, D = 42, Req = { Level = 5, Subs = 0 }, Tags = { "home", "luxury" } })
+listing({ Id = "mansion", Name = "Mansión de la Avenida", Type = "Mansión", Kind = "home", District = "luxury", Buy = 400000, Upkeep = 900, Storage = 500, Slots = 50, Env = 95, Studio = 14, W = 80, D = 64, Req = { Level = 15, Subs = 50000 }, Pool = true, Tags = { "luxury", "home" } })
+listing({ Id = "penthouse", Name = "Ático con vistas", Type = "Ático", Kind = "home", District = "financial", Buy = 250000, Rent = 3500, Upkeep = 600, Storage = 300, Slots = 36, Env = 92, Studio = 12, W = 60, D = 48, Req = { Level = 12, Subs = 10000 }, View = "Vista panorámica", Tags = { "luxury", "home", "night" } })
+listing({ Id = "beach_house", Name = "Casa de playa", Type = "Casa de playa", Kind = "home", District = "coast", Buy = 150000, Rent = 1800, Upkeep = 300, Storage = 220, Slots = 28, Env = 88, Studio = 10, W = 52, D = 42, Req = { Level = 9, Subs = 0 }, View = "Vista al mar", Tags = { "beach", "home", "luxury" } })
+listing({ Id = "rural_house", Name = "Casa rural", Type = "Casa rural", Kind = "home", District = "rural", Buy = 30000, Rent = 400, Upkeep = 70, Storage = 260, Slots = 22, Env = 70, Studio = 6, W = 46, D = 40, View = "Vista al campo", Tags = { "rural", "home", "nature" } })
+listing({ Id = "mountain_cabin", Name = "Casa en la montaña", Type = "Casa de montaña", Kind = "home", District = "mountains", Buy = 40000, Rent = 500, Upkeep = 90, Storage = 160, Slots = 18, Env = 78, Studio = 7, W = 40, D = 34, View = "Vista a las cumbres", Tags = { "mountain", "home", "nature" } })
+listing({ Id = "pool_house", Name = "Casa con piscina", Type = "Casa con piscina", Kind = "home", District = "luxury", Buy = 120000, Rent = 1500, Upkeep = 280, Storage = 260, Slots = 30, Env = 85, Studio = 9, W = 56, D = 46, Req = { Level = 7, Subs = 0 }, Pool = true, Tags = { "luxury", "home", "water" } })
+listing({ Id = "pro_studio", Name = "Estudio profesional", Type = "Estudio profesional", Kind = "studio", District = "creators", Buy = 60000, Rent = 900, Upkeep = 150, Storage = 160, Slots = 24, Env = 70, Studio = 15, W = 44, D = 36, Req = { Level = 4, Subs = 0 }, Tags = { "studio" } })
+listing({ Id = "shop_local", Name = "Local comercial", Type = "Local comercial", Kind = "business", District = "commercial", Buy = 50000, Rent = 800, Upkeep = 140, Storage = 200, Slots = 22, Env = 55, Studio = 5, W = 44, D = 34, Tags = { "shop", "business" } })
+listing({ Id = "office", Name = "Oficina en la Zona de oficinas", Type = "Oficina", Kind = "business", District = "offices", Buy = 80000, Rent = 1000, Upkeep = 180, Storage = 180, Slots = 24, Env = 65, Studio = 6, W = 46, D = 36, Req = { Level = 6, Subs = 0 }, Tags = { "business" } })
+listing({ Id = "rec_studio", Name = "Estudio de grabación insonorizado", Type = "Estudio de grabación", Kind = "studio", District = "studios", Buy = 110000, Rent = 1500, Upkeep = 250, Storage = 200, Slots = 28, Env = 75, Studio = 20, W = 50, D = 40, Req = { Level = 8, Subs = 0 }, Tags = { "studio" } })
+listing({ Id = "warehouse", Name = "Almacén industrial", Type = "Almacén", Kind = "business", District = "industrial", Buy = 35000, Rent = 600, Upkeep = 100, Storage = 900, Slots = 30, Env = 35, Studio = 4, W = 60, D = 50, Tags = { "business" } })
+listing({ Id = "garage", Name = "Garaje en el Barrio económico", Type = "Garaje", Kind = "garage", District = "budget", Buy = 8000, Rent = 150, Upkeep = 20, Storage = 160, Slots = 10, Env = 25, Studio = 2, W = 30, D = 26, Tags = { "urban" } })
+listing({ Id = "land_lot", Name = "Terreno edificable", Type = "Terreno edificable", Kind = "land", District = "rural", Buy = 20000, Upkeep = 10, Storage = 60, Slots = 60, Env = 60, Studio = 4, W = 70, D = 70, Tags = { "rural", "nature" } })
+listing({ Id = "loft_creators", Name = "Loft en el Barrio de creadores", Type = "Apartamento moderno", Kind = "home", District = "creators", Buy = 35000, Rent = 600, Upkeep = 80, Storage = 140, Slots = 18, Env = 62, Studio = 9, W = 40, D = 32, Tags = { "urban", "studio", "home" } })
+
+PropertyData.Listings = L
+PropertyData.ById = {}
+for _, p in ipairs(L) do
+	PropertyData.ById[p.Id] = p
+end
+
+-- Máximo de propiedades simultáneas según el nivel (no se pierde lo que ya tienes)
+function PropertyData.maxProperties(level)
+	if level >= 10 then
+		return 6
+	elseif level >= 5 then
+		return 3
+	end
+	return 1
+end
+
+PropertyData.StarterStorage = 80
+
+return PropertyData
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000010"><Properties><string name="Name">QuestDefs</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- QuestDefs: tutorial guiado + logros progresivos generados de forma reutilizable.
 -- Cada logro se completa UNA sola vez y su recompensa se cobra una sola vez.
 
@@ -1085,6 +1251,11 @@ local tracks = {
 	{ "exports", "Exporta %s proyectos", { 1, 10, 50 }, 60, 30, {} },
 	{ "golden_scenes", "Graba %s escenas en la hora dorada", { 1, 10, 50 }, 60, 30, { [3] = "Cazador de luz" } },
 	{ "night_photos", "Toma %s fotos nocturnas", { 1, 10, 25 }, 50, 25, {} },
+	{ "rentals", "Alquila %s viviendas", { 1, 3 }, 100, 50, {} },
+	{ "properties_owned", "Sé propietario de %s propiedades", { 1, 2, 4 }, 300, 120, { [1] = "Propietario", [3] = "Magnate inmobiliario" } },
+	{ "furniture_placed", "Coloca %s muebles", { 1, 10, 30, 75 }, 60, 30, { [3] = "Interiorista" } },
+	{ "remodels", "Remodela %s veces una sala", { 1, 5, 15 }, 60, 30, {} },
+	{ "decor_max", "Consigue una decoración de %s puntos", { 10, 20, 30, 40 }, 120, 60, { [3] = "Estudio de ensueño" } },
 }
 
 QuestDefs.TrackNames = {
@@ -1094,7 +1265,8 @@ QuestDefs.TrackNames = {
 	districts_recorded = "Distritos grabados", stores_visited = "Tiendas visitadas", categories_published = "Categorías",
 	secrets_found = "Secretos", level = "Nivel", max_quality = "Mejor calidad", comparisons = "Comparativas",
 	reviews = "Reseñas", jobs_done = "Encargos", taxi_rides = "Taxis", exports = "Exportaciones",
-	golden_scenes = "Hora dorada", night_photos = "Fotos nocturnas",
+	golden_scenes = "Hora dorada", night_photos = "Fotos nocturnas", rentals = "Alquileres", properties_owned = "Propiedades",
+	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 }
 
 local function fmt(n)
@@ -1129,7 +1301,7 @@ for _, step in ipairs(QuestDefs.Tutorial) do
 end
 
 return QuestDefs
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000010"><Properties><string name="Name">SoundConfig</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000011"><Properties><string name="Name">SoundConfig</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- SoundConfig: sonidos del juego.
 -- Los efectos usan sonidos incluidos con Roblox (rbxasset://). La música ambiental queda en 0
 -- hasta que coloques IDs de audio que tengas permiso para usar (Creator Store, audio con licencia).
@@ -1160,7 +1332,7 @@ SoundConfig.Ambience = {
 }
 
 return SoundConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000011"><Properties><string name="Name">Util</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000012"><Properties><string name="Name">Util</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Util: funciones puras reutilizadas por servidor y cliente.
 -- Escrito en el subconjunto de Luau compatible con Lua 5.1 para poder probarlo fuera de Studio.
 
@@ -1321,7 +1493,7 @@ function Util.luminance(c)
 end
 
 return Util
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000012"><Properties><string name="Name">VideoData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000013"><Properties><string name="Name">VideoData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- VideoData: datos de creación de contenido (ideas, tomas, edición, miniaturas, fotos).
 
 local VideoData = {}
@@ -1516,7 +1688,7 @@ VideoData.Comments = {
 }
 
 return VideoData
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000013"><Properties><string name="Name">VideoFormulas</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000014"><Properties><string name="Name">VideoFormulas</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- VideoFormulas: TODAS las fórmulas de calidad, edición, miniaturas y resultados.
 -- Funciones puras: el servidor las usa como autoridad; el cliente solo para previsualizar.
 -- `rng` es una función que devuelve un número entre 0 y 1 (math.random en el servidor).
@@ -2035,7 +2207,7 @@ function F.viewCurve(minutes, curveMinutes)
 end
 
 return F
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000014"><Properties><string name="Name">WorldData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000015"><Properties><string name="Name">WorldData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- WorldData: definición de la ciudad. WorldBuilder la usa para construir el mapa y
 -- el servidor para saber en qué distrito / lugar de grabación está cada jugador.
 --
@@ -2126,6 +2298,7 @@ district({ Id = "hotels", Name = "Zona de hoteles", Col = 6, Row = 2, Ground = {
 district({ Id = "residential", Name = "Barrio residencial", Col = 1, Row = 3, Ground = { 110, 160, 100 }, Material = "Grass",
 	Style = "house", Count = 8, Palette = { { 230, 220, 200 }, { 200, 150, 120 }, { 170, 190, 210 } }, Trees = 14,
 	Tags = { "urban", "home" }, Noise = 2, Busy = 3,
+	Specials = { { Type = "store", StoreId = "home", X = 70, Z = -70 } },
 	Spots = { { Name = "Calle de los jardines", X = 0, Z = 0, Tags = { "urban", "home" }, Interest = 6 },
 		{ Name = "Parque infantil", X = -70, Z = 70, Tags = { "fun", "urban" }, Interest = 6 } } })
 district({ Id = "creators", Name = "Barrio de creadores", Col = 2, Row = 3, Ground = { 80, 80, 90 }, Material = "Concrete",
@@ -2316,7 +2489,7 @@ end
 WorldData.SpawnDistrict = "budget"
 
 return WorldData
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX000039"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX000016"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX000017"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX000041"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX000017"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX000018"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Main (Script de servidor): arranca todos los servicios en orden y gestiona la entrada de jugadores.
 
 local Players = game:GetService("Players")
@@ -2336,6 +2509,7 @@ local order = {
 	{ "Computer", "ComputerService" },
 	{ "Shop", "ShopService" },
 	{ "Travel", "TravelService" },
+	{ "Property", "PropertyService" },
 	{ "World", "WorldBuilder" },
 	{ "Home", "HomeService" },
 	{ "Avatar", "AvatarService" },
@@ -2426,7 +2600,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 print("[YTLife] Servidor listo: " .. Config.GameName .. " v" .. Config.Version)
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX000018"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX000019"><Properties><string name="Name">AvatarService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX000019"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX000020"><Properties><string name="Name">AvatarService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- AvatarService: aparición en casa, apariencia (colores de ropa) y cartel sobre la cabeza
 -- (nombre, rango, título y suscriptores). Respeta el avatar de Roblox si el jugador lo prefiere.
 
@@ -2622,7 +2796,7 @@ function Avatar.Start()
 end
 
 return Avatar
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000020"><Properties><string name="Name">ChannelService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000021"><Properties><string name="Name">ChannelService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- ChannelService: crecimiento progresivo de cada vídeo publicado (visitas, me gusta, comentarios,
 -- suscriptores, ingresos), tendencias diarias, competencia, programa de socios y ajustes del canal.
 -- Las cifras siguen curvas con límite (VideoFormulas.expectedViews), nunca números aleatorios absurdos.
@@ -2831,7 +3005,7 @@ function Channel.Start()
 end
 
 return Channel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000021"><Properties><string name="Name">ComputerService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000022"><Properties><string name="Name">ComputerService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- ComputerService: montajes de PC (rigs), sesiones de computador y rendimiento real.
 -- Un rig es un conjunto de piezas del inventario (uids) instaladas juntas. Comprar un PC completo crea un rig
 -- con piezas reales, que se puede desmontar, mejorar o vender por piezas.
@@ -3260,7 +3434,7 @@ function Computer.Start()
 end
 
 return Computer
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000022"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000023"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- DataService: carga y guardado seguro con DataStoreService.
 --  * Reintentos limitados con espera creciente.
 --  * Bloqueo de sesión: si otro servidor tiene los datos abiertos, se espera en lugar de sobrescribir.
@@ -3321,6 +3495,8 @@ DataService.Template = {
 	ReceiptOrder = {},
 	ExportTokens = 0,
 	Job = {},
+	Properties = {},
+	HomeProperty = "",
 	Uid = 0,
 	CreatedAt = 0,
 	LastSeen = 0,
@@ -3554,7 +3730,7 @@ function DataService.Start()
 end
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000023"><Properties><string name="Name">EconomyService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000024"><Properties><string name="Name">EconomyService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- EconomyService: dinero virtual, movimientos, informes mensuales, ahorro, metas y préstamos.
 -- El dinero del juego es independiente de Robux. Solo el servidor modifica el saldo.
 
@@ -3782,7 +3958,7 @@ function Economy.Start()
 end
 
 return Economy
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000024"><Properties><string name="Name">HomeService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000025"><Properties><string name="Name">HomeService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- HomeService: vivienda inicial alquilada (habitación en la Residencia Económica).
 --  * Cada jugador recibe una habitación propia con escritorio, computador, cama y vestidor.
 --  * Lo que compras se ve en tu habitación (PC activo, monitores, silla, escritorio, luces, fondos).
@@ -3811,6 +3987,9 @@ function Home.room(player)
 end
 
 function Home.isAtHome(player)
+	if S.Property.inside(player) then
+		return true
+	end
 	local room = assigned[player]
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if not room or not root then
@@ -3821,6 +4000,13 @@ function Home.isAtHome(player)
 end
 
 function Home.spawnCFrame(player)
+	local data = S.Data.get(player)
+	if data and data.HomeProperty ~= "" and data.Properties[data.HomeProperty] then
+		local cf = S.Property.enterCFrame(player, data.HomeProperty)
+		if cf then
+			return cf
+		end
+	end
 	local room = assigned[player]
 	if room then
 		return CFrame.new(room.Center + Vector3.new(0, 4, room.Size.Z / 2 - 5))
@@ -3968,6 +4154,12 @@ function Home.onNewDay(player)
 	end
 	local h = data.Home
 	h.PlayDays = h.PlayDays + 1
+	pcall(S.Property.onNewDay, player)
+	if data.HomeProperty ~= "" then
+		-- vive en otra propiedad: no se cobra la habitación de la residencia
+		h.NextDue = h.PlayDays + Config.RentPeriodDays
+		return
+	end
 	if h.PlayDays < h.NextDue then
 		return
 	end
@@ -4008,6 +4200,15 @@ function Home.Start()
 	end)
 
 	Net.on("Home.Teleport", function(player)
+		local data = S.Data.get(player)
+		if data.HomeProperty ~= "" and data.Properties[data.HomeProperty] then
+			local ok, msg = S.Travel.taxiTo(player, S.Property.exteriorOf(data.HomeProperty), "tu casa")
+			if ok then
+				local cf = S.Property.enterCFrame(player, data.HomeProperty)
+				S.Travel.teleport(player, cf.Position)
+			end
+			return ok, msg
+		end
 		local cf = Home.spawnCFrame(player)
 		if not cf or not player.Character then
 			return false, "No tienes habitación asignada."
@@ -4040,7 +4241,7 @@ function Home.Start()
 end
 
 return Home
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000025"><Properties><string name="Name">InventoryService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000026"><Properties><string name="Name">InventoryService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- InventoryService: cada objeto comprado es una unidad con su propio identificador (uid),
 -- condición, carga de batería y ubicación: "home" (en casa), "backpack" (mochila) o "rig:<id>" (instalado en un PC).
 
@@ -4159,7 +4360,8 @@ function Inventory.best(player, slot, where, stat)
 	local bestUid, bestRec, bestDef, bestVal = nil, nil, nil, -1
 	for uid, rec in pairs(data.Inventory) do
 		local def = Catalog.get(rec.Id)
-		if def and def.Slot == slot and (where == "any" or rec.Loc == where) then
+		local here = where == "any" or rec.Loc == where or (where == "home" and rec.Loc:sub(1, 5) == "prop:")
+		if def and def.Slot == slot and here then
 			local v = stat and (def.Stats[stat] or 0) or def.Quality
 			if type(v) ~= "number" then
 				v = def.Quality
@@ -4179,7 +4381,7 @@ function Inventory.bestCatAtHome(player, cat, sub, stat)
 	local best, bestVal = nil, -1
 	for _, rec in pairs(data.Inventory) do
 		local def = Catalog.get(rec.Id)
-		if def and def.Cat == cat and (sub == nil or def.Sub == sub) and rec.Loc == "home" then
+		if def and def.Cat == cat and (sub == nil or def.Sub == sub) and (rec.Loc == "home" or rec.Loc:sub(1, 5) == "prop:") then
 			local v = def.Stats[stat] or 0
 			if v > bestVal then
 				best, bestVal = def, v
@@ -4251,6 +4453,9 @@ function Inventory.Start()
 		if rec.Loc:sub(1, 4) == "rig:" then
 			return false, "Está instalado en un computador. Desmóntalo en el Montador de PC."
 		end
+		if rec.Loc:sub(1, 5) == "prop:" then
+			return false, "Está colocado en una propiedad. Recógelo con el modo construcción."
+		end
 		if rec.Loc == to then
 			return true
 		end
@@ -4297,6 +4502,9 @@ function Inventory.Start()
 		end
 		if rec.Loc:sub(1, 4) == "rig:" then
 			return "Está instalado en un computador. Desmóntalo primero."
+		end
+		if rec.Loc:sub(1, 5) == "prop:" then
+			return "Está colocado en una propiedad. Recógelo primero con el modo construcción."
 		end
 		if def.Slot == "phone" then
 			local phones = 0
@@ -4386,7 +4594,7 @@ function Inventory.Start()
 end
 
 return Inventory
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000026"><Properties><string name="Name">JobsService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000027"><Properties><string name="Name">JobsService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- JobsService: encargos de trabajo para ganar dinero además del canal (adelanto de la Fase 5).
 --  * Editor de vídeos freelance: ordenar los clips de un cliente en un computador.
 --  * Fotógrafo: hacer una foto de un tipo concreto en un lugar concreto.
@@ -4592,7 +4800,7 @@ function Jobs.Start()
 end
 
 return Jobs
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000027"><Properties><string name="Name">MonetizationService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000028"><Properties><string name="Name">MonetizationService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- MonetizationService: Game Passes (UserOwnsGamePassAsync) y Developer Products (ProcessReceipt).
 --  * Los IDs vienen de ReplicatedStorage.Shared.MonetizationConfig (0 = no configurado).
 --  * ProcessReceipt es idempotente: cada PurchaseId se registra en el perfil y nunca se entrega dos veces.
@@ -4745,7 +4953,7 @@ function Monetization.Start()
 end
 
 return Monetization
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000028"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000029"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- NPCService: dependientes, barista, asesora del banco y vecinos con diálogos útiles.
 -- Usa Players:CreateHumanoidModelFromDescription; si falla (por ejemplo en pruebas sin red),
 -- crea un maniquí sencillo de Parts para que el NPC siga siendo funcional.
@@ -4896,7 +5104,7 @@ function NPC.Start()
 end
 
 return NPC
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000029"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000030"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Net: único punto de entrada de peticiones del cliente.
 --   Remotes/Request (RemoteFunction): el cliente pide una acción -> { ok, msg, data }
 --   Remotes/Push (RemoteEvent): el servidor envía estado, avisos y aperturas de interfaz.
@@ -5017,7 +5225,7 @@ function Net.notify(player, text, style)
 end
 
 return Net
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000030"><Properties><string name="Name">ProgressService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000031"><Properties><string name="Name">ProgressService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- ProgressService: experiencia, niveles y rango de creador.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -5059,7 +5267,1015 @@ end
 function Progress.Start() end
 
 return Progress
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000031"><Properties><string name="Name">QuestService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000032"><Properties><string name="Name">PropertyService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- PropertyService (Fase 2): inmobiliaria, contratos, interiores y modo construcción.
+--  * Alquilar (primera semana + fianza), comprar, convertir alquiler en compra, terminar contrato, vender.
+--  * Pagos cada 7 días JUGADOS: alquiler o mantenimiento. Impago = deuda + recargo. Tras 3 impagos un
+--    alquiler se rescinde, pero los muebles vuelven al inventario (nunca se pierde nada).
+--  * Cada jugador tiene un interior privado que se construye al entrar, con su decoración y muebles.
+--  * Modo construcción: colocar, mover, rotar y recoger muebles; paredes, suelo, luz, cortinas, estilos,
+--    mejoras (aislamiento, seguridad, almacenaje, iluminación) y diseños guardados.
+--  * La decoración y las mejoras afectan de verdad a las grabaciones hechas dentro.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local Shared = ReplicatedStorage.Shared
+local Config = require(Shared.Config)
+local Catalog = require(Shared.ItemCatalog)
+local PropertyData = require(Shared.PropertyData)
+local WorldData = require(Shared.WorldData)
+local Util = require(Shared.Util)
+
+local Property = {}
+local S
+local interiors = {} -- [player] = { Id, Origin, Model, W, D }
+local slots = {} -- [index] = player
+local folderRoot
+
+Property.WallHeight = 14
+
+function Property.Init(services)
+	S = services
+end
+
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+---------------------------------------------------------------------------
+-- Posiciones exteriores (carteles en cada distrito)
+---------------------------------------------------------------------------
+function Property.signPosition(listing)
+	local d = WorldData.DistrictById[listing.District]
+	local cx, cz = WorldData.center(d)
+	local idx = 0
+	for _, l in ipairs(PropertyData.Listings) do
+		if l.District == listing.District then
+			idx = idx + 1
+		end
+		if l == listing then
+			break
+		end
+	end
+	return Vector3.new(cx - 66 + (idx - 1) * 26, 0.5, cz + 121)
+end
+
+---------------------------------------------------------------------------
+-- Consultas
+---------------------------------------------------------------------------
+local function held(data, id)
+	return data.Properties[id]
+end
+
+function Property.count(data)
+	return Util.count(data.Properties)
+end
+
+function Property.storageCap(player)
+	local data = S.Data.get(player)
+	local cap = PropertyData.StarterStorage
+	for id, rec in pairs(data.Properties) do
+		local l = PropertyData.ById[id]
+		if l then
+			cap = cap + math.floor(l.Storage * (rec.Upgrades.storage and 1.5 or 1))
+		end
+	end
+	return cap
+end
+
+function Property.storedCount(player)
+	local data = S.Data.get(player)
+	local n = 0
+	for _, rec in pairs(data.Inventory) do
+		if rec.Loc ~= "backpack" then
+			n = n + 1
+		end
+	end
+	return n
+end
+
+function Property.canStore(player, n)
+	return Property.storedCount(player) + (n or 1) <= Property.storageCap(player)
+end
+
+function Property.inside(player)
+	local it = interiors[player]
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not it or not root then
+		return nil
+	end
+	local rel = root.Position - it.Origin
+	if math.abs(rel.X) <= it.W / 2 + 2 and math.abs(rel.Z) <= it.D / 2 + 2 and rel.Y > -5 and rel.Y < 30 then
+		return it.Id
+	end
+	return nil
+end
+
+function Property.interiorInfo(player)
+	local it = interiors[player]
+	if not it then
+		return nil
+	end
+	return { Id = it.Id, Origin = { it.Origin.X, it.Origin.Y, it.Origin.Z }, W = it.W, D = it.D }
+end
+
+-- Puntuación de decoración de una propiedad (0-45)
+function Property.decorScore(player, id)
+	local data = S.Data.get(player)
+	local rec = data.Properties[id]
+	if not rec then
+		return 0
+	end
+	local score, styles = 0, {}
+	for uid in pairs(rec.Placed) do
+		local item = data.Inventory[uid]
+		local def = item and Catalog.get(item.Id)
+		if def then
+			score = score + (def.Stats.Decor or 0) * (0.7 + 0.3 * def.Quality / 100)
+			if def.Style then
+				styles[def.Style] = (styles[def.Style] or 0) + 1
+			end
+		end
+	end
+	local bonus = 0
+	for _, n in pairs(styles) do
+		if n >= 3 then
+			bonus = bonus + 5
+		end
+	end
+	score = score + math.min(10, bonus)
+	-- Paredes/suelo/luz que coinciden con un estilo
+	for _, st in ipairs(PropertyData.Styles) do
+		if st.Wall == rec.Decor.Wall and st.Floor == rec.Decor.Floor and st.Light == rec.Decor.Light then
+			score = score + 4
+			break
+		end
+	end
+	if rec.Decor.Curtain then
+		score = score + 1
+	end
+	return math.floor(math.min(45, score) * 10 + 0.5) / 10
+end
+
+-- Lugar de grabación cuando estás dentro de una propiedad
+function Property.spot(player)
+	local id = Property.inside(player)
+	if not id then
+		return nil
+	end
+	local data = S.Data.get(player)
+	local l = PropertyData.ById[id]
+	local rec = data.Properties[id]
+	local tags = { "home" }
+	for _, t in ipairs(l.Tags or {}) do
+		if not Util.indexOf(tags, t) then
+			tags[#tags + 1] = t
+		end
+	end
+	if l.Kind == "studio" and not Util.indexOf(tags, "studio") then
+		tags[#tags + 1] = "studio"
+	end
+	local decor = Property.decorScore(player, id)
+	if decor >= 15 and not Util.indexOf(tags, "studio") then
+		tags[#tags + 1] = "studio"
+	end
+	local acoustic = 0
+	for uid in pairs(rec.Placed) do
+		local item = data.Inventory[uid]
+		local def = item and Catalog.get(item.Id)
+		if def and def.Stats.Acoustic then
+			acoustic = acoustic + def.Stats.Acoustic
+		end
+	end
+	local noise = math.max(0, 2 - (rec.Upgrades.soundproof and 3 or 0) - math.min(4, acoustic))
+	local light = (rec.Upgrades.lightrig and 20 or 0) + (rec.Decor.Light == 5 and 8 or 0)
+	return {
+		Id = "prop_" .. id,
+		Name = l.Name,
+		Tags = tags,
+		Indoor = true,
+		Interest = 5 + math.floor((l.Env + (rec.Upgrades.security and 5 or 0)) / 10) + math.floor(l.Studio / 3),
+		Noise = noise,
+		Busy = 0,
+		IsHome = true,
+		Decor = 5 + decor,
+		ExtraLight = light,
+		District = l.District,
+	}
+end
+
+---------------------------------------------------------------------------
+-- Construcción de interiores
+---------------------------------------------------------------------------
+local function P(parent, name, size, cf, color, material, opts)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = typeof(color) == "Color3" and color or rgb(color)
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if opts then
+		if opts.Shape then
+			p.Shape = opts.Shape
+		end
+		if opts.Transparency then
+			p.Transparency = opts.Transparency
+		end
+		if opts.NoCollide then
+			p.CanCollide = false
+		end
+	end
+	p.Parent = parent
+	return p
+end
+
+local function addPrompt(part, action, text, objectText, attrs)
+	local pp = Instance.new("ProximityPrompt")
+	pp.ActionText = text
+	pp.ObjectText = objectText or ""
+	pp.HoldDuration = 0
+	pp.MaxActivationDistance = 10
+	pp.RequiresLineOfSight = false
+	pp:SetAttribute("Action", action)
+	for k, v in pairs(attrs or {}) do
+		pp:SetAttribute(k, v)
+	end
+	pp.Parent = part
+	CollectionService:AddTag(pp, "YTPrompt")
+	return pp
+end
+
+-- Modelo de un mueble (huella en el suelo centrada en cf)
+function Property.furnitureModel(parent, def, cf, uid)
+	local m = Instance.new("Model")
+	m.Name = def.Name
+	m:SetAttribute("FurnitureUid", uid)
+	local c = rgb(def.Color)
+	local f = def.Foot or { 4, 4, 3 }
+	local w, d, h = f[1], f[2], f[3]
+	local shape = def.Shape
+	if shape == "sofa" then
+		P(m, "Seat", Vector3.new(w, 1.4, d), cf * CFrame.new(0, 0.9, 0), c, Enum.Material.Fabric)
+		P(m, "Back", Vector3.new(w, 2.2, 0.8), cf * CFrame.new(0, 2.4, -d / 2 + 0.4), c, Enum.Material.Fabric)
+		P(m, "ArmL", Vector3.new(0.8, 1.8, d), cf * CFrame.new(-w / 2 + 0.4, 1.6, 0), c, Enum.Material.Fabric)
+		P(m, "ArmR", Vector3.new(0.8, 1.8, d), cf * CFrame.new(w / 2 - 0.4, 1.6, 0), c, Enum.Material.Fabric)
+	elseif shape == "lamp" then
+		P(m, "Pole", Vector3.new(0.3, h - 1, 0.3), cf * CFrame.new(0, (h - 1) / 2, 0), { 40, 40, 44 }, Enum.Material.Metal)
+		local shade = P(m, "Shade", Vector3.new(w, 1.2, d), cf * CFrame.new(0, h - 0.6, 0), c, Enum.Material.Neon)
+		local l = Instance.new("PointLight")
+		l.Range = 16
+		l.Brightness = 1.2
+		l.Color = c
+		l.Parent = shade
+	elseif shape == "painting" then
+		P(m, "Stand", Vector3.new(0.3, 3, 0.3), cf * CFrame.new(0, 1.5, 0), { 60, 45, 35 }, Enum.Material.Wood)
+		P(m, "Frame", Vector3.new(w, h, 0.3), cf * CFrame.new(0, 3 + h / 2 - 1, 0), { 60, 45, 35 }, Enum.Material.Wood)
+		P(m, "Canvas", Vector3.new(w - 0.6, h - 0.6, 0.1), cf * CFrame.new(0, 3 + h / 2 - 1, 0.2), c, Enum.Material.SmoothPlastic)
+	elseif shape == "plant" then
+		P(m, "Pot", Vector3.new(w * 0.7, 1.4, d * 0.7), cf * CFrame.new(0, 0.7, 0), { 170, 90, 60 }, Enum.Material.Slate)
+		P(m, "Leaves", Vector3.new(w, h - 1.4, d), cf * CFrame.new(0, 1.4 + (h - 1.4) / 2, 0), c, Enum.Material.Grass, { Shape = Enum.PartType.Ball })
+	elseif shape == "rug" then
+		P(m, "Rug", Vector3.new(w, 0.15, d), cf * CFrame.new(0, 0.08, 0), c, Enum.Material.Fabric, { NoCollide = true })
+	elseif shape == "shelf" then
+		P(m, "Shelf", Vector3.new(w, h, d), cf * CFrame.new(0, h / 2, 0), c, Enum.Material.WoodPlanks)
+		for i = 1, 3 do
+			P(m, "Items", Vector3.new(w - 1, 1, d * 0.6), cf * CFrame.new(0, i * h / 4, d * 0.15), { 200, 60 + i * 40, 80 }, Enum.Material.SmoothPlastic)
+		end
+	elseif shape == "bed" then
+		P(m, "Frame", Vector3.new(w, 1, d), cf * CFrame.new(0, 0.5, 0), { 110, 80, 60 }, Enum.Material.Wood)
+		P(m, "Mattress", Vector3.new(w - 0.4, 1, d - 0.4), cf * CFrame.new(0, 1.5, 0), c, Enum.Material.Fabric)
+		P(m, "Pillow", Vector3.new(w - 1.5, 0.6, 1.4), cf * CFrame.new(0, 2.2, -d / 2 + 1.2), { 255, 255, 255 }, Enum.Material.Fabric)
+	elseif shape == "table" or shape == "desk" then
+		P(m, "Top", Vector3.new(w, 0.4, d), cf * CFrame.new(0, h - 0.2, 0), c, Enum.Material.WoodPlanks)
+		for _, sx in ipairs({ -1, 1 }) do
+			for _, sz in ipairs({ -1, 1 }) do
+				P(m, "Leg", Vector3.new(0.4, h - 0.4, 0.4), cf * CFrame.new(sx * (w / 2 - 0.4), (h - 0.4) / 2, sz * (d / 2 - 0.4)), c, Enum.Material.Wood)
+			end
+		end
+	elseif shape == "curtain" then
+		P(m, "Rod", Vector3.new(w, 0.3, 0.3), cf * CFrame.new(0, h, 0), { 50, 50, 55 }, Enum.Material.Metal)
+		P(m, "Curtain", Vector3.new(w, h, 0.3), cf * CFrame.new(0, h / 2, 0.2), c, Enum.Material.Fabric)
+	elseif shape == "panel" then
+		for i = 0, 2 do
+			P(m, "Foam", Vector3.new(w / 3 - 0.2, h, 0.6), cf * CFrame.new(-w / 3 + i * w / 3, h / 2 + 1, 0), c, Enum.Material.Fabric)
+		end
+	elseif shape == "partition" then
+		P(m, "Partition", Vector3.new(w, h, d), cf * CFrame.new(0, h / 2, 0), c, Enum.Material.Plaster)
+	elseif shape == "neon" then
+		P(m, "Stand", Vector3.new(0.3, 4, 0.3), cf * CFrame.new(0, 2, 0), { 30, 30, 34 }, Enum.Material.Metal)
+		local sign = P(m, "Neon", Vector3.new(w, h, 0.3), cf * CFrame.new(0, 4 + h / 2, 0), c, Enum.Material.Neon)
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Front
+		gui.Parent = sign
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.TextScaled = true
+		t.Font = Enum.Font.GothamBlack
+		t.TextColor3 = Color3.new(1, 1, 1)
+		t.Text = "ON AIR"
+		t.Parent = gui
+	elseif shape == "beanbag" then
+		P(m, "Bag", Vector3.new(w, w, w), cf * CFrame.new(0, w / 2 - 0.4, 0), c, Enum.Material.Fabric, { Shape = Enum.PartType.Ball })
+	elseif shape == "seccam" then
+		P(m, "Pole", Vector3.new(0.3, 9, 0.3), cf * CFrame.new(0, 4.5, 0), { 40, 40, 44 }, Enum.Material.Metal)
+		local cam = P(m, "Camera", Vector3.new(1, 0.8, 1.4), cf * CFrame.new(0, 9.4, 0), c, Enum.Material.Metal)
+		P(m, "Led", Vector3.new(0.2, 0.2, 0.1), cam.CFrame * CFrame.new(0.3, 0.2, -0.72), { 255, 30, 30 }, Enum.Material.Neon)
+	elseif shape == "chair" then
+		P(m, "Seat", Vector3.new(w, 0.5, d), cf * CFrame.new(0, 1.8, 0), c)
+		P(m, "Back", Vector3.new(w, 2.6, 0.4), cf * CFrame.new(0, 3.2, -d / 2 + 0.2), c)
+		P(m, "Base", Vector3.new(0.5, 1.6, 0.5), cf * CFrame.new(0, 0.8, 0), { 40, 40, 44 }, Enum.Material.Metal)
+	else
+		P(m, "Body", Vector3.new(w, h, d), cf * CFrame.new(0, h / 2, 0), c)
+	end
+	m.Parent = parent
+	return m
+end
+
+local function slotFor(player)
+	for i = 1, 60 do
+		if slots[i] == player then
+			return i
+		end
+	end
+	for i = 1, 60 do
+		if slots[i] == nil then
+			slots[i] = player
+			return i
+		end
+	end
+	return 60
+end
+
+function Property.buildInterior(player, id)
+	local data = S.Data.get(player)
+	local rec = data.Properties[id]
+	local l = PropertyData.ById[id]
+	if not rec or not l then
+		return nil
+	end
+	if not folderRoot then
+		folderRoot = workspace:FindFirstChild("Interiors") or Instance.new("Folder")
+		folderRoot.Name = "Interiors"
+		folderRoot.Parent = workspace
+	end
+	local old = interiors[player]
+	if old and old.Model then
+		old.Model:Destroy()
+	end
+	local index = slotFor(player)
+	local origin = Vector3.new(-4200 - (index - 1) % 6 * 260, 0, (math.floor((index - 1) / 6)) * 260)
+	local base = CFrame.new(origin)
+	local m = Instance.new("Model")
+	m.Name = "Interior_" .. player.UserId
+	local W, D, H = l.W, l.D, Property.WallHeight
+	local wall = PropertyData.Walls[rec.Decor.Wall] or PropertyData.Walls[1]
+	local floor = PropertyData.Floors[rec.Decor.Floor] or PropertyData.Floors[1]
+	local light = PropertyData.Lights[rec.Decor.Light] or PropertyData.Lights[2]
+	local isLand = l.Kind == "land"
+	P(m, "Floor", Vector3.new(W, 1, D), base * CFrame.new(0, -0.5, 0), isLand and { 90, 150, 80 } or floor[3], isLand and Enum.Material.Grass or Enum.Material[floor[2]])
+	if isLand then
+		for _, side in ipairs({ { 0, -D / 2, W, 0.5 }, { 0, D / 2, W, 0.5 }, { -W / 2, 0, 0.5, D }, { W / 2, 0, 0.5, D } }) do
+			P(m, "Fence", Vector3.new(side[3], 3, side[4]), base * CFrame.new(side[1], 1.5, side[2]), { 240, 240, 240 }, Enum.Material.WoodPlanks)
+		end
+		P(m, "OuterGround", Vector3.new(W + 200, 1, D + 200), base * CFrame.new(0, -0.6, 0), { 80, 140, 70 }, Enum.Material.Grass)
+	else
+		P(m, "Ceiling", Vector3.new(W, 1, D), base * CFrame.new(0, H + 0.5, 0), { 245, 245, 245 }, Enum.Material.SmoothPlastic)
+		for _, side in ipairs({ { 0, -D / 2, W, 1 }, { 0, D / 2, W, 1 }, { -W / 2, 0, 1, D }, { W / 2, 0, 1, D } }) do
+			P(m, "Wall", Vector3.new(side[3], H, side[4]), base * CFrame.new(side[1], H / 2, side[2]), wall[2], Enum.Material.Plaster)
+		end
+		for i = -1, 1, 2 do
+			local lamp = P(m, "CeilingLight", Vector3.new(4, 0.3, 4), base * CFrame.new(i * W / 4, H - 0.2, 0), light[2], Enum.Material.Neon)
+			local pl = Instance.new("PointLight")
+			pl.Range = math.max(W, D) * 0.7
+			pl.Brightness = light[3]
+			pl.Color = rgb(light[2])
+			pl.Parent = lamp
+		end
+		-- Ventana con vista
+		local win = P(m, "Window", Vector3.new(math.min(16, W - 8), 6, 0.3), base * CFrame.new(0, 7, -D / 2 + 0.7), { 150, 200, 240 }, Enum.Material.Glass, { Transparency = 0.2 })
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Back
+		gui.Parent = win
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.TextScaled = true
+		t.Font = Enum.Font.GothamBold
+		t.TextColor3 = Color3.fromRGB(255, 255, 255)
+		t.TextTransparency = 0.4
+		t.Text = l.View or "Vista a la ciudad"
+		t.Parent = gui
+		if rec.Decor.Curtain then
+			P(m, "WindowCurtain", Vector3.new(3, 8, 0.3), base * CFrame.new(-math.min(16, W - 8) / 2 - 1.5, 7, -D / 2 + 1), { 140, 30, 50 }, Enum.Material.Fabric)
+			P(m, "WindowCurtain", Vector3.new(3, 8, 0.3), base * CFrame.new(math.min(16, W - 8) / 2 + 1.5, 7, -D / 2 + 1), { 140, 30, 50 }, Enum.Material.Fabric)
+		end
+	end
+	if l.Pool then
+		local pool = P(m, "Pool", Vector3.new(W * 0.35, 0.4, D * 0.25), base * CFrame.new(W * 0.25, 0.05, D * 0.25), { 60, 180, 230 }, Enum.Material.Glass, { Transparency = 0.2, NoCollide = true })
+		pool.Name = "Pool"
+	end
+	-- Puerta de salida
+	local door = P(m, "ExitDoor", Vector3.new(6, 9, 0.6), base * CFrame.new(0, 4.5, D / 2 - 0.6), { 90, 60, 40 }, Enum.Material.Wood)
+	addPrompt(door, "prop_exit", "Salir", l.Name)
+	-- Puesto de trabajo y vestidor (viviendas, estudios y negocios)
+	if l.Kind ~= "garage" and l.Kind ~= "land" then
+		local deskCF = base * CFrame.new(-W / 2 + 6, 3.4, -D / 2 + 4)
+		P(m, "Workdesk", Vector3.new(8, 0.5, 4), deskCF, { 120, 85, 60 }, Enum.Material.WoodPlanks)
+		P(m, "Monitor", Vector3.new(3.2, 2, 0.25), deskCF * CFrame.new(0, 1.4, -1.2), { 20, 20, 24 })
+		P(m, "Screen", Vector3.new(3, 1.8, 0.05), deskCF * CFrame.new(0, 1.4, -1.05), { 70, 140, 255 }, Enum.Material.Neon)
+		local anchor = P(m, "DeskAnchor", Vector3.new(8, 4, 4), deskCF * CFrame.new(0, -1.5, 0), { 0, 0, 0 }, nil, { Transparency = 1, NoCollide = true })
+		addPrompt(anchor, "computer_home", "Usar computador", l.Name, { Owner = player.UserId })
+		local wardrobe = P(m, "Wardrobe", Vector3.new(2, 8, 5), base * CFrame.new(W / 2 - 1.6, 4, -D / 2 + 5), { 160, 120, 90 }, Enum.Material.WoodPlanks)
+		addPrompt(wardrobe, "wardrobe", "Vestidor", "Cambiar estilo", { Owner = player.UserId })
+	end
+	-- Muebles colocados
+	local furn = Instance.new("Folder")
+	furn.Name = "Furniture"
+	furn.Parent = m
+	for uid, pos in pairs(rec.Placed) do
+		local item = data.Inventory[uid]
+		local def = item and Catalog.get(item.Id)
+		if def then
+			Property.furnitureModel(furn, def, base * CFrame.new(pos.X, 0, pos.Z) * CFrame.Angles(0, math.rad(pos.R or 0), 0), uid)
+		end
+	end
+	m.Parent = folderRoot
+	interiors[player] = { Id = id, Origin = origin, Model = m, W = W, D = D }
+	S.Data.markDirty(player)
+	return origin
+end
+
+function Property.enterCFrame(player, id)
+	local origin = Property.buildInterior(player, id)
+	if not origin then
+		return nil
+	end
+	local l = PropertyData.ById[id]
+	return CFrame.new(origin + Vector3.new(0, 3, l.D / 2 - 5))
+end
+
+---------------------------------------------------------------------------
+-- Pagos periódicos
+---------------------------------------------------------------------------
+local function releaseFurniture(data, id)
+	local rec = data.Properties[id]
+	for uid in pairs(rec.Placed) do
+		if data.Inventory[uid] then
+			data.Inventory[uid].Loc = "home"
+		end
+	end
+	rec.Placed = {}
+end
+
+function Property.onNewDay(player)
+	local data = S.Data.get(player)
+	if not data then
+		return
+	end
+	local day = data.Home.PlayDays
+	for id, rec in pairs(data.Properties) do
+		local l = PropertyData.ById[id]
+		if l and day >= rec.NextDue then
+			rec.NextDue = day + Config.RentPeriodDays
+			local amount = rec.Mode == "rent" and l.Rent or l.Upkeep
+			local label = (rec.Mode == "rent" and "Alquiler de " or "Mantenimiento de ") .. l.Name
+			if amount > 0 and S.Economy.spend(player, amount, rec.Mode == "rent" and "Alquiler" or "Mantenimiento", label) then
+				rec.Missed = 0
+			elseif amount > 0 then
+				local fee = math.floor(amount * Config.LateFeeRate + 0.5)
+				rec.Debt = rec.Debt + amount + fee
+				rec.Missed = rec.Missed + 1
+				S.Net.notify(player, "⚠️ Impago: " .. label .. ". Deuda $" .. rec.Debt .. ". Págala en la app Inmobiliaria.", "warn")
+				if rec.Mode == "rent" and rec.Missed >= 3 then
+					releaseFurniture(data, id)
+					data.Properties[id] = nil
+					if data.HomeProperty == id then
+						data.HomeProperty = ""
+					end
+					S.Net.notify(player, "📄 Contrato de «" .. l.Name .. "» rescindido por impago. Tus muebles están en tu inventario.", "error")
+				end
+			end
+		end
+	end
+	S.Data.markDirty(player)
+end
+
+---------------------------------------------------------------------------
+-- Validación de colocación
+---------------------------------------------------------------------------
+local function footprint(def, r)
+	local f = def.Foot or { 4, 4, 3 }
+	local w, d = f[1], f[2]
+	if math.floor((r or 0) / 90) % 2 == 1 then
+		w, d = d, w
+	end
+	return w, d
+end
+
+local function overlaps(data, rec, uid, def, x, z, r)
+	local w, d = footprint(def, r)
+	if def.Shape == "rug" then
+		return false
+	end
+	for other, pos in pairs(rec.Placed) do
+		if other ~= uid then
+			local item = data.Inventory[other]
+			local odef = item and Catalog.get(item.Id)
+			if odef and odef.Shape ~= "rug" then
+				local ow, od = footprint(odef, pos.R)
+				if math.abs(x - pos.X) * 2 < (w + ow) - 0.2 and math.abs(z - pos.Z) * 2 < (d + od) - 0.2 then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function placeValid(player, id, uid, x, z, r)
+	local data = S.Data.get(player)
+	local rec = data.Properties[id]
+	local l = PropertyData.ById[id]
+	local item = data.Inventory[uid]
+	local def = item and Catalog.get(item.Id)
+	if not def or not def.Placeable then
+		return "Ese objeto no se puede colocar."
+	end
+	local w, d = footprint(def, r)
+	if math.abs(x) + w / 2 > l.W / 2 - 0.5 or math.abs(z) + d / 2 > l.D / 2 - 0.5 then
+		return "No cabe ahí: queda fuera de la sala."
+	end
+	-- dejar libre la puerta y el puesto de trabajo
+	if math.abs(x) < 5 and z > l.D / 2 - 6 then
+		return "No bloquees la puerta."
+	end
+	if l.Kind ~= "garage" and l.Kind ~= "land" and x < -l.W / 2 + 12 and z < -l.D / 2 + 8 then
+		return "Ese espacio es el puesto de trabajo."
+	end
+	if overlaps(data, rec, uid, def, x, z, r) then
+		return "Choca con otro mueble."
+	end
+	return nil
+end
+
+local function insideOwn(player)
+	local id = Property.inside(player)
+	if not id then
+		return nil, "Entra en tu propiedad para usar el modo construcción."
+	end
+	return id
+end
+
+---------------------------------------------------------------------------
+-- Acciones
+---------------------------------------------------------------------------
+local function newRecord(mode, day)
+	return { Mode = mode, Since = os.time(), NextDue = day + Config.RentPeriodDays, Debt = 0, Missed = 0, Deposit = 0,
+		Decor = { Wall = 1, Floor = 1, Light = 2, Curtain = false }, Placed = {}, Upgrades = {}, Presets = {}, Spent = 0 }
+end
+
+local function checkReq(data, l)
+	if data.Level < (l.Req.Level or 1) then
+		return "Necesitas nivel " .. l.Req.Level .. "."
+	end
+	if data.Channel.Subs < (l.Req.Subs or 0) then
+		return "Necesitas " .. Util.formatInt(l.Req.Subs) .. " suscriptores."
+	end
+	return nil
+end
+
+local function totalDebt(data)
+	local n = 0
+	for _, rec in pairs(data.Properties) do
+		n = n + rec.Debt
+	end
+	return n
+end
+
+function Property.exteriorOf(id)
+	local l = PropertyData.ById[id]
+	return l and Property.signPosition(l) + Vector3.new(0, 3, -6) or nil
+end
+
+function Property.Start()
+	local Net = S.Net
+
+	Net.on("Prop.Rent", function(player, p)
+		local data = S.Data.get(player)
+		local l = PropertyData.ById[p.id or ""]
+		if not l or not l.Rent then
+			return false, "Esta propiedad no se alquila."
+		end
+		if held(data, l.Id) then
+			return false, "Ya tienes esta propiedad."
+		end
+		local err = checkReq(data, l)
+		if err then
+			return false, err
+		end
+		if Property.count(data) >= PropertyData.maxProperties(data.Level) then
+			return false, "Has alcanzado el máximo de propiedades para tu nivel (" .. PropertyData.maxProperties(data.Level) .. ")."
+		end
+		if totalDebt(data) > 0 then
+			return false, "Paga primero tus deudas inmobiliarias."
+		end
+		local cost = l.Rent * 2
+		if not S.Economy.spend(player, cost, "Alquiler", "Contrato de alquiler: " .. l.Name .. " (semana + fianza)") then
+			return false, "Necesitas $" .. Util.formatInt(cost) .. " (primera semana + fianza)."
+		end
+		local rec = newRecord("rent", data.Home.PlayDays)
+		rec.Deposit = l.Rent
+		data.Properties[l.Id] = rec
+		if (l.Kind == "home" or l.Kind == "studio") and data.HomeProperty == "" then
+			data.HomeProperty = l.Id
+		end
+		data.Counters.rentals = (data.Counters.rentals or 0) + 1
+		S.Quest.check(player)
+		return true, "📄 Contrato firmado: " .. l.Name .. ". Alquiler $" .. l.Rent .. " cada 7 días jugados; fianza $" .. l.Rent .. " (se devuelve al terminar sin deudas)."
+	end)
+
+	Net.on("Prop.Buy", function(player, p)
+		local data = S.Data.get(player)
+		local l = PropertyData.ById[p.id or ""]
+		if not l or not l.Buy then
+			return false, "Esta propiedad no está a la venta."
+		end
+		local current = held(data, l.Id)
+		if current and current.Mode == "own" then
+			return false, "Ya es tuya."
+		end
+		local err = checkReq(data, l)
+		if err then
+			return false, err
+		end
+		if not current and Property.count(data) >= PropertyData.maxProperties(data.Level) then
+			return false, "Has alcanzado el máximo de propiedades para tu nivel (" .. PropertyData.maxProperties(data.Level) .. ")."
+		end
+		if totalDebt(data) > 0 then
+			return false, "Paga primero tus deudas inmobiliarias."
+		end
+		if not S.Economy.spend(player, l.Buy, "Inmuebles", "Compra de " .. l.Name) then
+			return false, "Necesitas $" .. Util.formatInt(l.Buy) .. ". Puedes alquilarla mientras ahorras."
+		end
+		if current then
+			-- de alquiler a propiedad: se devuelve la fianza
+			if current.Deposit > 0 then
+				S.Economy.add(player, current.Deposit, "Fianzas", "Devolución de fianza de " .. l.Name, {})
+			end
+			current.Mode = "own"
+			current.Deposit = 0
+		else
+			data.Properties[l.Id] = newRecord("own", data.Home.PlayDays)
+			if (l.Kind == "home" or l.Kind == "studio") and data.HomeProperty == "" then
+				data.HomeProperty = l.Id
+			end
+		end
+		data.Counters.properties_bought = (data.Counters.properties_bought or 0) + 1
+		S.Quest.check(player)
+		return true, "🔑 ¡" .. l.Name .. " es tuya! Mantenimiento: $" .. l.Upkeep .. " cada 7 días."
+	end)
+
+	Net.on("Prop.EndRent", function(player, p)
+		local data = S.Data.get(player)
+		local rec = held(data, p.id or "")
+		local l = PropertyData.ById[p.id or ""]
+		if not rec or rec.Mode ~= "rent" then
+			return false, "No tienes un alquiler aquí."
+		end
+		if Property.inside(player) == p.id then
+			return false, "Sal de la propiedad antes de terminar el contrato."
+		end
+		local back = rec.Deposit - rec.Debt
+		releaseFurniture(data, p.id)
+		data.Properties[p.id] = nil
+		if data.HomeProperty == p.id then
+			data.HomeProperty = ""
+		end
+		if back > 0 then
+			S.Economy.add(player, back, "Fianzas", "Devolución de fianza de " .. l.Name, {})
+		elseif back < 0 then
+			S.Economy.spend(player, math.min(-back, data.Money), "Alquiler", "Deuda pendiente de " .. l.Name)
+		end
+		return true, "Contrato terminado. Muebles devueltos a tu inventario." .. (back > 0 and (" Fianza devuelta: $" .. back) or "")
+	end)
+
+	Net.on("Prop.Sell", function(player, p)
+		local data = S.Data.get(player)
+		local rec = held(data, p.id or "")
+		local l = PropertyData.ById[p.id or ""]
+		if not rec or rec.Mode ~= "own" then
+			return false, "No eres propietario de esta propiedad."
+		end
+		if Property.inside(player) == p.id then
+			return false, "Sal de la propiedad antes de venderla."
+		end
+		local value = math.floor(l.Buy * l.Resale + (rec.Spent or 0) * 0.5 - rec.Debt)
+		releaseFurniture(data, p.id)
+		data.Properties[p.id] = nil
+		if data.HomeProperty == p.id then
+			data.HomeProperty = ""
+		end
+		S.Economy.add(player, math.max(0, value), "Inmuebles", "Venta de " .. l.Name, {})
+		return true, "Vendiste " .. l.Name .. " por $" .. Util.formatInt(math.max(0, value)) .. "."
+	end)
+
+	Net.on("Prop.PayDebt", function(player, p)
+		local data = S.Data.get(player)
+		local rec = held(data, p.id or "")
+		if not rec or rec.Debt <= 0 then
+			return false, "No hay deuda en esta propiedad."
+		end
+		if not S.Economy.spend(player, rec.Debt, "Alquiler", "Pago de deuda inmobiliaria") then
+			return false, "Necesitas $" .. Util.formatInt(rec.Debt) .. "."
+		end
+		rec.Debt = 0
+		rec.Missed = 0
+		return true, "Deuda pagada."
+	end)
+
+	Net.on("Prop.MoveIn", function(player, p)
+		local data = S.Data.get(player)
+		local id = p.id or ""
+		if id == "" then
+			data.HomeProperty = ""
+			return true, "Vuelves a vivir en la Residencia Económica."
+		end
+		local l = PropertyData.ById[id]
+		if not held(data, id) or (l.Kind ~= "home" and l.Kind ~= "studio") then
+			return false, "Solo puedes vivir en viviendas o estudios que tengas."
+		end
+		data.HomeProperty = id
+		return true, "🏠 Ahora vives en " .. l.Name .. ". Aparecerás aquí al entrar al juego."
+	end)
+
+	Net.on("Prop.Enter", function(player, p)
+		local data = S.Data.get(player)
+		local id = p.id or ""
+		if not held(data, id) then
+			return false, "No tienes acceso a esta propiedad."
+		end
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local ext = Property.exteriorOf(id)
+		if not root or (root.Position - ext).Magnitude > 30 then
+			return false, "Ve a la entrada de la propiedad (usa el taxi de la app Inmobiliaria)."
+		end
+		local cf = Property.enterCFrame(player, id)
+		S.Travel.teleport(player, cf.Position)
+		S.Quest.tutorialEvent(player, "enter_home")
+		return true
+	end)
+
+	Net.on("Prop.Exit", function(player)
+		local id = Property.inside(player)
+		if not id then
+			return false, "No estás dentro de una propiedad."
+		end
+		S.Travel.teleport(player, Property.exteriorOf(id))
+		return true
+	end)
+
+	Net.on("Prop.Go", function(player, p)
+		local l = PropertyData.ById[p.id or ""]
+		if not l then
+			return false, "Propiedad no encontrada."
+		end
+		return S.Travel.taxiTo(player, Property.exteriorOf(l.Id), l.Name)
+	end)
+
+	-- Modo construcción
+	Net.on("Prop.Place", function(player, p)
+		local data = S.Data.get(player)
+		local id, err = insideOwn(player)
+		if not id then
+			return false, err
+		end
+		local rec = data.Properties[id]
+		local l = PropertyData.ById[id]
+		local item = data.Inventory[p.uid or ""]
+		if not item then
+			return false, "No tienes ese objeto."
+		end
+		local already = rec.Placed[p.uid] ~= nil
+		if not already and item.Loc ~= "home" then
+			return false, "El objeto debe estar en casa (no en la mochila ni en otra propiedad)."
+		end
+		if not already and Util.count(rec.Placed) >= l.Slots then
+			return false, "No hay más espacio para muebles aquí (" .. l.Slots .. ")."
+		end
+		local x, z = tonumber(p.x), tonumber(p.z)
+		local r = math.floor((tonumber(p.r) or 0) / 90 + 0.5) % 4 * 90
+		if not x or not z or x ~= x or z ~= z then
+			return false, "Posición no válida."
+		end
+		x = math.floor(x * 2 + 0.5) / 2
+		z = math.floor(z * 2 + 0.5) / 2
+		local verr = placeValid(player, id, p.uid, x, z, r)
+		if verr then
+			return false, verr
+		end
+		rec.Placed[p.uid] = { X = x, Z = z, R = r }
+		item.Loc = "prop:" .. id
+		if not already then
+			data.Counters.furniture_placed = (data.Counters.furniture_placed or 0) + 1
+		end
+		data.Counters.decor_max = math.max(data.Counters.decor_max or 0, math.floor(Property.decorScore(player, id)))
+		Property.buildInterior(player, id)
+		S.Quest.check(player)
+		return true, (already and "Mueble movido." or "Mueble colocado.") .. " Decoración: " .. Property.decorScore(player, id) .. "/45"
+	end)
+
+	Net.on("Prop.Pick", function(player, p)
+		local data = S.Data.get(player)
+		local id, err = insideOwn(player)
+		if not id then
+			return false, err
+		end
+		local rec = data.Properties[id]
+		if not rec.Placed[p.uid or ""] then
+			return false, "Ese mueble no está colocado aquí."
+		end
+		rec.Placed[p.uid] = nil
+		if data.Inventory[p.uid] then
+			data.Inventory[p.uid].Loc = "home"
+		end
+		Property.buildInterior(player, id)
+		return true, "Mueble guardado en el inventario."
+	end)
+
+	Net.on("Prop.Rotate", function(player, p)
+		local data = S.Data.get(player)
+		local id, err = insideOwn(player)
+		if not id then
+			return false, err
+		end
+		local pos = data.Properties[id].Placed[p.uid or ""]
+		if not pos then
+			return false, "Ese mueble no está colocado aquí."
+		end
+		local r = (pos.R + 90) % 360
+		local verr = placeValid(player, id, p.uid, pos.X, pos.Z, r)
+		if verr then
+			return false, "No se puede girar: " .. verr
+		end
+		pos.R = r
+		Property.buildInterior(player, id)
+		return true
+	end)
+
+	Net.on("Prop.Decor", function(player, p)
+		local data = S.Data.get(player)
+		local id, err = insideOwn(player)
+		if not id then
+			return false, err
+		end
+		local rec = data.Properties[id]
+		local l = PropertyData.ById[id]
+		local d = rec.Decor
+		local cost, changed = 0, {}
+		local function setIdx(key, list, value)
+			local v = tonumber(value)
+			if v and list[v] and d[key] ~= v then
+				d[key] = v
+				cost = cost + 50
+				changed[#changed + 1] = key
+			end
+		end
+		if p.style then
+			local st = PropertyData.StyleById[p.style]
+			if not st then
+				return false, "Estilo no válido."
+			end
+			if not l.Remodel then
+				return false, "En esta propiedad no se permite remodelar (solo la luz y las cortinas)."
+			end
+			local before = Util.deepCopy(d)
+			d.Wall, d.Floor, d.Light = st.Wall, st.Floor, st.Light
+			cost = 120
+			if not S.Economy.spend(player, cost, "Remodelación", "Estilo " .. st.Name .. " en " .. l.Name) then
+				rec.Decor = before
+				return false, "Aplicar un estilo cuesta $" .. cost .. "."
+			end
+		else
+			if (p.wall or p.floor) and not l.Remodel then
+				return false, "En esta propiedad no se permite cambiar paredes ni suelos."
+			end
+			local before = Util.deepCopy(d)
+			setIdx("Wall", PropertyData.Walls, p.wall)
+			setIdx("Floor", PropertyData.Floors, p.floor)
+			setIdx("Light", PropertyData.Lights, p.light)
+			if p.curtain ~= nil and (p.curtain == true) ~= d.Curtain then
+				d.Curtain = p.curtain == true
+				cost = cost + 50
+			end
+			if cost == 0 then
+				return false, "No hay cambios."
+			end
+			if not S.Economy.spend(player, cost, "Remodelación", "Decoración de " .. l.Name) then
+				rec.Decor = before
+				return false, "Cuesta $" .. cost .. "."
+			end
+		end
+		rec.Spent = (rec.Spent or 0) + cost
+		data.Counters.remodels = (data.Counters.remodels or 0) + 1
+		data.Counters.decor_max = math.max(data.Counters.decor_max or 0, math.floor(Property.decorScore(player, id)))
+		Property.buildInterior(player, id)
+		S.Quest.check(player)
+		return true, "Remodelación hecha ($" .. cost .. "). Decoración: " .. Property.decorScore(player, id) .. "/45"
+	end)
+
+	Net.on("Prop.Upgrade", function(player, p)
+		local data = S.Data.get(player)
+		local id = p.id or ""
+		local rec = held(data, id)
+		local up = PropertyData.Upgrades[p.key or ""]
+		if not rec or not up then
+			return false, "Mejora no válida."
+		end
+		if rec.Mode ~= "own" and p.key ~= "lightrig" then
+			return false, "En un alquiler solo puedes instalar el rig de iluminación (es desmontable)."
+		end
+		if rec.Upgrades[p.key] then
+			return false, "Ya está instalada."
+		end
+		if not S.Economy.spend(player, up.Cost, "Mejoras", up.Name .. " en " .. PropertyData.ById[id].Name) then
+			return false, "Cuesta $" .. Util.formatInt(up.Cost) .. "."
+		end
+		rec.Upgrades[p.key] = true
+		rec.Spent = (rec.Spent or 0) + up.Cost
+		if interiors[player] and interiors[player].Id == id then
+			Property.buildInterior(player, id)
+		end
+		return true, "Mejora instalada: " .. up.Name .. "."
+	end)
+
+	Net.on("Prop.SavePreset", function(player, p)
+		local data = S.Data.get(player)
+		local id, err = insideOwn(player)
+		if not id then
+			return false, err
+		end
+		local rec = data.Properties[id]
+		local name = Util.cleanText(p.name or "", 24) or ""
+		if #name == 0 then
+			name = "Diseño " .. (#rec.Presets + 1)
+		end
+		name = S.Text.filter(player, name) or ("Diseño " .. (#rec.Presets + 1))
+		if #rec.Presets >= 3 then
+			table.remove(rec.Presets, 1)
+		end
+		table.insert(rec.Presets, { Name = name, Layout = Util.deepCopy(rec.Placed), Decor = Util.deepCopy(rec.Decor) })
+		return true, "Diseño «" .. name .. "» guardado."
+	end)
+
+	Net.on("Prop.LoadPreset", function(player, p)
+		local data = S.Data.get(player)
+		local id, err = insideOwn(player)
+		if not id then
+			return false, err
+		end
+		local rec = data.Properties[id]
+		local preset = rec.Presets[tonumber(p.index) or 0]
+		if not preset then
+			return false, "Diseño no encontrado."
+		end
+		-- recoger todo y volver a colocar lo que siga disponible
+		releaseFurniture(data, id)
+		local placed, skipped = 0, 0
+		for uid, pos in pairs(preset.Layout) do
+			local item = data.Inventory[uid]
+			if item and item.Loc == "home" and not placeValid(player, id, uid, pos.X, pos.Z, pos.R) then
+				rec.Placed[uid] = { X = pos.X, Z = pos.Z, R = pos.R }
+				item.Loc = "prop:" .. id
+				placed = placed + 1
+			else
+				skipped = skipped + 1
+			end
+		end
+		Property.buildInterior(player, id)
+		return true, "Diseño aplicado: " .. placed .. " muebles colocados" .. (skipped > 0 and (", " .. skipped .. " no disponibles") or "") .. "."
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		local it = interiors[player]
+		if it and it.Model then
+			it.Model:Destroy()
+		end
+		interiors[player] = nil
+		for i = 1, 60 do
+			if slots[i] == player then
+				slots[i] = nil
+			end
+		end
+	end)
+end
+
+return Property
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000033"><Properties><string name="Name">QuestService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- QuestService: tutorial guiado (eventos) + logros (contadores).
 --  * Un logro se marca completado una vez y su recompensa se cobra una sola vez (Claimed).
 --  * Los pasos del tutorial se pueden saltar; los saltados no dan recompensa.
@@ -5098,6 +6314,14 @@ function Quest.valueOf(data, key)
 		return Util.count(data.Visited.Secrets)
 	elseif key == "cameras_owned" then
 		return Util.count(data.Visited.Cameras)
+	elseif key == "properties_owned" then
+		local n = 0
+		for _, rec in pairs(data.Properties or {}) do
+			if rec.Mode == "own" then
+				n = n + 1
+			end
+		end
+		return n
 	end
 	return data.Counters[key] or 0
 end
@@ -5237,7 +6461,7 @@ function Quest.Start()
 end
 
 return Quest
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000032"><Properties><string name="Name">ShopService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000034"><Properties><string name="Name">ShopService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- ShopService: compras en tiendas físicas y online.
 --  * Física: hay que estar dentro de la tienda que vende el objeto. Entrega inmediata (mochila o casa).
 --  * Online: carrito, cobro único por pedido, entrega simulada, cancelación con reembolso.
@@ -5304,6 +6528,24 @@ function Shop.deliver(player, def, opts)
 		return nil
 	end
 	return loc == "backpack" and "tu mochila" or "tu casa"
+end
+
+local function units(def, qty)
+	if def.Parts then
+		local n = 0
+		for _, v in pairs(def.Parts) do
+			n = n + (type(v) == "table" and #v or 1)
+		end
+		return n * qty
+	end
+	return qty
+end
+
+local function storageError(player, n)
+	if not S.Property.canStore(player, n) then
+		return "Tu vivienda está llena (" .. S.Property.storedCount(player) .. "/" .. S.Property.storageCap(player) .. " objetos). Vende algo o consigue una propiedad con más almacenaje."
+	end
+	return nil
 end
 
 local function checkBuyable(player, def, qty)
@@ -5377,6 +6619,10 @@ function Shop.Start()
 		if not Util.indexOf(def.Stores, storeId) then
 			return false, "Esta tienda no vende " .. def.Name .. "."
 		end
+		local serr = storageError(player, units(def, qty))
+		if serr then
+			return false, serr
+		end
 		local unit = Shop.priceOf(player, def)
 		local total = unit * qty
 		if not S.Economy.spend(player, total, "Compras", def.Name .. (qty > 1 and (" x" .. qty) or "")) then
@@ -5418,7 +6664,11 @@ function Shop.Start()
 			local unit = Shop.priceOf(player, def)
 			lines[#lines + 1] = { Id = def.Id, Qty = qty, Unit = unit }
 			total = total + unit * qty
-			count = count + qty
+			count = count + units(def, qty)
+		end
+		local serr = storageError(player, count)
+		if serr then
+			return false, serr
 		end
 		local shipping = total >= 500 and 0 or 15
 		total = total + shipping
@@ -5484,7 +6734,7 @@ function Shop.Start()
 end
 
 return Shop
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000033"><Properties><string name="Name">SyncService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000035"><Properties><string name="Name">SyncService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- SyncService: construye la vista del perfil que recibe el cliente (solo lectura en el cliente).
 -- Incluye valores derivados que el servidor calcula (rango, capacidad de mochila, rendimiento del PC...).
 
@@ -5531,6 +6781,12 @@ function Sync.build(player)
 		Recording = S.Video.isRecording(player),
 		Session = S.Computer.session(player) and S.Computer.sessionStats(player) or nil,
 		QuestValues = {},
+		PropInside = S.Property.inside(player),
+		Interior = S.Property.interiorInfo(player),
+		DecorScore = S.Property.inside(player) and S.Property.decorScore(player, S.Property.inside(player)) or nil,
+		StorageCap = S.Property.storageCap(player),
+		Stored = S.Property.storedCount(player),
+		MaxProps = require(Shared.PropertyData).maxProperties(data.Level),
 		Returnable = {},
 		SellValues = {},
 	}
@@ -5566,7 +6822,7 @@ function Sync.Start()
 end
 
 return Sync
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000034"><Properties><string name="Name">TextFilter</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000036"><Properties><string name="Name">TextFilter</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- TextFilter: filtra con TextService todo texto escrito por jugadores que otros puedan ver
 -- (nombre del canal, títulos, descripciones, metas...). Si el filtro falla, se rechaza el texto.
 
@@ -5594,7 +6850,7 @@ function TextFilter.filter(player, text)
 end
 
 return TextFilter
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000035"><Properties><string name="Name">TimeWeatherService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000037"><Properties><string name="Name">TimeWeatherService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- TimeWeatherService: ciclo día/noche compartido y clima.
 --  * 1 día de juego = Config.DayLengthSeconds segundos reales.
 --  * El clima cambia cada pocas horas de juego (despejado, nublado, lluvia, niebla, tormenta moderada).
@@ -5759,7 +7015,7 @@ function Time.Start()
 end
 
 return Time
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000036"><Properties><string name="Name">TravelService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000038"><Properties><string name="Name">TravelService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- TravelService: dónde está cada jugador (distrito, lugar de grabación, tienda), descubrimientos,
 -- lugares secretos, taxi y autobús.
 
@@ -5783,6 +7039,7 @@ local storeTags = {
 	camera = { "shop", "tech", "studio" },
 	phone = { "shop", "tech" },
 	creator = { "shop", "studio" },
+	home = { "shop", "home" },
 }
 
 function Travel.Init(services)
@@ -5801,6 +7058,10 @@ function Travel.currentSpot(player)
 	end
 	local pos = root.Position
 	local district = WorldData.districtAt(pos.X, pos.Z)
+	local pspot = S.Property.spot(player)
+	if pspot then
+		return pspot
+	end
 	if S.Home.isAtHome(player) then
 		local _, _, decor = S.Inventory.best(player, "homeextra", "home", "Decor")
 		local tags = { "home" }
@@ -6009,7 +7270,7 @@ function Travel.Start()
 end
 
 return Travel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000037"><Properties><string name="Name">VideoService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000039"><Properties><string name="Name">VideoService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- VideoService: ciclo completo de creación de vídeos.
 --   IDEA -> PLAN -> MOCHILA -> VIAJE -> GRABACIÓN (escenas) / FOTOS -> IMPORTAR -> EDICIÓN
 --   -> EXPORTACIÓN -> MINIATURA -> PUBLICACIÓN -> RESULTADOS (ChannelService)
@@ -6214,8 +7475,8 @@ function Video.recordScene(player, p)
 		gimbal = gear.Gimbal and gear.Gimbal.Stats.Stab or 0,
 		mount = gear.Mount and gear.Mount.Stats.Stab or 0,
 		portableLight = gear.Light and gear.Light.Stats.Light or 0,
-		homeLight = spot.IsHome and gear.HomeLight and gear.HomeLight.Stats.Light or 0,
-		decor = spot.IsHome and (5 + (gear.Decor and gear.Decor.Stats.Decor or 0)) or (spot.Decor or 0),
+		homeLight = spot.IsHome and ((gear.HomeLight and gear.HomeLight.Stats.Light or 0) + (spot.ExtraLight or 0)) or 0,
+		decor = spot.Decor or (spot.IsHome and (5 + (gear.Decor and gear.Decor.Stats.Decor or 0))) or 0,
 		presentation = spot.IsHome and gear.Teleprompter and gear.Teleprompter.Stats.Presentation or 0,
 		indoor = spot.Indoor,
 		hour = hour,
@@ -6343,7 +7604,7 @@ function Video.takePhoto(player, p)
 		goldenHour = F.isGoldenHour(hour),
 		weather = S.Time.Weather,
 		spotTags = spot.Tags,
-		homeLight = spot.IsHome and gear.HomeLight and gear.HomeLight.Stats.Light or 0,
+		homeLight = spot.IsHome and ((gear.HomeLight and gear.HomeLight.Stats.Light or 0) + (spot.ExtraLight or 0)) or 0,
 		portableLight = gear.Light and gear.Light.Stats.Light or 0,
 		tripod = gear.Tripod and gear.Tripod.Stats.Stability or 0,
 		composition = num(p.composition, 0, 10) or 5,
@@ -7133,7 +8394,7 @@ function Video.isRecording(player)
 end
 
 return Video
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000038"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000040"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- WorldBuilder: construye la ciudad con Parts a partir de WorldData al arrancar el servidor.
 --  * 30 distritos con suelo, aceras, calles, línea central, semáforos, farolas, señales y edificios con estilo propio.
 --  * Edificios importantes con interior funcional: Residencia Económica (12 habitaciones), 4 tiendas,
@@ -7147,6 +8408,7 @@ local Shared = ReplicatedStorage.Shared
 local WorldData = require(Shared.WorldData)
 local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
+local PropertyData = require(Shared.PropertyData)
 
 local World = {}
 local S
@@ -7696,6 +8958,27 @@ local function buildVipLounge(parent, cx, cz)
 	World.VipLounge = { Center = center + Vector3.new(0, 3, 0), Size = Vector3.new(w, h, d), Entry = Vector3.new(cx, GROUND_TOP + 3, cz + 26) }
 end
 
+-- Cartel de una propiedad en venta / alquiler
+local function buildPropertySign(parent, l)
+	local pos = S.Property.signPosition(l)
+	P(parent, "PropertyPost", Vector3.new(0.5, 7, 0.5), Vector3.new(pos.X, GROUND_TOP + 3.5, pos.Z), { 240, 240, 240 }, Enum.Material.Metal)
+	local board = P(parent, "PropertySign", Vector3.new(10, 5, 0.4), Vector3.new(pos.X, GROUND_TOP + 7.5, pos.Z), { 255, 255, 255 })
+	local price = {}
+	if l.Rent then
+		price[#price + 1] = "Alquiler $" .. Util.formatInt(l.Rent) .. "/sem"
+	end
+	if l.Buy then
+		price[#price + 1] = "Venta $" .. Util.formatInt(l.Buy)
+	end
+	local text = "🏠 " .. l.Type:upper() .. "\n" .. table.concat(price, " · ")
+	sign(board, Enum.NormalId.Back, text, Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1), Enum.Font.GothamBold)
+	sign(board, Enum.NormalId.Front, text, Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1), Enum.Font.GothamBold)
+	local base = P(parent, "PropertyDoor", Vector3.new(6, 8, 1), Vector3.new(pos.X, GROUND_TOP + 4, pos.Z - 4), { 90, 60, 40 }, Enum.Material.Wood)
+	prompt(base, "prop_view", "Ver anuncio", l.Name, { PropId = l.Id })
+	local enter = prompt(base, "prop_enter", "Entrar", l.Name, { PropId = l.Id })
+	enter.KeyboardKeyCode = Enum.KeyCode.G
+end
+
 ---------------------------------------------------------------------------
 -- Distritos
 ---------------------------------------------------------------------------
@@ -7892,6 +9175,11 @@ local function buildDistrict(d)
 	if d.Id == "events" then
 		buildVipLounge(m, cx + 90, cz - 90)
 	end
+	for _, l in ipairs(PropertyData.Listings) do
+		if l.District == d.Id then
+			buildPropertySign(m, l)
+		end
+	end
 
 	-- Ciudadanos (NPC) junto a lugares concurridos
 	if (d.Busy or 0) >= 4 then
@@ -7993,6 +9281,23 @@ local function onPrompt(pp, player)
 		S.Travel.teleport(player, World.VipLounge.Center)
 	elseif action == "vip_exit" then
 		S.Travel.teleport(player, World.VipLounge.Entry)
+	elseif action == "prop_view" then
+		S.Net.push(player, "openUI", { ui = "realty", listing = pp:GetAttribute("PropId") })
+	elseif action == "prop_enter" then
+		local id = pp:GetAttribute("PropId")
+		local data = S.Data.get(player)
+		if not data.Properties[id] then
+			S.Net.notify(player, "No es tuya. Alquílala o cómprala desde el anuncio (E) o la app Inmobiliaria.", "info")
+			return
+		end
+		local cf = S.Property.enterCFrame(player, id)
+		S.Travel.teleport(player, cf.Position)
+		S.Quest.tutorialEvent(player, "enter_home")
+	elseif action == "prop_exit" then
+		local id = S.Property.inside(player)
+		if id then
+			S.Travel.teleport(player, S.Property.exteriorOf(id))
+		end
 	end
 end
 World.onPrompt = onPrompt
@@ -8027,14 +9332,23 @@ function World.build()
 end
 
 function World.Start()
-	World.build()
-	for _, pp in ipairs(CollectionService:GetTagged("YTPrompt")) do
+	local function connect(pp)
+		pp:SetAttribute("Connected", true)
 		pp.Triggered:Connect(function(player)
 			local ok, err = pcall(onPrompt, pp, player)
 			if not ok then
 				S.Net.logError("prompt", err)
 			end
 		end)
+	end
+	-- Avisos creados más tarde (interiores de propiedades)
+	CollectionService:GetInstanceAddedSignal("YTPrompt"):Connect(connect)
+	World.build()
+	for _, pp in ipairs(CollectionService:GetTagged("YTPrompt")) do
+		if not pp:GetAttribute("Connected") then
+			pp:SetAttribute("Connected", true)
+			connect(pp)
+		end
 	end
 	-- Semáforos
 	task.spawn(function()
@@ -8055,14 +9369,14 @@ function World.Start()
 end
 
 return World
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX000059"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX000040"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX000041"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX000042"><Properties><string name="Name">Actions</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX000063"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX000042"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX000043"><Properties><string name="Name">Client</string></Properties><Item class="ModuleScript" referent="RBX000044"><Properties><string name="Name">Actions</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Actions: acciones globales del cliente que las apps pueden lanzar (las rellena Main).
 return {
 	photoMode = function() end,
 	record = function() end,
 	openStyle = function() end,
 }
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000043"><Properties><string name="Name">AppRegistry</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000045"><Properties><string name="Name">AppRegistry</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- AppRegistry: todas las aplicaciones del juego. Cada módulo de la carpeta Apps devuelve una app
 -- o una lista de apps con: Id, Name, Icon, Surfaces {pc, phone, panel}, Width, Height, Order, build(container, ctx).
 
@@ -8115,7 +9429,7 @@ function Registry.list(surface)
 end
 
 return Registry
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX000044"><Properties><string name="Name">Apps</string></Properties><Item class="ModuleScript" referent="RBX000045"><Properties><string name="Name">CommerceApps</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX000046"><Properties><string name="Name">Apps</string></Properties><Item class="ModuleScript" referent="RBX000047"><Properties><string name="Name">CommerceApps</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Apps de compras y gestión: Tienda (física y online), Ficha de producto, Comparador, Inventario,
 -- Montador de PC y Banco.
 
@@ -8992,7 +10306,7 @@ end
 table.insert(apps, Bank)
 
 return apps
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000046"><Properties><string name="Name">ContentApps</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000048"><Properties><string name="Name">ContentApps</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Apps de creación: Ideas y proyectos, Editor de vídeo, Miniaturas, ViewTube Studio y Estadísticas.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10085,7 +11399,7 @@ table.insert(apps, Analytics)
 
 apps.drawThumbFn = drawThumb
 return apps
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000047"><Properties><string name="Name">LifeApps</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000049"><Properties><string name="Name">LifeApps</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Apps de vida diaria: Misiones, Mapa y transporte, Empleo, Álbum, Cámara, Estilo, Mensajes, Calendario,
 -- Tendencias, Música, Archivos, Tareas, Noticias y Ajustes.
 
@@ -10923,7 +12237,547 @@ end
 table.insert(apps, Settings)
 
 return apps
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX000048"><Properties><string name="Name">CaptureUI</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000050"><Properties><string name="Name">RealtyApp</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- App Inmobiliaria: mercado con filtros (precio, tamaño, distrito, calidad, tipo y características),
+-- contratos de alquiler, compra, venta, mudanzas, deudas y mejoras de tus propiedades.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Client = script.Parent.Parent
+local UI = require(Client.UIKit)
+local Net = require(Client.Net)
+local State = require(Client.State)
+local Notify = require(Client.Notify)
+local PropertyData = require(Shared.PropertyData)
+local WorldData = require(Shared.WorldData)
+local Util = require(Shared.Util)
+local T = UI.Theme
+
+local Realty = { Id = "realty", Name = "Inmobiliaria", Icon = "🏘", Order = 6, Surfaces = { pc = true, phone = true, panel = true }, Width = 940, Height = 580 }
+
+function Realty.build(container, ctx)
+	local tab = "market"
+	local f = { kind = 1, price = 1, size = 1, district = 1, env = 1, pool = false, studio = false, view = false }
+	local selected = ctx.params.listing
+	local kinds = { "Todos", "Vivienda", "Estudio", "Negocio", "Garaje", "Terreno" }
+	local kindKeys = { false, "home", "studio", "business", "garage", "land" }
+	local prices = { "Cualquier precio", "Hasta $1.000/sem o $25.000", "Hasta $2.000/sem o $100.000", "Sin límite" }
+	local priceRent = { math.huge, 1000, 2000, math.huge }
+	local priceBuy = { math.huge, 25000, 100000, math.huge }
+	local sizes = { "Cualquier tamaño", "Más de 1.000 m²", "Más de 2.000 m²", "Más de 3.000 m²" }
+	local sizeMin = { 0, 1000, 2000, 3000 }
+	local envs = { "Cualquier calidad", "Entorno 60+", "Entorno 75+", "Entorno 90+" }
+	local envMin = { 0, 60, 75, 90 }
+	local districts = { "Todos los distritos" }
+	local districtIds = { false }
+	for _, l in ipairs(PropertyData.Listings) do
+		local d = WorldData.DistrictById[l.District]
+		if not Util.indexOf(districtIds, l.District) then
+			districts[#districts + 1] = d.Name
+			districtIds[#districtIds + 1] = l.District
+		end
+	end
+
+	local render
+	local function detail(parent, l)
+		local data = State.Data
+		local rec = data.Properties[l.Id]
+		local card = UI.card(parent, { Height = 0, Auto = Enum.AutomaticSize.Y })
+		UI.label(card, l.Name, { Font = Enum.Font.GothamBlack, TextSize = 16, Height = 22 })
+		UI.label(card, l.Type .. " · " .. PropertyData.Kinds[l.Kind] .. " · " .. WorldData.DistrictById[l.District].Name, { TextSize = 12, Color = T.Sub })
+		UI.label(card, (l.Rent and ("Alquiler $" .. Util.formatInt(l.Rent) .. "/sem") or "No se alquila") .. "  ·  " .. (l.Buy and ("Compra $" .. Util.formatInt(l.Buy)) or "No se vende"), { Font = Enum.Font.GothamBold, Color = T.Gold })
+		UI.label(card, "Mantenimiento $" .. l.Upkeep .. "/sem (si es tuya) · Reventa " .. math.floor(l.Resale * 100) .. "%", { TextSize = 12 })
+		UI.label(card, "Superficie " .. Util.formatInt(l.W * l.D) .. " m² · " .. l.Slots .. " muebles · almacena " .. l.Storage .. " objetos", { TextSize = 12 })
+		UI.label(card, "Entorno " .. l.Env .. "/100 · Bonus de grabación +" .. l.Studio .. (l.View and (" · " .. l.View) or "") .. (l.Pool and " · Piscina" or "") .. (l.Remodel and " · Remodelable" or " · No remodelable"), { TextSize = 12 })
+		local req = {}
+		if (l.Req.Level or 1) > 1 then
+			req[#req + 1] = "nivel " .. l.Req.Level
+		end
+		if (l.Req.Subs or 0) > 0 then
+			req[#req + 1] = Util.formatInt(l.Req.Subs) .. " suscriptores"
+		end
+		if #req > 0 then
+			UI.label(card, "Requisitos: " .. table.concat(req, ", "), { TextSize = 12, Color = (data.Level >= (l.Req.Level or 1) and data.Channel.Subs >= (l.Req.Subs or 0)) and T.Ok or T.Err })
+		end
+		if l.Rent then
+			UI.label(card, "📄 Contrato simulado: pagas la primera semana + fianza ($" .. Util.formatInt(l.Rent * 2) .. "). Cada 7 días jugados se cobra el alquiler. Impago = recargo del 10%; tras 3 impagos se rescinde el contrato y tus muebles vuelven a tu inventario. La fianza se devuelve al terminar sin deudas.", { TextSize = 11, Color = T.Sub, Height = 0, Auto = Enum.AutomaticSize.Y })
+		end
+		local row = UI.row(card, 34, nil, 6)
+		if not rec then
+			if l.Rent then
+				UI.button(row, "📄 Alquilar", function()
+					Notify.confirm("¿Firmar el contrato de alquiler de «" .. l.Name .. "» por $" .. Util.formatInt(l.Rent * 2) .. " (semana + fianza)?", function()
+						Net.call("Prop.Rent", { id = l.Id })
+					end, "Firmar")
+				end, { Width = 120, Color = T.Accent2 })
+			end
+			if l.Buy then
+				UI.button(row, "🔑 Comprar", function()
+					Notify.confirm("¿Comprar «" .. l.Name .. "» por $" .. Util.formatInt(l.Buy) .. "?", function()
+						Net.call("Prop.Buy", { id = l.Id })
+					end, "Comprar")
+				end, { Width = 120, Color = T.Ok })
+			end
+		end
+		UI.button(row, "🚕 Ir a verla", function()
+			Net.call("Prop.Go", { id = l.Id })
+		end, { Width = 130 })
+		return card
+	end
+
+	render = function()
+		UI.clear(container)
+		local data = State.Data
+		if not data then
+			return
+		end
+		local d = data.Derived
+		local top = UI.row(container, 34)
+		UI.button(top, "🏘 Mercado", function()
+			tab = "market"
+			render()
+		end, { Width = 120, Height = 28, Color = tab == "market" and T.Accent or T.Panel3 })
+		UI.button(top, "🔑 Mis propiedades (" .. State.count(data.Properties) .. "/" .. d.MaxProps .. ")", function()
+			tab = "mine"
+			render()
+		end, { Width = 210, Height = 28, Color = tab == "mine" and T.Accent or T.Panel3 })
+		UI.label(top, "📦 Almacenaje " .. d.Stored .. "/" .. d.StorageCap .. " · 💰 $" .. Util.formatInt(data.Money), { Size = UDim2.fromOffset(300, 28), TextSize = 12, Color = T.Sub })
+		local body = UI.frame(container, { Size = UDim2.new(1, 0, 1, -40), Position = UDim2.fromOffset(0, 40), Transparency = 1, Radius = false })
+		if tab == "mine" then
+			local s = UI.scroll(body, { Pad = 6 })
+			UI.label(s, "🏠 Vives en: " .. (data.HomeProperty ~= "" and PropertyData.ById[data.HomeProperty].Name or "Residencia Económica (habitación alquilada)"), { Font = Enum.Font.GothamBold })
+			if data.HomeProperty ~= "" then
+				UI.button(s, "Volver a la Residencia Económica", function()
+					Net.call("Prop.MoveIn", { id = "" })
+				end, { Width = 280, Height = 28, TextSize = 12 })
+			end
+			if next(data.Properties) == nil then
+				UI.label(s, "Aún no tienes propiedades. Puedes alquilar antes de tener dinero para comprar.", { Color = T.Sub })
+			end
+			for id, rec in pairs(data.Properties) do
+				local l = PropertyData.ById[id]
+				local card = UI.card(s, { Height = 0, Auto = Enum.AutomaticSize.Y, Color = rec.Debt > 0 and Color3.fromRGB(80, 40, 40) or T.Panel2 })
+				UI.label(card, (rec.Mode == "own" and "🔑 " or "📄 ") .. l.Name .. (data.HomeProperty == id and "  · 🏠 tu hogar" or ""), { Font = Enum.Font.GothamBold })
+				local due = math.max(0, rec.NextDue - data.Home.PlayDays)
+				UI.label(card, (rec.Mode == "own" and ("Propia · mantenimiento $" .. l.Upkeep) or ("Alquiler $" .. l.Rent .. " · fianza $" .. rec.Deposit)) .. " · próximo pago en " .. due .. " días · muebles " .. State.count(rec.Placed) .. "/" .. l.Slots, { TextSize = 12, Color = T.Sub })
+				local ups = {}
+				for key in pairs(rec.Upgrades) do
+					ups[#ups + 1] = PropertyData.Upgrades[key].Name
+				end
+				if #ups > 0 then
+					UI.label(card, "Mejoras: " .. table.concat(ups, ", "), { TextSize = 12, Color = T.Ok })
+				end
+				if rec.Debt > 0 then
+					UI.label(card, "⚠ Deuda: $" .. Util.formatInt(rec.Debt) .. " (" .. rec.Missed .. " impagos)", { TextSize = 12, Color = T.Err })
+				end
+				local row = UI.row(card, 32, nil, 4)
+				UI.button(row, "🚕 Ir", function()
+					Net.call("Prop.Go", { id = id })
+				end, { Width = 70, Height = 28, TextSize = 12 })
+				if data.HomeProperty ~= id and (l.Kind == "home" or l.Kind == "studio") then
+					UI.button(row, "🏠 Vivir aquí", function()
+						Net.call("Prop.MoveIn", { id = id })
+					end, { Width = 110, Height = 28, TextSize = 12 })
+				end
+				if rec.Debt > 0 then
+					UI.button(row, "Pagar deuda", function()
+						Net.call("Prop.PayDebt", { id = id })
+					end, { Width = 110, Height = 28, TextSize = 12, Color = T.Accent })
+				end
+				if rec.Mode == "rent" then
+					if l.Buy then
+						UI.button(row, "🔑 Comprar ($" .. Util.formatInt(l.Buy) .. ")", function()
+							Net.call("Prop.Buy", { id = id })
+						end, { Width = 170, Height = 28, TextSize = 12, Color = T.Ok })
+					end
+					UI.button(row, "Terminar contrato", function()
+						Notify.confirm("¿Terminar el alquiler de «" .. l.Name .. "»? Tus muebles volverán al inventario y se devolverá la fianza si no hay deudas.", function()
+							Net.call("Prop.EndRent", { id = id })
+						end)
+					end, { Width = 150, Height = 28, TextSize = 12, Color = Color3.fromRGB(110, 40, 40) })
+				else
+					UI.button(row, "Vender ($" .. Util.formatInt(math.floor(l.Buy * l.Resale + (rec.Spent or 0) * 0.5 - rec.Debt)) .. ")", function()
+						Notify.confirm("¿Vender «" .. l.Name .. "»? Tus muebles volverán al inventario.", function()
+							Net.call("Prop.Sell", { id = id })
+						end, "Vender")
+					end, { Width = 170, Height = 28, TextSize = 12, Color = Color3.fromRGB(110, 40, 40) })
+				end
+				local urow = UI.frame(card, { Height = 0, Auto = Enum.AutomaticSize.Y, Transparency = 1, Radius = false })
+				UI.grid(urow, 210, 28, 4)
+				for key, up in pairs(PropertyData.Upgrades) do
+					if not rec.Upgrades[key] then
+						UI.button(urow, "+ " .. up.Name .. " $" .. Util.formatInt(up.Cost), function()
+							Notify.confirm(up.Name .. ": " .. up.Desc .. " ¿Instalar por $" .. Util.formatInt(up.Cost) .. "?", function()
+								Net.call("Prop.Upgrade", { id = id, key = key })
+							end)
+						end, { Size = UDim2.fromOffset(210, 28), TextSize = 11 })
+					end
+				end
+			end
+			return
+		end
+		-- Mercado con filtros
+		local narrow = ctx.kind == "phone"
+		local filters = UI.scroll(body, { Size = narrow and UDim2.new(1, 0, 0, 120) or UDim2.new(0, 330, 1, 0), Color = T.Panel2, Transparency = 0, Pad = 2 })
+		UI.cycle(filters, "Tipo", kinds, f.kind, function(i)
+			f.kind = i
+			render()
+		end, { LabelWidth = 70, ValueWidth = 150 })
+		UI.cycle(filters, "Precio", prices, f.price, function(i)
+			f.price = i
+			render()
+		end, { LabelWidth = 70, ValueWidth = 150 })
+		UI.cycle(filters, "Tamaño", sizes, f.size, function(i)
+			f.size = i
+			render()
+		end, { LabelWidth = 70, ValueWidth = 150 })
+		UI.cycle(filters, "Distrito", districts, f.district, function(i)
+			f.district = i
+			render()
+		end, { LabelWidth = 70, ValueWidth = 150 })
+		UI.cycle(filters, "Calidad", envs, f.env, function(i)
+			f.env = i
+			render()
+		end, { LabelWidth = 70, ValueWidth = 150 })
+		UI.toggle(filters, "Con piscina", f.pool, function(v)
+			f.pool = v
+			render()
+		end)
+		UI.toggle(filters, "Bueno para grabar (+8)", f.studio, function(v)
+			f.studio = v
+			render()
+		end)
+		UI.toggle(filters, "Con vistas", f.view, function(v)
+			f.view = v
+			render()
+		end)
+		local list = UI.scroll(body, { Size = narrow and UDim2.new(1, 0, 1, -126) or UDim2.new(1, -340, 1, 0), Position = narrow and UDim2.fromOffset(0, 126) or UDim2.fromOffset(340, 0), Pad = 6 })
+		if selected and PropertyData.ById[selected] then
+			detail(list, PropertyData.ById[selected])
+			UI.button(list, "◀ Ver todos los anuncios", function()
+				selected = nil
+				render()
+			end, { Width = 220, Height = 28 })
+			return
+		end
+		local count = 0
+		for _, l in ipairs(PropertyData.Listings) do
+			local ok = true
+			if kindKeys[f.kind] and l.Kind ~= kindKeys[f.kind] then
+				ok = false
+			end
+			if (l.Rent or math.huge) > priceRent[f.price] and (l.Buy or math.huge) > priceBuy[f.price] and f.price > 1 and f.price < 4 then
+				ok = false
+			end
+			if l.W * l.D < sizeMin[f.size] then
+				ok = false
+			end
+			if districtIds[f.district] and l.District ~= districtIds[f.district] then
+				ok = false
+			end
+			if l.Env < envMin[f.env] then
+				ok = false
+			end
+			if f.pool and not l.Pool then
+				ok = false
+			end
+			if f.studio and l.Studio < 8 then
+				ok = false
+			end
+			if f.view and not l.View then
+				ok = false
+			end
+			if ok then
+				count = count + 1
+				local mine = data.Properties[l.Id]
+				local b = UI.button(list, (mine and "✔ " or "") .. l.Name .. "\n" .. (l.Rent and ("$" .. Util.formatInt(l.Rent) .. "/sem") or "—") .. "  ·  " .. (l.Buy and ("$" .. Util.formatInt(l.Buy)) or "—") .. "  ·  " .. Util.formatInt(l.W * l.D) .. " m²  ·  entorno " .. l.Env .. ((l.Req.Level or 1) > data.Level and ("  · 🔒 nivel " .. l.Req.Level) or ""), function()
+					selected = l.Id
+					render()
+				end, { Size = UDim2.new(1, -8, 0, 46), TextSize = 12, Color = mine and Color3.fromRGB(40, 80, 60) or T.Panel2 })
+				b.TextXAlignment = Enum.TextXAlignment.Left
+			end
+		end
+		if count == 0 then
+			UI.label(list, "Ningún anuncio cumple los filtros.", { Color = T.Sub })
+		end
+	end
+	render()
+	ctx.onState(render)
+end
+
+return Realty
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX000051"><Properties><string name="Name">BuildUI</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- BuildUI (cliente): modo construcción dentro de tus propiedades.
+-- Colocar muebles con una vista previa que sigue al ratón/dedo, girar (R o botón), mover, recoger,
+-- cambiar paredes/suelo/luz/cortinas, aplicar estilos, mejoras y diseños guardados.
+-- El servidor valida cada colocación (límites, choques, puerta, puesto de trabajo, número de muebles).
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local UI = require(script.Parent.UIKit)
+local State = require(script.Parent.State)
+local Net = require(script.Parent.Net)
+local Notify = require(script.Parent.Notify)
+local Catalog = require(Shared.ItemCatalog)
+local PropertyData = require(Shared.PropertyData)
+local Util = require(Shared.Util)
+local T = UI.Theme
+
+local Build = {}
+local player = Players.LocalPlayer
+local gui, panel
+local ghost, ghostConn
+local placing = nil -- { uid, def, r }
+local tab = "place"
+local lastLocal = nil
+
+function Build.init(screenGui)
+	gui = screenGui
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if not placing then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.R then
+			Build.rotate()
+		elseif input.KeyCode == Enum.KeyCode.Q or input.UserInputType == Enum.UserInputType.MouseButton2 then
+			Build.cancelPlacing()
+		elseif not processed and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+			Build.confirm()
+		end
+	end)
+end
+
+function Build.isPlacing()
+	return placing ~= nil
+end
+
+function Build.isOpen()
+	return panel ~= nil
+end
+
+local function interior()
+	local d = State.Data and State.Data.Derived
+	return d and d.Interior and d.PropInside and d.Interior or nil
+end
+
+function Build.cancelPlacing()
+	placing = nil
+	if ghostConn then
+		ghostConn:Disconnect()
+		ghostConn = nil
+	end
+	if ghost then
+		ghost:Destroy()
+		ghost = nil
+	end
+end
+
+function Build.rotate()
+	if placing then
+		placing.r = (placing.r + 90) % 360
+	end
+end
+
+function Build.confirm()
+	if not placing or not lastLocal then
+		return
+	end
+	local p = placing
+	local r = Net.call("Prop.Place", { uid = p.uid, x = lastLocal.X, z = lastLocal.Z, r = p.r }, { quietOk = false })
+	if r.ok then
+		Build.cancelPlacing()
+	end
+end
+
+local function startPlacing(uid, def, r)
+	Build.cancelPlacing()
+	local info = interior()
+	if not info then
+		Notify.toast("Entra en tu propiedad para colocar muebles.", "warn")
+		return
+	end
+	placing = { uid = uid, def = def, r = r or 0 }
+	local f = def.Foot or { 4, 4, 3 }
+	ghost = Instance.new("Part")
+	ghost.Name = "BuildGhost"
+	ghost.Anchored = true
+	ghost.CanCollide = false
+	ghost.CanQuery = false
+	ghost.Transparency = 0.5
+	ghost.Material = Enum.Material.ForceField
+	ghost.Size = Vector3.new(f[1], math.max(0.4, f[3]), f[2])
+	ghost.Parent = workspace.CurrentCamera
+	local origin = Vector3.new(info.Origin[1], info.Origin[2], info.Origin[3])
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	ghostConn = RunService.RenderStepped:Connect(function()
+		if not ghost then
+			return
+		end
+		params.FilterDescendantsInstances = { player.Character, ghost }
+		local mouse = UserInputService:GetMouseLocation()
+		local ray = workspace.CurrentCamera:ViewportPointToRay(mouse.X, mouse.Y)
+		local hit = workspace:Raycast(ray.Origin, ray.Direction * 300, params)
+		if hit then
+			local rel = hit.Position - origin
+			local x = math.floor(rel.X * 2 + 0.5) / 2
+			local z = math.floor(rel.Z * 2 + 0.5) / 2
+			lastLocal = Vector3.new(x, 0, z)
+			local w, d = f[1], f[2]
+			if placing.r % 180 == 90 then
+				w, d = d, w
+			end
+			local inside = math.abs(x) + w / 2 <= info.W / 2 - 0.5 and math.abs(z) + d / 2 <= info.D / 2 - 0.5
+			ghost.Color = inside and Color3.fromRGB(80, 255, 120) or Color3.fromRGB(255, 70, 70)
+			ghost.CFrame = CFrame.new(origin + Vector3.new(x, ghost.Size.Y / 2, z)) * CFrame.Angles(0, math.rad(placing.r), 0)
+		end
+	end)
+	Notify.toast("Mueve el ratón (o toca el suelo) para colocar · R girar · Q o clic derecho cancelar", "info")
+end
+
+local function render()
+	if not panel then
+		return
+	end
+	UI.clear(panel)
+	local data = State.Data
+	local info = interior()
+	if not info then
+		UI.label(panel, "Entra en una de tus propiedades para construir.", { Color = T.Sub, Height = 40 })
+		return
+	end
+	local l = PropertyData.ById[info.Id]
+	local rec = data.Properties[info.Id]
+	if not rec then
+		return
+	end
+	UI.label(panel, "🔨 " .. l.Name, { Font = Enum.Font.GothamBlack, TextSize = 15, Height = 22 })
+	UI.label(panel, "Decoración " .. tostring(data.Derived.DecorScore or 0) .. "/45 · muebles " .. State.count(rec.Placed) .. "/" .. l.Slots, { TextSize = 12, Color = T.Gold, Height = 18, Position = UDim2.fromOffset(0, 22) })
+	local tabs = UI.row(panel, 30)
+	tabs.Position = UDim2.fromOffset(0, 44)
+	for _, t in ipairs({ { "place", "Colocar" }, { "placed", "Colocados" }, { "room", "Sala" }, { "designs", "Diseños" } }) do
+		UI.button(tabs, t[2], function()
+			tab = t[1]
+			render()
+		end, { Width = 80, Height = 26, TextSize = 12, Color = tab == t[1] and T.Accent or T.Panel3 })
+	end
+	local s = UI.scroll(panel, { Size = UDim2.new(1, 0, 1, -116), Position = UDim2.fromOffset(0, 78), Pad = 4 })
+	if tab == "place" then
+		local items = State.items(function(r, def)
+			return def.Placeable and r.Loc == "home"
+		end)
+		if #items == 0 then
+			UI.label(s, "No tienes muebles en casa. Cómpralos en Hogar & Deco (Barrio residencial) o en la Tienda online.", { Color = T.Sub, Height = 50 })
+		end
+		for _, it in ipairs(items) do
+			local styleName = it.Def.Style and PropertyData.StyleById[it.Def.Style] and (" · " .. PropertyData.StyleById[it.Def.Style].Name) or ""
+			UI.button(s, it.Def.Name .. " (+" .. (it.Def.Stats.Decor or 0) .. ")" .. styleName, function()
+				startPlacing(it.Uid, it.Def, 0)
+			end, { Size = UDim2.new(1, -8, 0, 30), TextSize = 12, Color = T.Panel2 })
+		end
+	elseif tab == "placed" then
+		for uid, pos in pairs(rec.Placed) do
+			local item = data.Inventory[uid]
+			local def = item and Catalog.get(item.Id)
+			if def then
+				local card = UI.card(s, { Height = 0, Auto = Enum.AutomaticSize.Y })
+				UI.label(card, def.Name .. " · (" .. pos.X .. ", " .. pos.Z .. ") · " .. pos.R .. "°", { TextSize = 12 })
+				local row = UI.row(card, 28, nil, 4)
+				UI.button(row, "Mover", function()
+					startPlacing(uid, def, pos.R)
+				end, { Width = 70, Height = 24, TextSize = 11 })
+				UI.button(row, "Girar", function()
+					Net.call("Prop.Rotate", { uid = uid }, { quietOk = true })
+				end, { Width = 60, Height = 24, TextSize = 11 })
+				UI.button(row, "Recoger", function()
+					Net.call("Prop.Pick", { uid = uid })
+				end, { Width = 80, Height = 24, TextSize = 11, Color = Color3.fromRGB(110, 40, 40) })
+			end
+		end
+	elseif tab == "room" then
+		UI.label(s, l.Remodel and "Cada cambio cuesta $50 (estilo completo $120)." or "Propiedad no remodelable: solo luz y cortinas.", { TextSize = 12, Color = T.Sub, Height = 30 })
+		local names = {}
+		for i, st in ipairs(PropertyData.Styles) do
+			names[i] = st.Name
+		end
+		local styleIdx = 1
+		UI.cycle(s, "Estilo", names, 1, function(i)
+			styleIdx = i
+		end, { LabelWidth = 60, ValueWidth = 130 })
+		UI.button(s, "Aplicar estilo", function()
+			Net.call("Prop.Decor", { style = PropertyData.Styles[styleIdx].Id })
+		end, { Width = 160, Height = 28 })
+		local function paletteRow(label, list, key, current)
+			UI.label(s, label, { TextSize = 12, Color = T.Sub })
+			local grid = UI.frame(s, { Height = 0, Auto = Enum.AutomaticSize.Y, Transparency = 1, Radius = false })
+			UI.grid(grid, 26, 26, 4)
+			for i, entry in ipairs(list) do
+				local color = entry[3] and type(entry[3]) == "table" and entry[3] or entry[2]
+				UI.button(grid, current == i and "●" or "", function()
+					Net.call("Prop.Decor", { [key] = i })
+				end, { Size = UDim2.fromOffset(26, 26), Color = UI.rgb(color), TextColor = Color3.new(0.5, 0.5, 0.5) })
+			end
+		end
+		paletteRow("Paredes", PropertyData.Walls, "wall", rec.Decor.Wall)
+		paletteRow("Suelo", PropertyData.Floors, "floor", rec.Decor.Floor)
+		paletteRow("Iluminación", PropertyData.Lights, "light", rec.Decor.Light)
+		UI.toggle(s, "Cortinas", rec.Decor.Curtain, function(v)
+			Net.call("Prop.Decor", { curtain = v })
+		end, { Width = 200 })
+	elseif tab == "designs" then
+		local nb = UI.input(s, "Nombre del diseño", "")
+		UI.button(s, "💾 Guardar diseño actual", function()
+			Net.call("Prop.SavePreset", { name = nb.Text })
+		end, { Width = 220, Height = 28 })
+		for i, preset in ipairs(rec.Presets) do
+			local row = UI.row(s, 30)
+			UI.label(row, preset.Name .. " (" .. State.count(preset.Layout) .. " muebles)", { Size = UDim2.fromOffset(180, 26), TextSize = 12 })
+			UI.button(row, "Aplicar", function()
+				Net.call("Prop.LoadPreset", { index = i })
+			end, { Width = 80, Height = 26, TextSize = 12 })
+		end
+	end
+	local bottom = UI.row(panel, 32)
+	bottom.Position = UDim2.new(0, 0, 1, -34)
+	UI.button(bottom, "↻ Girar (R)", function()
+		Build.rotate()
+	end, { Width = 100, Height = 28, TextSize = 12 })
+	UI.button(bottom, "✕ Cerrar (B)", function()
+		Build.toggle()
+	end, { Width = 110, Height = 28, TextSize = 12 })
+end
+
+function Build.toggle()
+	if panel then
+		Build.cancelPlacing()
+		panel:Destroy()
+		panel = nil
+		return
+	end
+	if not interior() then
+		Notify.toast("Entra en una de tus propiedades para usar el modo construcción.", "warn")
+		return
+	end
+	panel = UI.frame(gui, { Size = UDim2.fromOffset(360, 470), Position = UDim2.new(0, 12, 0.5, 20), Anchor = Vector2.new(0, 0.5), Color = T.Panel, Name = "BuildPanel" })
+	UI.padding(panel, 10)
+	render()
+end
+
+State.on(function()
+	if panel then
+		if not interior() then
+			Build.toggle()
+		else
+			render()
+		end
+	end
+end)
+
+return Build
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000052"><Properties><string name="Name">CaptureUI</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- CaptureUI (cliente): sesión de grabación por escenas y modo fotógrafo profesional.
 -- El cliente solo elige la toma/encuadre; la calidad la calcula el servidor con el equipo real.
 
@@ -11196,7 +13050,7 @@ function Capture.isRecording()
 end
 
 return Capture
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000049"><Properties><string name="Name">HUD</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000053"><Properties><string name="Name">HUD</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- HUD (cliente): dinero, nivel/XP, rango, suscriptores, reloj, clima, ubicación, objetivo actual y botones
 -- de acción (adaptados a PC y móvil).
 
@@ -11267,6 +13121,8 @@ function HUD.build(gui, actions)
 	action("📸", "Foto", "F", actions.photo)
 	action("👕", "Estilo", "V", actions.style)
 	refs.laptopBtn = action("💻", "Portátil", "C", actions.laptop)
+	refs.buildBtn = action("🔨", "Construir", "B", actions.build, Color3.fromRGB(40, 110, 70))
+	action("🏘", "Inmobiliaria", nil, actions.realty)
 	action("⚙", "Ajustes", nil, actions.settings)
 
 	HUD.refresh()
@@ -11322,6 +13178,7 @@ function HUD.refresh()
 		end
 	end
 	refs.laptopBtn.Visible = hasLaptop
+	refs.buildBtn.Visible = d.PropInside ~= nil
 end
 
 -- Texto flotante de dinero ganado
@@ -11337,7 +13194,7 @@ function HUD.cash(amount)
 end
 
 return HUD
-]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX000050"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="LocalScript" referent="RBX000054"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Main (LocalScript): crea la interfaz, conecta los mensajes del servidor y los controles (PC y móvil).
 
 local Players = game:GetService("Players")
@@ -11355,6 +13212,7 @@ local Shell = require(Client.Shell)
 local HUD = require(Client.HUD)
 local Capture = require(Client.CaptureUI)
 local WorldFX = require(Client.WorldFX)
+local Build = require(Client.BuildUI)
 local T = UI.Theme
 
 local player = Players.LocalPlayer
@@ -11376,6 +13234,7 @@ Net.Notify = Notify
 Notify.init(gui, Sound)
 Shell.init(gui)
 Capture.init(gui, Sound)
+Build.init(gui)
 UI.attachScale(gui, function()
 	return State.Data and State.Data.Settings.UIScale or 1
 end)
@@ -11425,6 +13284,12 @@ HUD.build(gui, {
 	settings = function()
 		toggleApp("settings")
 	end,
+	build = function()
+		Build.toggle()
+	end,
+	realty = function()
+		toggleApp("realty")
+	end,
 })
 WorldFX.start()
 
@@ -11460,6 +13325,8 @@ Net.on("openUI", function(d)
 		Shell.openPanel("product", { item = d.item, store = d.store })
 	elseif d.ui == "app" then
 		Shell.openPanel(d.app)
+	elseif d.ui == "realty" then
+		Shell.openPanel("realty", { listing = d.listing })
 	end
 end)
 Net.on("openComputer", function(d)
@@ -11571,6 +13438,13 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		return
 	end
 	local k = input.KeyCode
+	if Build.isPlacing() then
+		return -- R/Q/clic los gestiona el modo construcción
+	end
+	if k == Enum.KeyCode.B then
+		Build.toggle()
+		return
+	end
 	if k == Enum.KeyCode.P then
 		Shell.togglePhone()
 	elseif k == Enum.KeyCode.I then
@@ -11599,7 +13473,7 @@ task.spawn(function()
 		Net.call("Sync.Request", {}, { silent = true })
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000051"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000055"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Net (cliente): envía peticiones al servidor y reparte los mensajes que llegan.
 -- El cliente nunca decide resultados: solo pide acciones y muestra lo que responde el servidor.
 
@@ -11661,7 +13535,7 @@ push.OnClientEvent:Connect(function(kind, data)
 end)
 
 return Net
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000052"><Properties><string name="Name">Notify</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000056"><Properties><string name="Name">Notify</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Notify (cliente): avisos emergentes, diálogos de NPC, logros y confirmaciones.
 
 local UI = require(script.Parent.UIKit)
@@ -11786,7 +13660,7 @@ function Notify.dialog(name, text, options, onOption)
 end
 
 return Notify
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000053"><Properties><string name="Name">PhotoView</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000057"><Properties><string name="Name">PhotoView</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- PhotoView (cliente): muestra una fotografía virtual. Cada foto guarda la posición y dirección de la cámara,
 -- así que se vuelve a "revelar" clonando las piezas cercanas de la ciudad dentro de un ViewportFrame.
 -- Los filtros se simulan con capas de color. Si la foto no tiene cámara guardada, se dibuja una tarjeta.
@@ -11890,7 +13764,7 @@ function PhotoView.render(parent, photo, size)
 end
 
 return PhotoView
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000054"><Properties><string name="Name">Shell</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000058"><Properties><string name="Name">Shell</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Shell (cliente): el "sistema operativo" del juego.
 --  * Computador: escritorio con fondo, iconos, barra de tareas, menú de inicio, reloj, notificaciones y
 --    ventanas que se pueden mover, minimizar, enfocar y cerrar. Las apps recuerdan su estado mientras la
@@ -12266,7 +14140,7 @@ function Shell.togglePhone()
 end
 
 return Shell
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000055"><Properties><string name="Name">Sound</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000059"><Properties><string name="Name">Sound</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Sound (cliente): efectos de interfaz y música ambiental con control de volumen.
 
 local SoundService = game:GetService("SoundService")
@@ -12320,7 +14194,7 @@ function Sound.startMusic()
 end
 
 return Sound
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000056"><Properties><string name="Name">State</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000060"><Properties><string name="Name">State</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- State (cliente): copia de solo lectura del perfil enviada por el servidor + avisos de cambio.
 
 local State = {}
@@ -12383,7 +14257,7 @@ function State.items(filterFn)
 end
 
 return State
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000057"><Properties><string name="Name">UIKit</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000061"><Properties><string name="Name">UIKit</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- UIKit: componentes de interfaz reutilizables con un estilo coherente (tema oscuro, acentos de color),
 -- animaciones de botones, sonidos y diseño adaptable a distintas resoluciones.
 
@@ -12764,7 +14638,7 @@ function UI.attachScale(gui, userScale)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000058"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000062"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- WorldFX (cliente): lluvia, relámpagos moderados, objetos giratorios, flecha guía del tutorial,
 -- correr con Shift y ajustes gráficos locales.
 
@@ -12987,4 +14861,4 @@ function FX.start()
 end
 
 return FX
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="SoundService" referent="RBX000060"><Properties><string name="Name">SoundService</string></Properties></Item></roblox>
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="SoundService" referent="RBX000064"><Properties><string name="Name">SoundService</string></Properties></Item></roblox>
