@@ -99,6 +99,11 @@ function PCBuild.validate(parts)
 		end
 	end
 
+	-- Si alguna pieza está en una ranura que no le corresponde, no seguir comprobando
+	if #errors > 0 then
+		return false, errors, warnings
+	end
+
 	local case, mobo, cpu, ram, gpu, psu, cool = get(parts.case), get(parts.mobo), get(parts.cpu), get(parts.ram), get(parts.gpu), get(parts.psu), get(parts.cooling)
 
 	if cpu and mobo and cpu.Compat.Socket ~= mobo.Compat.Socket then
