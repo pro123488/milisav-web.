@@ -67,6 +67,8 @@ function Travel.currentSpot(player)
 				return { Id = "store_" .. sp.StoreId, Name = Catalog.Stores[sp.StoreId].Name, Tags = storeTags[sp.StoreId] or { "shop" }, Indoor = true, Interest = 8, Noise = 3, Busy = 5, District = sp.District, Decor = 12 }
 			elseif sp.Type == "cafe" then
 				return { Id = "cafe", Name = sp.Name, Tags = { "education", "tech", "food" }, Indoor = true, Interest = 6, Noise = 3, Busy = 5, District = sp.District, Decor = 8 }
+			elseif sp.Type == "petshop" then
+				return { Id = "petshop", Name = sp.Name, Tags = { "shop", "fun", "nature" }, Indoor = true, Interest = 8, Noise = 3, Busy = 4, District = sp.District, Decor = 12 }
 			elseif sp.Type == "bank" then
 				return { Id = "bank", Name = sp.Name, Tags = { "business" }, Indoor = true, Interest = 5, Noise = 2, Busy = 4, District = sp.District, Decor = 10 }
 			elseif sp.Type == "dealer" then

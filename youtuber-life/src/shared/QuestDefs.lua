@@ -74,6 +74,9 @@ local tracks = {
 	{ "client_contracts", "Cumple %s contratos de clientes", { 1, 5, 20 }, 200, 80, { [2] = "Productora de confianza", [3] = "Magnate de los medios" } },
 	{ "vehicles_bought", "Compra %s vehículos", { 1, 3, 6 }, 150, 60, { [1] = "Conductor novel", [3] = "Coleccionista de motor" } },
 	{ "drive_km", "Conduce %s km", { 1, 10, 50 }, 80, 40, { [3] = "Rey de la carretera" } },
+	{ "pets_adopted", "Adopta %s mascotas", { 1, 3 }, 80, 40, { [1] = "Amigo peludo", [2] = "Familia numerosa" } },
+	{ "pet_walk", "Pasea %s con tu mascota", { 1, 10, 50 }, 60, 30, { [2] = "Paseador estrella", [3] = "Maratón perruno" } },
+	{ "pet_photos", "Haz %s fotos de tu mascota", { 1, 10 }, 50, 25, { [2] = "Paparazzi de mascotas" } },
 }
 
 QuestDefs.TrackNames = {
@@ -89,6 +92,7 @@ QuestDefs.TrackNames = {
 	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
 	company_created = "Empresa", employees_hired = "Empleados contratados", client_contracts = "Contratos de clientes",
 	vehicles_bought = "Vehículos comprados", drive_km = "Kilómetros conducidos",
+	pets_adopted = "Mascotas adoptadas", pet_walk = "Paseos con mascota", pet_photos = "Fotos de mascotas",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
@@ -99,7 +103,7 @@ local singular = {
 	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos de clientes", "contrato de un cliente" }, { "contratos", "contrato" }, { "empleados", "empleado" },
 	{ "eventos", "evento" }, { "directos", "directo" }, { "shorts", "short" }, { "podcasts", "podcast" }, { "documentales", "documental" },
 	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
-	{ "objetivos", "objetivo" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" }, { "vehículos", "vehículo" },
+	{ "objetivos", "objetivo" }, { "mascotas", "mascota" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" }, { "vehículos", "vehículo" },
 }
 local function singularize(text)
 	for _, pair in ipairs(singular) do
@@ -136,6 +140,13 @@ for _, t in ipairs(tracks) do
 		}
 		QuestDefs.Achievements[#QuestDefs.Achievements + 1] = q
 		QuestDefs.ById[q.Id] = q
+	end
+end
+-- Paseos con mascota: el contador va en tramos de 100 m
+for _, a in ipairs(QuestDefs.Achievements) do
+	if a.Counter == "pet_walk" then
+		local m = a.Target * 100
+		a.Name = "Pasea " .. (m >= 1000 and (math.floor(m / 100) / 10 .. " km") or (m .. " m")) .. " con tu mascota"
 	end
 end
 for _, step in ipairs(QuestDefs.Tutorial) do

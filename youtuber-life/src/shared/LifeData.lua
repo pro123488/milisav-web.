@@ -68,22 +68,58 @@ function LifeData.sellValue(rec)
 end
 
 ---------------------------------------------------------------------------
--- MASCOTAS
+-- MASCOTAS (PetService + app Mascotas). Food = coste de una comida. Icon = emoji de la especie.
 ---------------------------------------------------------------------------
 LifeData.Pets = {
-	{ Id = "dog", Name = "Perro", Price = 300, Follows = true, Size = 1.0 },
-	{ Id = "cat", Name = "Gato", Price = 250, Follows = true, Size = 0.8 },
-	{ Id = "bird", Name = "Pájaro", Price = 150, Follows = true, Size = 0.5, Flies = true },
-	{ Id = "rabbit", Name = "Conejo", Price = 180, Follows = true, Size = 0.6 },
-	{ Id = "turtle", Name = "Tortuga", Price = 120, Follows = true, Size = 0.6 },
-	{ Id = "fish", Name = "Peces (acuario)", Price = 200, Follows = false, Size = 1.0 },
+	{ Id = "dog", Name = "Perro", Price = 300, Follows = true, Size = 1.0, Food = 8, Icon = "🐶" },
+	{ Id = "cat", Name = "Gato", Price = 250, Follows = true, Size = 0.8, Food = 7, Icon = "🐱" },
+	{ Id = "bird", Name = "Pájaro", Price = 150, Follows = true, Size = 0.5, Flies = true, Food = 4, Icon = "🐦" },
+	{ Id = "rabbit", Name = "Conejo", Price = 180, Follows = true, Size = 0.6, Food = 5, Icon = "🐰" },
+	{ Id = "turtle", Name = "Tortuga", Price = 120, Follows = true, Size = 0.6, Food = 4, Icon = "🐢" },
+	{ Id = "fish", Name = "Peces (acuario)", Price = 200, Follows = false, Size = 1.0, Food = 3, Icon = "🐠" },
 }
 LifeData.PetById = {}
 for _, p in ipairs(LifeData.Pets) do
 	LifeData.PetById[p.Id] = p
 end
 LifeData.PetColors = { { 140, 100, 60 }, { 240, 240, 240 }, { 30, 30, 30 }, { 230, 160, 60 }, { 120, 120, 130 }, { 255, 200, 200 }, { 80, 170, 230 }, { 90, 200, 120 } }
+LifeData.PetColorNames = { "Marrón", "Blanco", "Negro", "Naranja", "Gris", "Rosa", "Azul", "Verde" }
 LifeData.PetAccessories = { "Ninguno", "Collar rojo", "Pajarita", "Gorrito", "Pañuelo", "Gafas de sol" }
+-- Precio de cada accesorio (se compra una vez en la tienda y sirve para todas tus mascotas)
+LifeData.PetAccessoryPrices = { ["Ninguno"] = 0, ["Collar rojo"] = 40, ["Pajarita"] = 35, ["Gorrito"] = 50, ["Pañuelo"] = 30, ["Gafas de sol"] = 60 }
+-- Juguetes: al jugar, el mejor juguete que tengas suma felicidad extra
+LifeData.PetToys = {
+	{ Id = "ball", Name = "Pelota saltarina", Price = 30, Bonus = 4 },
+	{ Id = "rope", Name = "Cuerda para morder", Price = 45, Bonus = 6 },
+	{ Id = "puzzle", Name = "Juguete rompecabezas", Price = 80, Bonus = 10 },
+}
+LifeData.PetToyById = {}
+for _, t in ipairs(LifeData.PetToys) do
+	LifeData.PetToyById[t.Id] = t
+end
+-- Nombres por defecto si no eliges uno al adoptar
+LifeData.PetNames = { "Luna", "Toby", "Coco", "Nube", "Kiwi", "Simba", "Lola", "Bolita", "Chispa", "Pipo", "Canela", "Tito" }
+-- Cuidados: la felicidad (0-100) baja muy despacio y solo cambia el aspecto (triste), nunca tu progreso.
+LifeData.PetCare = {
+	MaxPets = 3,
+	StartHappy = 80,
+	SadBelow = 30,
+	HappyAbove = 80,
+	DecayPerMinute = 0.1, -- mientras juegas (6 puntos por hora); una cama o rascador colocado la detiene
+	PlayHappy = 12,
+	PlayMood = 4, -- ánimo del jugador
+	PlayCooldown = 45, -- segundos
+	FeedHappy = 10,
+	FeedCooldown = 90, -- segundos
+	WalkHappy = 2, -- por cada 100 m paseados
+	WalkMaxStep = 30, -- studs por segundo como máximo para contar como paseo (no en vehículo ni en taxi)
+	SnapDistance = 45, -- si la mascota se queda más lejos, aparece a tu lado
+	NearRadius = 30,
+	PhotoBonus = 8, -- calidad extra de la foto en modo mascota
+	SceneInterest = 3, -- interés extra de las escenas con tu mascota cerca
+	NameMax = 20,
+	BedItems = { "dec_pet_bed", "dec_pet_tower" },
+}
 
 ---------------------------------------------------------------------------
 -- DESTINOS DE VIAJE (zonas lejos de la ciudad, se llega en avión desde el aeropuerto)

@@ -485,6 +485,65 @@ local function buildRestaurant(parent, sp)
 	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(0, 0, -d / 2 + 3)).Position, Look = (base * CFrame.new(0, 0, 0)).Position, Name = "Camarero", Role = "waiter" })
 end
 
+-- Tienda de mascotas: escaparate, jaulas y peceras decorativas, mostrador (app Mascotas) y cuidadora
+local function buildPetShop(parent, sp)
+	local m = model(parent, "TiendaMascotas")
+	local w, d, h = 50, 38, 14
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 255, 244, 225 }, { 205, 185, 150 })
+	local board = P(m, "PetShopSign", Vector3.new(30, 3.5, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 0.6), { 20, 20, 24 })
+	sign(board, Enum.NormalId.Front, "🐾 " .. sp.Name, Color3.fromRGB(60, 160, 130), Color3.new(1, 1, 1))
+	-- Escaparates a ambos lados de la puerta (vitrina con un rascador y un peluche de perro)
+	for _, sx in ipairs({ -1, 1 }) do
+		local cx = sx * 15
+		P(m, "ShowcaseBase", Vector3.new(12, 1.5, 4), base * CFrame.new(cx, 0.75, d / 2 + 2.5), { 240, 240, 245 }, Enum.Material.Marble)
+		P(m, "ShowcaseGlass", Vector3.new(12, 6, 4), base * CFrame.new(cx, 4.5, d / 2 + 2.5), { 200, 230, 255 }, Enum.Material.Glass, { Transparency = 0.6 })
+		P(m, "CatTreePost", Vector3.new(0.8, 4.5, 0.8), base * CFrame.new(cx - 3, 3.75, d / 2 + 2.5), { 210, 180, 140 }, Enum.Material.Fabric)
+		P(m, "CatTreeTop", Vector3.new(2.6, 0.4, 2.6), base * CFrame.new(cx - 3, 6, d / 2 + 2.5), { 170, 120, 90 }, Enum.Material.Fabric)
+		P(m, "PlushBody", Vector3.new(2.4, 1.6, 1.4), base * CFrame.new(cx + 2.5, 2.3, d / 2 + 2.5), sx < 0 and { 200, 150, 90 } or { 240, 240, 240 }, Enum.Material.Fabric)
+		P(m, "PlushHead", Vector3.new(1.3, 1.3, 1.3), base * CFrame.new(cx + 4, 3.4, d / 2 + 2.5), sx < 0 and { 200, 150, 90 } or { 240, 240, 240 }, Enum.Material.Fabric)
+	end
+	-- Jaulas decorativas (pared oeste) con conejitos y pájaros de exposición
+	for i = 0, 2 do
+		local z = -8 + i * 8
+		local cage = base * CFrame.new(-w / 2 + 4, 0, z)
+		P(m, "CageBase", Vector3.new(5, 0.4, 5), cage * CFrame.new(0, 2.2, 0), { 230, 230, 235 }, Enum.Material.Metal)
+		P(m, "CageTable", Vector3.new(5.4, 2, 5.4), cage * CFrame.new(0, 1, 0), { 150, 110, 80 }, Enum.Material.Wood)
+		P(m, "CageTop", Vector3.new(5, 0.3, 5), cage * CFrame.new(0, 6.4, 0), { 230, 230, 235 }, Enum.Material.Metal)
+		for b = -2, 2 do
+			P(m, "CageBar", Vector3.new(0.12, 4, 0.12), cage * CFrame.new(2.4, 4.4, b), { 200, 200, 210 }, Enum.Material.Metal, { NoShadow = true })
+			P(m, "CageBar", Vector3.new(0.12, 4, 0.12), cage * CFrame.new(b, 4.4, 2.4), { 200, 200, 210 }, Enum.Material.Metal, { NoShadow = true })
+		end
+		local figure = i == 1 and { 255, 210, 60 } or { 245, 245, 245 }
+		P(m, "CagePet", Vector3.new(1.4, 1.2, 1.6), cage * CFrame.new(0, 3, 0), figure, Enum.Material.Fabric, { Shape = Enum.PartType.Ball })
+	end
+	-- Peceras (pared este)
+	for i = 0, 1 do
+		local tank = base * CFrame.new(w / 2 - 4, 0, -6 + i * 12)
+		P(m, "TankStand", Vector3.new(4, 3, 8), tank * CFrame.new(0, 1.5, 0), { 60, 60, 70 }, Enum.Material.Wood)
+		P(m, "TankWater", Vector3.new(3.4, 3.4, 7.4), tank * CFrame.new(0, 4.8, 0), { 60, 170, 230 }, Enum.Material.Glass, { Transparency = 0.45, NoShadow = true })
+		P(m, "TankGlass", Vector3.new(3.8, 4, 7.8), tank * CFrame.new(0, 5, 0), { 220, 240, 255 }, Enum.Material.Glass, { Transparency = 0.75 })
+		P(m, "TankSand", Vector3.new(3.4, 0.4, 7.4), tank * CFrame.new(0, 3.3, 0), { 230, 210, 160 }, Enum.Material.Sand)
+		P(m, "TankPlant", Vector3.new(0.5, 2.2, 0.5), tank * CFrame.new(0, 4.5, 2.5), { 60, 170, 80 }, Enum.Material.Grass)
+		for f = 0, 2 do
+			P(m, "TankFish", Vector3.new(0.3, 0.5, 0.8), tank * CFrame.new(0.3 - f * 0.3, 4.6 + f * 0.5, -2 + f * 1.6), f == 1 and { 255, 220, 60 } or { 255, 120, 30 }, Enum.Material.Neon, { NoShadow = true })
+		end
+		local light = P(m, "TankLight", Vector3.new(3.8, 0.3, 7.8), tank * CFrame.new(0, 7.15, 0), { 230, 245, 255 }, Enum.Material.Neon, { NoShadow = true })
+		nightLight(light, 12, Color3.fromRGB(150, 210, 255))
+	end
+	-- Estantería de comida y juguetes
+	P(m, "PetShelf", Vector3.new(10, 6, 2), base * CFrame.new(-8, 3, -d / 2 + 1.5), { 230, 220, 200 }, Enum.Material.WoodPlanks)
+	for i = 0, 3 do
+		P(m, "PetFoodBag", Vector3.new(1.6, 2, 1), base * CFrame.new(-11.5 + i * 2.3, 2.5, -d / 2 + 2.6), ({ { 230, 80, 60 }, { 60, 140, 230 }, { 90, 190, 100 }, { 250, 200, 60 } })[i + 1], Enum.Material.Fabric)
+		P(m, "PetToyBall", Vector3.new(0.9, 0.9, 0.9), base * CFrame.new(-11.5 + i * 2.3, 5, -d / 2 + 2.6), ({ { 255, 80, 120 }, { 255, 220, 60 }, { 80, 200, 255 }, { 140, 230, 120 } })[i + 1], Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Ball })
+	end
+	-- Mostrador con aviso: abre la app Mascotas
+	local counter = P(m, "PetCounter", Vector3.new(14, 4, 3), base * CFrame.new(6, 2, -d / 2 + 7), { 120, 80, 50 }, Enum.Material.Wood)
+	local cs = P(m, "PetCounterSign", Vector3.new(8, 1.4, 0.2), base * CFrame.new(6, 3, -d / 2 + 8.6), { 60, 160, 130 })
+	sign(cs, Enum.NormalId.Front, "ADOPCIONES · ACCESORIOS", Color3.fromRGB(60, 160, 130), Color3.new(1, 1, 1))
+	prompt(counter, "petshop", "Ver mascotas", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(6, 0, -d / 2 + 4)).Position, Look = (base * CFrame.new(6, 0, 0)).Position, Name = "Cuidadora de Huellitas", Role = "petkeeper" })
+end
+
 local function vending(parent, x, z)
 	local mach = P(parent, "VendingMachine", Vector3.new(4, 7, 3), Vector3.new(x, GROUND_TOP + 3.5, z), { 200, 30, 50 }, Enum.Material.SmoothPlastic)
 	P(parent, "VendingGlass", Vector3.new(2.6, 4, 0.2), Vector3.new(x, GROUND_TOP + 4.5, z + 1.55), { 180, 220, 255 }, Enum.Material.Glass, { Transparency = 0.3 })
@@ -951,6 +1010,8 @@ local function buildDistrict(d)
 				buildDealer(m, sp)
 			elseif sp.Type == "gas" then
 				buildGasStation(m, sp)
+			elseif sp.Type == "petshop" then
+				buildPetShop(m, sp)
 			end
 		end
 	end
@@ -1075,6 +1136,8 @@ local function onPrompt(pp, player)
 		S.Net.push(player, "openUI", { ui = "food", tab = "menu", place = action })
 	elseif action == "dealer" or action == "gas" then
 		S.Net.push(player, "openUI", { ui = "app", app = "vehicles" })
+	elseif action == "petshop" then
+		S.Net.push(player, "openUI", { ui = "app", app = "pets" })
 	elseif action == "prop_view" then
 		S.Net.push(player, "openUI", { ui = "realty", listing = pp:GetAttribute("PropId") })
 	elseif action == "prop_enter" then
