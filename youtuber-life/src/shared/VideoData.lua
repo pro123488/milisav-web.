@@ -33,6 +33,7 @@ VideoData.Categories = {
 	{ Id = "budget", Name = "Vídeos económicos", Tags = { "cheap", "shop" }, Interest = 52, Rpm = 2.7 },
 	{ Id = "tutorial", Name = "Tutoriales", Tags = { "home", "studio", "tech", "education" }, Interest = 50, Rpm = 4.2 },
 	{ Id = "events", Name = "Eventos", Tags = { "event", "fun" }, Interest = 55, Rpm = 2.5 },
+	{ Id = "sports", Name = "Deporte y fitness", Tags = { "sport", "fitness", "nature", "beach", "urban" }, Interest = 53, Rpm = 3.2 },
 }
 VideoData.CategoryById = {}
 for _, c in ipairs(VideoData.Categories) do
