@@ -57,6 +57,7 @@ local function makeEnv()
 	end }
 	env.Vector3, env.CFrame, env.Color3, env.UDim2, env.UDim, env.Enum, env.Random = M.Vector3, M.CFrame, M.Color3, M.UDim2, M.UDim, M.Enum, M.Random
 	env.Vector2, env.ColorSequence, env.NumberSequence, env.NumberRange, env.TweenInfo = M.Vector2, M.ColorSequence, M.NumberSequence, M.NumberRange, M.TweenInfo
+	env.PhysicalProperties = M.PhysicalProperties
 	env.task = M.makeTask(mainCo)
 	env.RaycastParams = { new = function()
 		return {}
@@ -207,6 +208,12 @@ local UI = cenv.require(Client.UIKit)
 local gui = player.PlayerGui.YoutuberLifeUI
 assert(gui, "la interfaz principal debe existir")
 
+-- Un vehículo en el garaje para que la app Vehículos muestre y pruebe todas sus acciones
+senv.require(services.ServerScriptService.Server.Services.DataService).get(player).Vehicles = {
+	car900 = { Model = "v_ev", Color = 3, Fuel = 40, Cond = 70, Upgrades = { engine = true }, Odo = 1234, Paid = 14000, Extra = 0 },
+}
+M.stepBackground()
+
 local appCount = 0
 for _, surface in ipairs({ "pc", "phone", "panel" }) do
 	for _, app in ipairs(Registry.list(surface)) do
@@ -302,6 +309,66 @@ local okC, errC = pcall(function()
 end)
 if not okC then
 	errors[#errors + 1] = "empresa: " .. tostring(errC)
+end
+
+-- Conducción (VehicleController): sentarse, acelerar, girar, frenar y bajarse
+local okV, errV = pcall(function()
+	local VC = cenv.require(Client.VehicleController)
+	local WorldDataS = senv.require(services.ReplicatedStorage.Shared.WorldData)
+	local Veh = senv.require(services.ServerScriptService.Server.Services.VehicleService)
+	local d = senv.require(services.ServerScriptService.Server.Services.DataService).get(player)
+	d.Vehicles.car900 = d.Vehicles.car900 or { Model = "v_ev", Color = 3, Fuel = 40, Cond = 70, Upgrades = {}, Odo = 0, Paid = 14000, Extra = 0 }
+	Shell.close()
+	for _, sp in ipairs(WorldDataS.Specials) do
+		if sp.Type == "dealer" then
+			M.moveTo(player, sp.WX, 3, sp.WZ)
+		end
+	end
+	local r = call("Veh.Spawn", { id = "car900" })
+	assert(r.ok, "sacar el vehículo: " .. tostring(r.msg))
+	local model = Veh.spawnedModel(player)
+	local seat = model:FindFirstChildOfClass("VehicleSeat")
+	local drive = model.PrimaryPart:FindFirstChild("Drive")
+	local steer = model.PrimaryPart:FindFirstChild("Steer")
+	local hum = player.Character:FindFirstChildOfClass("Humanoid")
+	hum.SeatPart = seat
+	seat.Throttle = 1
+	seat.Steer = 1
+	VC.step(0.1)
+	local v1 = VC.speed()
+	for i = 1, 40 do
+		VC.step(0.1)
+	end
+	local maxS = model:GetAttribute("MaxSpeed")
+	assert(v1 > 0 and VC.speed() > v1 and VC.speed() <= maxS + 0.001, "acelera suavemente hasta la velocidad máxima")
+	assert(math.abs(drive.PlaneVelocity.Y + VC.speed()) < 0.01, "avanza según el LookVector del chasis")
+	assert(steer.AngularVelocity.Y < 0, "gira a la derecha con D")
+	assert(player.PlayerGui.VehicleHUD.Enabled, "velocímetro visible")
+	seat.Throttle = -1
+	for i = 1, 60 do
+		VC.step(0.1)
+	end
+	assert(VC.speed() < 0 and steer.AngularVelocity.Y > 0, "marcha atrás: giro invertido")
+	hum.SeatPart = nil
+	VC.step(0.1)
+	assert(drive.PlaneVelocity.X == 0 and drive.PlaneVelocity.Y == 0 and VC.speed() == 0, "al bajarse se detiene")
+	assert(not player.PlayerGui.VehicleHUD.Enabled, "el velocímetro se oculta")
+	assert(call("Veh.Store", {}).ok)
+	-- Pestañas Concesionario y Maletero de la app, ya dentro del concesionario (compras y alquileres reales)
+	local vapp = Registry.get("vehicles")
+	for _, tabName in ipairs({ "dealer", "help" }) do
+		local cont = M.newInstance("Frame", { Name = "VehiclesTest" })
+		cont.Parent = gui
+		vapp.build(cont, { kind = "panel", params = { tab = tabName }, close = function() end, open = function() end, onState = function() end, session = function()
+			return {}
+		end })
+		clickAll(cont, "vehicles@" .. tabName, 120)
+		cont:Destroy()
+	end
+	assert((d.Counters.vehicles_bought or 0) >= 1, "se puede comprar desde la app en el concesionario")
+end)
+if not okV then
+	errors[#errors + 1] = "vehículo: " .. tostring(errV)
 end
 
 if #errors > 0 then

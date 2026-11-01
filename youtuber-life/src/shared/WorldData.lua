@@ -131,6 +131,7 @@ district({ Id = "budget", Name = "Barrio económico", Col = 1, Row = 4, Ground =
 district({ Id = "apartments", Name = "Zona de apartamentos", Col = 2, Row = 4, Ground = { 90, 95, 95 }, Material = "Concrete",
 	Style = "apartment", Count = 7, Palette = { { 200, 200, 210 }, { 120, 140, 160 } }, Trees = 6,
 	Tags = { "urban", "home" }, Noise = 3, Busy = 4,
+	Specials = { { Type = "gas", Name = "Gasolinera Ruta Norte", X = -70, Z = -70 } },
 	Spots = { { Name = "Patio interior", X = 0, Z = 0, Tags = { "urban", "home" }, Interest = 5 },
 		{ Name = "Azotea compartida", X = 70, Z = -70, Tags = { "urban", "night" }, Interest = 8 } } })
 district({ Id = "studios", Name = "Distrito de estudios de grabación", Col = 3, Row = 4, Ground = { 60, 60, 66 }, Material = "Concrete",
@@ -158,6 +159,7 @@ district({ Id = "themepark", Name = "Parque de atracciones", Col = 6, Row = 4, G
 district({ Id = "industrial", Name = "Distrito industrial", Col = 1, Row = 5, Ground = { 85, 80, 75 }, Material = "Asphalt",
 	Style = "warehouse", Count = 6, Palette = { { 120, 110, 100 }, { 90, 100, 90 } }, Trees = 0,
 	Tags = { "business", "urban" }, Noise = 7, Busy = 3,
+	Specials = { { Type = "gas", Name = "Gasolinera El Polígono", X = 70, Z = -70 } },
 	Spots = { { Name = "Naves industriales", X = 0, Z = 0, Tags = { "business", "urban" }, Interest = 6 },
 		{ Name = "Chimenea vieja", X = 80, Z = 80, Tags = { "urban", "documentary" }, Interest = 7 } } })
 district({ Id = "secondhand", Name = "Zona de tiendas de segunda mano", Col = 2, Row = 5, Ground = { 110, 95, 80 }, Material = "Brick",
@@ -168,6 +170,7 @@ district({ Id = "secondhand", Name = "Zona de tiendas de segunda mano", Col = 2,
 district({ Id = "dealers", Name = "Distrito de concesionarios", Col = 3, Row = 5, Ground = { 80, 80, 85 }, Material = "Asphalt",
 	Style = "showroom", Count = 4, Palette = { { 230, 235, 240 }, { 30, 30, 35 } }, Trees = 2,
 	Tags = { "vehicle", "shop", "luxury" }, Noise = 5, Busy = 4,
+	Specials = { { Type = "dealer", Name = "Concesionario Motor City", X = -70, Z = -70 } },
 	Spots = { { Name = "Exposición de deportivos", X = 0, Z = 0, Tags = { "vehicle", "luxury" }, Interest = 11 },
 		{ Name = "Aparcamiento de clásicos", X = -70, Z = 70, Tags = { "vehicle" }, Interest = 9 } } })
 district({ Id = "port", Name = "Puerto", Col = 4, Row = 5, Ground = { 90, 90, 90 }, Material = "Concrete",
@@ -178,6 +181,7 @@ district({ Id = "port", Name = "Puerto", Col = 4, Row = 5, Ground = { 90, 90, 90
 district({ Id = "coast", Name = "Zona costera", Col = 5, Row = 5, Ground = { 190, 180, 140 }, Material = "Sand",
 	Style = "house", Count = 4, Palette = { { 250, 250, 245 }, { 120, 190, 220 } }, Trees = 8, Water = { X = 0, Z = 100, W = 260, D = 70 },
 	Tags = { "beach", "tourism", "luxury" }, Noise = 3, Busy = 3,
+	Specials = { { Type = "gas", Name = "Gasolinera Brisa Marina", X = -70, Z = -60 } },
 	Spots = { { Name = "Paseo marítimo", X = 0, Z = 30, Tags = { "beach", "tourism" }, Interest = 10 },
 		{ Name = "Faro de la costa", X = 90, Z = -60, Tags = { "tourism", "beach" }, Interest = 11 } } })
 district({ Id = "beach", Name = "Playa", Col = 6, Row = 5, Ground = { 230, 210, 160 }, Material = "Sand",

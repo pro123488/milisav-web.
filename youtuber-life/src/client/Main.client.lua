@@ -96,6 +96,7 @@ HUD.build(gui, {
 	end,
 })
 WorldFX.start()
+require(Client.VehicleController).start()
 
 ---------------------------------------------------------------------------
 -- Mensajes del servidor

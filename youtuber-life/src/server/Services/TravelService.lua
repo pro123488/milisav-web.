@@ -69,6 +69,8 @@ function Travel.currentSpot(player)
 				return { Id = "cafe", Name = sp.Name, Tags = { "education", "tech", "food" }, Indoor = true, Interest = 6, Noise = 3, Busy = 5, District = sp.District, Decor = 8 }
 			elseif sp.Type == "bank" then
 				return { Id = "bank", Name = sp.Name, Tags = { "business" }, Indoor = true, Interest = 5, Noise = 2, Busy = 4, District = sp.District, Decor = 10 }
+			elseif sp.Type == "dealer" then
+				return { Id = "dealer", Name = sp.Name, Tags = { "vehicle", "luxury", "shop" }, Indoor = true, Interest = 10, Noise = 3, Busy = 4, District = sp.District, Decor = 14 }
 			end
 		end
 	end

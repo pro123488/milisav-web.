@@ -32,6 +32,40 @@ LifeData.VehicleUpgrades = {
 	handling = { Name = "Suspensión y neumáticos", Desc = "+20% de giro", Rate = 0.08 },
 	trunk = { Name = "Maletero ampliado", Desc = "+3 espacios de carga", Rate = 0.06 },
 }
+LifeData.UpgradeOrder = { "engine", "handling", "trunk" }
+LifeData.FuelNames = { gas = "Gasolina", battery = "Batería eléctrica", none = "Sin combustible" }
+LifeData.PaintCost = 200
+LifeData.MaxVehicles = 6
+LifeData.KmhPerStud = 1.6 -- km/h ficticios que se muestran por cada stud/s
+
+-- Fórmulas compartidas (el servidor cobra con ellas; el cliente solo las muestra)
+function LifeData.vehicleStats(rec)
+	local def = LifeData.VehicleById[rec.Model]
+	local up = rec.Upgrades or {}
+	local speed = def.Speed * (up.engine and 1.15 or 1)
+	if (rec.Cond or 100) < 40 then
+		speed = speed * 0.8
+	end
+	if def.Fuel ~= "none" and (rec.Fuel or 0) <= 0 then
+		speed = 8 -- sin combustible: muy despacio, pero nunca atrapado
+	end
+	return { Speed = speed, Turn = def.Turn * (up.handling and 1.2 or 1), Trunk = def.Trunk + (up.trunk and 3 or 0) }
+end
+function LifeData.rentPrice(def)
+	return math.max(20, math.floor(def.Price * 0.02))
+end
+function LifeData.fuelCost(def, rec)
+	return math.ceil((100 - rec.Fuel) * (def.Fuel == "battery" and 0.15 or 0.4))
+end
+function LifeData.repairCost(def, rec)
+	return math.ceil(def.Price * 0.002 * (100 - rec.Cond))
+end
+function LifeData.upgradeCost(def, key)
+	return math.floor(def.Price * LifeData.VehicleUpgrades[key].Rate)
+end
+function LifeData.sellValue(rec)
+	return math.floor(((rec.Paid or 0) * 0.6 + (rec.Extra or 0) * 0.3) * (rec.Cond or 100) / 100)
+end
 
 ---------------------------------------------------------------------------
 -- MASCOTAS
