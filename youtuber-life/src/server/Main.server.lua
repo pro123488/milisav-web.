@@ -29,6 +29,7 @@ local order = {
 	{ "Vehicle", "VehicleService" },
 	{ "Video", "VideoService" },
 	{ "Pet", "PetService" },
+	{ "Collab", "CollabService" },
 	{ "Channel", "ChannelService" },
 	{ "Market", "MarketService" },
 	{ "Trade", "TradeService" },

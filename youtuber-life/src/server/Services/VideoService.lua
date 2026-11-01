@@ -16,6 +16,7 @@ local Util = require(Shared.Util)
 local Video = {}
 local S
 local recording = {} -- [player] = { Pid, UseCamera, Last }
+local collabRec = {} -- [player] = { UseCamera, Last } al grabar en el proyecto de otro (colaboración)
 local lastPhoto = {}
 
 Video.GbScale = 10
@@ -138,13 +139,30 @@ end
 function Video.recordScene(player, p)
 	local data = S.Data.get(player)
 	local rec = recording[player]
-	if not rec then
-		return false, "No estás grabando. Pulsa GRABAR primero."
-	end
-	local proj = data.Projects[rec.Pid]
-	if not proj then
-		recording[player] = nil
-		return false, "El proyecto ya no existe."
+	local proj, owner
+	local ownerId = tonumber(p.owner)
+	if ownerId and ownerId ~= player.UserId then
+		-- Colaboración: grabar en el proyecto de otro jugador (con permiso y cerca de él)
+		if not S.Collab then
+			return false, "Las colaboraciones no están disponibles."
+		end
+		local ok, err
+		ok, err, proj, owner = S.Collab.canRecord(player, ownerId, p.pid)
+		if not ok then
+			return false, err
+		end
+		collabRec[player] = collabRec[player] or { Last = 0 }
+		rec = collabRec[player]
+		rec.UseCamera = p.usePhone ~= true
+	else
+		if not rec then
+			return false, "No estás grabando. Pulsa GRABAR primero."
+		end
+		proj = data.Projects[rec.Pid]
+		if not proj then
+			recording[player] = nil
+			return false, "El proyecto ya no existe."
+		end
 	end
 	if #proj.Scenes >= Config.MaxScenesPerProject then
 		return false, "Este proyecto ya tiene el máximo de escenas (" .. Config.MaxScenesPerProject .. ")."
@@ -219,9 +237,11 @@ function Video.recordScene(player, p)
 		batteryLow = low,
 	})
 
-	data.Counters.scene_id = (data.Counters.scene_id or 0) + 1
+	local idData = owner and S.Data.get(owner) or data -- los ids de escena son del dueño del proyecto
+	idData.Counters.scene_id = (idData.Counters.scene_id or 0) + 1
 	local scene = {
-		Id = "s" .. data.Counters.scene_id,
+		Id = "s" .. idData.Counters.scene_id,
+		By = player.UserId,
 		Shot = shot.Id,
 		Spot = spot.Id,
 		SpotName = spot.Name,
@@ -262,9 +282,15 @@ function Video.recordScene(player, p)
 	if S.Needs then
 		S.Needs.spend(player, 1)
 	end
+	if owner and S.Collab then
+		S.Collab.onScene(player, owner, proj, scene)
+	end
 	S.Quest.tutorialEvent(player, "record_scene")
 	S.Quest.check(player)
 	local msg = "🎬 " .. shot.Name .. " en " .. spot.Name .. " — calidad " .. math.floor(scene.Q)
+	if owner then
+		msg = msg .. " · para «" .. proj.Name .. "»"
+	end
 	if #scene.Probs > 0 then
 		msg = msg .. " (" .. table.concat(scene.Probs, ", ") .. ")"
 	end
@@ -591,6 +617,9 @@ end
 
 function Video.publish(player, p)
 	local data = S.Data.get(player)
+	if tonumber(p.owner) and tonumber(p.owner) ~= player.UserId then
+		return false, "Solo el dueño del proyecto puede publicarlo."
+	end
 	local proj = getProject(player, p.pid)
 	if not proj then
 		return false, "Proyecto no encontrado."
@@ -722,6 +751,17 @@ function Video.publish(player, p)
 		viral = viral,
 	})
 	expected = math.floor(expected * (fmt.ViewMult or 1) * loyal * S.Events.viewMultiplier(proj.Category))
+	-- Colaboración: el vídeo guarda el colaborador; bonus si grabó al menos una escena
+	local collab = nil
+	if S.Collab then
+		collab = S.Collab.forPublish(player, p.pid, proj)
+		if collab then
+			labels[#labels + 1] = "Colaboración con " .. collab.name
+			if collab.bonus then
+				expected = math.floor(expected * S.Collab.ViewBonus)
+			end
+		end
+	end
 	local unlisted = p.visibility == "unlisted"
 	if unlisted then
 		expected = math.floor(expected * 0.1)
@@ -758,7 +798,8 @@ function Video.publish(player, p)
 		Unlisted = unlisted,
 		Format = fmt.Id,
 		RpmMult = fmt.RpmMult or 1,
-		SubMult = fmt.SubMult or 1,
+		SubMult = (fmt.SubMult or 1) * ((collab and collab.bonus) and S.Collab.SubBonus or 1),
+		Collab = collab,
 		Series = seriesName,
 		Episode = episode,
 		Sponsor = contract and contract.Brand or nil,
@@ -808,6 +849,9 @@ function Video.publish(player, p)
 		data.Reputation = math.min(100, data.Reputation + 1)
 	elseif res.Final < 30 then
 		data.Reputation = math.max(0, data.Reputation - 1)
+	end
+	if collab and S.Collab then
+		S.Collab.onPublished(player, p.pid, video)
 	end
 	S.Progress.addXp(player, S.Progress.Xp.PublishBase + math.floor(res.Final / 2))
 	S.Quest.tutorialEvent(player, "publish")
@@ -1239,6 +1283,7 @@ function Video.Start()
 	Players.PlayerRemoving:Connect(function(player)
 		recording[player] = nil
 		lastPhoto[player] = nil
+		collabRec[player] = nil
 	end)
 end
 

@@ -77,6 +77,7 @@ DataService.Template = {
 	LastLive = 0,
 	Company = {},
 	LastPost = 0,
+	CollabLog = {},
 	Uid = 0,
 	CreatedAt = 0,
 	LastSeen = 0,

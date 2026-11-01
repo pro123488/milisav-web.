@@ -122,6 +122,10 @@ function Channel.tickPlayer(player, capSeconds)
 				rev = 0
 			end
 			v.Revenue = Util.round((v.Revenue or 0) + rev, 2)
+			-- Vídeo colaborativo: la parte del colaborador sale de lo que genera este vídeo, solo si ambos están conectados
+			if v.Collab and S.Collab and not capSeconds and rev > 0 then
+				rev = rev - S.Collab.payShare(player, v, rev)
+			end
 			totalRevenue = totalRevenue + rev
 			ch.TotalViews = ch.TotalViews + new
 		end

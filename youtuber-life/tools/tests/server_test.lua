@@ -1332,6 +1332,149 @@ end
 data.Job = {}
 end
 
+do
+-- COLABORACIONES entre jugadores: invitar, permisos, grabar en el proyecto del dueño, editar, publicar, reparto
+local K = { Svc = req(ServerScriptService.Server.Services.CollabService), Ch = req(ServerScriptService.Server.Services.ChannelService) }
+local C = K.Svc
+local mate = M.newPlayer(Players, 808, "Colega")
+Players.PlayerAdded:Fire(mate)
+local md = Data.get(mate)
+assert(md and next(md.Inventory) and next(md.Projects) == nil, "el colega carga su perfil")
+data.Needs.Energy = 100
+for _, sp in ipairs(WorldData.Specials) do
+	if sp.StoreId == "tech" then
+		K.tech = sp
+	end
+end
+M.moveTo(player, K.tech.WX, 3, K.tech.WZ)
+M.moveTo(mate, K.tech.WX + 60, 3, K.tech.WZ)
+for pidx in pairs(data.Projects) do
+	data.Projects[pidx] = nil -- espacio para los proyectos de la prueba
+end
+K.cp = must(player, "Video.CreateProject", { category = "shopping", name = "Colab en MegaTec" }).data.pid
+K.cp2 = must(player, "Video.CreateProject", { category = "vlog", name = "Segunda colab" }).data.pid
+assert(not call(player, "Collab.Invite", { userId = 808, pid = K.cp, share = 30 }).ok, "hay que estar cerca para invitar")
+M.moveTo(mate, K.tech.WX + 6, 3, K.tech.WZ)
+K.near = must(player, "Collab.Nearby", {}).data.players
+assert(#K.near == 1 and K.near[1].userId == 808, "jugadores cercanos")
+assert(not call(player, "Collab.Invite", { userId = 808, pid = K.cp, share = 60 }).ok, "reparto máximo 50 %")
+assert(not call(player, "Collab.Invite", { userId = 808, pid = K.cp, share = 30, publish = true }).ok, "publicar no se cede")
+assert(not call(player, "Collab.Invite", { userId = 101, pid = K.cp, share = 30 }).ok, "no se colabora con uno mismo")
+assert(not call(mate, "Collab.Invite", { userId = 101, pid = K.cp, share = 30 }).ok, "solo se invita a proyectos propios")
+K.inv = must(player, "Collab.Invite", { userId = 808, pid = K.cp, share = 30, record = false, edit = false }).data.id
+K.v = C.view(mate)
+assert(#K.v.Incoming == 1 and K.v.Incoming[1].Share == 30 and K.v.Incoming[1].Perms.record == false and K.v.Incoming[1].Project == "Colab en MegaTec", "reparto y permisos visibles antes de aceptar")
+assert(C.view(player).Outgoing[1].To == "Colega")
+assert(not call(player, "Collab.Respond", { id = K.inv, accept = true }).ok, "solo el invitado responde")
+K.cid = must(mate, "Collab.Respond", { id = K.inv, accept = true }).data.id
+assert(#C.view(player).Active == 1 and C.view(mate).Active[1].Role == "guest" and #C.view(mate).Incoming == 0, "colaboración activa")
+-- Sin permiso de grabar no puede
+M.clock = M.clock + 5
+K.r = call(mate, "Video.RecordScene", { owner = 101, pid = K.cp, shot = "wide", usePhone = true })
+assert(not K.r.ok and K.r.msg:find("permiso"), "sin permiso no graba: " .. tostring(K.r.msg))
+assert(not call(mate, "Collab.SetPerms", { id = K.cid, record = true }).ok, "solo el dueño cambia permisos")
+assert(not call(player, "Collab.SetPerms", { id = K.cid, record = true, publish = true }).ok, "publicar no se cede")
+must(player, "Collab.SetPerms", { id = K.cid, record = true, edit = false })
+M.clock = M.clock + 5
+K.r = must(mate, "Video.RecordScene", { owner = 101, pid = K.cp, shot = "wide", usePhone = true })
+assert(K.r.data.scene.By == 808 and #data.Projects[K.cp].Scenes == 1 and data.Projects[K.cp].Scenes[1].By == 808, "la escena queda en el proyecto del dueño con By")
+assert(next(md.Projects) == nil, "el colaborador no recibe ningún proyecto")
+-- Alejarse impide grabar (la colaboración sigue)
+M.moveTo(player, K.tech.WX + 60, 3, K.tech.WZ)
+M.clock = M.clock + 5
+K.r = call(mate, "Video.RecordScene", { owner = 101, pid = K.cp, shot = "wide", usePhone = true })
+assert(not K.r.ok and K.r.msg:find("cerca"), "lejos del dueño no se graba: " .. tostring(K.r.msg))
+assert(#C.view(player).Active == 1)
+M.moveTo(player, K.tech.WX, 3, K.tech.WZ)
+-- El dueño también graba
+must(player, "Video.StartRecording", { pid = K.cp })
+for i = 1, 2 do
+	M.clock = M.clock + 5
+	must(player, "Video.RecordScene", { shot = i == 1 and "talking" or "wide" })
+end
+must(player, "Video.StopRecording", {})
+K.av = C.view(mate).Active[1]
+assert(#K.av.Scenes == 3 and K.av.Mine == 1 and K.av.Theirs == 2, "se ven las escenas de cada uno")
+-- Edición: montaje del dueño y el colaborador mueve/quita clips con permiso
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+Computer.onPrompt(player, room.DeskPrompt.Parent, "home", player.UserId)
+must(player, "Video.Import", { pid = K.cp })
+K.tl = {}
+for _, scx in ipairs(data.Projects[K.cp].Scenes) do
+	K.tl[#K.tl + 1] = { k = "s", id = scx.Id, trim = 1, tr = "cut" }
+end
+must(player, "Video.SaveEdit", { pid = K.cp, edit = { Timeline = K.tl } })
+K.ids = { K.tl[1].id, K.tl[2].id, K.tl[3].id }
+assert(not call(mate, "Collab.EditClip", { id = K.cid, index = 2, op = "up" }).ok, "sin permiso no edita")
+must(player, "Collab.SetPerms", { id = K.cid, record = true, edit = true })
+must(mate, "Collab.EditClip", { id = K.cid, index = 2, op = "up" })
+K.tl2 = data.Projects[K.cp].Edit.Timeline
+assert(K.tl2[1].id == K.ids[2] and K.tl2[2].id == K.ids[1], "el colaborador mueve clips")
+assert(not call(mate, "Collab.EditClip", { id = K.cid, index = 1, op = "up" }).ok, "no se sale de la línea de tiempo")
+must(mate, "Collab.EditClip", { id = K.cid, index = 3, op = "remove" })
+assert(#data.Projects[K.cp].Edit.Timeline == 2 and #data.Projects[K.cp].Scenes == 3, "quitar un clip no borra la escena")
+-- Solo el dueño publica
+assert(not call(mate, "Video.Publish", { pid = K.cp, owner = 101, title = "Robo de vídeo" }).ok, "el colaborador no publica")
+assert(not call(mate, "Video.Publish", { pid = K.cp, title = "Robo de vídeo" }).ok, "el colaborador no publica (sin dueño)")
+K.ex = must(player, "Video.Export", { pid = K.cp })
+M.time = M.time + K.ex.data.secs + 1
+must(player, "Video.Publish", { pid = K.cp, title = "Colaboración en MegaTec con Colega" })
+K.vid = data.Videos[1]
+assert(K.vid.Title == "Colaboración en MegaTec con Colega" and K.vid.Collab and K.vid.Collab.userId == 808 and K.vid.Collab.name == "Colega" and K.vid.Collab.share == 30, "el vídeo guarda la colaboración")
+assert(K.vid.Collab.bonus and math.abs(K.vid.SubMult - 1.15) < 1e-6, "bonus de colaboración (+15 % suscriptores)")
+assert(#C.view(player).Active == 0 and #C.view(mate).Active == 0, "publicar termina la colaboración")
+assert(data.Counters.collabs == 1 and md.Counters.collabs == 1 and md.CollabLog[1].Role == "guest" and data.CollabLog[1].Role == "owner", "historial y contadores")
+Quest.check(mate)
+assert(data.Quests.Completed["collabs_1"] and md.Quests.Completed["collabs_1"], "logro de colaboración")
+-- Reparto en el tick con ambos conectados: sale de lo que genera el vídeo
+K.vid.Expected = math.max(K.vid.Expected, 5000)
+K.m0, K.rev0 = md.Money, K.vid.Revenue
+M.time = M.time + 600
+K.Ch.tickPlayer(player)
+assert(K.vid.Collab.paid >= 1 and md.Money > K.m0, "el colaborador cobra su parte")
+assert(K.vid.Collab.paid + (K.vid.Collab.pend or 0) <= (K.vid.Revenue - K.rev0) * 0.3 + 0.01, "nunca más del 30 % de lo generado")
+assert(md.Counters.collab_earned == K.vid.Collab.paid and data.Counters.collab_paid == K.vid.Collab.paid and md.CollabLog[1].Amount == K.vid.Collab.paid, "lo pagado se muestra")
+-- Expulsar
+M.moveTo(player, K.tech.WX, 3, K.tech.WZ)
+M.clock = M.clock + 5
+K.inv = must(player, "Collab.Invite", { userId = 808, pid = K.cp2, share = 10, record = true }).data.id
+K.cid = must(mate, "Collab.Respond", { id = K.inv, accept = true }).data.id
+assert(not call(mate, "Collab.Kick", { id = K.cid }).ok, "solo el dueño expulsa")
+must(player, "Collab.Kick", { id = K.cid })
+assert(#C.view(mate).Active == 0 and data.Projects[K.cp2], "expulsado; el dueño conserva el proyecto")
+-- Salir de la colaboración
+M.clock = M.clock + 5
+K.inv = must(player, "Collab.Invite", { userId = 808, pid = K.cp2, share = 10 }).data.id
+K.cid = must(mate, "Collab.Respond", { id = K.inv, accept = true }).data.id
+must(mate, "Collab.Leave", { id = K.cid })
+assert(#C.view(player).Active == 0, "el colaborador sale")
+-- Rechazar e invitación caducada
+M.clock = M.clock + 5
+K.inv = must(player, "Collab.Invite", { userId = 808, pid = K.cp2, share = 10 }).data.id
+must(mate, "Collab.Respond", { id = K.inv, accept = false })
+assert(#C.view(player).Outgoing == 0, "rechazada")
+M.clock = M.clock + 5
+K.inv = must(player, "Collab.Invite", { userId = 808, pid = K.cp2, share = 10 }).data.id
+M.time = M.time + 61
+K.r = call(mate, "Collab.Respond", { id = K.inv, accept = true })
+assert(not K.r.ok and K.r.msg:find("caducado") and #C.view(mate).Incoming == 0, "la invitación caduca a los 60 s")
+-- Salir del juego cancela
+M.clock = M.clock + 5
+K.inv = must(player, "Collab.Invite", { userId = 808, pid = K.cp2, share = 10, record = true }).data.id
+must(mate, "Collab.Respond", { id = K.inv, accept = true })
+Players.PlayerRemoving:Fire(mate)
+mate.Parent = nil
+assert(#C.view(player).Active == 0, "salir del juego cancela la colaboración")
+assert(data.Projects[K.cp2] and M.store["u_808"] and M.store["u_808"].__lock == nil, "el dueño conserva el proyecto y el perfil del colega se guarda")
+-- Desconectado no cobra: el dueño se queda todo
+K.paid = K.vid.Collab.paid
+M.time = M.time + 3000
+K.Ch.tickPlayer(player)
+assert(K.vid.Collab.paid == K.paid, "sin el colaborador conectado no se le paga")
+M.stepBackground()
+data.Projects[K.cp2] = nil
+end
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]

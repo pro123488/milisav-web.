@@ -83,6 +83,7 @@ local tracks = {
 	{ "trades", "Completa %s intercambios con otros jugadores", { 1, 10 }, 100, 50, { [2] = "Negociante" } },
 	{ "destinations_visited", "Viaja a %s destinos", { 1, 3, #LifeData.Destinations }, 150, 60, { [1] = "Viajero", [3] = "Trotamundos" } },
 	{ "exclusives_bought", "Compra %s productos exclusivos de viaje", { 1, 5 }, 100, 50, { [2] = "Cazador de exclusivas" } },
+	{ "collabs", "Publica %s vídeos colaborativos", { 1, 5, 20 }, 120, 60, { [1] = "Buen compañero", [3] = "Leyenda de las colabs" } },
 }
 
 QuestDefs.TrackNames = {
@@ -100,7 +101,7 @@ QuestDefs.TrackNames = {
 	vehicles_bought = "Vehículos comprados", drive_km = "Kilómetros conducidos",
 	pets_adopted = "Mascotas adoptadas", pet_walk = "Paseos con mascota", pet_photos = "Fotos de mascotas",
 	used_bought = "Segunda mano", collectibles = "Coleccionables", trades = "Intercambios",
-	destinations_visited = "Destinos visitados", exclusives_bought = "Exclusivos de viaje",
+	destinations_visited = "Destinos visitados", exclusives_bought = "Exclusivos de viaje", collabs = "Colaboraciones",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
