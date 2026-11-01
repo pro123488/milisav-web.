@@ -207,7 +207,9 @@ Net.on("dialog", function(d)
 		if opt.ui == "store" then
 			Shell.openPanel("shop", { store = opt.store })
 		elseif opt.ui == "app" then
-			Shell.openPanel(opt.app)
+			Shell.openPanel(opt.app, opt.params)
+		elseif opt.call then
+			Net.call(opt.call, opt.payload or {})
 		end
 	end)
 end)

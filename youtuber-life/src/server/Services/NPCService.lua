@@ -79,16 +79,32 @@ local function buildDummy(name)
 	return m
 end
 
-local function spawnNpc(point, index)
+-- Crea el modelo anclado de un personaje (avatar o maniquí de respaldo). También lo usa FriendService.
+function NPC.makeModel(name, shirt, pants)
 	local m
 	local ok = pcall(function()
 		local desc = Instance.new("HumanoidDescription")
+		if shirt then
+			desc.TorsoColor = shirt
+			desc.LeftArmColor = shirt
+			desc.RightArmColor = shirt
+		end
+		if pants then
+			desc.LeftLegColor = pants
+			desc.RightLegColor = pants
+		end
 		m = Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
 	end)
 	if not ok or not m then
-		m = buildDummy(point.Name)
+		m = buildDummy(name)
+		if shirt and m:FindFirstChild("Torso") then
+			m.Torso.Color = shirt
+		end
+		if pants and m:FindFirstChild("Legs") then
+			m.Legs.Color = pants
+		end
 	end
-	m.Name = point.Name
+	m.Name = name
 	for _, p in ipairs(m:GetDescendants()) do
 		if p:IsA("BasePart") then
 			p.Anchored = true
@@ -96,9 +112,14 @@ local function spawnNpc(point, index)
 	end
 	local hum = m:FindFirstChildOfClass("Humanoid")
 	if hum then
-		hum.DisplayName = point.Name
+		hum.DisplayName = name
 		hum.NameDisplayDistance = 40
 	end
+	return m, hum
+end
+
+local function spawnNpc(point, index)
+	local m = NPC.makeModel(point.Name)
 	m.Parent = workspace:FindFirstChild("City") or workspace
 	local look = Vector3.new(point.Look.X, point.Pos.Y + 3, point.Look.Z)
 	local pos = Vector3.new(point.Pos.X, point.Pos.Y + 3, point.Pos.Z)

@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local QuestDefs = require(Shared.QuestDefs)
 local Util = require(Shared.Util)
+local FriendData = require(Shared.FriendData)
 
 local Quest = {}
 local S
@@ -41,6 +42,14 @@ function Quest.valueOf(data, key)
 		return Util.count(data.Visited.Collectibles or {})
 	elseif key == "destinations_visited" then
 		return Util.count(data.Visited.Destinations)
+	elseif key == "friends_made" then
+		local n = 0
+		for _, f in pairs(data.Friends or {}) do
+			if FriendData.levelOf(f.Pts) >= 3 then
+				n = n + 1
+			end
+		end
+		return n
 	elseif key == "properties_owned" then
 		local n = 0
 		for _, rec in pairs(data.Properties or {}) do

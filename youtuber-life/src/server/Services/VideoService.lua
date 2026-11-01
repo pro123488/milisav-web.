@@ -211,7 +211,7 @@ function Video.recordScene(player, p)
 		goldenHour = F.isGoldenHour(hour),
 		weather = S.Time.Weather,
 		spotTags = spot.Tags,
-		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0) + (S.Pet and S.Pet.interestBonus(player) or 0),
+		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0) + (S.Pet and S.Pet.interestBonus(player) or 0) + (S.Friend and S.Friend.interestBonus(player, rec.Pid) or 0),
 		spotNoise = spot.Noise,
 		busy = spot.Busy,
 		categoryTags = cat.Tags,
@@ -259,6 +259,9 @@ function Video.recordScene(player, p)
 	S.Progress.addXp(player, S.Progress.Xp.Scene)
 	S.Events.onScene(player, spot)
 	S.Jobs.onScene(player, scene)
+	if S.Friend then
+		S.Friend.onScene(player, scene, rec.Pid)
+	end
 	if S.Needs then
 		S.Needs.spend(player, 1)
 	end
