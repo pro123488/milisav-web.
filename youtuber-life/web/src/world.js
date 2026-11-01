@@ -76,6 +76,7 @@ function resolveCollision(p, r) {
       }
     }
   }
+  if (W.freeZone && W.freeZone(p)) return; // interiores fuera del mapa (realty.js)
   p.x = clamp(p.x, -MAPW / 2 - 120, MAPW / 2 + 120); p.z = clamp(p.z, -MAPH / 2 - 120, MAPH / 2 + 120);
 }
 
