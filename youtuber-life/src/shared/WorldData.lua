@@ -163,6 +163,7 @@ district({ Id = "industrial", Name = "Distrito industrial", Col = 1, Row = 5, Gr
 district({ Id = "secondhand", Name = "Zona de tiendas de segunda mano", Col = 2, Row = 5, Ground = { 110, 95, 80 }, Material = "Brick",
 	Style = "shop", Count = 6, Palette = { { 160, 120, 90 }, { 120, 150, 120 } }, Trees = 4,
 	Tags = { "shop", "cheap" }, Noise = 4, Busy = 5,
+	Specials = { { Type = "usedstore", Name = "Rastro & Retro", X = 70, Z = -70 } },
 	Spots = { { Name = "Rastro de los domingos", X = 0, Z = 0, Tags = { "shop", "cheap" }, Interest = 9 },
 		{ Name = "Tienda de antigüedades", X = -70, Z = -60, Tags = { "shop", "cheap", "tourism" }, Interest = 8 } } })
 district({ Id = "dealers", Name = "Distrito de concesionarios", Col = 3, Row = 5, Ground = { 80, 80, 85 }, Material = "Asphalt",

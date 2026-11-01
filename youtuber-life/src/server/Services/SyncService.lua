@@ -56,6 +56,7 @@ function Sync.build(player)
 		MaxProps = require(Shared.PropertyData).maxProperties(data.Level),
 		Returnable = {},
 		SellValues = {},
+		Trade = S.Trade and S.Trade.view(player) or nil,
 	}
 	for rigId in pairs(data.Rigs) do
 		view.Derived.RigStats[rigId] = S.Computer.rigStats(player, rigId)

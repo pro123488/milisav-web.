@@ -69,6 +69,9 @@ local tracks = {
 	{ "meals", "Come %s veces", { 1, 25, 100 }, 30, 15, {} },
 	{ "cooked", "Cocina %s platos", { 1, 10, 40 }, 60, 30, { [3] = "Chef casero" } },
 	{ "restaurant_meals", "Come %s veces en el restaurante", { 1, 10 }, 40, 20, {} },
+	{ "used_bought", "Compra %s artículos de segunda mano", { 1, 10 }, 60, 30, { [2] = "Cazagangas" } },
+	{ "collectibles", "Consigue %s coleccionables distintos", { 1, 4, 8 }, 150, 70, { [3] = "Gran coleccionista" } },
+	{ "trades", "Completa %s intercambios con otros jugadores", { 1, 10 }, 100, 50, { [2] = "Negociante" } },
 }
 
 QuestDefs.TrackNames = {
@@ -82,11 +85,12 @@ QuestDefs.TrackNames = {
 	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 	sponsors_done = "Patrocinios", events_joined = "Eventos", events_goals = "Objetivos de eventos", lives = "Directos",
 	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
+	used_bought = "Segunda mano", collectibles = "Coleccionables", trades = "Intercambios",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
 local singular = {
-	{ "fotos nocturnas", "foto nocturna" }, { "proyectos", "proyecto" }, { "vídeos", "vídeo" }, { "veces", "vez" }, { "escenas", "escena" }, { "fotografías", "fotografía" }, { "miniaturas", "miniatura" },
+	{ "fotos nocturnas", "foto nocturna" }, { "coleccionables distintos", "coleccionable" }, { "intercambios con otros jugadores", "intercambio con otro jugador" }, { "proyectos", "proyecto" }, { "vídeos", "vídeo" }, { "veces", "vez" }, { "escenas", "escena" }, { "fotografías", "fotografía" }, { "miniaturas", "miniatura" },
 	{ "artículos", "artículo" }, { "cámaras distintas", "cámara" }, { "computadores", "computador" }, { "pruebas", "prueba" },
 	{ "comparativas", "comparativa" }, { "reseñas", "reseña" }, { "encargos", "encargo" }, { "distritos", "distrito" },
 	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos", "contrato" },
