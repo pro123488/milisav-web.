@@ -64,6 +64,7 @@ UI.register("studio", { name: "ViewTube Studio", icon: "▶️", order: 0, surfa
         row(h("span", null, "Formato:"), select(arr(D.Video.Formats).map(x => [x.Id, x.Name]), f.format || "video", v => { f.format = v; ctx.paused = false; ctx.render(); })),
         sub((FORMATS[f.format || "video"] || {}).Desc || ""),
         f.format === "series" ? h("input", { value: f.series || "", placeholder: "Nombre de la serie", oninput: e => f.series = e.target.value }) : null,
+        ...(UI.pubExtras || []).map(fn => fn(f, p, ctx)),
         row(h("span", null, "Patrocinio:"), select([["", "Sin patrocinio"]].concat(Object.entries(S.sponsors.active).map(([id, c2]) => [id, "🤝 " + c2.brandName + " · " + catName(c2.cat) + " Q" + c2.minQ])), f.sponsor || "", v => f.sponsor = v)),
         h("label", { class: "small" }, h("input", { type: "checkbox", style: "width:auto", onchange: e => f.unlisted = e.target.checked }), " Oculto (pocas visitas)"),
         row(UI.btn("🚀 Publicar", () => { const r = UI.res(G.publish(p.id, f)); if (r.ok) { st.pub = null; ctx.paused = false; G.changed(); } }, "primary"), UI.btn("Cancelar", () => { st.pub = null; ctx.paused = false; ctx.render(); })));
@@ -330,6 +331,7 @@ UI.register("jobs", { name: "Empleo", icon: "💼", order: 12, surfaces: ALL, w:
     else if (j.type === "photo") c.append(sub("Foto «" + j.modeName + "» en " + j.spotName + "."), UI.btn("🚕 Taxi", () => UI.res(G.taxiSpot(j.spot))));
     else if (j.type === "camera") c.append(sub("Graba 2 escenas de calidad " + j.minQ + "+ en " + j.spotName + " (" + (j.count || 0) + "/2)."), UI.btn("🚕 Taxi", () => UI.res(G.taxiSpot(j.spot))));
     else if (j.type === "thumbs") c.append(sub("Miniatura con «" + j.keyword + "» y " + j.minScore + "+ puntos (app Miniaturas)."));
+    else if (UI.jobViews && UI.jobViews[j.type]) UI.jobViews[j.type](c, j, st, ctx);
     c.append(UI.btn("Cancelar encargo", () => { S.job = null; G.changed(); }, "danger")); el.append(c);
   }
   el.append(h("h3", null, "💼 Empleos"));
@@ -365,7 +367,7 @@ UI.register("events", { name: "Eventos", icon: "🎪", order: 15, surfaces: ALL,
   el.append(h("h3", null, "🎯 Objetivos"), ...e.Goals.map((g, i) => h("div", { class: pr.done[i] ? "okc" : "" }, (pr.done[i] ? "✔ " : "○ ") + goalText(g) + " — $" + g.Reward)));
   el.append(h("h3", null, "📅 Próximos"), ...[1, 2, 3, 4, 5, 6].map(i => sub("Día " + (S.day + i) + " · " + D.Events[((S.day + i) * 7) % D.Events.length].Name)));
 } });
-function goalText(g) { return g.Type === "checkin" ? "Ve al lugar del evento" : g.Type === "photo" ? "Foto en el lugar con calidad " + g.MinQ + "+" : g.Type === "scene" ? "Graba " + g.N + " escenas en el lugar" : g.Type === "publish" ? "Publica " + g.N + " vídeo(s) hoy" + (g.MinEdit ? " con edición " + g.MinEdit + "+" : "") + (g.Cats ? " (categoría del evento)" : "") : "Decoración " + g.Min + "+ (solo en Roblox)"; }
+function goalText(g) { return g.Type === "checkin" ? "Ve al lugar del evento" : g.Type === "photo" ? "Foto en el lugar con calidad " + g.MinQ + "+" : g.Type === "scene" ? "Graba " + g.N + " escenas en el lugar" : g.Type === "publish" ? "Publica " + g.N + " vídeo(s) hoy" + (g.MinEdit ? " con edición " + g.MinEdit + "+" : "") + (g.Cats ? " (categoría del evento)" : "") : "Decoración " + g.Min + "+ dentro de una de tus propiedades (🏘 Inmobiliaria)"; }
 UI.register("sponsors", { name: "Patrocinios", icon: "🤝", order: 16, surfaces: ALL, w: 820, h: 560, build(el, ctx) {
   G.sponsorOffers(); const sp = S.sponsors;
   el.append(h("div", { class: "gold" }, "Reputación comercial " + S.bizRep + "/100 · Reputación " + S.rep + "/100"), h("h3", null, "📋 Contratos activos"));

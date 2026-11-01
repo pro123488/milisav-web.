@@ -102,7 +102,7 @@ P.update = function (dt) {
   // cámara
   const target = new THREE.Vector3(o.position.x, o.position.y + 5, o.position.z);
   if (P.camOverride) { W.camera.position.lerp(P.camOverride.pos, 0.2); W.camera.lookAt(P.camOverride.look); return; }
-  const indoor = W.inHome(o.position) || W.storeAt(o.position) || W.placeAt(o.position, "cafe") || W.placeAt(o.position, "bank") || W.placeAt(o.position, "restaurant");
+  const indoor = W.inHome(o.position) || W.storeAt(o.position) || W.placeAt(o.position, "cafe") || W.placeAt(o.position, "bank") || W.placeAt(o.position, "restaurant") || (W.isIndoor && W.isIndoor(o.position));
   let dist = indoor ? Math.min(P.dist, 12) : P.dist;
   const dirx = Math.sin(P.yaw), dirz = Math.cos(P.yaw);
   for (let s = 1.5; s < dist; s += 0.75) {

@@ -92,5 +92,5 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  window.YT = { S: () => S, G, W, P, UI, start: () => { const m = document.getElementById("menu"); if (m) start(m); } };
+  window.YT = Object.assign(window.YT || {}, { S: () => S, G, W, P, UI, start: () => { const m = document.getElementById("menu"); if (m) start(m); } });
 })();
