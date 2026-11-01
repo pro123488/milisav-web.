@@ -33,6 +33,24 @@ function World.Init(services)
 	S = services
 end
 
+-- ¿Está el jugador cerca de un edificio especial de cierto tipo? (tienda, concesionario, gasolinera...)
+function World.nearSpecial(player, specialType, radius)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+	radius = radius or 45
+	for _, sp in ipairs(World.Specials) do
+		if sp.Type == specialType then
+			local dx, dz = root.Position.X - sp.WX, root.Position.Z - sp.WZ
+			if dx * dx + dz * dz <= radius * radius then
+				return sp
+			end
+		end
+	end
+	return nil
+end
+
 ---------------------------------------------------------------------------
 -- Utilidades de construcción
 ---------------------------------------------------------------------------
