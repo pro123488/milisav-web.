@@ -226,7 +226,7 @@ function Video.recordScene(player, p)
 		Spot = spot.Id,
 		SpotName = spot.Name,
 		District = spot.District,
-		Q = result.Quality,
+		Q = math.min(100, Util.round(result.Quality + (S.Company and S.Company.sceneBonus(player) or 0), 1)),
 		Img = result.Image,
 		Aud = result.Audio,
 		Light = result.Lighting,
@@ -654,6 +654,19 @@ function Video.publish(player, p)
 		contract, contractId = c, p.sponsor
 		labels[#labels + 1] = "Contenido patrocinado"
 	end
+	-- Encargo de un cliente de tu empresa
+	local client, clientId = nil, nil
+	if type(p.client) == "string" and p.client ~= "" then
+		if not S.Company then
+			return false, "Las empresas no están disponibles."
+		end
+		local k, err = S.Company.checkClient(player, p.client, proj, res.Final)
+		if not k then
+			return false, "No cumple el encargo del cliente: " .. err
+		end
+		client, clientId = k, p.client
+		labels[#labels + 1] = "Producción para cliente"
+	end
 
 	data.Counters.video_id = (data.Counters.video_id or 0) + 1
 	local vid = "v" .. data.Counters.video_id
@@ -730,6 +743,7 @@ function Video.publish(player, p)
 		Series = seriesName,
 		Episode = episode,
 		Sponsor = contract and contract.Brand or nil,
+		Client = client and S.Company.clientLabel(client) or nil,
 	}
 	table.insert(data.Videos, 1, video)
 	while #data.Videos > Config.MaxVideosKept do
@@ -757,6 +771,9 @@ function Video.publish(player, p)
 	end
 	if contractId then
 		S.Sponsor.complete(player, contractId, res.Final)
+	end
+	if clientId then
+		S.Company.completeClient(player, clientId, res.Final, vid)
 	end
 	S.Events.onPublish(player, video)
 	data.Counters.published = (data.Counters.published or 0) + 1
@@ -1082,7 +1099,9 @@ function Video.Start()
 		end
 		local stats = S.Computer.sessionStats(player)
 		local res, cx = Video.evaluate(player, proj, stats)
-		local secs = math.floor(F.exportSeconds(cx, stats, stats.EditSpeed, stats.Comfort) * (S.Needs and S.Needs.exportMult(player) or 1) + 0.5)
+		-- Editor de tu empresa: exportación más rápida
+		local secs = math.floor(F.exportSeconds(cx, stats, stats.EditSpeed, stats.Comfort) * (S.Needs and S.Needs.exportMult(player) or 1) * (S.Company and S.Company.exportMult(player) or 1) + 0.5)
+		secs = math.max(1, secs)
 		if p.useToken and data.ExportTokens > 0 then
 			data.ExportTokens = data.ExportTokens - 1
 			secs = 1
@@ -1156,6 +1175,13 @@ function Video.Start()
 			photoMatches = photo and cat and F.overlap(photo.Tags, cat.Tags) > 0 or false,
 			keywordInText = kw ~= nil and fText:lower():find(kw, 1, true) ~= nil,
 		})
+		-- Diseñador de tu empresa: miniaturas mejores
+		if S.Company then
+			local tb = S.Company.thumbBonus(player)
+			if tb > 0 then
+				score.Score = math.min(100, Util.round(score.Score + tb, 1))
+			end
+		end
 		if Util.count(data.Thumbnails) >= Config.MaxThumbnails then
 			-- eliminar la más antigua
 			local oldestId, oldestT = nil, math.huge

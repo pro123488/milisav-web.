@@ -69,6 +69,7 @@ DataService.Template = {
 	Posts = {},
 	Series = {},
 	LastLive = 0,
+	Company = {},
 	LastPost = 0,
 	Uid = 0,
 	CreatedAt = 0,

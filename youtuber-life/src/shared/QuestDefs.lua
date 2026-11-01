@@ -69,6 +69,9 @@ local tracks = {
 	{ "meals", "Come %s veces", { 1, 25, 100 }, 30, 15, {} },
 	{ "cooked", "Cocina %s platos", { 1, 10, 40 }, 60, 30, { [3] = "Chef casero" } },
 	{ "restaurant_meals", "Come %s veces en el restaurante", { 1, 10 }, 40, 20, {} },
+	{ "company_created", "Funda %s empresa", { 1 }, 500, 200, { [1] = "Empresario" } },
+	{ "employees_hired", "Contrata a %s empleados", { 1, 5, 15 }, 150, 60, { [3] = "Jefe de equipo" } },
+	{ "client_contracts", "Cumple %s contratos de clientes", { 1, 5, 20 }, 200, 80, { [2] = "Productora de confianza", [3] = "Magnate de los medios" } },
 }
 
 QuestDefs.TrackNames = {
@@ -82,6 +85,7 @@ QuestDefs.TrackNames = {
 	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 	sponsors_done = "Patrocinios", events_joined = "Eventos", events_goals = "Objetivos de eventos", lives = "Directos",
 	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
+	company_created = "Empresa", employees_hired = "Empleados contratados", client_contracts = "Contratos de clientes",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
@@ -89,7 +93,7 @@ local singular = {
 	{ "fotos nocturnas", "foto nocturna" }, { "proyectos", "proyecto" }, { "vídeos", "vídeo" }, { "veces", "vez" }, { "escenas", "escena" }, { "fotografías", "fotografía" }, { "miniaturas", "miniatura" },
 	{ "artículos", "artículo" }, { "cámaras distintas", "cámara" }, { "computadores", "computador" }, { "pruebas", "prueba" },
 	{ "comparativas", "comparativa" }, { "reseñas", "reseña" }, { "encargos", "encargo" }, { "distritos", "distrito" },
-	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos", "contrato" },
+	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos de clientes", "contrato de un cliente" }, { "contratos", "contrato" }, { "empleados", "empleado" },
 	{ "eventos", "evento" }, { "directos", "directo" }, { "shorts", "short" }, { "podcasts", "podcast" }, { "documentales", "documental" },
 	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
 	{ "objetivos", "objetivo" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" },

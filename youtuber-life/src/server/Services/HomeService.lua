@@ -196,6 +196,9 @@ function Home.onNewDay(player)
 	h.PlayDays = h.PlayDays + 1
 	pcall(S.Property.onNewDay, player)
 	pcall(S.Sponsor.onNewDay, player)
+	if S.Company then
+		pcall(S.Company.onNewDay, player)
+	end
 	if data.HomeProperty ~= "" then
 		-- vive en otra propiedad: no se cobra la habitación de la residencia
 		h.NextDue = h.PlayDays + Config.RentPeriodDays

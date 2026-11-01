@@ -605,17 +605,174 @@ end
 assert(data.Job.Type == nil and (data.Counters.job_camera or 0) == 1, "encargo de camarógrafo completado")
 must(player, "Video.StopRecording", {})
 
+-- EMPRESA DE PRODUCCIÓN: fundación, cuenta propia, empleados, salarios, efectos y clientes
+local Company = req(ServerScriptService.Server.Services.CompanyService)
+local LifeData = req(Shared.LifeData)
+local CUtil = req(Shared.Util)
+data.Money = 60000
+data.Level = 5
+local subsCo = data.Channel.Subs
+data.Channel.Subs = 100
+local noCo = call(player, "Company.Create", { name = "Producciones Faro", emoji = 1, color = 2 })
+assert(not noCo.ok and data.Company.Name == nil, "sin nivel 10 ni 5.000 suscriptores no se funda la empresa")
+assert(not call(player, "Company.Deposit", { amount = 100 }).ok, "sin empresa no hay cuenta de empresa")
+data.Level = 10
+assert(not call(player, "Company.Create", { name = "Producciones Faro", emoji = 99, color = 2 }).ok, "logotipo no válido")
+assert(not call(player, "Company.Create", { name = "P", emoji = 1, color = 2 }).ok, "nombre demasiado corto")
+must(player, "Company.Create", { name = "Producciones Faro", emoji = 1, color = 2 })
+data.Channel.Subs = subsCo
+local co = data.Company
+assert(co.Name == "Producciones Faro" and co.Funds == 0 and co.Rep == 50 and data.Counters.company_created == 1, "empresa fundada")
+assert(not call(player, "Company.Create", { name = "Otra empresa", emoji = 1, color = 1 }).ok, "solo una empresa")
+assert(#co.Candidates == LifeData.CandidatesPerDay and #co.Offers == LifeData.ClientOffersPerDay, "candidatos y ofertas del día")
+local sameCands = Company.candidatesFor(player, data.Home.PlayDays)
+for i, cand in ipairs(co.Candidates) do
+	assert(sameCands[i].Name == cand.Name and sameCands[i].Skill == cand.Skill and sameCands[i].Role == cand.Role, "candidatos deterministas")
+	assert(cand.Skill >= 30 and cand.Skill <= 95, "habilidad 30-95")
+	assert(cand.Salary == math.floor((80 + cand.Skill * 4) * LifeData.RoleById[cand.Role].Pay + 0.5), "salario semanal según habilidad y puesto")
+end
+-- Cuenta propia de la empresa
+local mC = data.Money
+must(player, "Company.Deposit", { amount = 8000 })
+assert(co.Funds == 8000 and mC - data.Money == 8000, "ingreso en la cuenta de la empresa")
+assert(not call(player, "Company.Deposit", { amount = 10000000 }).ok and co.Funds == 8000, "no se ingresa más de lo que tienes")
+assert(not call(player, "Company.Deposit", { amount = -5 }).ok, "cantidad negativa rechazada")
+must(player, "Company.Withdraw", { amount = 1000 })
+assert(co.Funds == 7000 and data.Money == mC - 7000, "retirada a tu dinero")
+assert(not call(player, "Company.Withdraw", { amount = 999999 }).ok and co.Funds == 7000, "no se retira más de lo que tiene la empresa")
+-- Encargo de cliente controlado y otro de categoría distinta
+co.OffersDay = data.Home.PlayDays
+co.Offers = {
+	{ Id = "ktest", Client = 1, Category = "vlog", MinQ = 5, Days = 3, Pay = 2000, Bonus = 400 },
+	{ Id = "kfood", Client = 7, Category = "food", MinQ = 5, Days = 1, Pay = 900, Bonus = 100 },
+}
+must(player, "Company.AcceptClient", { id = "ktest" })
+must(player, "Company.AcceptClient", { id = "kfood" })
+assert(co.Active.ktest and co.Active.ktest.DueDay == data.Home.PlayDays + 3 and #co.Offers == 0, "encargos aceptados")
+assert(not call(player, "Company.AcceptClient", { id = "ktest" }).ok, "no se acepta dos veces")
+-- Proyecto para el cliente: grabar en casa, importar, editar y exportar SIN editor
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+M.stepBackground()
+data.Needs.Energy = 100
+local cpid2 = must(player, "Video.CreateProject", { category = "vlog", name = "Encargo de la panadería" }).data.pid
+must(player, "Video.StartRecording", { pid = cpid2 })
+for i = 1, 4 do
+	M.clock = M.clock + 5
+	must(player, "Video.RecordScene", { shot = i == 1 and "talking" or "wide" })
+end
+must(player, "Video.StopRecording", {})
+Computer.onPrompt(player, room.DeskPrompt.Parent, "home", player.UserId)
+must(player, "Video.Import", { pid = cpid2 })
+local tlc = {}
+for _, scx in ipairs(data.Projects[cpid2].Scenes) do
+	tlc[#tlc + 1] = { k = "s", id = scx.Id, trim = 1, tr = "cut" }
+end
+must(player, "Video.SaveEdit", { pid = cpid2, edit = { Timeline = tlc } })
+assert(Company.exportMult(player) == 1, "sin editor no hay efecto")
+local exA = must(player, "Video.Export", { pid = cpid2 })
+M.time = M.time + exA.data.secs + 1
+-- Contratar: editor (candidato controlado) y fotógrafo; el nivel 1 permite 2 empleados
+co.Candidates[1] = { Id = "ctest", Name = "Ana Prueba", Role = "editor", Skill = 95, Salary = LifeData.salaryFor(95, "editor") }
+co.Candidates[2] = { Id = "cfoto", Name = "Leo Foto", Role = "photographer", Skill = 50, Salary = LifeData.salaryFor(50, "photographer") }
+must(player, "Company.Hire", { id = "ctest" })
+assert(not call(player, "Company.Hire", { id = "ctest" }).ok, "no se contrata dos veces al mismo candidato")
+must(player, "Company.Hire", { id = "cfoto" })
+assert(CUtil.count(co.Staff) == 2 and data.Counters.employees_hired == 2, "dos empleados contratados")
+assert(Company.maxStaff(player) == 2, "productora pequeña: 2 empleados")
+local third = call(player, "Company.Hire", { id = co.Candidates[1].Id })
+assert(not third.ok and third.msg:find("Plantilla"), "máximo de empleados del nivel: " .. tostring(third.msg))
+assert(LifeData.companyMaxStaff(co, { pro_studio = { Mode = "rent" } }, req(Shared.PropertyData).ById) == 4, "un estudio o local da +2 empleados")
+local editorId, fotoId
+for id, e in pairs(co.Staff) do
+	if e.Role == "editor" then
+		editorId = id
+	else
+		fotoId = id
+	end
+end
+-- Efecto del editor en la exportación
+assert(Company.exportMult(player) < 0.85, "el editor acelera la exportación")
+data.Needs.Energy = 100
+local exB = must(player, "Video.Export", { pid = cpid2 })
+assert(exB.data.secs < exA.data.secs, "exportación más rápida con editor: " .. exA.data.secs .. " -> " .. exB.data.secs)
+M.time = M.time + exB.data.secs + 1
+-- Despedir con indemnización de 1 semana (desde la empresa)
+local fFire, mFire = co.Funds, data.Money
+must(player, "Company.Fire", { id = fotoId })
+assert(co.Staff[fotoId] == nil and fFire - co.Funds == LifeData.salaryFor(50, "photographer") and data.Money == mFire, "indemnización pagada por la empresa")
+-- Publicar para el cliente: categoría equivocada, encargo inexistente y el correcto
+local wrongCat = call(player, "Video.Publish", { pid = cpid2, title = "Un día en la panadería", client = "kfood" })
+assert(not wrongCat.ok and wrongCat.msg:find("Restaurantes"), "el encargo exige su categoría: " .. tostring(wrongCat.msg))
+assert(not call(player, "Video.Publish", { pid = cpid2, title = "Un día en la panadería", client = "nope" }).ok, "encargo inexistente")
+local fundsP, repP = co.Funds, co.Rep
+must(player, "Video.Publish", { pid = cpid2, title = "Un día en la panadería La Espiga", client = "ktest" })
+assert(co.Active.ktest == nil and co.Contracts == 1 and data.Counters.client_contracts == 1, "encargo cumplido")
+assert(co.Funds - fundsP >= 2000 and co.Rep > repP, "el cliente paga a la empresa y sube la reputación")
+assert(data.Videos[1].Client == LifeData.Clients[1].Name, "el vídeo queda marcado como encargo")
+-- Día de pago: la nómina sale de la cuenta de la empresa; el encargo vencido baja la reputación
+local salary = co.Staff[editorId].Salary
+local fundsS, repS = co.Funds, co.Rep
+data.Home.PlayDays = co.NextPay - 1
+Home.onNewDay(player)
+assert(fundsS - co.Funds == salary, "nómina pagada desde la empresa: " .. (fundsS - co.Funds) .. " de " .. salary)
+assert(co.Staff[editorId].Missed == 0 and co.NextPay == data.Home.PlayDays + 7, "próxima nómina en 7 días")
+assert(co.Active.kfood == nil and co.Rep == repS - 10 and co.Failed == 1, "incumplir un encargo baja la reputación de empresa")
+-- Impago: sin fondos baja la moral y tras 2 impagos el empleado se va (nunca se toca el dinero personal)
+if co.Funds > 0 then
+	must(player, "Company.Withdraw", { amount = co.Funds })
+end
+data.Money = 12345
+local morale0 = co.Staff[editorId].Morale
+data.Home.PlayDays = co.NextPay
+Company.onNewDay(player)
+assert(data.Money == 12345, "el salario nunca sale de tu dinero personal")
+assert(co.Staff[editorId] and co.Staff[editorId].Missed == 1 and co.Staff[editorId].Morale < morale0, "primer impago: baja la moral")
+data.Home.PlayDays = co.NextPay
+Company.onNewDay(player)
+assert(co.Staff[editorId] == nil and data.Money == 12345, "tras 2 impagos el empleado se va")
+assert(Company.exportMult(player) == 1 and co.Funds == 0, "sin editor no hay efecto")
+-- Resto de efectos reales
+local function fakeStaff(role, skill)
+	co.Seq = co.Seq + 1
+	local id = "e" .. co.Seq
+	co.Staff[id] = { Id = id, N = co.Seq, Name = "Prueba " .. role, Role = role, Skill = skill, Salary = 100, Morale = 100, Missed = 0, Since = data.Home.PlayDays }
+	return id
+end
+local fx0 = { Company.sceneBonus(player), Company.thumbBonus(player) }
+local ids = { fakeStaff("assistant", 60), fakeStaff("manager", 60), fakeStaff("technician", 60), fakeStaff("camera", 95), fakeStaff("designer", 95), fakeStaff("photographer", 80) }
+assert(fx0[1] == 0 and fx0[2] == 0 and Company.sceneBonus(player) == 4 and Company.thumbBonus(player) == 5, "camarógrafo +4 y diseñador +5")
+data.Needs.Energy = 50
+Needs.spend(player, 4)
+assert(math.abs(data.Needs.Energy - 47) < 0.01, "el asistente reduce el gasto de energía: " .. data.Needs.Energy)
+assert(Company.repairMult(player) == 0.5, "técnico: reparaciones a mitad de precio")
+local spC = Sponsor.state(data)
+spC.OffersDay = -1
+spC.Offers = {}
+Sponsor.refreshOffers(player)
+assert(#spC.Offers == req(Shared.SponsorData).OffersPerDay + 1, "el gestor consigue una oferta de patrocinio más")
+local fPhoto = co.Funds
+data.Home.PlayDays = data.Home.PlayDays + 1
+Company.onNewDay(player)
+assert(co.Funds - fPhoto == 160, "el fotógrafo vende fotos cada día: " .. (co.Funds - fPhoto))
+for _, id in ipairs(ids) do
+	co.Staff[id] = nil
+end
+-- Logros de empresa
+Quest.check(player)
+assert(data.Quests.Completed["company_created_1"] and data.Quests.Completed["employees_hired_1"] and data.Quests.Completed["client_contracts_1"], "logros de empresa")
+data.Money = 50000
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]
 assert(saved and saved.__lock == nil, "el bloqueo de sesión debe liberarse al salir")
-assert(#saved.Videos == 2, "los vídeos deben quedar guardados")
+assert(#saved.Videos == #data.Videos and #data.Videos >= 2, "los vídeos deben quedar guardados")
 
 -- Recarga: los datos persisten
 local p2 = M.newPlayer(Players, 101, "Tester")
 Players.PlayerAdded:Fire(p2)
 local d2 = Data.get(p2)
-assert(d2 and #d2.Videos == 2 and d2.Channel.TotalViews > 0, "los datos se recuperan")
+assert(d2 and #d2.Videos == #data.Videos and d2.Channel.TotalViews > 0, "los datos se recuperan")
 
 -- Bloqueo de sesión de otro servidor: no se sobrescribe y se expulsa con mensaje claro (servidor real)
 M.store["u_202"] = { Money = 999999, __lock = { Job = "otro-servidor", T = M.time } }

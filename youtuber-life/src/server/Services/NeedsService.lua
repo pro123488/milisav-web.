@@ -45,6 +45,10 @@ function Needs.change(player, energy, mood)
 end
 
 function Needs.spend(player, amount)
+	-- Asistente de tu empresa: gastas menos energía
+	if S.Company and amount > 0 then
+		amount = amount * S.Company.energyMult(player)
+	end
 	Needs.change(player, -amount, 0)
 end
 

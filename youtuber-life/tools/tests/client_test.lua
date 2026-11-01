@@ -278,6 +278,32 @@ if not okB then
 	errors[#errors + 1] = "construcción: " .. tostring(errB)
 end
 
+-- App Empresa con empresa fundada: todas las pestañas y botones
+local okC, errC = pcall(function()
+	local Data = senv.require(services.ServerScriptService.Server.Services.DataService)
+	local d = Data.get(player)
+	d.Level = 10
+	d.Money = 50000
+	assert(call("Company.Create", { name = "Estudio Cliente", emoji = 2, color = 3 }).ok, "fundar empresa")
+	assert(call("Company.Deposit", { amount = 20000 }).ok, "ingresar fondos")
+	assert(call("Company.Hire", { id = d.Company.Candidates[1].Id }).ok, "contratar")
+	assert(call("Company.AcceptClient", { id = d.Company.Offers[1].Id }).ok, "aceptar encargo")
+	M.stepBackground()
+	local app = Registry.get("company")
+	for _, tabId in ipairs({ "panel", "staff", "clients", "report" }) do
+		local container = M.newInstance("Frame", { Name = "TestContainer" })
+		container.Parent = gui
+		app.build(container, { kind = "panel", params = { tab = tabId }, close = function() end, open = function() end, onState = function() end, session = function()
+			return State.Data.Derived.Session
+		end })
+		clickAll(container, "company@" .. tabId, 120)
+		container:Destroy()
+	end
+end)
+if not okC then
+	errors[#errors + 1] = "empresa: " .. tostring(errC)
+end
+
 if #errors > 0 then
 	local shown = {}
 	for i = 1, math.min(12, #errors) do

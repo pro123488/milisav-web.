@@ -52,7 +52,10 @@ function Sponsor.refreshOffers(player)
 		return
 	end
 	local subs = data.Channel.Subs
-	for i = 1, SponsorData.OffersPerDay do
+	-- Gestor de tu empresa: +1 oferta y mejor pago
+	local extra = S.Company and S.Company.sponsorExtra(player) or 0
+	local payMult = S.Company and S.Company.sponsorMult(player) or 1
+	for i = 1, SponsorData.OffersPerDay + extra do
 		local b = eligible[rng:NextInteger(1, #eligible)]
 		local cat = b.Cats[rng:NextInteger(1, #b.Cats)]
 		local product = (#b.Products > 0 and rng:NextNumber() < 0.75) and b.Products[rng:NextInteger(1, #b.Products)] or nil
@@ -61,7 +64,7 @@ function Sponsor.refreshOffers(player)
 		if def then
 			kind = def.Price >= 700 and "loan" or "gift"
 		end
-		local pay = math.floor((120 + 6 * math.sqrt(subs)) * (1 + data.Reputation / 100) * (0.5 + data.BizRep / 100) * (kind == "loan" and 1.3 or 1) * rng:NextNumber(0.85, 1.15))
+		local pay = math.floor((120 + 6 * math.sqrt(subs)) * (1 + data.Reputation / 100) * (0.5 + data.BizRep / 100) * (kind == "loan" and 1.3 or 1) * payMult * rng:NextNumber(0.85, 1.15))
 		sp.Seq = sp.Seq + 1
 		table.insert(sp.Offers, {
 			Id = "o" .. sp.Seq,

@@ -344,7 +344,9 @@ function Inventory.Start()
 		if rec.Cond >= 100 then
 			return false, "No necesita reparación."
 		end
-		local cost = math.max(5, math.floor(def.Price * 0.15 * (100 - rec.Cond) / 50 + 0.5))
+		-- Técnico de tu empresa: reparaciones a mitad de precio
+		local mult = S.Company and S.Company.repairMult(player) or 1
+		local cost = math.max(5, math.floor(def.Price * 0.15 * (100 - rec.Cond) / 50 * mult + 0.5))
 		if not S.Economy.spend(player, cost, "Reparaciones", "Reparación de " .. def.Name) then
 			return false, "La reparación cuesta $" .. cost .. "."
 		end

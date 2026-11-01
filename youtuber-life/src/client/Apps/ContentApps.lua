@@ -14,6 +14,7 @@ local WorldData = require(Shared.WorldData)
 local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
 local F = require(Shared.VideoFormulas)
+local LifeData = require(Shared.LifeData)
 local T = UI.Theme
 
 local apps = {}
@@ -960,6 +961,25 @@ function Studio.build(container, ctx)
 					UI.cycle(card, "Patrocinio", cNames, cIdx, function(i)
 						form.sponsor = contracts[i].Id or nil
 					end, { ValueWidth = 260 })
+					-- Encargos de clientes de tu empresa
+					local company = data.Company
+					if type(company) == "table" and type(company.Name) == "string" then
+						local jobs = { { Id = false, Name = "Sin cliente" } }
+						for kid, k in pairs(company.Active or {}) do
+							local cl = LifeData.Clients[k.Client]
+							jobs[#jobs + 1] = { Id = kid, Name = "🏢 " .. (cl and cl.Name or "Cliente") .. " · " .. catName(k.Category) .. " Q" .. k.MinQ }
+						end
+						local kNames, kIdx = {}, 1
+						for i, k in ipairs(jobs) do
+							kNames[i] = k.Name
+							if k.Id == (form.client or false) then
+								kIdx = i
+							end
+						end
+						UI.cycle(card, "Cliente de la empresa", kNames, kIdx, function(i)
+							form.client = jobs[i].Id or nil
+						end, { ValueWidth = 260, LabelWidth = 150 })
+					end
 					UI.label(card, "Puntuación del título: " .. math.floor(F.title(form.title or "", p.Category)) .. "/100", { TextSize = 12, Color = T.Sub })
 					local row = UI.row(card, 36)
 					UI.button(row, "🚀 Publicar", function()
@@ -968,7 +988,7 @@ function Studio.build(container, ctx)
 							tags[#tags + 1] = Util.trim(t)
 						end
 						local r = Net.call("Video.Publish", { pid = p.Id, title = form.title, description = form.description or "", tags = tags, thumbId = form.thumbId, visibility = form.unlisted and "unlisted" or "public",
-							format = VideoData.Formats[form.formatIdx or 1].Id, series = form.series, sponsor = form.sponsor })
+							format = VideoData.Formats[form.formatIdx or 1].Id, series = form.series, sponsor = form.sponsor, client = form.client })
 						if r.ok then
 							publishing = nil
 							form = {}
@@ -1004,7 +1024,7 @@ function Studio.build(container, ctx)
 				UI.label(card, v.Title, { Position = UDim2.fromOffset(166, 6), Size = UDim2.new(1, -176, 0, 22), Font = Enum.Font.GothamBold })
 				UI.label(card, Util.formatInt(v.Views) .. " visitas · 👍 " .. Util.formatInt(v.Likes) .. " · 💬 " .. v.Comments .. " · $" .. string.format("%.2f", v.Revenue) .. " · +" .. (v.SubsGained or 0) .. " subs",
 					{ Position = UDim2.fromOffset(166, 30), Size = UDim2.new(1, -176, 0, 20), TextSize = 13 })
-				UI.label(card, "Calidad " .. math.floor(v.Q) .. " · CTR " .. v.Ctr .. "% · " .. catName(v.Cat) .. ((v.Format and v.Format ~= "video") and (" · " .. VideoData.FormatById[v.Format].Name .. (v.Episode and (" #" .. v.Episode) or "")) or "") .. (v.Sponsor and " · 🤝 patrocinado" or "") .. (v.Label and (" · " .. v.Label) or "") .. (v.Trend and " · 🔥 tendencia" or "") .. (v.Viral and " · 🚀 viral" or "") .. (v.Unlisted and " · oculto" or ""),
+				UI.label(card, "Calidad " .. math.floor(v.Q) .. " · CTR " .. v.Ctr .. "% · " .. catName(v.Cat) .. ((v.Format and v.Format ~= "video") and (" · " .. VideoData.FormatById[v.Format].Name .. (v.Episode and (" #" .. v.Episode) or "")) or "") .. (v.Sponsor and " · 🤝 patrocinado" or "") .. (v.Client and (" · 🏢 " .. v.Client) or "") .. (v.Label and (" · " .. v.Label) or "") .. (v.Trend and " · 🔥 tendencia" or "") .. (v.Viral and " · 🚀 viral" or "") .. (v.Unlisted and " · oculto" or ""),
 					{ Position = UDim2.fromOffset(166, 52), Size = UDim2.new(1, -176, 0, 20), TextSize = 12, Color = T.Sub })
 				local c = v.CommentList and v.CommentList[1]
 				if c then

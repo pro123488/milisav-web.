@@ -29,6 +29,7 @@ local order = {
 	{ "Video", "VideoService" },
 	{ "Channel", "ChannelService" },
 	{ "Jobs", "JobsService" },
+	{ "Company", "CompanyService" },
 	{ "NPC", "NPCService" },
 	{ "Sync", "SyncService" },
 }

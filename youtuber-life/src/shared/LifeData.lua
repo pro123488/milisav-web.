@@ -99,6 +99,133 @@ LifeData.CompanyTiers = {
 	{ Name = "Estudio de medios", Contracts = 15, MaxStaff = 6 },
 	{ Name = "Gran estudio", Contracts = 40, MaxStaff = 8 },
 }
-LifeData.Clients = { "Panadería La Espiga", "Gimnasio Fuerza", "Hotel Brisa", "Tienda Moda Urbana", "Clínica Sonrisa", "Inmobiliaria Horizonte", "Café Central", "Academia Futuro", "Taller Rueda", "Floristería Pétalo" }
+-- Requisitos para fundar la empresa (basta con cumplir UNO)
+LifeData.CompanyReq = { Level = 10, Subs = 5000 }
+-- Una propiedad de este tipo (en propiedad o alquilada) da +2 puestos de trabajo
+LifeData.CompanyOfficeKinds = { business = true, studio = true }
+LifeData.CompanyOfficeBonus = 2
+LifeData.CandidatesPerDay = 6
+LifeData.ClientOffersPerDay = 3
+LifeData.MaxClientContracts = 3
+LifeData.PayPeriodDays = 7
+
+-- Logotipo ficticio: emoji + color
+LifeData.CompanyEmojis = { "🎬", "🎥", "📹", "⭐", "🚀", "🔥", "💡", "🎨", "🦊", "🦁", "🐺", "🌊", "⚡", "🎧", "🏆", "🌈" }
+LifeData.CompanyColors = {
+	{ "Rojo", { 220, 50, 60 } }, { "Azul", { 40, 110, 230 } }, { "Verde", { 40, 170, 100 } }, { "Morado", { 140, 70, 210 } },
+	{ "Naranja", { 250, 130, 30 } }, { "Turquesa", { 20, 180, 190 } }, { "Rosa", { 235, 90, 160 } }, { "Grafito", { 60, 64, 76 } },
+	{ "Dorado", { 210, 170, 40 } }, { "Blanco", { 235, 235, 240 } },
+}
+
+-- Clientes ficticios: sector y categorías de vídeo que suelen encargar
+LifeData.Clients = {
+	{ Name = "Panadería La Espiga", Icon = "🥖", Field = "Alimentación", Cats = { "food", "cooking", "vlog" } },
+	{ Name = "Gimnasio Fuerza", Icon = "💪", Field = "Deporte", Cats = { "challenge", "tutorial", "vlog" } },
+	{ Name = "Hotel Brisa", Icon = "🏨", Field = "Turismo", Cats = { "tourism", "places", "travel", "luxury" } },
+	{ Name = "Tienda Moda Urbana", Icon = "👗", Field = "Moda", Cats = { "fashion", "shopping" } },
+	{ Name = "Clínica Sonrisa", Icon = "🦷", Field = "Salud", Cats = { "education", "interview" } },
+	{ Name = "Inmobiliaria Horizonte", Icon = "🏢", Field = "Inmobiliaria", Cats = { "decor", "luxury", "places", "business" } },
+	{ Name = "Café Central", Icon = "☕", Field = "Hostelería", Cats = { "food", "vlog", "places" } },
+	{ Name = "Academia Futuro", Icon = "🎓", Field = "Educación", Cats = { "education", "tutorial", "experiment" } },
+	{ Name = "Taller Rueda", Icon = "🔧", Field = "Automoción", Cats = { "cars", "tutorial" } },
+	{ Name = "Floristería Pétalo", Icon = "💐", Field = "Comercio", Cats = { "decor", "nature", "shopping" } },
+	{ Name = "Electrónica Voltio", Icon = "🔌", Field = "Tecnología", Cats = { "tech", "review", "unboxing" } },
+	{ Name = "Agencia de Viajes Rumbo", Icon = "✈", Field = "Viajes", Cats = { "travel", "tourism", "adventure" } },
+}
+
+-- Nombres ficticios de candidatos
+LifeData.FirstNames = { "Ana", "Bruno", "Carla", "Diego", "Elena", "Fabio", "Gala", "Hugo", "Irene", "Joel", "Lara", "Marco", "Nora", "Óscar", "Paula", "Raúl", "Sara", "Teo", "Vera", "Leo" }
+LifeData.LastNames = { "Almeida", "Barrios", "Cano", "Duarte", "Esteve", "Ferrer", "Galán", "Herrero", "Iglesias", "Jurado", "Lozano", "Molina", "Navas", "Ortega", "Prieto", "Quintana", "Robles", "Soler", "Toledo", "Varela" }
+
+-- Salario semanal de un empleado
+function LifeData.salaryFor(skill, roleId)
+	local role = LifeData.RoleById[roleId]
+	return math.floor((80 + skill * 4) * (role and role.Pay or 3) + 0.5)
+end
+
+-- Nivel de la empresa según los contratos cumplidos
+function LifeData.companyTier(contracts)
+	local idx = 1
+	for i, t in ipairs(LifeData.CompanyTiers) do
+		if (contracts or 0) >= t.Contracts then
+			idx = i
+		end
+	end
+	return idx, LifeData.CompanyTiers[idx], LifeData.CompanyTiers[idx + 1]
+end
+
+-- ¿Tiene una propiedad tipo negocio o estudio (comprada o alquilada)? properties = data.Properties, byId = PropertyData.ById
+function LifeData.hasOffice(properties, byId)
+	for id in pairs(properties or {}) do
+		local l = byId and byId[id]
+		if l and LifeData.CompanyOfficeKinds[l.Kind] then
+			return true
+		end
+	end
+	return false
+end
+
+function LifeData.companyMaxStaff(company, properties, byId)
+	local _, tier = LifeData.companyTier(company and company.Contracts or 0)
+	return tier.MaxStaff + (LifeData.hasOffice(properties, byId) and LifeData.CompanyOfficeBonus or 0)
+end
+
+-- Efectos reales del personal. Editor, camarógrafo y diseñador escalan con habilidad y moral (hasta el máximo);
+-- asistente, gestor y técnico funcionan si su moral es al menos 25; el fotógrafo vende fotos cada día.
+function LifeData.companyEffects(company)
+	local fx = { exportMult = 1, sceneBonus = 0, thumbBonus = 0, energyMult = 1, sponsorExtra = 0, sponsorMult = 1, clientExtra = 0, repairMult = 1, photoIncome = 0 }
+	if type(company) ~= "table" or not company.Staff then
+		return fx
+	end
+	local strength, active = {}, {}
+	for _, e in pairs(company.Staff) do
+		local morale = e.Morale or 70
+		strength[e.Role] = (strength[e.Role] or 0) + (e.Skill / 95) * (0.5 + morale / 200)
+		if morale >= 25 then
+			active[e.Role] = true
+		end
+		if e.Role == "photographer" then
+			fx.photoIncome = fx.photoIncome + math.floor(e.Skill * 2 * (morale >= 25 and 1 or 0.5))
+		end
+	end
+	local function s(role)
+		return math.min(1, strength[role] or 0)
+	end
+	fx.exportMult = 1 - 0.25 * s("editor")
+	fx.sceneBonus = math.floor(4 * s("camera") * 10 + 0.5) / 10
+	fx.thumbBonus = math.floor(5 * s("designer") * 10 + 0.5) / 10
+	if active.assistant then
+		fx.energyMult = 0.75
+	end
+	if active.manager then
+		fx.sponsorExtra, fx.sponsorMult, fx.clientExtra = 1, 1.1, 1
+	end
+	if active.technician then
+		fx.repairMult = 0.5
+	end
+	return fx
+end
+
+-- Texto del efecto de un empleado concreto (para la interfaz)
+function LifeData.employeeEffect(e)
+	local one = { Staff = { x = e } }
+	local fx = LifeData.companyEffects(one)
+	if e.Role == "editor" then
+		return "Exportación −" .. math.floor((1 - fx.exportMult) * 100 + 0.5) .. "%"
+	elseif e.Role == "camera" then
+		return "+" .. fx.sceneBonus .. " de calidad por escena"
+	elseif e.Role == "designer" then
+		return "+" .. fx.thumbBonus .. " en miniaturas"
+	elseif e.Role == "assistant" then
+		return fx.energyMult < 1 and "Gastas un 25% menos de energía" or "Sin efecto (moral muy baja)"
+	elseif e.Role == "manager" then
+		return fx.sponsorExtra > 0 and "+1 oferta de patrocinio y de cliente, +10% de pago" or "Sin efecto (moral muy baja)"
+	elseif e.Role == "technician" then
+		return fx.repairMult < 1 and "Reparaciones a mitad de precio" or "Sin efecto (moral muy baja)"
+	elseif e.Role == "photographer" then
+		return "Venta de fotos: +$" .. fx.photoIncome .. "/día para la empresa"
+	end
+	return ""
+end
 
 return LifeData
