@@ -77,6 +77,9 @@ local tracks = {
 	{ "pets_adopted", "Adopta %s mascotas", { 1, 3 }, 80, 40, { [1] = "Amigo peludo", [2] = "Familia numerosa" } },
 	{ "pet_walk", "Pasea %s con tu mascota", { 1, 10, 50 }, 60, 30, { [2] = "Paseador estrella", [3] = "Maratón perruno" } },
 	{ "pet_photos", "Haz %s fotos de tu mascota", { 1, 10 }, 50, 25, { [2] = "Paparazzi de mascotas" } },
+	{ "used_bought", "Compra %s artículos de segunda mano", { 1, 10 }, 60, 30, { [2] = "Cazagangas" } },
+	{ "collectibles", "Consigue %s coleccionables distintos", { 1, 4, 8 }, 150, 70, { [3] = "Gran coleccionista" } },
+	{ "trades", "Completa %s intercambios con otros jugadores", { 1, 10 }, 100, 50, { [2] = "Negociante" } },
 }
 
 QuestDefs.TrackNames = {
@@ -93,11 +96,12 @@ QuestDefs.TrackNames = {
 	company_created = "Empresa", employees_hired = "Empleados contratados", client_contracts = "Contratos de clientes",
 	vehicles_bought = "Vehículos comprados", drive_km = "Kilómetros conducidos",
 	pets_adopted = "Mascotas adoptadas", pet_walk = "Paseos con mascota", pet_photos = "Fotos de mascotas",
+	used_bought = "Segunda mano", collectibles = "Coleccionables", trades = "Intercambios",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
 local singular = {
-	{ "fotos nocturnas", "foto nocturna" }, { "proyectos", "proyecto" }, { "vídeos", "vídeo" }, { "veces", "vez" }, { "escenas", "escena" }, { "fotografías", "fotografía" }, { "miniaturas", "miniatura" },
+	{ "fotos nocturnas", "foto nocturna" }, { "coleccionables distintos", "coleccionable" }, { "intercambios con otros jugadores", "intercambio con otro jugador" }, { "proyectos", "proyecto" }, { "vídeos", "vídeo" }, { "veces", "vez" }, { "escenas", "escena" }, { "fotografías", "fotografía" }, { "miniaturas", "miniatura" },
 	{ "artículos", "artículo" }, { "cámaras distintas", "cámara" }, { "computadores", "computador" }, { "pruebas", "prueba" },
 	{ "comparativas", "comparativa" }, { "reseñas", "reseña" }, { "encargos", "encargo" }, { "distritos", "distrito" },
 	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos de clientes", "contrato de un cliente" }, { "contratos", "contrato" }, { "empleados", "empleado" },

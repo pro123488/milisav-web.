@@ -6,7 +6,7 @@
 --   Id, Name, Brand, Cat, Sub, Price, Quality (1-100), Desc, Stats, Compat, Req {Level},
 --   Slot (uso), Portable (se puede llevar en la mochila), Size (espacios de mochila),
 --   Stores (tiendas físicas que lo venden), Color {r,g,b}, Shape (modelo de exposición),
---   Hidden (no se vende), Upgradable.
+--   Hidden (no se vende), Upgradable, Collectible (pieza de colección de Rastro & Retro).
 
 local ItemCatalog = {}
 
@@ -439,6 +439,26 @@ for _, g in ipairs(gadgets) do
 	add("gadget", g[3], { Id = g[1], Name = g[2], Brand = "", Price = g[4], Quality = g[5],
 		Desc = g[3] .. " para usar y reseñar. Llévalo en la mochila para grabar una prueba real.",
 		Stats = g[6], Portable = portable, Slot = g[1] == "drone_mini" and "drone" or "product", Size = (g[3] == "Consola" and 2) or 1 })
+end
+
+---------------------------------------------------------------------------
+-- COLECCIONABLES (no se venden nuevos: aparecen solo a veces en el stock de Rastro & Retro)
+---------------------------------------------------------------------------
+local collectibles = {
+	{ "col_retro_cam", "Cámara retro Fotomática 1975", 420, 72, { 150, 110, 70 }, "Cámara de carrete de los años setenta. Aún dispara, con un encanto imposible de imitar." },
+	{ "col_classic_console", "Consola clásica Pixelia 8 bits", 380, 68, { 200, 200, 190 }, "La consola con la que creció media ciudad, con su mando de cable original." },
+	{ "col_vinyl_signed", "Vinilo firmado de Los Satélites de Neón", 650, 80, { 30, 30, 34 }, "Primer disco de la banda ficticia Los Satélites de Neón, firmado por sus cuatro miembros." },
+	{ "col_comic_first", "Cómic «Capitán Voltio» nº 1 (primera edición)", 900, 85, { 230, 60, 50 }, "Primera edición del primer número del héroe eléctrico de la ciudad. Muy buscado." },
+	{ "col_vintage_watch", "Reloj vintage Aurea Clásico 1962", 1100, 90, { 220, 190, 110 }, "Reloj mecánico de cuerda manual con esfera de nácar. Una joya de relojería." },
+	{ "col_mini_arcade", "Mini recreativa «Galaxia Pixel»", 300, 62, { 90, 40, 160 }, "Réplica de sobremesa de la recreativa legendaria del distrito de entretenimiento." },
+	{ "col_cassette_player", "Reproductor de casetes Orbis Paseo", 260, 60, { 60, 120, 200 }, "El reproductor portátil que todos querían. Incluye una cinta de recopilatorio." },
+	{ "col_holo_card", "Carta holográfica «Dragón de Cristal»", 500, 78, { 120, 220, 230 }, "Carta brillante de una edición limitada de un juego de cartas ficticio." },
+}
+for _, c in ipairs(collectibles) do
+	add("gadget", "Coleccionable", { Id = c[1], Name = c[2], Brand = "", Price = c[3], Quality = c[4],
+		Desc = c[6] .. " Pieza de colección: búscala en Rastro & Retro.",
+		Stats = { Performance = math.floor(c[4] * 0.6), Durability = math.floor(c[4] * 0.8) },
+		Portable = true, Slot = "product", Size = 1, Hidden = true, Collectible = true, Color = c[5] })
 end
 
 ---------------------------------------------------------------------------

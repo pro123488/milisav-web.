@@ -448,6 +448,89 @@ local function buildStore(parent, sp, rng)
 	end
 end
 
+-- Rastro & Retro: tienda de segunda mano con estanterías, vitrina de coleccionables y taller
+local function buildUsedStore(parent, sp)
+	local m = model(parent, "RastroRetro")
+	m:SetAttribute("Special", "usedstore")
+	local w, d, h = 60, 44, 15
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 190, 140, 105 }, { 140, 100, 70 })
+	local board = P(m, "UsedStoreSign", Vector3.new(30, 4, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 0.6), { 20, 20, 24 })
+	sign(board, Enum.NormalId.Front, "♻ " .. sp.Name, Color3.fromRGB(70, 110, 70), Color3.fromRGB(255, 235, 190))
+	P(m, "Awning", Vector3.new(22, 0.4, 5), base * CFrame.new(0, 10.6, d / 2 + 2.6) * CFrame.Angles(math.rad(12), 0, 0), { 200, 70, 60 }, Enum.Material.Fabric)
+	P(m, "Rug", Vector3.new(26, 0.1, 16), base * CFrame.new(0, 0.65, 4), { 150, 60, 50 }, Enum.Material.Fabric, { NoCollide = true })
+	-- Mostrador: abre la app de segunda mano
+	local counter = P(m, "UsedCounter", Vector3.new(16, 4, 3), base * CFrame.new(0, 2, -d / 2 + 7), { 110, 75, 50 }, Enum.Material.Wood)
+	prompt(counter, "usedstore", "Ver stock, vender y reparar", sp.Name)
+	P(m, "CashRegister", Vector3.new(2, 1.2, 1.6), base * CFrame.new(5, 4.6, -d / 2 + 7), { 60, 60, 66 }, Enum.Material.Metal)
+	local note = P(m, "CounterSign", Vector3.new(6, 1.4, 0.2), base * CFrame.new(-3, 4.8, -d / 2 + 5.4), { 255, 240, 200 })
+	sign(note, Enum.NormalId.Front, "COMPRAMOS Y VENDEMOS USADOS", Color3.fromRGB(255, 240, 200), Color3.fromRGB(60, 40, 20))
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(0, 0, -d / 2 + 4)).Position, Look = (base * CFrame.new(0, 0, 0)).Position, Name = "Dependienta de " .. sp.Name, Role = "shopkeeper" })
+	-- Estanterías en las paredes laterales con objetos variados
+	local rng = Random.new(Util.hashString(sp.Name))
+	local colors = { { 200, 60, 50 }, { 60, 120, 200 }, { 230, 190, 60 }, { 80, 160, 90 }, { 40, 40, 44 }, { 220, 220, 225 }, { 150, 90, 160 } }
+	for _, side in ipairs({ -1, 1 }) do
+		for j = 0, 2 do
+			local sx = side * (w / 2 - 1.8)
+			local sz = -9 + j * 11
+			P(m, "ShelfBack", Vector3.new(0.4, 9, 9), base * CFrame.new(sx + side * 1, 4.5, sz), { 110, 80, 55 }, Enum.Material.WoodPlanks)
+			for level = 0, 2 do
+				local y = 1.2 + level * 2.9
+				P(m, "ShelfBoard", Vector3.new(2.6, 0.3, 9), base * CFrame.new(sx, y, sz), { 130, 95, 65 }, Enum.Material.WoodPlanks)
+				for k = 0, 2 do
+					local s = 0.8 + rng:NextNumber() * 0.9
+					P(m, "UsedThing", Vector3.new(s, s * (0.7 + rng:NextNumber()), s), base * CFrame.new(sx - side * 0.2, y + 0.15 + s * 0.6, sz - 3 + k * 3) * CFrame.Angles(0, rng:NextNumber() * 0.8, 0),
+						colors[rng:NextInteger(1, #colors)], Enum.Material.SmoothPlastic)
+				end
+			end
+		end
+	end
+	-- Mesas centrales con productos de muestra (cámara, teléfono, consola, monitor...)
+	local samples = {}
+	for _, cat in ipairs({ "camera", "phone", "gadget", "monitor", "audio", "laptop" }) do
+		local list = Catalog.list({ Cat = cat })
+		if list[1] then
+			samples[#samples + 1] = list[math.min(#list, 2)]
+		end
+	end
+	for i, def in ipairs(samples) do
+		local tx = -12 + ((i - 1) % 3) * 12
+		local tz = -2 + math.floor((i - 1) / 3) * 10
+		P(m, "UsedTable", Vector3.new(6, 0.4, 4), base * CFrame.new(tx, 2.8, tz), { 120, 85, 55 }, Enum.Material.Wood)
+		P(m, "UsedTableLeg", Vector3.new(0.6, 2.6, 0.6), base * CFrame.new(tx, 1.4, tz), { 70, 50, 35 }, Enum.Material.Wood)
+		displayModel(m, def, base * CFrame.new(tx, 3, tz))
+		local tag = P(m, "UsedTag", Vector3.new(3.6, 0.9, 0.2), base * CFrame.new(tx, 2.2, tz + 2.1), { 255, 214, 0 })
+		sign(tag, Enum.NormalId.Front, "USADO", nil, Color3.fromRGB(20, 20, 24))
+	end
+	-- Vitrina de coleccionables
+	local vit = P(m, "CollectorCase", Vector3.new(10, 3, 3), base * CFrame.new(-16, 1.5, -d / 2 + 4), { 90, 60, 40 }, Enum.Material.Wood)
+	P(m, "CollectorGlass", Vector3.new(10, 3, 3), base * CFrame.new(-16, 4.5, -d / 2 + 4), { 200, 230, 255 }, Enum.Material.Glass, { Transparency = 0.6 })
+	local shown = 0
+	for _, id in ipairs(Catalog.Order) do
+		local def = Catalog.get(id)
+		if def.Collectible and shown < 4 then
+			P(m, "Collectible", Vector3.new(1.4, 1.2, 1), base * CFrame.new(-19.5 + shown * 2.4, 3.6, -d / 2 + 4), def.Color, Enum.Material.SmoothPlastic)
+			shown = shown + 1
+		end
+	end
+	local cs = P(m, "CollectorSign", Vector3.new(8, 1.2, 0.2), base * CFrame.new(-16, 6.6, -d / 2 + 2.5), { 30, 20, 10 })
+	sign(cs, Enum.NormalId.Front, "⭐ COLECCIONABLES", Color3.fromRGB(30, 20, 10), Color3.fromRGB(255, 214, 0))
+	prompt(vit, "usedstore", "Ver coleccionables", sp.Name)
+	-- Taller de reparación
+	local bench = P(m, "RepairBench", Vector3.new(8, 3.4, 3), base * CFrame.new(16, 1.7, -d / 2 + 4), { 80, 80, 86 }, Enum.Material.Metal)
+	P(m, "Toolbox", Vector3.new(2, 1, 1), base * CFrame.new(14, 3.9, -d / 2 + 4), { 200, 40, 40 }, Enum.Material.Metal)
+	P(m, "SolderLamp", Vector3.new(0.4, 2, 0.4), base * CFrame.new(18.5, 4.4, -d / 2 + 3.5), { 40, 40, 44 }, Enum.Material.Metal)
+	local ts = P(m, "RepairSign", Vector3.new(6, 1.2, 0.2), base * CFrame.new(16, 6.4, -d / 2 + 2.5), { 30, 30, 34 })
+	sign(ts, Enum.NormalId.Front, "🔧 TALLER −30%", Color3.fromRGB(30, 30, 34), Color3.fromRGB(120, 230, 255))
+	prompt(bench, "usedstore", "Reparar equipo", sp.Name)
+	-- Rincón retro: sofá viejo y caja de vinilos
+	P(m, "OldSofa", Vector3.new(8, 2, 3), base * CFrame.new(12, 1.6, 14), { 120, 140, 90 }, Enum.Material.Fabric)
+	P(m, "OldSofaBack", Vector3.new(8, 2.4, 0.8), base * CFrame.new(12, 3, 15.3), { 110, 130, 80 }, Enum.Material.Fabric)
+	P(m, "VinylCrate", Vector3.new(3, 1.8, 2.4), base * CFrame.new(-14, 1.5, 14), { 150, 110, 70 }, Enum.Material.WoodPlanks)
+	for k = 0, 4 do
+		P(m, "Vinyl", Vector3.new(0.1, 1.6, 1.6), base * CFrame.new(-15 + k * 0.5, 2.6, 14), colors[(k % #colors) + 1], Enum.Material.SmoothPlastic)
+	end
+end
+
 local function buildCafe(parent, sp)
 	local m = model(parent, "Cibercafe")
 	local w, d, h = 48, 36, 14
@@ -1012,6 +1095,8 @@ local function buildDistrict(d)
 				buildGasStation(m, sp)
 			elseif sp.Type == "petshop" then
 				buildPetShop(m, sp)
+			elseif sp.Type == "usedstore" then
+				buildUsedStore(m, sp)
 			end
 		end
 	end
@@ -1138,6 +1223,9 @@ local function onPrompt(pp, player)
 		S.Net.push(player, "openUI", { ui = "app", app = "vehicles" })
 	elseif action == "petshop" then
 		S.Net.push(player, "openUI", { ui = "app", app = "pets" })
+	elseif action == "usedstore" then
+		S.Travel.markStoreVisit(player, "usedstore")
+		S.Net.push(player, "openUI", { ui = "app", app = "market" })
 	elseif action == "prop_view" then
 		S.Net.push(player, "openUI", { ui = "realty", listing = pp:GetAttribute("PropId") })
 	elseif action == "prop_enter" then
