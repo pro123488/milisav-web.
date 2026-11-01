@@ -76,6 +76,7 @@ DataService.Template = {
 	UsedBought = { Day = -1, Units = {} },
 	LastLive = 0,
 	Company = {},
+	Friends = {},
 	LastPost = 0,
 	CollabLog = {},
 	Uid = 0,

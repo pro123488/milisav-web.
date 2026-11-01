@@ -20,8 +20,9 @@ function Channel.Init(services)
 	S = services
 end
 
-function Channel.onNewDay(day)
-	trends.Day = day
+-- Categorías en tendencia (y la que está de capa caída) de un día concreto. Es determinista:
+-- FriendService lo usa para que un amigo te avise de las tendencias de mañana.
+function Channel.trendsFor(day)
 	local ids = {}
 	for _, c in ipairs(VideoData.Categories) do
 		ids[#ids + 1] = c.Id
@@ -35,11 +36,17 @@ function Channel.onNewDay(day)
 		end
 		salt = salt + 1
 	end
-	trends.Hot = hot
 	local cold = ids[(Util.hashString("cold" .. day) % #ids) + 1]
 	if Util.indexOf(hot, cold) then
 		cold = ""
 	end
+	return hot, cold
+end
+
+function Channel.onNewDay(day)
+	trends.Day = day
+	local hot, cold = Channel.trendsFor(day)
+	trends.Hot = hot
 	trends.Cold = cold
 	trends.Competition = Util.seededRandom("comp" .. day, 0.85, 1.0)
 	workspace:SetAttribute("TrendHot", table.concat(hot, ","))

@@ -35,6 +35,7 @@ local order = {
 	{ "Trade", "TradeService" },
 	{ "Jobs", "JobsService" },
 	{ "Company", "CompanyService" },
+	{ "Friend", "FriendService" },
 	{ "NPC", "NPCService" },
 	{ "Destination", "DestinationService" },
 	{ "Sync", "SyncService" },

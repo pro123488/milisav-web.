@@ -1475,6 +1475,199 @@ M.stepBackground()
 data.Projects[K.cp2] = nil
 end
 
+-- AMISTADES con personajes de la ciudad
+do
+local FriendSvc = req(ServerScriptService.Server.Services.FriendService)
+local FD = req(Shared.FriendData)
+local CatF = req(Shared.ItemCatalog)
+local ShopF = req(ServerScriptService.Server.Services.ShopService)
+local ChannelF = req(ServerScriptService.Server.Services.ChannelService)
+local TimeF = req(ServerScriptService.Server.Services.TimeWeatherService)
+local UtilF = req(Shared.Util)
+local function lastPush(kind, pred)
+	for i = #M.pushes, 1, -1 do
+		local pu = M.pushes[i]
+		if pu.kind == kind and pu.player == player and (not pred or pred(pu.data)) then
+			return pu.data
+		end
+	end
+end
+-- Los 12 personajes están en el mundo, en la acera de su distrito, con cartel y aviso «Hablar»
+local folder = M.workspace:FindFirstChild("City"):FindFirstChild("Friends")
+assert(#FD.Friends == 12 and folder and #folder:GetChildren() == 12, "12 personajes en el mundo")
+local half = (WorldData.CellSize - WorldData.RoadWidth) / 2
+for _, fd in ipairs(FD.Friends) do
+	local sp = FriendSvc.Spawned[fd.Id]
+	assert(sp and sp.Model.Parent == folder and sp.Model:GetAttribute("FriendId") == fd.Id, "personaje " .. fd.Id)
+	local cx, cz = WorldData.center(WorldData.DistrictById[fd.District])
+	assert(math.max(math.abs(sp.Pos.X - cx), math.abs(sp.Pos.Z - cz)) >= half - 6, "en la acera: " .. fd.Id)
+	for _, s in ipairs(WorldData.Spots) do
+		assert((s.X - sp.Pos.X) ^ 2 + (s.Z - sp.Pos.Z) ^ 2 > 15 * 15, "no tapa un lugar: " .. fd.Id)
+	end
+	for _, other in pairs(FriendSvc.Spawned) do
+		assert(other == sp or (other.Pos - sp.Pos).Magnitude > 10, "no se pisan")
+	end
+	local root = sp.Model:FindFirstChild("HumanoidRootPart")
+	local tag = root:FindFirstChild("FriendTag")
+	assert(tag and #tag:GetChildren() == 2 and sp.Prompt.ActionText == "Hablar", "cartel con nombre y oficio")
+	assert(FD.Personalities[fd.Personality] and #fd.Favors == 4 and FriendSvc.guestSpot(fd.Id), "datos de " .. fd.Id)
+	for _, fv in ipairs(fd.Favors) do
+		assert(FD.FavorKinds[fv.Kind], "favor válido")
+		assert(not fv.Spot or WorldData.SpotById[fv.Spot], "lugar del encargo")
+		assert(not fv.Recipe or CatF.get(fv.Recipe), "receta")
+		assert(not fv.Store or CatF.Stores[fv.Store], "tienda")
+	end
+end
+assert(type(data.Friends) == "table", "campo Friends en el perfil")
+data.Friends = {}
+local today = TimeF.day()
+local lucia = FriendSvc.Spawned.lucia
+-- Charlar: en persona, +puntos y solo una vez al día
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+assert(not call(player, "Friend.Chat", { id = "lucia" }).ok, "se charla en persona")
+assert(not call(player, "Friend.Favor", { id = "lucia", level = 2 }).ok, "sin conocerse no hay favores")
+M.moveTo(player, lucia.Pos.X + 3, 3, lucia.Pos.Z)
+lucia.Prompt.Triggered:Fire(player)
+local f = data.Friends.lucia
+assert(f and f.Pts == 0 and FD.levelOf(f.Pts) == 1, "presentarse: Conocido")
+local dlg = lastPush("dialog")
+assert(dlg and dlg.name:find("Lucía", 1, true) and #dlg.options == 2 and dlg.options[1].call == "Friend.Chat", "diálogo con opciones")
+must(player, "Friend.Chat", { id = "lucia" })
+assert(f.Pts == FD.ChatPts and f.Chat == today and #f.Known == 1, "charlar suma puntos y descubre un gusto")
+assert(not call(player, "Friend.Chat", { id = "lucia" }).ok and f.Pts == FD.ChatPts, "solo una charla al día")
+assert(not call(player, "Friend.Chat", { id = "nadie" }).ok, "personaje no válido")
+-- Regalar: no se regalan objetos instalados; el regalo se consume y suma más si le gusta
+local rigUid
+for uid, rec in pairs(data.Inventory) do
+	if rec.Loc:sub(1, 4) == "rig:" then
+		rigUid = uid
+	end
+end
+assert(rigUid and not call(player, "Friend.Gift", { id = "lucia", uid = rigUid }).ok and data.Inventory[rigUid], "no se regalan piezas instaladas")
+assert(not call(player, "Friend.Gift", { id = "lucia", uid = "falso" }).ok, "objeto inexistente")
+local giftUid = req(ServerScriptService.Server.Services.InventoryService).add(player, "tripod_pro", { loc = "backpack" })
+local gdef = CatF.get("tripod_pro")
+local expected = (FD.GiftBase + math.min(FD.GiftValueMax, math.floor(gdef.Price / 25))) * 2 + FD.GiftLikedBonus
+f.Pts = 45
+local r = must(player, "Friend.Gift", { id = "lucia", uid = giftUid })
+assert(data.Inventory[giftUid] == nil and r.data.liked and f.Pts == 45 + expected, "regalo consumido y le gusta: " .. f.Pts)
+assert(data.Counters.gifts_given == 1 and f.Gift == today, "contador de regalos")
+-- Subir de nivel: mensaje al teléfono e historial
+assert(FD.levelOf(f.Pts) == 2 and f.Lvl == 2, "sube a Compañero")
+local up = lastPush("notify", function(d) return d.style == "gold" and d.text:find("Lucía", 1, true) ~= nil end)
+assert(up and up.text:find("Compañero", 1, true), "mensaje al subir de nivel")
+assert(f.Log[1].T:find("Compañero", 1, true), "historial")
+local other = req(ServerScriptService.Server.Services.InventoryService).add(player, "tripod_basic", { loc = "home" })
+assert(not call(player, "Friend.Gift", { id = "lucia", uid = other }).ok and data.Inventory[other], "un regalo al día")
+Quest.check(player)
+assert(data.Quests.Completed["gifts_given_1"], "logro de regalos")
+-- Favores según el nivel, con efecto real
+assert(not call(player, "Friend.Favor", { id = "lucia", level = 3 }).ok, "favor bloqueado por nivel")
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+must(player, "Friend.Favor", { id = "lucia", level = 2 }) -- tendencias (por teléfono)
+local hot = ChannelF.trendsFor(today + 1)
+assert(f.Tip and f.Tip.Day == today + 1 and table.concat(f.Tip.Hot, ",") == table.concat(hot, ","), "tendencias de mañana reveladas")
+assert(not call(player, "Friend.Favor", { id = "lucia", level = 2 }).ok, "espera entre favores")
+f.Pts = FD.Levels[4].Pts
+Quest.check(player)
+assert(data.Quests.Completed["friends_made_1"], "logro de amistades")
+-- Descuento en su tienda (ShopService)
+local camDef, techDef
+for _, id in ipairs(CatF.Order) do
+	local d = CatF.get(id)
+	if not d.Hidden and d.Price >= 100 then
+		if not camDef and UtilF.indexOf(d.Stores, "camera") then
+			camDef = d
+		elseif not techDef and UtilF.indexOf(d.Stores, "tech") and not UtilF.indexOf(d.Stores, "camera") then
+			techDef = d
+		end
+	end
+end
+local camBefore, techBefore = ShopF.priceOf(player, camDef), ShopF.priceOf(player, techDef)
+must(player, "Friend.Favor", { id = "lucia", level = 4 })
+local camAfter = ShopF.priceOf(player, camDef)
+assert(camAfter < camBefore and math.abs(camAfter - camBefore * 0.85) <= 1, "15% en FotoPro: " .. camBefore .. " -> " .. camAfter)
+assert(ShopF.priceOf(player, techDef) == techBefore, "el descuento es solo de su tienda")
+-- Invitado: espera en el lugar de grabación y da +4 de interés en las escenas a su lado
+must(player, "Friend.Favor", { id = "lucia", level = 3 })
+local gspot = FriendSvc.guestSpot("lucia")
+assert(lucia.Away and (lucia.Pos - M.Vector3.new(gspot.X, lucia.Pos.Y, gspot.Z)).Magnitude < 12, "el invitado espera junto al lugar")
+call(player, "Video.StopRecording", {})
+for pid0 in pairs(data.Projects) do
+	call(player, "Video.DeleteProject", { pid = pid0 })
+end
+local gp = must(player, "Video.CreateProject", { category = "education" }).data.pid
+local np = must(player, "Video.CreateProject", { category = "education" }).data.pid
+for _, rec in pairs(data.Inventory) do
+	rec.Charge = 100
+end
+data.Needs.Energy, data.Needs.Mood = 100, 80
+M.moveTo(player, gspot.X, 3, gspot.Z)
+must(player, "Video.StartRecording", { pid = gp })
+M.clock = M.clock + 10
+local s1 = must(player, "Video.RecordScene", { shot = "wide" }).data.scene
+assert(s1.Guest == "Lucía Prado" and f.Guest.Pid == gp and f.Guest.Scenes == 1, "escena con invitado")
+data.Needs.Energy, data.Needs.Mood = 100, 80
+must(player, "Video.StartRecording", { pid = np })
+M.clock = M.clock + 10
+local s2 = must(player, "Video.RecordScene", { shot = "wide" }).data.scene
+local function baseInt(sc) -- sin el azar de «gente cruzando el plano» (-5)
+	local v = sc.Int
+	for _, pr in ipairs(sc.Probs) do
+		if pr == "Gente cruzando el plano" then
+			v = v + 5
+		end
+	end
+	return v
+end
+assert(s2.Guest == nil and math.abs((baseInt(s1) - baseInt(s2)) - FD.GuestInterest) < 0.11, "+4 de interés solo en su vídeo: " .. s1.Int .. " vs " .. s2.Int)
+call(player, "Video.StopRecording", {})
+must(player, "Video.DeleteProject", { pid = gp })
+must(player, "Video.DeleteProject", { pid = np })
+FriendSvc.refresh(player)
+assert(f.Guest == nil and not lucia.Away and lucia.Pos == lucia.Home, "termina la aparición y vuelve a su acera")
+-- Encargo especial de Sara: grabar en la Explanada de eventos
+FriendSvc.talk(player, "sara")
+local sara = data.Friends.sara
+sara.Pts = FD.Levels[2].Pts
+must(player, "Friend.Favor", { id = "sara", level = 2 })
+assert(sara.Task and sara.Task.Spot == "events_1", "encargo pendiente")
+local ev = WorldData.SpotById.events_1
+local cp = must(player, "Video.CreateProject", { category = "events" }).data.pid
+M.moveTo(player, ev.X, 3, ev.Z)
+must(player, "Video.StartRecording", { pid = cp })
+M.clock = M.clock + 10
+local mBefore = data.Money
+must(player, "Video.RecordScene", { shot = "wide" })
+assert(sara.Task == nil and data.Money > mBefore and data.Counters.friend_tasks == 1, "encargo pagado")
+call(player, "Video.StopRecording", {})
+must(player, "Video.DeleteProject", { pid = cp })
+-- Presentación a un patrocinador
+sara.Pts = FD.Levels[5].Pts
+must(player, "Friend.Favor", { id = "sara", level = 5 })
+local intro
+for _, o in ipairs(data.Sponsors.Offers) do
+	if o.Intro == "Sara Molina" then
+		intro = o
+	end
+end
+assert(intro and intro.Brand == "orbis", "oferta de patrocinio presentada")
+-- Enfriamiento lento: nada en pocos días, 2 puntos/día después y nunca por debajo del nivel 1
+f.Pts = 330
+f.Last = today - 5
+f.DecayDay = nil
+FriendSvc.refresh(player)
+assert(f.Pts == 330, "pocos días sin hablar no enfrían la amistad")
+f.Last = today - 30
+FriendSvc.refresh(player)
+assert(f.Pts == 330 - (30 - FD.DecayAfterDays) * FD.DecayPerDay and FD.levelOf(f.Pts) == 3, "se enfría despacio: " .. f.Pts)
+assert(lastPush("notify", function(d) return d.text:find("Hace mucho", 1, true) ~= nil end), "aviso al bajar de nivel")
+f.Last = today - 1000
+f.DecayDay = nil
+FriendSvc.refresh(player)
+assert(f.Pts == 0 and FD.levelOf(f.Pts) == 1 and data.Friends.lucia == f, "nunca por debajo del nivel 1")
+end
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]

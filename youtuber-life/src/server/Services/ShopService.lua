@@ -51,6 +51,9 @@ end
 
 function Shop.priceOf(player, def)
 	local mult = S.Events and S.Events.priceMultiplier and S.Events.priceMultiplier(def) or 1
+	if S.Friend and S.Friend.discountFor then
+		mult = mult * (1 - S.Friend.discountFor(player, def))
+	end
 	return math.floor(def.Price * mult + 0.5)
 end
 
