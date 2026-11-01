@@ -147,6 +147,7 @@ M.ColorSequence = ctor("ColorSequence")
 M.NumberSequence = ctor("NumberSequence")
 M.NumberRange = ctor("NumberRange")
 M.TweenInfo = ctor("TweenInfo")
+M.PhysicalProperties = ctor("PhysicalProperties")
 M.UDim2 = {
 	new = function(a, b, c, d)
 		return { a, b, c, d }

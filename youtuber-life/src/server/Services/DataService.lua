@@ -60,6 +60,7 @@ DataService.Template = {
 	ExportTokens = 0,
 	Job = {},
 	Properties = {},
+	Vehicles = {},
 	HomeProperty = "",
 	Sponsors = { Offers = {}, Active = {}, History = {}, Seq = 0, OffersDay = -1 },
 	EventProg = { Day = 0, Done = {}, Scenes = 0, Published = 0, Joined = false },

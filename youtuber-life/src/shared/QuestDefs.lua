@@ -69,6 +69,8 @@ local tracks = {
 	{ "meals", "Come %s veces", { 1, 25, 100 }, 30, 15, {} },
 	{ "cooked", "Cocina %s platos", { 1, 10, 40 }, 60, 30, { [3] = "Chef casero" } },
 	{ "restaurant_meals", "Come %s veces en el restaurante", { 1, 10 }, 40, 20, {} },
+	{ "vehicles_bought", "Compra %s vehículos", { 1, 3, 6 }, 150, 60, { [1] = "Conductor novel", [3] = "Coleccionista de motor" } },
+	{ "drive_km", "Conduce %s km", { 1, 10, 50 }, 80, 40, { [3] = "Rey de la carretera" } },
 }
 
 QuestDefs.TrackNames = {
@@ -82,6 +84,7 @@ QuestDefs.TrackNames = {
 	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 	sponsors_done = "Patrocinios", events_joined = "Eventos", events_goals = "Objetivos de eventos", lives = "Directos",
 	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
+	vehicles_bought = "Vehículos comprados", drive_km = "Kilómetros conducidos",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
@@ -92,7 +95,7 @@ local singular = {
 	{ "fotos", "foto" }, { "viviendas", "vivienda" }, { "propiedades", "propiedad" }, { "muebles", "mueble" }, { "contratos", "contrato" },
 	{ "eventos", "evento" }, { "directos", "directo" }, { "shorts", "short" }, { "podcasts", "podcast" }, { "documentales", "documental" },
 	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
-	{ "objetivos", "objetivo" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" },
+	{ "objetivos", "objetivo" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" }, { "vehículos", "vehículo" },
 }
 local function singularize(text)
 	for _, pair in ipairs(singular) do

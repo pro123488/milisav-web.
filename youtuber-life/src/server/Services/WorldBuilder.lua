@@ -13,6 +13,7 @@ local WorldData = require(Shared.WorldData)
 local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
 local PropertyData = require(Shared.PropertyData)
+local LifeData = require(Shared.LifeData)
 
 local World = {}
 local S
@@ -505,6 +506,124 @@ local function buildBank(parent, sp)
 	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(16, 0, 6)).Position, Look = (base * CFrame.new(0, 0, 6)).Position, Name = "Asesora del banco", Role = "banker" })
 end
 
+-- Concesionario: sala de exposición acristalada, coches de exposición, mostrador y zona de entrega
+local function buildDealer(parent, sp)
+	local m = model(parent, "Concesionario")
+	local w, d, h = 64, 46, 16
+	local base = CFrame.new(sp.WX, GROUND_TOP, sp.WZ)
+	P(m, "Floor", Vector3.new(w, 0.6, d), base * CFrame.new(0, 0.3, 0), { 235, 236, 240 }, Enum.Material.Marble)
+	P(m, "Roof", Vector3.new(w + 2, 1, d + 2), base * CFrame.new(0, h + 0.5, 0), { 40, 42, 48 }, Enum.Material.Metal)
+	P(m, "WallN", Vector3.new(w, h, 1), base * CFrame.new(0, h / 2, -d / 2), { 50, 52, 60 }, Enum.Material.Concrete)
+	-- Paredes de cristal (este, oeste y fachada con puerta de 12 studs)
+	local glass = { 170, 210, 235 }
+	P(m, "GlassW", Vector3.new(0.6, h, d), base * CFrame.new(-w / 2, h / 2, 0), glass, Enum.Material.Glass, { Transparency = 0.6 })
+	P(m, "GlassE", Vector3.new(0.6, h, d), base * CFrame.new(w / 2, h / 2, 0), glass, Enum.Material.Glass, { Transparency = 0.6 })
+	local side = (w - 12) / 2
+	P(m, "GlassS", Vector3.new(side, h, 0.6), base * CFrame.new(-w / 2 + side / 2, h / 2, d / 2), glass, Enum.Material.Glass, { Transparency = 0.6 })
+	P(m, "GlassS", Vector3.new(side, h, 0.6), base * CFrame.new(w / 2 - side / 2, h / 2, d / 2), glass, Enum.Material.Glass, { Transparency = 0.6 })
+	P(m, "GlassS", Vector3.new(12, h - 10, 0.6), base * CFrame.new(0, 10 + (h - 10) / 2, d / 2), glass, Enum.Material.Glass, { Transparency = 0.6 })
+	for _, x in ipairs({ -w / 2, -w / 4, 0, w / 4, w / 2 }) do
+		P(m, "Mullion", Vector3.new(0.6, h, 0.8), base * CFrame.new(x, h / 2, d / 2), { 200, 200, 210 }, Enum.Material.Metal)
+	end
+	local board = P(m, "DealerSign", Vector3.new(34, 4, 0.6), base * CFrame.new(0, h + 3, d / 2), { 20, 20, 24 })
+	sign(board, Enum.NormalId.Front, "🚗 " .. sp.Name, Color3.fromRGB(20, 30, 60), Color3.fromRGB(120, 220, 255))
+	sign(board, Enum.NormalId.Back, "🚗 " .. sp.Name, Color3.fromRGB(20, 30, 60), Color3.fromRGB(120, 220, 255))
+	for _, lx in ipairs({ -w / 4, w / 4 }) do
+		local lamp = P(m, "CeilingLamp", Vector3.new(10, 0.4, 3), base * CFrame.new(lx, h - 0.3, 0), { 255, 252, 240 }, Enum.Material.Neon, { NoShadow = true })
+		local l = Instance.new("PointLight")
+		l.Range = 34
+		l.Brightness = 1.3
+		l.Parent = lamp
+	end
+	-- Coches de exposición sobre plataformas giratorias, con su precio
+	local shown = { "v_compact", "v_ev", "v_sport", "v_lux" }
+	for i, id in ipairs(shown) do
+		local def = LifeData.VehicleById[id]
+		local x = -24 + (i - 1) * 16
+		local col = LifeData.VehicleColors[({ 1, 6, 5, 4 })[i]][2]
+		local plat = P(m, "Turntable", Vector3.new(0.4, 13, 13), base * CFrame.new(x, 0.75, 2) * CFrame.Angles(0, 0, math.rad(90)), { 210, 214, 222 }, Enum.Material.Metal, { Shape = Enum.PartType.Cylinder })
+		P(m, "TurntableRing", Vector3.new(0.2, 13.6, 13.6), base * CFrame.new(x, 0.62, 2) * CFrame.Angles(0, 0, math.rad(90)), { 0, 190, 255 }, Enum.Material.Neon, { Shape = Enum.PartType.Cylinder, NoShadow = true, NoCollide = true })
+		local show = car(m, sp.WX + x, sp.WZ + 2, col, 0.35 * ((i % 2 == 0) and 1 or -1))
+		show.Name = "ShowCar"
+		for _, piece in ipairs(show:GetChildren()) do
+			piece.CFrame = piece.CFrame + Vector3.new(0, 0.95, 0) -- sobre la plataforma
+		end
+		local tag = P(m, "PriceTag", Vector3.new(9, 2.2, 0.3), base * CFrame.new(x, 1.6, 10.5), { 255, 214, 0 })
+		sign(tag, Enum.NormalId.Front, def.Name .. "\n$" .. Util.formatInt(def.Price), nil, Color3.fromRGB(20, 20, 24), Enum.Font.GothamBold)
+		prompt(plat, "dealer", "Ver modelos", def.Name)
+	end
+	-- Mostrador del vendedor
+	local counter = P(m, "Counter", Vector3.new(18, 4, 3), base * CFrame.new(0, 2, -d / 2 + 7), { 30, 34, 44 }, Enum.Material.Wood)
+	P(m, "CounterTop", Vector3.new(18.4, 0.3, 3.4), base * CFrame.new(0, 4.15, -d / 2 + 7), { 235, 236, 240 }, Enum.Material.Marble)
+	prompt(counter, "dealer", "Comprar o alquilar", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(0, 0, -d / 2 + 4)).Position, Look = (base * CFrame.new(0, 0, 0)).Position, Name = "Vendedora de " .. sp.Name, Role = "dealer" })
+	-- Taller (lateral): mejoras y pintura
+	local garage = P(m, "WorkshopDoor", Vector3.new(0.6, 10, 12), base * CFrame.new(-w / 2 - 0.4, 5, -10), { 90, 95, 105 }, Enum.Material.DiamondPlate)
+	local ws = P(m, "WorkshopSign", Vector3.new(0.4, 2, 10), base * CFrame.new(-w / 2 - 0.8, 11.5, -10), { 20, 20, 24 })
+	sign(ws, Enum.NormalId.Left, "🔧 TALLER · MEJORAS · PINTURA", Color3.fromRGB(30, 30, 36), Color3.fromRGB(255, 214, 0))
+	prompt(garage, "dealer", "Taller y mejoras", sp.Name)
+	-- Zona de entrega (aquí aparecen los vehículos comprados o alquilados)
+	local bay = P(m, "DeliveryBay", Vector3.new(26, 0.1, 22), base * CFrame.new(14, 0.13, d / 2 + 17), { 60, 62, 70 }, Enum.Material.Asphalt, { NoShadow = true })
+	bay.CanCollide = false
+	for _, bx in ipairs({ 1, 27 }) do
+		P(m, "BayLine", Vector3.new(0.5, 0.06, 22), base * CFrame.new(bx, 0.18, d / 2 + 17), { 250, 250, 250 }, Enum.Material.SmoothPlastic, { NoShadow = true, NoCollide = true })
+	end
+	local bsign = P(m, "BaySign", Vector3.new(10, 2, 0.4), base * CFrame.new(14, 4, d / 2 + 6), { 20, 20, 24 })
+	sign(bsign, Enum.NormalId.Front, "ENTREGA DE VEHÍCULOS", Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1))
+	sign(bsign, Enum.NormalId.Back, "ENTREGA DE VEHÍCULOS", Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1))
+	P(m, "BaySignPole", Vector3.new(0.4, 3, 0.4), base * CFrame.new(14, 1.5, d / 2 + 6), { 200, 200, 210 }, Enum.Material.Metal)
+end
+
+-- Gasolinera: marquesina, dos surtidores, cargador eléctrico y tienda/taller
+local function buildGasStation(parent, sp)
+	local m = model(parent, "Gasolinera")
+	local base = CFrame.new(sp.WX, GROUND_TOP, sp.WZ)
+	P(m, "Forecourt", Vector3.new(44, 0.3, 34), base * CFrame.new(0, 0.15, 0), { 120, 122, 128 }, Enum.Material.Concrete)
+	-- Marquesina
+	local roofH = 13
+	P(m, "Canopy", Vector3.new(32, 1.6, 18), base * CFrame.new(0, roofH, 2), { 245, 245, 250 }, Enum.Material.SmoothPlastic)
+	local trim = P(m, "CanopyTrim", Vector3.new(32.4, 0.8, 18.4), base * CFrame.new(0, roofH - 1, 2), { 230, 40, 50 }, Enum.Material.Neon, { NoShadow = true, NoCollide = true })
+	local cs = P(m, "CanopySign", Vector3.new(20, 2.6, 0.4), base * CFrame.new(0, roofH + 2.2, 11.2), { 20, 20, 24 })
+	sign(cs, Enum.NormalId.Front, "⛽ " .. sp.Name, Color3.fromRGB(200, 30, 40), Color3.new(1, 1, 1))
+	for _, x in ipairs({ -13, 13 }) do
+		for _, z in ipairs({ -4, 8 }) do
+			P(m, "CanopyPillar", Vector3.new(1, roofH, 1), base * CFrame.new(x, roofH / 2, z), { 210, 210, 218 }, Enum.Material.Metal)
+		end
+	end
+	for _, x in ipairs({ -8, 8 }) do
+		local lamp = P(m, "CanopyLight", Vector3.new(6, 0.2, 2), base * CFrame.new(x, roofH - 0.9, 2), { 255, 250, 235 }, Enum.Material.Neon, { NoShadow = true })
+		nightLight(lamp, 30)
+	end
+	-- Surtidores
+	for i, x in ipairs({ -6, 6 }) do
+		P(m, "PumpIsland", Vector3.new(4, 0.6, 9), base * CFrame.new(x, 0.6, 2), { 200, 200, 205 }, Enum.Material.Concrete)
+		local pump = P(m, "FuelPump", Vector3.new(2.4, 5.2, 1.8), base * CFrame.new(x, 3.5, 2), { 230, 40, 50 }, Enum.Material.SmoothPlastic)
+		P(m, "PumpScreen", Vector3.new(1.6, 1, 0.1), base * CFrame.new(x, 4.6, 2.95), { 80, 220, 140 }, Enum.Material.Neon, { NoShadow = true })
+		P(m, "PumpHose", Vector3.new(0.3, 2.6, 0.3), base * CFrame.new(x + 1.35, 3, 2.6), { 20, 20, 22 }, Enum.Material.Rubber)
+		local pn = P(m, "PumpNumber", Vector3.new(1.4, 0.8, 0.1), base * CFrame.new(x, 5.6, 2.95), { 255, 255, 255 })
+		sign(pn, Enum.NormalId.Front, tostring(i), Color3.new(1, 1, 1), Color3.fromRGB(200, 30, 40))
+		prompt(pump, "gas", "Repostar", "Surtidor " .. i)
+	end
+	-- Cargador eléctrico
+	local charger = P(m, "EVCharger", Vector3.new(1.6, 5, 1.2), base * CFrame.new(17, 2.8, 4), { 240, 245, 245 }, Enum.Material.SmoothPlastic)
+	local glow = P(m, "EVGlow", Vector3.new(1.7, 0.4, 1.3), base * CFrame.new(17, 4.6, 4), { 60, 230, 120 }, Enum.Material.Neon, { NoShadow = true, NoCollide = true })
+	nightLight(glow, 12, Color3.fromRGB(80, 255, 140))
+	local es = P(m, "EVSign", Vector3.new(4, 1.4, 0.2), base * CFrame.new(17, 6.4, 4), { 20, 20, 24 })
+	sign(es, Enum.NormalId.Front, "🔋 CARGA", Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1))
+	sign(es, Enum.NormalId.Back, "🔋 CARGA", Color3.fromRGB(20, 110, 70), Color3.new(1, 1, 1))
+	prompt(charger, "gas", "Cargar batería", "Cargador eléctrico")
+	-- Tienda 24 h con taller
+	P(m, "Shop", Vector3.new(16, 9, 9), base * CFrame.new(-10, 4.8, -12), { 245, 240, 230 }, Enum.Material.Concrete)
+	P(m, "ShopWindow", Vector3.new(10, 4, 0.3), base * CFrame.new(-11, 4.5, -7.4), { 170, 210, 235 }, Enum.Material.Glass, { Transparency = 0.4 })
+	local ss = P(m, "ShopSign", Vector3.new(14, 2, 0.4), base * CFrame.new(-10, 10.2, -7.4), { 20, 20, 24 })
+	sign(ss, Enum.NormalId.Front, "TIENDA 24H · TALLER", Color3.fromRGB(30, 30, 36), Color3.fromRGB(255, 214, 0))
+	local shopDoor = P(m, "WorkshopDoor", Vector3.new(8, 7, 0.4), base * CFrame.new(8, 3.8, -11.6), { 90, 95, 105 }, Enum.Material.DiamondPlate)
+	P(m, "Workshop", Vector3.new(10, 9, 8), base * CFrame.new(8, 4.8, -16), { 200, 200, 205 }, Enum.Material.Concrete)
+	prompt(shopDoor, "gas", "Taller", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(2, 0, -6)).Position, Look = (base * CFrame.new(0, 0, 2)).Position, Name = "Mecánico de " .. sp.Name, Role = "mechanic" })
+	trim.CanQuery = false
+end
+
 local function buildResidence(parent, sp)
 	local m = model(parent, "ResidenciaEconomica")
 	local roomW, roomD, h = 22, 20, 12
@@ -716,7 +835,7 @@ local function buildDistrict(d)
 		blocked[#blocked + 1] = { cx + s.X, cz + s.Z, 40 }
 	end
 	for _, sp in ipairs(d.Specials or {}) do
-		blocked[#blocked + 1] = { cx + sp.X, cz + sp.Z, sp.Type == "home" and 80 or 50 }
+		blocked[#blocked + 1] = { cx + sp.X, cz + sp.Z, (sp.Type == "home" and 80) or (sp.Type == "dealer" and 64) or 50 }
 	end
 	blocked[#blocked + 1] = { stop.X, stop.Z, 20 }
 	if d.Water then
@@ -828,6 +947,10 @@ local function buildDistrict(d)
 				buildRestaurant(m, sp)
 			elseif sp.Type == "home" then
 				buildResidence(m, sp)
+			elseif sp.Type == "dealer" then
+				buildDealer(m, sp)
+			elseif sp.Type == "gas" then
+				buildGasStation(m, sp)
 			end
 		end
 	end
@@ -950,6 +1073,8 @@ local function onPrompt(pp, player)
 		S.Net.push(player, "openUI", { ui = "food", tab = "cook" })
 	elseif action == "vending" or action == "restaurant" or action == "cafe" then
 		S.Net.push(player, "openUI", { ui = "food", tab = "menu", place = action })
+	elseif action == "dealer" or action == "gas" then
+		S.Net.push(player, "openUI", { ui = "app", app = "vehicles" })
 	elseif action == "prop_view" then
 		S.Net.push(player, "openUI", { ui = "realty", listing = pp:GetAttribute("PropId") })
 	elseif action == "prop_enter" then

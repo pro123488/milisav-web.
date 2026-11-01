@@ -49,6 +49,7 @@ env.Instance = { new = function(class)
 	return M.newInstance(class)
 end }
 env.Vector3, env.CFrame, env.Color3, env.UDim2, env.UDim, env.Enum, env.Random = M.Vector3, M.CFrame, M.Color3, M.UDim2, M.UDim, M.Enum, M.Random
+env.Vector2, env.PhysicalProperties = M.Vector2, M.PhysicalProperties
 env.task = M.makeTask(mainCo)
 env.typeof = function(v)
 	if type(v) == "table" and rawget(v, "__type") then
@@ -604,6 +605,124 @@ for i = 1, 2 do
 end
 assert(data.Job.Type == nil and (data.Counters.job_camera or 0) == 1, "encargo de camarógrafo completado")
 must(player, "Video.StopRecording", {})
+
+-- VEHÍCULOS: concesionario, compra, conducción con consumo, gasolinera, taller, mejoras, pintura, alquiler, venta y maletero
+local Vehicle = req(ServerScriptService.Server.Services.VehicleService)
+local Inventory = req(ServerScriptService.Server.Services.InventoryService)
+local TimeSvc = req(ServerScriptService.Server.Services.TimeWeatherService)
+local dealer, gas
+for _, sp in ipairs(WorldData.Specials) do
+	if sp.Type == "dealer" then
+		dealer = sp
+	elseif sp.Type == "gas" and not gas then
+		gas = sp
+	end
+end
+assert(dealer and gas, "concesionario y gasolinera en el mapa")
+data.Money = 100000
+data.Level = 6
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+assert(not call(player, "Veh.Buy", { model = "v_compact", color = 2 }).ok, "solo se compra en el concesionario")
+M.moveTo(player, dealer.WX, 3, dealer.WZ)
+assert(not call(player, "Veh.Buy", { model = "v_lux" }).ok, "requisito de nivel")
+assert(not call(player, "Veh.Buy", { model = "nada" }).ok, "modelo no válido")
+local mV = data.Money
+local carId = must(player, "Veh.Buy", { model = "v_compact", color = 2 }).data.id
+local carPrice = math.floor(6500 * Events.priceMultiplier({ Cat = "vehicle" }) + 0.5)
+assert(mV - data.Money == carPrice, "cobra el precio del vehículo: " .. (mV - data.Money))
+local car = data.Vehicles[carId]
+assert(car and car.Model == "v_compact" and car.Color == 2 and car.Fuel == 100 and car.Cond == 100, "vehículo en el garaje")
+Quest.check(player)
+assert(data.Quests.Completed["vehicles_bought_1"], "logro de primer vehículo")
+-- Sacarlo: modelo con VehicleSeat y restricciones de movimiento en workspace
+must(player, "Veh.Spawn", { id = carId })
+local vmodel = Vehicle.spawnedModel(player)
+assert(vmodel and vmodel.Parent == M.workspace and vmodel:IsA("Model"), "el vehículo aparece en el mundo")
+assert(vmodel:FindFirstChildOfClass("VehicleSeat"), "tiene asiento de conductor")
+assert(vmodel:GetAttribute("YTVehicle") and vmodel:GetAttribute("MaxSpeed") == 75 and vmodel:GetAttribute("VehicleId") == carId)
+local chassis = vmodel.PrimaryPart
+assert(chassis and chassis:FindFirstChild("Drive") and chassis:FindFirstChild("Steer"), "LinearVelocity y AngularVelocity")
+assert(Vehicle.spawnedId(player) == carId)
+-- Maletero: cerca del vehículo la mochila gana espacios
+local cp = chassis.Position
+M.moveTo(player, cp.X + 5, 3, cp.Z)
+local capNear = Inventory.backpackCap(player)
+M.moveTo(player, cp.X + 200, 3, cp.Z)
+local capFar = Inventory.backpackCap(player)
+assert(capNear - capFar == 4, "el maletero del Orbis Compacto suma 4 espacios: " .. capNear .. " vs " .. capFar)
+-- Conducir 2 km: consume combustible, desgasta y cuenta kilómetros
+for i = 1, 8 do
+	chassis.CFrame = chassis.CFrame + M.Vector3.new(250, 0, 0)
+	M.stepBackground()
+end
+assert(car.Odo >= 1900 and car.Fuel < 100 and car.Fuel > 90, "consumo por distancia: " .. car.Fuel .. " / " .. car.Odo)
+assert(car.Cond < 100, "desgaste")
+assert(data.Counters.drive_km == 2, "kilómetros: " .. tostring(data.Counters.drive_km))
+assert(data.Quests.Completed["drive_km_1"], "logro del primer kilómetro")
+-- Un salto enorme (teletransporte) no cuenta
+local odo0 = car.Odo
+chassis.CFrame = chassis.CFrame + M.Vector3.new(2000, 0, 0)
+M.stepBackground()
+assert(car.Odo == odo0, "los saltos no cuentan como distancia")
+-- Sin combustible: muy despacio
+car.Fuel = 0.1
+chassis.CFrame = chassis.CFrame + M.Vector3.new(100, 0, 0)
+M.stepBackground()
+assert(car.Fuel == 0 and vmodel:GetAttribute("MaxSpeed") == 8, "sin combustible va muy despacio")
+-- Repostar solo en la gasolinera
+M.moveTo(player, dealer.WX, 3, dealer.WZ)
+assert(not call(player, "Veh.Refuel", { id = carId }).ok, "no se reposta en el concesionario")
+M.moveTo(player, gas.WX, 3, gas.WZ)
+local mF = data.Money
+must(player, "Veh.Refuel", { id = carId })
+assert(car.Fuel == 100 and mF - data.Money == 40 and vmodel:GetAttribute("MaxSpeed") == 75, "depósito lleno por $40")
+assert(not call(player, "Veh.Refuel", { id = carId }).ok, "ya está lleno")
+-- Taller
+car.Cond = 30
+local mR = data.Money
+must(player, "Veh.Repair", { id = carId })
+assert(car.Cond == 100 and mR - data.Money == 910, "reparación: " .. (mR - data.Money))
+-- Mejoras y pintura (en el concesionario)
+assert(not call(player, "Veh.Upgrade", { id = carId, key = "engine" }).ok, "las mejoras se instalan en el concesionario")
+M.moveTo(player, dealer.WX, 3, dealer.WZ)
+assert(not call(player, "Veh.Upgrade", { id = carId, key = "turbo" }).ok, "mejora no válida")
+must(player, "Veh.Upgrade", { id = carId, key = "engine" })
+must(player, "Veh.Upgrade", { id = carId, key = "trunk" })
+assert(not call(player, "Veh.Upgrade", { id = carId, key = "engine" }).ok, "no se instala dos veces")
+assert(math.abs(vmodel:GetAttribute("MaxSpeed") - 75 * 1.15) < 0.01, "el motor mejorado sube la velocidad")
+cp = chassis.Position
+M.moveTo(player, cp.X, 3, cp.Z)
+assert(Inventory.backpackCap(player) - capFar == 7, "maletero ampliado: +3")
+M.moveTo(player, dealer.WX, 3, dealer.WZ)
+assert(not call(player, "Veh.Paint", { id = carId, color = 99 }).ok, "color no válido")
+local mP = data.Money
+must(player, "Veh.Paint", { id = carId, color = 5 })
+assert(car.Color == 5 and mP - data.Money == 200, "pintura")
+assert(math.abs(vmodel:FindFirstChild("Body").Color.R - 250 / 255) < 0.01, "se repinta el vehículo en la calle")
+-- Guardar
+must(player, "Veh.Store", {})
+assert(vmodel.Parent == nil and Vehicle.spawnedId(player) == nil, "guardado en el garaje")
+assert(not call(player, "Veh.Store", {}).ok)
+-- Alquiler de un día
+local mA = data.Money
+must(player, "Veh.Rent", { model = "v_moto", color = 3 })
+assert(mA - data.Money == 44 and data.Rental and data.Rental.Rec.Model == "v_moto", "alquiler: 2 % del precio")
+assert(Vehicle.spawnedId(player) == "rental", "el alquilado sale a la calle")
+local rentModel = Vehicle.spawnedModel(player)
+data.Rental.Until = TimeSvc.day() - 1
+M.stepBackground()
+assert(data.Rental == nil and Vehicle.spawnedId(player) == nil and rentModel.Parent == nil, "el alquiler caduca y el vehículo vuelve")
+assert(not call(player, "Veh.Spawn", { id = "rental" }).ok)
+-- Vender
+local value = req(Shared.LifeData).sellValue(car)
+assert(value > 0)
+local mS = data.Money
+must(player, "Veh.Sell", { id = carId })
+assert(data.Vehicles[carId] == nil and data.Money - mS == value, "venta")
+assert(not call(player, "Veh.Spawn", { id = carId }).ok, "ya no es tuyo")
+-- La sincronización expone el vehículo en la calle y el maletero
+local viewV = req(ServerScriptService.Server.Services.SyncService).build(player)
+assert(viewV.Derived.VehicleOut == nil and viewV.Derived.TrunkBonus == 0)
 
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)

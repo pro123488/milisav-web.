@@ -92,6 +92,8 @@ function Inventory.backpackCap(player)
 			end
 		end
 	end
+	-- Maletero: con tu vehículo cerca puedes transportar más equipo
+	cap = cap + (S.Vehicle and S.Vehicle.trunkBonus(player) or 0)
 	return cap
 end
 

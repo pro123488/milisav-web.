@@ -56,6 +56,8 @@ function Sync.build(player)
 		MaxProps = require(Shared.PropertyData).maxProperties(data.Level),
 		Returnable = {},
 		SellValues = {},
+		VehicleOut = S.Vehicle and S.Vehicle.spawnedId(player) or nil,
+		TrunkBonus = S.Vehicle and S.Vehicle.trunkBonus(player) or 0,
 	}
 	for rigId in pairs(data.Rigs) do
 		view.Derived.RigStats[rigId] = S.Computer.rigStats(player, rigId)
