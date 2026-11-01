@@ -34,6 +34,9 @@ local roleLines = {
 	barista = { "Los computadores públicos son gratis. Perfectos para editar si aún no tienes uno bueno.",
 		"Aquí vienen muchos estudiantes a editar sus vídeos." },
 	waiter = { "¡Bienvenido! El menú del día es lo más popular. Pide en el mostrador.", "Comer bien sube tu energía y tu ánimo." },
+	petkeeper = { "¡Hola! Aquí puedes adoptar perros, gatos, pájaros, conejos, tortugas y peces. Máximo 3 por familia.",
+		"Juega con tu mascota y dale de comer: se pone muy contenta. Si la notas triste, solo necesita un poco de cariño.",
+		"Una cama o un rascador en casa hace que tus mascotas estén siempre a gusto." },
 	banker = { "Desde el cajero puedes ahorrar, crear metas y pedir préstamos con un 10% fijo.",
 		"Revisa tu informe mensual: verás en qué gastas y cuánto ganas." },
 }
@@ -126,6 +129,8 @@ function NPC.talk(player, id)
 	if p.Role == "shopkeeper" and p.Store then
 		options[#options + 1] = { label = "Ver catálogo", ui = "store", store = p.Store }
 		S.Travel.markStoreVisit(player, p.Store)
+	elseif p.Role == "petkeeper" then
+		options[#options + 1] = { label = "Ver mascotas", ui = "app", app = "pets" }
 	elseif p.Role == "banker" then
 		options[#options + 1] = { label = "Abrir banco", ui = "app", app = "bank" }
 	elseif p.Role == "citizen" then

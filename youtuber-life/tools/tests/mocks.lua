@@ -357,7 +357,7 @@ function Inst:GetAttribute(k)
 	return self.__props.Attributes[k]
 end
 function Inst:PivotTo(cf)
-	local root = self:FindFirstChild("HumanoidRootPart")
+	local root = self:FindFirstChild("HumanoidRootPart") or self.__props.PrimaryPart
 	if root then
 		root.Position = cf.Position
 		root.CFrame = cf

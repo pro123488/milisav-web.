@@ -172,6 +172,20 @@ M.time = M.time + 300
 senv.require(services.ServerScriptService.Server.Services.ChannelService).tickPlayer(player)
 M.stepBackground()
 
+-- Una mascota fuera para que la app Mascotas muestre su lista
+local petShop
+for _, sp in ipairs(senv.require(services.ReplicatedStorage.Shared.WorldData).Specials) do
+	if sp.Type == "petshop" then
+		petShop = sp
+	end
+end
+M.moveTo(player, petShop.WX, 3, petShop.WZ)
+local adopted = call("Pet.Adopt", { species = "cat", name = "Michi" })
+assert(adopted.ok, "adoptar: " .. tostring(adopted.msg))
+assert(call("Pet.Spawn", { id = adopted.data.id }).ok, "sacar la mascota")
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+M.stepBackground()
+
 -- Pulsar todos los botones de un árbol de interfaz
 local errors = {}
 local clicks = 0
@@ -250,6 +264,19 @@ local okP, errP = pcall(function()
 end)
 if not okP then
 	errors[#errors + 1] = "shell: " .. tostring(errP)
+end
+
+-- App Mascotas dentro de la tienda (adopción, juguetes, accesorios, buscar familia)
+local okPet, errPet = pcall(function()
+	Shell.close()
+	M.moveTo(player, petShop.WX, 3, petShop.WZ)
+	Shell.openPanel("pets")
+	clickAll(gui, "mascotas en la tienda", 150)
+	Shell.close()
+	M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+end)
+if not okPet then
+	errors[#errors + 1] = "mascotas: " .. tostring(errPet)
 end
 
 -- Modo construcción dentro de una propiedad

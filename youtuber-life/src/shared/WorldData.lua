@@ -131,6 +131,7 @@ district({ Id = "budget", Name = "Barrio económico", Col = 1, Row = 4, Ground =
 district({ Id = "apartments", Name = "Zona de apartamentos", Col = 2, Row = 4, Ground = { 90, 95, 95 }, Material = "Concrete",
 	Style = "apartment", Count = 7, Palette = { { 200, 200, 210 }, { 120, 140, 160 } }, Trees = 6,
 	Tags = { "urban", "home" }, Noise = 3, Busy = 4,
+	Specials = { { Type = "petshop", Name = "Tienda de mascotas Huellitas", X = 75, Z = 75 } },
 	Spots = { { Name = "Patio interior", X = 0, Z = 0, Tags = { "urban", "home" }, Interest = 5 },
 		{ Name = "Azotea compartida", X = 70, Z = -70, Tags = { "urban", "night" }, Interest = 8 } } })
 district({ Id = "studios", Name = "Distrito de estudios de grabación", Col = 3, Row = 4, Ground = { 60, 60, 66 }, Material = "Concrete",

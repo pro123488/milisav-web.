@@ -211,7 +211,7 @@ function Video.recordScene(player, p)
 		goldenHour = F.isGoldenHour(hour),
 		weather = S.Time.Weather,
 		spotTags = spot.Tags,
-		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0),
+		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0) + (S.Pet and S.Pet.interestBonus(player) or 0),
 		spotNoise = spot.Noise,
 		busy = spot.Busy,
 		categoryTags = cat.Tags,
@@ -300,6 +300,18 @@ function Video.takePhoto(player, p)
 	if not mode then
 		return false, "Modo de foto no válido."
 	end
+	-- Modo mascota: solo con tu mascota cerca (+8 de calidad)
+	local petBonus, petRec = 0, nil
+	if mode.Id == "pet" then
+		if not S.Pet then
+			return false, "Necesitas una mascota contigo para hacer una foto de mascota."
+		end
+		local bonus, info = S.Pet.photoBonus(player)
+		if not bonus then
+			return false, info
+		end
+		petBonus, petRec = bonus, info
+	end
 	if #data.Photos >= Video.photoCapacity(player) then
 		return false, "Álbum lleno (" .. #data.Photos .. " fotos). Borra fotos o consigue más almacenamiento (mejor teléfono o una cámara)."
 	end
@@ -342,6 +354,9 @@ function Video.takePhoto(player, p)
 		tripod = gear.Tripod and gear.Tripod.Stats.Stability or 0,
 		composition = num(p.composition, 0, 10) or 5,
 	})
+	if petBonus > 0 then
+		result.Quality = Util.round(Util.clamp(result.Quality + petBonus, 1, 100), 1)
+	end
 	data.Counters.photo_id = (data.Counters.photo_id or 0) + 1
 	local cam = nil
 	if type(p.cam) == "table" then
@@ -371,11 +386,15 @@ function Video.takePhoto(player, p)
 		Album = "General",
 		Dev = dev.Name,
 		Prod = product and product.Id or nil,
+		Pet = petRec and petRec.Name or nil,
 		Probs = result.Problems,
 	}
 	table.insert(data.Photos, 1, photo)
 	lastPhoto[player] = os.clock()
 	data.Counters.photos = (data.Counters.photos or 0) + 1
+	if petRec then
+		data.Counters.pet_photos = (data.Counters.pet_photos or 0) + 1
+	end
 	if mode.Night and S.Time.isNight() then
 		data.Counters.night_photos = (data.Counters.night_photos or 0) + 1
 	end

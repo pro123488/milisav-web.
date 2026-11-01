@@ -605,10 +605,109 @@ end
 assert(data.Job.Type == nil and (data.Counters.job_camera or 0) == 1, "encargo de camarógrafo completado")
 must(player, "Video.StopRecording", {})
 
+-- MASCOTAS: adoptar en la tienda, nombre, sacar, jugar, comer, fotos, interés, guardar y máximo 3
+local Pet = req(ServerScriptService.Server.Services.PetService)
+local Catalog2 = req(Shared.ItemCatalog)
+assert(Catalog2.get("dec_pet_bed").Cat == "decor" and Catalog2.get("dec_pet_bed").Placeable, "cama para mascotas colocable")
+data.Money = 50000
+local petshop
+for _, sp in ipairs(WorldData.Specials) do
+	if sp.Type == "petshop" then
+		petshop = sp
+	end
+end
+assert(petshop and petshop.District == "apartments", "tienda de mascotas en la Zona de apartamentos")
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+M.clock = M.clock + 3
+local noPet = call(player, "Photo.Take", { mode = "pet" })
+assert(not noPet.ok and noPet.msg:find("mascota"), "foto de mascota sin mascota: mensaje claro: " .. tostring(noPet.msg))
+assert(not call(player, "Pet.Adopt", { species = "dog" }).ok, "solo se adopta en la tienda")
+M.moveTo(player, petshop.WX, 3, petshop.WZ)
+local mPet = data.Money
+local dogId = must(player, "Pet.Adopt", { species = "dog", color = 4, name = "  Toby  " }).data.id
+assert(mPet - data.Money == 300, "adoptar un perro cuesta 300")
+assert(data.Pets[dogId].Name == "Toby" and data.Pets[dogId].Color == 4 and data.Counters.pets_adopted == 1)
+must(player, "Pet.Rename", { id = dogId, name = "Rayo" })
+assert(data.Pets[dogId].Name == "Rayo", "nombre cambiado")
+assert(not call(player, "Pet.Rename", { id = dogId, name = "   " }).ok, "nombre vacío rechazado")
+assert(not call(player, "Pet.Accessory", { id = dogId, acc = "Corona de oro" }).ok, "accesorio inexistente")
+local mAcc = data.Money
+must(player, "Pet.Accessory", { id = dogId, acc = "Gorrito" })
+assert(mAcc - data.Money == 50 and data.Pets[dogId].Acc == "Gorrito", "accesorio comprado y puesto")
+must(player, "Pet.Color", { id = dogId, color = 2 })
+must(player, "Pet.BuyToy", { toy = "ball" })
+assert(not call(player, "Pet.BuyToy", { toy = "ball" }).ok, "no se compra dos veces el mismo juguete")
+-- Sacar: el modelo aparece en workspace, con nombre, accesorio y seguimiento suave
+must(player, "Pet.Spawn", { id = dogId })
+local _, petModel = Pet.active(player)
+assert(petModel and petModel.Parent == M.workspace, "modelo de la mascota en workspace")
+local petRoot = petModel:FindFirstChild("PetRoot")
+assert(petRoot:FindFirstChild("PetTag") and petRoot:FindFirstChild("PetFollow"), "nombre visible y AlignPosition")
+assert(petModel:FindFirstChild("AccHat") and petModel:FindFirstChild("Snout"), "perro con gorrito")
+assert(data.ActivePet == dogId)
+assert(Pet.interestBonus(player) == 3, "escenas con la mascota cerca: +3 de interés")
+-- Jugar (ánimo del jugador y enfriamiento) y dar de comer
+data.Pets[dogId].Happy = 20
+data.Needs.Mood = 50
+local mood0 = data.Needs.Mood
+must(player, "Pet.Play", { id = dogId })
+assert(data.Pets[dogId].Happy >= 20 + 12 + 4 and data.Needs.Mood > mood0, "jugar sube felicidad (con juguete) y ánimo")
+assert(not call(player, "Pet.Play", { id = dogId }).ok, "enfriamiento al jugar")
+local mFeed = data.Money
+must(player, "Pet.Feed", { id = dogId })
+assert(mFeed - data.Money == 8, "la comida del perro cuesta 8")
+assert(not call(player, "Pet.Feed", { id = dogId }).ok, "ya ha comido")
+-- Foto en modo mascota (+8 de calidad)
+M.clock = M.clock + 3
+local petPhoto = must(player, "Photo.Take", { mode = "pet", composition = 5 })
+assert(petPhoto.data.photo.Pet == "Rayo" and data.Counters.pet_photos == 1, "foto de mascota registrada")
+-- Paseo: la distancia cuenta mientras te sigue
+local walk0 = data.Counters.pet_walk_m or 0
+for i = 1, 12 do
+	M.moveTo(player, petshop.WX, 3, petshop.WZ + i * 10)
+	M.stepBackground()
+end
+assert(data.Counters.pet_walk_m - walk0 >= 100 and data.Counters.pet_walk >= 1, "paseo de 100 m: " .. tostring(data.Counters.pet_walk_m))
+assert(data.Pets[dogId].Walk >= 100, "distancia paseada de la mascota")
+assert((petRoot.Position - M.Vector3.new(petshop.WX, 3, petshop.WZ + 120)).Magnitude < 60, "la mascota se acerca si se queda atrás")
+Quest.check(player)
+assert(data.Quests.Completed["pets_adopted_1"] and data.Quests.Completed["pet_walk_1"] and data.Quests.Completed["pet_photos_1"], "logros de mascotas")
+-- Peces: se quedan en casa (acuario); máximo 3 mascotas
+M.moveTo(player, petshop.WX, 3, petshop.WZ)
+local fishId = must(player, "Pet.Adopt", { species = "fish" }).data.id
+assert(not call(player, "Pet.Spawn", { id = fishId }).ok, "los peces no salen de casa")
+local catId = must(player, "Pet.Adopt", { species = "cat", color = 3 }).data.id
+local fourth = call(player, "Pet.Adopt", { species = "rabbit" })
+assert(not fourth.ok and fourth.msg:find("3"), "máximo 3 mascotas: " .. tostring(fourth.msg))
+-- Cambiar de mascota activa: solo una a la vez
+must(player, "Pet.Spawn", { id = catId })
+assert(petModel.Parent == nil and data.ActivePet == catId, "solo una mascota fuera a la vez")
+-- Guardar
+must(player, "Pet.Store", {})
+assert(Pet.active(player) == nil and data.ActivePet == "", "mascota guardada")
+assert(not call(player, "Pet.Store", {}).ok, "no hay ninguna fuera")
+assert(Pet.interestBonus(player) == 0, "sin mascota cerca no hay bonus")
+M.clock = M.clock + 3
+local farPet = call(player, "Photo.Take", { mode = "pet" })
+assert(not farPet.ok and farPet.msg:find("no está contigo"), "foto sin la mascota cerca: " .. tostring(farPet.msg))
+-- En casa, el acuario cuenta para las fotos de mascota
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+M.clock = M.clock + 3
+must(player, "Photo.Take", { mode = "pet" })
+must(player, "Pet.Play", { id = fishId })
+-- Buscar familia (en la tienda) libera un hueco
+M.moveTo(player, petshop.WX, 3, petshop.WZ)
+must(player, "Pet.Rehome", { id = catId })
+assert(data.Pets[catId] == nil and req(Shared.Util).count(data.Pets) == 2, "mascota con nueva familia")
+must(player, "Pet.Spawn", { id = dogId })
+local _, exitModel = Pet.active(player)
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]
 assert(saved and saved.__lock == nil, "el bloqueo de sesión debe liberarse al salir")
+assert(exitModel.Parent == nil, "la mascota se elimina al salir el jugador")
+assert(saved.Pets and saved.Pets[dogId] and saved.Pets[dogId].Name == "Rayo", "las mascotas se guardan")
 assert(#saved.Videos == 2, "los vídeos deben quedar guardados")
 
 -- Recarga: los datos persisten

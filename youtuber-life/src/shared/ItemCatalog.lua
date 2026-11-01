@@ -486,11 +486,17 @@ local generic = {
 	{ "dec_trophy", "Vitrina de trofeos", "Decoración", 260, 6, "shelf", { 5, 2, 7 }, { 230, 190, 90 } },
 	{ "dec_beanbag", "Puf gamer", "Asiento", 60, 2, "beanbag", { 3, 3, 2 }, { 200, 40, 220 } },
 	{ "dec_seccam", "Cámara de seguridad", "Seguridad", 140, 0, "seccam", { 1, 1, 1 }, { 30, 30, 34 } },
+	{ "dec_pet_bed", "Cama para mascotas", "Mascotas", 60, 2, "beanbag", { 3, 3, 1.5 }, { 170, 120, 90 } },
+	{ "dec_pet_tower", "Rascador con plataforma", "Mascotas", 90, 2, "table", { 3, 3, 4 }, { 205, 175, 135 } },
 }
 for _, g in ipairs(generic) do
 	add("decor", g[3], { Id = g[1], Name = g[2], Brand = "", Price = g[4], Quality = math.min(90, 30 + g[5] * 8),
 		Desc = g[2] .. (g[9] and ". Reduce el ruido al grabar en la sala." or ".") .. " Se coloca con el modo construcción.",
 		Stats = { Decor = g[5], Acoustic = g[9] and 2 or nil }, Placeable = true, Foot = g[7], Shape = g[6], Color = g[8] })
+end
+-- Muebles para mascotas: con uno colocado en tu casa, la felicidad de tus mascotas no baja
+for _, id in ipairs({ "dec_pet_bed", "dec_pet_tower" }) do
+	Items[id].Desc = Items[id].Name .. " para el rincón de tus mascotas. Colocado en tu casa, su felicidad deja de bajar. Se coloca con el modo construcción."
 end
 -- Las sillas y escritorios también se pueden colocar
 for _, id in ipairs(Order) do
