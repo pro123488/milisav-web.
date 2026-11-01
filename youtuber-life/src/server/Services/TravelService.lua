@@ -46,6 +46,13 @@ function Travel.currentSpot(player)
 	if pspot then
 		return pspot
 	end
+	-- Plató alquilado del Complejo de Estudios Prisma (solo con alquiler activo y estando dentro)
+	if S.Studio then
+		local sspot = S.Studio.spot(player)
+		if sspot then
+			return sspot
+		end
+	end
 	if S.Home.isAtHome(player) then
 		local _, _, decor = S.Inventory.best(player, "homeextra", "home", "Decor")
 		local tags = { "home", "food" }
@@ -74,6 +81,16 @@ function Travel.currentSpot(player)
 				return { Id = "bank", Name = sp.Name, Tags = { "business" }, Indoor = true, Interest = 5, Noise = 2, Busy = 4, District = sp.District, Decor = 10 }
 			elseif sp.Type == "dealer" then
 				return { Id = "dealer", Name = sp.Name, Tags = { "vehicle", "luxury", "shop" }, Indoor = true, Interest = 10, Noise = 3, Busy = 4, District = sp.District, Decor = 14 }
+			elseif sp.Type == "studios" then
+				return { Id = "studios_lobby", Name = sp.Name, Tags = { "studio", "business" }, Indoor = true, Interest = 7, Noise = 2, Busy = 3, District = sp.District, Decor = 12 }
+			elseif sp.Type == "gym" then
+				return { Id = "gym", Name = sp.Name, Tags = { "fun", "urban", "sport", "fitness" }, Indoor = true, Interest = 8, Noise = 4, Busy = 5, District = sp.District, Decor = 10 }
+			elseif sp.Type == "cinema" then
+				return { Id = "cinema", Name = sp.Name, Tags = { "fun", "night", "event" }, Indoor = true, Interest = 8, Noise = 3, Busy = 5, District = sp.District, Decor = 12 }
+			elseif sp.Type == "karaoke" then
+				return { Id = "karaoke", Name = sp.Name, Tags = { "fun", "night", "event" }, Indoor = true, Interest = 10, Noise = 3, Busy = 5, District = sp.District, Decor = 12 }
+			elseif sp.Type == "bowling" then
+				return { Id = "bowling", Name = sp.Name, Tags = { "fun", "night" }, Indoor = true, Interest = 9, Noise = 4, Busy = 5, District = sp.District, Decor = 12 }
 			elseif sp.Type == "airport" then
 				return { Id = "airport_terminal", Name = sp.Name, Tags = { "travel", "urban", "business" }, Indoor = true, Interest = 9, Noise = 5, Busy = 6, District = sp.District, Decor = 10 }
 			end
@@ -237,7 +254,8 @@ function Travel.Start()
 					elseif not d then
 						local dest = LifeData.destinationAt(pos.X, pos.Z)
 						lastDistrict[player] = nil
-						player:SetAttribute("District", dest and ("✈️ " .. dest.Name) or "Afueras")
+						local set = S.Studio and S.Studio.insideSet(player)
+						player:SetAttribute("District", (dest and ("✈️ " .. dest.Name)) or (set and (set.Icon .. " " .. set.Name)) or "Afueras")
 					end
 					-- Tiendas
 					local storeId = S.Shop.storeNear(player)

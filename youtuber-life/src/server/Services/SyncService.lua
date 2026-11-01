@@ -59,6 +59,8 @@ function Sync.build(player)
 		VehicleOut = S.Vehicle and S.Vehicle.spawnedId(player) or nil,
 		TrunkBonus = S.Vehicle and S.Vehicle.trunkBonus(player) or 0,
 		Trade = S.Trade and S.Trade.view(player) or nil,
+		Studio = S.Studio and S.Studio.view(player) or nil,
+		Leisure = S.Leisure and S.Leisure.view(player) or nil,
 	}
 	for rigId in pairs(data.Rigs) do
 		view.Derived.RigStats[rigId] = S.Computer.rigStats(player, rigId)

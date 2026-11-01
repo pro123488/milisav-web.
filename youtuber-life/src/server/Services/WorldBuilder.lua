@@ -14,6 +14,7 @@ local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
 local PropertyData = require(Shared.PropertyData)
 local LifeData = require(Shared.LifeData)
+local StudioData = require(Shared.StudioData)
 
 local World = {}
 local S
@@ -1496,6 +1497,422 @@ end
 ---------------------------------------------------------------------------
 -- Distritos
 ---------------------------------------------------------------------------
+---------------------------------------------------------------------------
+-- Complejo de Estudios Prisma: vestíbulo con recepción en el Distrito de estudios y 6 platós
+-- especializados en la zona de interiores (z ≈ -4200), cada uno con su decoración y puerta de salida.
+---------------------------------------------------------------------------
+World.StudioSets = {}
+
+local function vcyl(parent, name, height, dia, cf, color, material, opts)
+	-- Cilindro vertical (en Roblox el cilindro va a lo largo del eje X)
+	local o = opts or {}
+	o.Shape = Enum.PartType.Cylinder
+	return P(parent, name, Vector3.new(height, dia, dia), cf * CFrame.Angles(0, 0, math.rad(90)), color, material, o)
+end
+
+local function lightStand(parent, cf, color, boxColor)
+	P(parent, "StandPole", Vector3.new(0.3, 7, 0.3), cf * CFrame.new(0, 3.5, 0), { 30, 30, 34 }, Enum.Material.Metal)
+	P(parent, "StandFoot", Vector3.new(3, 0.3, 3), cf * CFrame.new(0, 0.15, 0), { 30, 30, 34 }, Enum.Material.Metal)
+	local box = P(parent, "Softbox", Vector3.new(3.4, 2.6, 1.2), cf * CFrame.new(0, 7.4, 0), boxColor or { 245, 245, 245 }, Enum.Material.Neon, { NoShadow = true })
+	nightLight(box, 18, color and rgb(color) or Color3.fromRGB(255, 250, 235))
+	return box
+end
+
+local function buildStudioComplex(parent, sp)
+	local m = model(parent, "EstudiosPrisma")
+	local w, d, h = 60, 44, 18
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 40, 40, 48 }, { 70, 70, 80 })
+	local board = P(m, "PrismaSign", Vector3.new(34, 4, 0.6), base * CFrame.new(0, h - 3, d / 2 + 1.2), { 20, 20, 24 })
+	signBoth(board, "🎛 " .. sp.Name, Color3.fromRGB(30, 20, 50), Color3.new(1, 1, 1))
+	-- Franja de neón con los colores del prisma
+	local colors = { { 255, 60, 60 }, { 255, 170, 40 }, { 255, 230, 60 }, { 60, 220, 120 }, { 60, 160, 255 }, { 170, 90, 255 } }
+	for i, c in ipairs(colors) do
+		local strip = P(m, "PrismaStrip", Vector3.new(w / 6, 0.6, 0.4), base * CFrame.new(-w / 2 + (i - 0.5) * w / 6, h - 0.6, d / 2 + 0.8), c, Enum.Material.Neon, { NoShadow = true })
+		if i == 4 then
+			nightLight(strip, 30, rgb(c))
+		end
+	end
+	-- Recepción: aviso que abre la app Estudios
+	local desk = P(m, "ReceptionDesk", Vector3.new(16, 4, 3), base * CFrame.new(0, 2, -d / 2 + 9), { 230, 230, 236 }, Enum.Material.Marble)
+	P(m, "DeskTop", Vector3.new(16.4, 0.4, 3.4), base * CFrame.new(0, 4.2, -d / 2 + 9), { 30, 30, 36 }, Enum.Material.Glass)
+	local ds = P(m, "DeskSign", Vector3.new(12, 1.4, 0.2), base * CFrame.new(0, 3, -d / 2 + 10.6), { 30, 20, 50 })
+	signBoth(ds, "RECEPCIÓN · ALQUILER DE PLATÓS", Color3.fromRGB(30, 20, 50), Color3.new(1, 1, 1))
+	prompt(desk, "studio_desk", "Alquilar plató", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(0, 0, -d / 2 + 6)).Position, Look = (base * CFrame.new(0, 0, 0)).Position, Name = "Recepcionista de Prisma", Role = "studio" })
+	-- Pantalla con los platós y precios
+	local lines = {}
+	for _, set in ipairs(StudioData.Sets) do
+		lines[#lines + 1] = set.Icon .. " " .. set.Name .. "  $" .. set.Price .. "/h"
+	end
+	local board2 = P(m, "SetsBoard", Vector3.new(22, 8, 0.4), base * CFrame.new(0, 10, -d / 2 + 1), { 10, 10, 20 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(board2, table.concat(lines, "\n"), Color3.fromRGB(10, 10, 20), Color3.fromRGB(120, 220, 255), Enum.Font.Code)
+	-- Puertas de los platós (3 por lado) con su cartel y luz de «grabando»
+	for i, set in ipairs(StudioData.Sets) do
+		local sx = i <= 3 and -1 or 1
+		local z = -10 + ((i - 1) % 3) * 10
+		local doorCF = base * CFrame.new(sx * (w / 2 - 0.8), 0, z)
+		P(m, "SetDoor", Vector3.new(0.4, 9, 5), doorCF * CFrame.new(0, 4.5, 0), { 50, 50, 60 }, Enum.Material.Metal)
+		local plate = P(m, "SetDoorSign", Vector3.new(0.3, 1.4, 6), doorCF * CFrame.new(-sx * 0.3, 10, 0), { 30, 20, 50 })
+		sign(plate, sx < 0 and Enum.NormalId.Right or Enum.NormalId.Left, set.Icon .. " " .. set.Name, Color3.fromRGB(30, 20, 50), Color3.new(1, 1, 1))
+		P(m, "OnAirLamp", Vector3.new(0.4, 0.8, 1.6), doorCF * CFrame.new(-sx * 0.3, 11.5, 0), { 255, 40, 40 }, Enum.Material.Neon, { NoShadow = true })
+	end
+	-- Zona de espera
+	for _, sx in ipairs({ -1, 1 }) do
+		P(m, "LobbySofa", Vector3.new(8, 1.6, 3), base * CFrame.new(sx * 14, 1.2, 10), { 120, 60, 200 }, Enum.Material.Fabric)
+		P(m, "LobbySofaBack", Vector3.new(8, 2.4, 0.8), base * CFrame.new(sx * 14, 2.6, 11.4), { 120, 60, 200 }, Enum.Material.Fabric)
+		P(m, "LobbyPlant", Vector3.new(1.6, 4, 1.6), base * CFrame.new(sx * 22, 2.4, 14), { 60, 150, 70 }, Enum.Material.Grass)
+	end
+end
+
+-- Decoración propia de cada plató
+local studioDecor = {}
+
+studioDecor.gaming = function(m, base, W, D, H)
+	local screenColors = { { 255, 60, 180 }, { 60, 140, 255 }, { 60, 230, 140 } }
+	for i, x in ipairs({ -18, 0, 18 }) do
+		P(m, "GameScreenFrame", Vector3.new(15, 9, 0.4), base * CFrame.new(x, 8, -D / 2 + 1), { 15, 15, 18 }, Enum.Material.Metal)
+		local scr = P(m, "GameScreen", Vector3.new(14, 8, 0.2), base * CFrame.new(x, 8, -D / 2 + 1.3), screenColors[i], Enum.Material.Neon, { NoShadow = true })
+		nightLight(scr, 20, rgb(screenColors[i]))
+	end
+	P(m, "GamingDesk", Vector3.new(34, 0.6, 4), base * CFrame.new(0, 3.2, -D / 2 + 8), { 20, 20, 24 }, Enum.Material.Metal)
+	for i, x in ipairs({ -11, 0, 11 }) do
+		P(m, "DeskMonitor", Vector3.new(4, 2.4, 0.3), base * CFrame.new(x, 5, -D / 2 + 6.6), { 15, 15, 18 })
+		P(m, "DeskScreen", Vector3.new(3.7, 2.1, 0.05), base * CFrame.new(x, 5, -D / 2 + 6.8), screenColors[i], Enum.Material.Neon, { NoShadow = true })
+		P(m, "Keyboard", Vector3.new(3, 0.2, 1), base * CFrame.new(x, 3.6, -D / 2 + 8.4), { 30, 30, 34 })
+		P(m, "KeyboardRGB", Vector3.new(3, 0.05, 1), base * CFrame.new(x, 3.72, -D / 2 + 8.4), screenColors[i], Enum.Material.Neon, { NoShadow = true })
+		-- Silla gaming RGB
+		local chair = base * CFrame.new(x, 0, -D / 2 + 12)
+		P(m, "RGBChairSeat", Vector3.new(3, 0.8, 3), chair * CFrame.new(0, 2.2, 0), { 20, 20, 24 }, Enum.Material.Fabric)
+		P(m, "RGBChairBack", Vector3.new(3, 4.5, 0.6), chair * CFrame.new(0, 4.6, 1.3), { 20, 20, 24 }, Enum.Material.Fabric)
+		P(m, "RGBChairStripe", Vector3.new(0.5, 4.3, 0.1), chair * CFrame.new(0, 4.6, 0.95), screenColors[i], Enum.Material.Neon, { NoShadow = true })
+		P(m, "RGBChairBase", Vector3.new(0.5, 1.8, 0.5), chair * CFrame.new(0, 0.9, 0), { 60, 60, 66 }, Enum.Material.Metal)
+	end
+	for _, side in ipairs({ -1, 1 }) do
+		P(m, "LedStrip", Vector3.new(0.3, 0.3, D - 2), base * CFrame.new(side * (W / 2 - 1), 0.3, 0), { 200, 0, 255 }, Enum.Material.Neon, { NoShadow = true })
+		P(m, "LedStripTop", Vector3.new(0.3, 0.3, D - 2), base * CFrame.new(side * (W / 2 - 1), H - 1, 0), { 0, 220, 255 }, Enum.Material.Neon, { NoShadow = true })
+	end
+	P(m, "GamerSofa", Vector3.new(10, 1.8, 3.5), base * CFrame.new(-14, 1.2, 8), { 60, 30, 90 }, Enum.Material.Fabric)
+	P(m, "ConsoleTable", Vector3.new(6, 1.6, 2.5), base * CFrame.new(-14, 0.8, 3), { 20, 20, 24 }, Enum.Material.Wood)
+	P(m, "Console", Vector3.new(1.6, 0.5, 1.2), base * CFrame.new(-14, 1.85, 3), { 240, 240, 245 })
+end
+
+studioDecor.music = function(m, base, W, D, H)
+	-- Cabina insonorizada con cristal y micrófono
+	local booth = base * CFrame.new(-W / 2 + 9, 0, -D / 2 + 8)
+	P(m, "BoothFloor", Vector3.new(14, 0.4, 12), booth * CFrame.new(0, 0.2, 0), { 60, 50, 50 }, Enum.Material.Carpet)
+	P(m, "BoothGlass", Vector3.new(14, 10, 0.4), booth * CFrame.new(0, 5, 6), { 180, 210, 230 }, Enum.Material.Glass, { Transparency = 0.5 })
+	P(m, "BoothGlass", Vector3.new(0.4, 10, 12), booth * CFrame.new(7, 5, 0), { 180, 210, 230 }, Enum.Material.Glass, { Transparency = 0.5 })
+	P(m, "BoothRoof", Vector3.new(14, 0.4, 12), booth * CFrame.new(0, 10.2, 0), { 40, 40, 44 }, Enum.Material.Metal)
+	vcyl(m, "BoothMicStand", 5, 0.25, booth * CFrame.new(0, 2.7, 0), { 30, 30, 34 }, Enum.Material.Metal)
+	P(m, "BoothMic", Vector3.new(0.5, 1, 0.5), booth * CFrame.new(0, 5.5, 0), { 200, 200, 210 }, Enum.Material.Metal)
+	vcyl(m, "PopFilter", 0.1, 1.2, booth * CFrame.new(0, 5.5, 0.8) * CFrame.Angles(math.rad(90), 0, 0), { 20, 20, 24 }, Enum.Material.Fabric, { Transparency = 0.3 })
+	local onAir = P(m, "RecLamp", Vector3.new(3, 1, 0.2), booth * CFrame.new(0, 11.3, 6), { 255, 40, 40 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(onAir, "REC", Color3.fromRGB(200, 20, 20), Color3.new(1, 1, 1))
+	-- Paneles acústicos en las paredes
+	for i = 0, 5 do
+		for j = 0, 1 do
+			P(m, "AcousticFoam", Vector3.new(3.4, 3.4, 0.6), base * CFrame.new(-W / 2 + 22 + i * 6, 6 + j * 5, -D / 2 + 0.9), (i + j) % 2 == 0 and { 50, 50, 56 } or { 120, 40, 40 }, Enum.Material.Fabric)
+		end
+	end
+	-- Batería
+	local drums = base * CFrame.new(10, 0, -4)
+	vcyl(m, "BassDrum", 2.4, 3.6, drums * CFrame.new(0, 1.8, 0) * CFrame.Angles(math.rad(90), 0, 0), { 200, 30, 40 }, Enum.Material.SmoothPlastic)
+	vcyl(m, "Snare", 1, 2, drums * CFrame.new(-2.4, 2.8, 1.6), { 230, 230, 235 }, Enum.Material.Metal)
+	vcyl(m, "Tom", 1, 1.6, drums * CFrame.new(-0.8, 4.1, -0.4), { 200, 30, 40 }, Enum.Material.SmoothPlastic)
+	vcyl(m, "Tom", 1, 1.6, drums * CFrame.new(0.9, 4.1, -0.4), { 200, 30, 40 }, Enum.Material.SmoothPlastic)
+	for _, sx in ipairs({ -3, 3 }) do
+		vcyl(m, "CymbalStand", 5, 0.2, drums * CFrame.new(sx, 2.5, -1), { 40, 40, 44 }, Enum.Material.Metal)
+		vcyl(m, "Cymbal", 0.1, 2.6, drums * CFrame.new(sx, 5.1, -1), { 230, 190, 70 }, Enum.Material.Metal)
+	end
+	P(m, "DrumStool", Vector3.new(1.6, 2, 1.6), drums * CFrame.new(0, 1, 3), { 30, 30, 34 }, Enum.Material.Fabric)
+	-- Teclado y guitarras
+	local keys = base * CFrame.new(-6, 0, 4)
+	P(m, "KeyboardStand", Vector3.new(6, 3, 0.4), keys * CFrame.new(0, 1.5, 0), { 30, 30, 34 }, Enum.Material.Metal)
+	P(m, "SynthBody", Vector3.new(6.4, 0.5, 2), keys * CFrame.new(0, 3.25, 0), { 20, 20, 24 })
+	P(m, "SynthKeys", Vector3.new(6, 0.1, 1.2), keys * CFrame.new(0, 3.55, 0.3), { 250, 250, 250 })
+	for i = 0, 8 do
+		P(m, "SynthBlackKey", Vector3.new(0.25, 0.12, 0.7), keys * CFrame.new(-2.6 + i * 0.65, 3.62, 0.05), { 10, 10, 12 }, Enum.Material.SmoothPlastic, { NoShadow = true })
+	end
+	for i, c in ipairs({ { 230, 120, 40 }, { 40, 120, 220 } }) do
+		local gx = W / 2 - 4 - (i - 1) * 4
+		P(m, "GuitarStand", Vector3.new(1.4, 0.4, 1.4), base * CFrame.new(gx, 0.2, 6), { 30, 30, 34 }, Enum.Material.Metal)
+		P(m, "GuitarBody", Vector3.new(2.2, 2.6, 0.5), base * CFrame.new(gx, 2, 6), c, Enum.Material.Wood)
+		P(m, "GuitarNeck", Vector3.new(0.35, 3.2, 0.25), base * CFrame.new(gx, 4.8, 6), { 90, 60, 40 }, Enum.Material.Wood)
+	end
+	P(m, "MixingDesk", Vector3.new(8, 3, 3), base * CFrame.new(-6, 1.5, -D / 2 + 18), { 40, 40, 46 }, Enum.Material.Metal)
+	P(m, "MixerFaders", Vector3.new(7.4, 0.1, 2.4), base * CFrame.new(-6, 3.05, -D / 2 + 18), { 80, 200, 255 }, Enum.Material.Neon, { NoShadow = true })
+end
+
+studioDecor.kitchen = function(m, base, W, D, H)
+	P(m, "BackCounter", Vector3.new(36, 3.6, 3.4), base * CFrame.new(0, 1.8, -D / 2 + 2.4), { 240, 240, 240 }, Enum.Material.Marble)
+	for i = 0, 3 do
+		vcyl(m, "Burner", 0.15, 1.6, base * CFrame.new(-6 + (i % 2) * 2.6, 3.7, -D / 2 + 1.6 + math.floor(i / 2) * 1.8), { 20, 20, 24 }, Enum.Material.Metal)
+	end
+	P(m, "Hood", Vector3.new(8, 2.4, 4), base * CFrame.new(-4.7, 9.5, -D / 2 + 2.6), { 190, 195, 205 }, Enum.Material.Metal)
+	P(m, "HoodPipe", Vector3.new(2, 6, 2), base * CFrame.new(-4.7, 13.7, -D / 2 + 2), { 190, 195, 205 }, Enum.Material.Metal)
+	P(m, "Fridge", Vector3.new(5, 10, 4), base * CFrame.new(W / 2 - 4, 5, -D / 2 + 3), { 210, 215, 225 }, Enum.Material.Metal)
+	P(m, "Oven", Vector3.new(4, 3.4, 0.2), base * CFrame.new(-4.7, 1.8, -D / 2 + 4.2), { 20, 20, 24 }, Enum.Material.Glass)
+	P(m, "Sink", Vector3.new(4, 0.3, 2), base * CFrame.new(8, 3.7, -D / 2 + 2.4), { 180, 185, 195 }, Enum.Material.Metal)
+	-- Isla central con tabla, sartenes y platos
+	P(m, "Island", Vector3.new(16, 3.6, 6), base * CFrame.new(0, 1.8, -2), { 245, 245, 245 }, Enum.Material.Marble)
+	P(m, "CuttingBoard", Vector3.new(3, 0.2, 2), base * CFrame.new(-4, 3.7, -2), { 190, 140, 90 }, Enum.Material.Wood)
+	vcyl(m, "Pan", 0.4, 2.2, base * CFrame.new(1, 3.8, -2), { 30, 30, 34 }, Enum.Material.Metal)
+	vcyl(m, "Pot", 1.4, 1.8, base * CFrame.new(4.5, 4.3, -2.5), { 200, 200, 210 }, Enum.Material.Metal)
+	for i = 0, 2 do
+		vcyl(m, "Plate", 0.15, 1.5, base * CFrame.new(-6 + i * 1.8, 3.7, 0), { 250, 250, 250 }, Enum.Material.SmoothPlastic)
+		P(m, "Veggie", Vector3.new(0.7, 0.7, 0.7), base * CFrame.new(-6 + i * 1.8, 4.1, 0), ({ { 230, 60, 40 }, { 90, 180, 60 }, { 250, 200, 40 } })[i + 1], Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Ball })
+	end
+	for _, x in ipairs({ -5, 5 }) do
+		P(m, "PendantCord", Vector3.new(0.1, 6, 0.1), base * CFrame.new(x, H - 3, -2), { 20, 20, 24 }, Enum.Material.Metal)
+		local lamp = P(m, "PendantLamp", Vector3.new(2, 1, 2), base * CFrame.new(x, H - 6.5, -2), { 255, 230, 160 }, Enum.Material.Neon, { NoShadow = true })
+		nightLight(lamp, 16, Color3.fromRGB(255, 230, 170))
+	end
+	for i = 0, 2 do
+		P(m, "Stool", Vector3.new(1.6, 3, 1.6), base * CFrame.new(-5 + i * 5, 1.5, 3), { 40, 40, 44 }, Enum.Material.Metal)
+	end
+end
+
+studioDecor.podcast = function(m, base, W, D, H)
+	vcyl(m, "Rug", 0.1, 18, base * CFrame.new(0, 0.05, -4), { 120, 60, 50 }, Enum.Material.Fabric)
+	vcyl(m, "RoundTable", 0.5, 10, base * CFrame.new(0, 3.2, -4), { 60, 45, 35 }, Enum.Material.Wood)
+	vcyl(m, "TableLeg", 3, 1.2, base * CFrame.new(0, 1.5, -4), { 30, 30, 34 }, Enum.Material.Metal)
+	for i = 0, 3 do
+		local a = math.rad(45 + i * 90)
+		local cx, cz = math.cos(a), math.sin(a)
+		P(m, "PodChair", Vector3.new(2.6, 1, 2.6), base * CFrame.new(cx * 7, 2, -4 + cz * 7), { 30, 30, 34 }, Enum.Material.Fabric)
+		P(m, "PodChairBack", Vector3.new(2.6, 3, 0.5), base * CFrame.new(cx * 8.3, 3.8, -4 + cz * 8.3) * CFrame.Angles(0, -a + math.rad(90), 0), { 30, 30, 34 }, Enum.Material.Fabric)
+		-- Micrófono de brazo
+		P(m, "MicArm", Vector3.new(0.2, 0.2, 3), base * CFrame.new(cx * 3.2, 4.6, -4 + cz * 3.2) * CFrame.Angles(0, -a + math.rad(90), 0), { 20, 20, 24 }, Enum.Material.Metal)
+		P(m, "PodMic", Vector3.new(0.6, 1.2, 0.6), base * CFrame.new(cx * 4.4, 4.4, -4 + cz * 4.4), { 50, 50, 56 }, Enum.Material.Metal)
+		P(m, "Headphones", Vector3.new(1.2, 0.4, 1), base * CFrame.new(cx * 3.6, 3.65, -4 + cz * 3.6), { 220, 60, 60 }, Enum.Material.SmoothPlastic)
+	end
+	local onAir = P(m, "OnAirSign", Vector3.new(10, 2.6, 0.3), base * CFrame.new(0, 12, -D / 2 + 1), { 200, 20, 30 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(onAir, "ON AIR", Color3.fromRGB(200, 20, 30), Color3.new(1, 1, 1))
+	nightLight(onAir, 20, Color3.fromRGB(255, 60, 60))
+	for i = 0, 3 do
+		P(m, "AcousticPanel", Vector3.new(4, 6, 0.5), base * CFrame.new(-18 + i * 12, 7, -D / 2 + 0.9), i % 2 == 0 and { 90, 60, 110 } or { 50, 90, 110 }, Enum.Material.Fabric)
+	end
+	P(m, "Bookshelf", Vector3.new(10, 8, 2), base * CFrame.new(W / 2 - 7, 4, 6), { 110, 80, 55 }, Enum.Material.WoodPlanks)
+	for i = 0, 3 do
+		P(m, "Book", Vector3.new(0.6, 1.6, 1.4), base * CFrame.new(W / 2 - 10 + i * 0.8, 6, 5.6), ({ { 200, 60, 60 }, { 60, 120, 200 }, { 230, 190, 60 }, { 60, 170, 90 } })[i + 1], Enum.Material.SmoothPlastic)
+	end
+	P(m, "Plant", Vector3.new(2, 4, 2), base * CFrame.new(-W / 2 + 4, 2, 6), { 60, 150, 70 }, Enum.Material.Grass)
+end
+
+studioDecor.chroma = function(m, base, W, D, H)
+	-- Curva de croma entre el suelo y la pared del fondo
+	P(m, "ChromaCove", Vector3.new(W - 8, 0.4, 5), base * CFrame.new(0, 1.6, -D / 2 + 2.6) * CFrame.Angles(math.rad(-40), 0, 0), { 40, 200, 70 }, Enum.Material.SmoothPlastic)
+	P(m, "ChromaMark", Vector3.new(2, 0.05, 2), base * CFrame.new(0, 0.03, -6), { 255, 255, 255 }, Enum.Material.SmoothPlastic, { NoShadow = true })
+	for _, x in ipairs({ -14, 0, 14 }) do
+		lightStand(m, base * CFrame.new(x, 0, 4))
+	end
+	-- Cámara en trípode
+	local cam = base * CFrame.new(0, 0, 10)
+	for i = 0, 2 do
+		local a = math.rad(i * 120)
+		P(m, "TripodLeg", Vector3.new(0.2, 5, 0.2), cam * CFrame.new(math.cos(a) * 0.9, 2.4, math.sin(a) * 0.9), { 30, 30, 34 }, Enum.Material.Metal)
+	end
+	P(m, "StudioCamera", Vector3.new(1.8, 1.6, 3), cam * CFrame.new(0, 5.6, 0), { 25, 25, 30 }, Enum.Material.Metal)
+	-- Monitor de composición: muestra el fondo elegido
+	P(m, "CompositeMonitorStand", Vector3.new(0.4, 5, 0.4), base * CFrame.new(8, 2.5, 10), { 30, 30, 34 }, Enum.Material.Metal)
+	local mon = P(m, "CompositeMonitor", Vector3.new(6, 3.6, 0.3), base * CFrame.new(8, 6.6, 10), { 15, 15, 18 })
+	local label = signBoth(mon, "FONDO: elige uno en el panel", Color3.fromRGB(15, 30, 20), Color3.fromRGB(120, 255, 150), Enum.Font.Code)
+	return { Monitor = label }
+end
+
+studioDecor.photo = function(m, base, W, D, H)
+	-- Rollos de papel de fondo con su barrido hasta el suelo
+	local papers = { { 245, 245, 245 }, { 30, 30, 34 }, { 255, 170, 190 } }
+	P(m, "BackdropBar", Vector3.new(W - 6, 0.5, 0.5), base * CFrame.new(0, H - 2, -D / 2 + 1.5), { 40, 40, 44 }, Enum.Material.Metal)
+	for i, c in ipairs(papers) do
+		local x = -16 + (i - 1) * 16
+		P(m, "PaperRoll", Vector3.new(14, 1.2, 1.2), base * CFrame.new(x, H - 2, -D / 2 + 2), c, Enum.Material.Fabric, { Shape = Enum.PartType.Cylinder })
+		P(m, "Paper", Vector3.new(13, H - 3, 0.2), base * CFrame.new(x, (H - 3) / 2, -D / 2 + 2.2), c, Enum.Material.Fabric)
+		P(m, "PaperSweep", Vector3.new(13, 0.1, 8), base * CFrame.new(x, 0.05, -D / 2 + 6), c, Enum.Material.Fabric, { NoShadow = true })
+	end
+	lightStand(m, base * CFrame.new(-10, 0, 2))
+	lightStand(m, base * CFrame.new(10, 0, 2))
+	-- Paraguas reflectores
+	for _, x in ipairs({ -20, 20 }) do
+		P(m, "UmbrellaPole", Vector3.new(0.3, 8, 0.3), base * CFrame.new(x, 4, 4), { 30, 30, 34 }, Enum.Material.Metal)
+		P(m, "Umbrella", Vector3.new(5, 2.4, 5), base * CFrame.new(x, 8.6, 4), { 250, 250, 250 }, Enum.Material.Fabric, { Shape = Enum.PartType.Ball })
+	end
+	vcyl(m, "Reflector", 0.1, 4, base * CFrame.new(5, 2.5, -4) * CFrame.Angles(math.rad(90), 0, 0), { 230, 200, 120 }, Enum.Material.Foil)
+	P(m, "PhotoStool", Vector3.new(2, 3, 2), base * CFrame.new(0, 1.5, -8), { 30, 30, 34 }, Enum.Material.Wood)
+	P(m, "CameraTripod", Vector3.new(0.4, 5, 0.4), base * CFrame.new(0, 2.5, 8), { 30, 30, 34 }, Enum.Material.Metal)
+	P(m, "PhotoCamera", Vector3.new(1.6, 1.2, 1.2), base * CFrame.new(0, 5.6, 8), { 20, 20, 24 }, Enum.Material.Metal)
+end
+
+local function buildStudioSets()
+	local root = folder(city, "EstudiosPrismaPlatos")
+	local size = StudioData.SetSize
+	local W, D, H = size.W, size.D, size.H
+	for _, set in ipairs(StudioData.Sets) do
+		local m = model(root, "Plato_" .. set.Id)
+		local base = CFrame.new(set.OX, 0, set.OZ)
+		P(m, "Floor", Vector3.new(W, 1, D), base * CFrame.new(0, -0.5, 0), set.Floor, set.Id == "music" and Enum.Material.WoodPlanks or Enum.Material.SmoothPlastic)
+		P(m, "Ceiling", Vector3.new(W, 1, D), base * CFrame.new(0, H + 0.5, 0), { 30, 30, 34 }, Enum.Material.SmoothPlastic)
+		for _, side in ipairs({ { 0, -D / 2, W, 1 }, { 0, D / 2, W, 1 }, { -W / 2, 0, 1, D }, { W / 2, 0, 1, D } }) do
+			P(m, "Wall", Vector3.new(side[3], H, side[4]), base * CFrame.new(side[1], H / 2, side[2]), set.Wall, Enum.Material.SmoothPlastic)
+		end
+		-- Parrilla de focos
+		P(m, "LightTruss", Vector3.new(W - 6, 0.5, 0.5), base * CFrame.new(0, H - 1.2, -4), { 40, 40, 44 }, Enum.Material.Metal)
+		for _, lx in ipairs({ -W / 4, 0, W / 4 }) do
+			local lamp = P(m, "TrussLight", Vector3.new(2.4, 1.6, 2.4), base * CFrame.new(lx, H - 2.4, -4), { 255, 250, 235 }, Enum.Material.Neon, { NoShadow = true })
+			local l = Instance.new("PointLight")
+			l.Range = 34
+			l.Brightness = 1.4
+			l.Parent = lamp
+		end
+		local title = P(m, "SetTitle", Vector3.new(20, 2.6, 0.3), base * CFrame.new(0, H - 4.5, D / 2 - 0.8), { 20, 20, 24 })
+		signBoth(title, set.Icon .. " " .. set.Name .. " · " .. StudioData.Name, Color3.fromRGB(20, 20, 24), Color3.new(1, 1, 1))
+		-- Puerta de salida (aviso) y panel del plató (abre la app Estudios)
+		local door = P(m, "ExitDoor", Vector3.new(6, 9, 0.6), base * CFrame.new(0, 4.5, D / 2 - 0.8), { 90, 60, 40 }, Enum.Material.Wood)
+		prompt(door, "studio_exit", "Salir a la recepción", set.Name)
+		local exitSign = P(m, "ExitSign", Vector3.new(4, 1, 0.2), base * CFrame.new(0, 9.8, D / 2 - 0.9), { 40, 200, 90 }, Enum.Material.Neon, { NoShadow = true })
+		signBoth(exitSign, "SALIDA", Color3.fromRGB(40, 160, 80), Color3.new(1, 1, 1))
+		local panel = P(m, "ControlPanel", Vector3.new(3, 4, 1), base * CFrame.new(8, 2, D / 2 - 2), { 30, 30, 36 }, Enum.Material.Metal)
+		P(m, "ControlScreen", Vector3.new(2.6, 1.6, 0.1), base * CFrame.new(8, 3.2, D / 2 - 2.55), { 80, 200, 255 }, Enum.Material.Neon, { NoShadow = true })
+		prompt(panel, "studio_panel", "Panel del plató", set.Name)
+		local extra = studioDecor[set.Id] and studioDecor[set.Id](m, base, W, D, H) or nil
+		World.StudioSets[set.Id] = { Model = m, Center = Vector3.new(set.OX, 0, set.OZ), Monitor = extra and extra.Monitor or nil }
+	end
+end
+
+---------------------------------------------------------------------------
+-- Ocio: gimnasio, cine, karaoke y bolera con recreativos (avisos que abren la app Ocio)
+---------------------------------------------------------------------------
+local function buildGym(parent, sp)
+	local m = model(parent, "Gimnasio")
+	local w, d, h = 52, 40, 16
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 235, 235, 240 }, { 60, 60, 66 })
+	local board = P(m, "GymSign", Vector3.new(28, 3.5, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 1.2), { 20, 20, 24 })
+	signBoth(board, "🏋 " .. sp.Name, Color3.fromRGB(230, 80, 30), Color3.new(1, 1, 1))
+	-- Cintas de correr frente a los espejos
+	P(m, "MirrorWall", Vector3.new(w - 6, 8, 0.3), base * CFrame.new(0, 6, -d / 2 + 0.9), { 200, 220, 235 }, Enum.Material.Glass, { Transparency = 0.2 })
+	for i = 0, 3 do
+		local tm = base * CFrame.new(-15 + i * 6, 0, -d / 2 + 6)
+		P(m, "TreadmillBase", Vector3.new(3, 0.8, 6), tm * CFrame.new(0, 0.4, 0), { 40, 40, 44 }, Enum.Material.Metal)
+		P(m, "TreadmillBelt", Vector3.new(2.4, 0.1, 5.4), tm * CFrame.new(0, 0.85, 0), { 20, 20, 22 }, Enum.Material.Fabric, { NoShadow = true })
+		P(m, "TreadmillPost", Vector3.new(0.3, 4, 0.3), tm * CFrame.new(0, 2.6, -2.8), { 60, 60, 66 }, Enum.Material.Metal)
+		P(m, "TreadmillPanel", Vector3.new(2.4, 1, 0.4), tm * CFrame.new(0, 4.6, -2.8), { 230, 80, 30 }, Enum.Material.Neon, { NoShadow = true })
+	end
+	-- Pesas, banco y saco de boxeo
+	P(m, "DumbbellRack", Vector3.new(10, 3, 2), base * CFrame.new(w / 2 - 6, 1.5, -6), { 40, 40, 44 }, Enum.Material.Metal)
+	for i = 0, 4 do
+		P(m, "Dumbbell", Vector3.new(1.6, 0.6, 0.6), base * CFrame.new(w / 2 - 10 + i * 2, 3.3, -6), { 30, 30, 34 }, Enum.Material.Metal)
+	end
+	P(m, "BenchPress", Vector3.new(2, 1.6, 6), base * CFrame.new(w / 2 - 8, 0.8, 4), { 200, 40, 40 }, Enum.Material.Fabric)
+	P(m, "Barbell", Vector3.new(8, 0.3, 0.3), base * CFrame.new(w / 2 - 8, 4, 2), { 180, 180, 190 }, Enum.Material.Metal)
+	for _, sx in ipairs({ -1, 1 }) do
+		vcyl(m, "BarbellPlate", 0.5, 2.4, base * CFrame.new(w / 2 - 8 + sx * 3.4, 4, 2) * CFrame.Angles(0, 0, math.rad(90)), { 20, 20, 24 }, Enum.Material.Metal)
+	end
+	P(m, "BagChain", Vector3.new(0.2, 4, 0.2), base * CFrame.new(-w / 2 + 6, h - 2, 6), { 120, 120, 130 }, Enum.Material.Metal)
+	vcyl(m, "PunchingBag", 5, 2.4, base * CFrame.new(-w / 2 + 6, h - 6.5, 6), { 150, 30, 30 }, Enum.Material.Fabric)
+	for i = 0, 2 do
+		P(m, "YogaMat", Vector3.new(2.4, 0.15, 6), base * CFrame.new(-8 + i * 4, 0.1, 8), ({ { 60, 160, 220 }, { 120, 200, 90 }, { 230, 120, 180 } })[i + 1], Enum.Material.Fabric, { NoShadow = true })
+	end
+	local counter = P(m, "GymCounter", Vector3.new(10, 4, 3), base * CFrame.new(12, 2, 10), { 230, 80, 30 }, Enum.Material.SmoothPlastic)
+	prompt(counter, "gym", "Entrenar", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(12, 0, 7)).Position, Look = (base * CFrame.new(12, 0, 14)).Position, Name = "Entrenadora de Pulso Fit", Role = "leisure" })
+end
+
+local function buildCinema(parent, sp)
+	local m = model(parent, "Cine")
+	local w, d, h = 56, 44, 18
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 120, 20, 30 }, { 90, 20, 30 })
+	local board = P(m, "CinemaSign", Vector3.new(30, 4, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 1.2), { 20, 20, 24 })
+	signBoth(board, "🎬 " .. sp.Name, Color3.fromRGB(20, 10, 10), Color3.fromRGB(255, 214, 80))
+	-- Marquesina con la cartelera
+	local names = {}
+	for _, mv in ipairs(StudioData.Movies) do
+		names[#names + 1] = mv.Name
+	end
+	local marquee = P(m, "Marquee", Vector3.new(24, 6, 0.4), base * CFrame.new(-w / 2 + 14, 13, d / 2 + 1.4), { 255, 240, 200 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(marquee, "EN CARTELERA\n" .. table.concat(names, " · "), Color3.fromRGB(255, 240, 200), Color3.fromRGB(120, 20, 30))
+	-- Pantalla y butacas
+	local screen = P(m, "MovieScreen", Vector3.new(36, 13, 0.3), base * CFrame.new(0, 9, -d / 2 + 1), { 240, 240, 255 }, Enum.Material.Neon, { NoShadow = true })
+	nightLight(screen, 30, Color3.fromRGB(200, 210, 255))
+	for row = 0, 2 do
+		for i = 0, 7 do
+			local x, z = -14 + i * 4, -6 + row * 5
+			P(m, "Seat", Vector3.new(3, 1.4, 3), base * CFrame.new(x, 1.4 + row * 0.6, z), { 170, 20, 40 }, Enum.Material.Fabric)
+			P(m, "SeatBack", Vector3.new(3, 2.6, 0.5), base * CFrame.new(x, 3.2 + row * 0.6, z + 1.4), { 170, 20, 40 }, Enum.Material.Fabric)
+		end
+	end
+	-- Taquilla y palomitas
+	local counter = P(m, "TicketCounter", Vector3.new(10, 4, 3), base * CFrame.new(w / 2 - 8, 2, 12), { 40, 20, 20 }, Enum.Material.Wood)
+	prompt(counter, "cinema", "Comprar entrada", sp.Name)
+	P(m, "PopcornMachine", Vector3.new(3, 4, 3), base * CFrame.new(w / 2 - 4, 6, 12), { 255, 220, 120 }, Enum.Material.Glass, { Transparency = 0.3 })
+	P(m, "Popcorn", Vector3.new(2.6, 1.4, 2.6), base * CFrame.new(w / 2 - 4, 4.8, 12), { 255, 245, 200 }, Enum.Material.Sand)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(w / 2 - 8, 0, 9)).Position, Look = (base * CFrame.new(w / 2 - 8, 0, 16)).Position, Name = "Taquillero de Lumière", Role = "leisure" })
+end
+
+local function buildKaraoke(parent, sp)
+	local m = model(parent, "Karaoke")
+	local w, d, h = 46, 36, 14
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 60, 20, 80 }, { 40, 20, 50 })
+	local board = P(m, "KaraokeSign", Vector3.new(26, 3.5, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 1.2), { 20, 20, 24 })
+	signBoth(board, "🎤 " .. sp.Name, Color3.fromRGB(80, 20, 110), Color3.fromRGB(255, 214, 80))
+	-- Escenario con micrófono, pantalla de letras y bola de discoteca
+	P(m, "Stage", Vector3.new(20, 1.4, 9), base * CFrame.new(0, 0.7, -d / 2 + 5), { 30, 20, 40 }, Enum.Material.WoodPlanks)
+	local lyrics = P(m, "LyricsScreen", Vector3.new(16, 6, 0.3), base * CFrame.new(0, 7.5, -d / 2 + 0.9), { 20, 20, 60 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(lyrics, "♪ Canta conmigo bajo las luces de la ciudad ♪", Color3.fromRGB(20, 20, 60), Color3.fromRGB(255, 230, 120))
+	vcyl(m, "MicStand", 4.5, 0.25, base * CFrame.new(0, 3.6, -d / 2 + 6), { 200, 200, 210 }, Enum.Material.Metal)
+	local mic = P(m, "StageMic", Vector3.new(0.6, 1.2, 0.6), base * CFrame.new(0, 6.3, -d / 2 + 6), { 230, 190, 70 }, Enum.Material.Metal)
+	prompt(mic, "karaoke", "Cantar", sp.Name)
+	local ball = P(m, "DiscoBall", Vector3.new(2.4, 2.4, 2.4), base * CFrame.new(0, h - 2.5, 0), { 220, 220, 230 }, Enum.Material.Foil, { Shape = Enum.PartType.Ball })
+	nightLight(ball, 26, Color3.fromRGB(255, 120, 220))
+	for i, c in ipairs({ { 255, 60, 160 }, { 60, 200, 255 }, { 255, 220, 60 } }) do
+		local spot = P(m, "Spotlight", Vector3.new(1.4, 1.4, 1.4), base * CFrame.new(-8 + (i - 1) * 8, h - 1.2, -d / 2 + 8), c, Enum.Material.Neon, { NoShadow = true })
+		nightLight(spot, 16, rgb(c))
+	end
+	-- Sofás, mesas y barra
+	for i = 0, 2 do
+		P(m, "Booth", Vector3.new(8, 1.6, 3), base * CFrame.new(-14 + i * 14, 1.2, 8), { 150, 30, 90 }, Enum.Material.Fabric)
+		vcyl(m, "BoothTable", 0.4, 3, base * CFrame.new(-14 + i * 14, 2.6, 4.5), { 30, 20, 40 }, Enum.Material.Wood)
+	end
+	P(m, "KaraokeBar", Vector3.new(3, 4, 12), base * CFrame.new(w / 2 - 3, 2, 2), { 40, 20, 50 }, Enum.Material.Wood)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(w / 2 - 6, 0, 2)).Position, Look = (base * CFrame.new(0, 0, 2)).Position, Name = "Anfitriona del karaoke", Role = "leisure" })
+end
+
+local function buildBowling(parent, sp)
+	local m = model(parent, "Bolera")
+	local w, d, h = 60, 44, 16
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 30, 40, 90 }, { 50, 50, 60 })
+	local board = P(m, "BowlingSign", Vector3.new(32, 3.5, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 1.2), { 20, 20, 24 })
+	signBoth(board, "🎳 " .. sp.Name, Color3.fromRGB(20, 40, 120), Color3.fromRGB(255, 214, 80))
+	-- Cuatro pistas con sus bolos
+	for lane = 0, 3 do
+		local x = -21 + lane * 7
+		P(m, "Lane", Vector3.new(5, 0.2, 28), base * CFrame.new(x, 0.7, -d / 2 + 15), { 220, 180, 120 }, Enum.Material.WoodPlanks)
+		P(m, "Gutter", Vector3.new(0.8, 0.2, 28), base * CFrame.new(x - 2.9, 0.55, -d / 2 + 15), { 40, 40, 44 }, Enum.Material.Metal)
+		P(m, "LaneArrow", Vector3.new(0.6, 0.05, 1.4), base * CFrame.new(x, 0.82, -d / 2 + 20), { 200, 40, 40 }, Enum.Material.SmoothPlastic, { NoShadow = true })
+		for r = 1, 4 do
+			for k = 1, r do
+				vcyl(m, "Pin", 1.4, 0.5, base * CFrame.new(x + (k - (r + 1) / 2) * 0.9, 1.5, -d / 2 + 2.5 + (4 - r) * 0.9), { 250, 250, 250 }, Enum.Material.SmoothPlastic, { NoShadow = true })
+			end
+		end
+		local score = P(m, "ScoreScreen", Vector3.new(5, 2.4, 0.3), base * CFrame.new(x, 9, -d / 2 + 26), { 20, 30, 80 }, Enum.Material.Neon, { NoShadow = true })
+		signBoth(score, "PISTA " .. (lane + 1), Color3.fromRGB(20, 30, 80), Color3.fromRGB(255, 214, 80))
+	end
+	-- Bolas en el retorno y mostrador de zapatos (aviso)
+	for i = 0, 5 do
+		P(m, "BowlingBall", Vector3.new(1.4, 1.4, 1.4), base * CFrame.new(-21 + i * 1.6, 2.2, -d / 2 + 31), ({ { 220, 40, 40 }, { 40, 90, 220 }, { 30, 30, 34 }, { 120, 40, 180 }, { 40, 170, 90 }, { 240, 160, 30 } })[i + 1], Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Ball })
+	end
+	P(m, "BallReturn", Vector3.new(10, 1.4, 2), base * CFrame.new(-17, 0.7, -d / 2 + 31), { 40, 40, 44 }, Enum.Material.Metal)
+	local counter = P(m, "ShoeCounter", Vector3.new(10, 4, 3), base * CFrame.new(-14, 2, d / 2 - 5), { 20, 40, 120 }, Enum.Material.SmoothPlastic)
+	prompt(counter, "bowling", "Jugar a los bolos", sp.Name)
+	-- Recreativas junto a la pared este
+	for i = 0, 3 do
+		local cab = base * CFrame.new(w / 2 - 3, 0, -14 + i * 7)
+		P(m, "ArcadeCabinet", Vector3.new(3, 7, 4), cab * CFrame.new(0, 3.5, 0), ({ { 200, 30, 60 }, { 30, 120, 220 }, { 240, 180, 30 }, { 120, 40, 200 } })[i + 1], Enum.Material.SmoothPlastic)
+		local scr = P(m, "ArcadeScreen", Vector3.new(0.2, 2.4, 3), cab * CFrame.new(-1.6, 5, 0), { 80, 255, 160 }, Enum.Material.Neon, { NoShadow = true })
+		nightLight(scr, 8, Color3.fromRGB(80, 255, 160))
+	end
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(-14, 0, d / 2 - 8)).Position, Look = (base * CFrame.new(-14, 0, d / 2)).Position, Name = "Encargado de la bolera", Role = "leisure" })
+end
+
 local function buildDistrict(d)
 	local cx, cz = WorldData.center(d)
 	local rng = Random.new(Util.hashString(d.Id))
@@ -1698,6 +2115,16 @@ local function buildDistrict(d)
 				buildUsedStore(m, sp)
 			elseif sp.Type == "airport" then
 				buildAirport(m, sp)
+			elseif sp.Type == "studios" then
+				buildStudioComplex(m, sp)
+			elseif sp.Type == "gym" then
+				buildGym(m, sp)
+			elseif sp.Type == "cinema" then
+				buildCinema(m, sp)
+			elseif sp.Type == "karaoke" then
+				buildKaraoke(m, sp)
+			elseif sp.Type == "bowling" then
+				buildBowling(m, sp)
 			end
 		end
 	end
@@ -1849,6 +2276,15 @@ local function onPrompt(pp, player)
 			ok, msg = S.Destination.goBack(player)
 		end
 		S.Net.notify(player, msg, ok and "success" or "error")
+	elseif action == "studio_desk" or action == "studio_panel" then
+		S.Net.push(player, "openUI", { ui = "app", app = "studios" })
+	elseif action == "studio_exit" then
+		if S.Studio then
+			local ok, msg = S.Studio.leave(player)
+			S.Net.notify(player, msg, ok and "success" or "info")
+		end
+	elseif action == "gym" or action == "cinema" or action == "karaoke" or action == "bowling" then
+		S.Net.push(player, "openUI", { ui = "app", app = "leisure" })
 	elseif action == "prop_exit" then
 		local id = S.Property.inside(player)
 		if id then
@@ -1875,6 +2311,7 @@ function World.build()
 	end
 	buildSecrets()
 	buildDestinations()
+	buildStudioSets()
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "FallbackSpawn"
 	spawn.Anchored = true

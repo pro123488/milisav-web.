@@ -28,6 +28,12 @@ local tips = {
 }
 
 local roleLines = {
+	studio = { "¡Bienvenido a Prisma! Alquila un plató por horas: gaming, música, cocina, podcast, croma o fotografía.",
+		"Dentro del plató alquilado tus escenas y fotos ganan calidad y luz profesional.",
+		"Con el croma eliges el fondo y tu escena cuenta como si grabaras en ese tipo de lugar." },
+	leisure = { "¡Hola! Aquí se viene a desconectar: sube el ánimo y vuelve a grabar con energía.",
+		"Entrenar mejora tu forma física; el cine te da ideas para vídeos; en el karaoke, con micrófono, ¡hasta grabas!",
+		"En la bolera, lee la pista: el efecto y la potencia correctos dan más plenos." },
 	shopkeeper = { "¡Bienvenido! Puedes inspeccionar cualquier producto expuesto o ver todo el catálogo en el mostrador.",
 		"Si compras aquí, te lo llevas al momento. Online tarda un poco más en llegar.",
 		"¿Vas a grabar una reseña? Puedes probar los productos de exposición mientras estés en la tienda." },
@@ -147,6 +153,10 @@ function NPC.talk(player, id)
 		options[#options + 1] = { label = "Vehículos", ui = "app", app = "vehicles" }
 	elseif p.Role == "travel" or p.Role == "dest_shop" or p.Role == "hotel" then
 		options[#options + 1] = { label = "Abrir Viajes", ui = "app", app = "travel" }
+	elseif p.Role == "studio" then
+		options[#options + 1] = { label = "Abrir Estudios", ui = "app", app = "studios" }
+	elseif p.Role == "leisure" then
+		options[#options + 1] = { label = "Abrir Ocio", ui = "app", app = "leisure" }
 	elseif p.Role == "citizen" then
 		local d = WorldData.DistrictById[p.District or ""]
 		text = tips[(npc.Count + #(p.Name)) % #tips + 1]

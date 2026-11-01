@@ -83,6 +83,9 @@ local tracks = {
 	{ "trades", "Completa %s intercambios con otros jugadores", { 1, 10 }, 100, 50, { [2] = "Negociante" } },
 	{ "destinations_visited", "Viaja a %s destinos", { 1, 3, #LifeData.Destinations }, 150, 60, { [1] = "Viajero", [3] = "Trotamundos" } },
 	{ "exclusives_bought", "Compra %s productos exclusivos de viaje", { 1, 5 }, 100, 50, { [2] = "Cazador de exclusivas" } },
+	{ "studio_rentals", "Alquila %s platós en el Complejo de Estudios Prisma", { 1, 10, 30 }, 100, 50, { [1] = "Estrella de plató", [3] = "Productor de Prisma" } },
+	{ "workouts", "Entrena %s veces en el gimnasio", { 1, 20, 100 }, 60, 30, { [2] = "En forma", [3] = "Atleta creador" } },
+	{ "leisure", "Disfruta de %s actividades de ocio", { 1, 10, 50 }, 60, 30, { [2] = "Alma de la fiesta", [3] = "Vividor" } },
 }
 
 QuestDefs.TrackNames = {
@@ -101,6 +104,7 @@ QuestDefs.TrackNames = {
 	pets_adopted = "Mascotas adoptadas", pet_walk = "Paseos con mascota", pet_photos = "Fotos de mascotas",
 	used_bought = "Segunda mano", collectibles = "Coleccionables", trades = "Intercambios",
 	destinations_visited = "Destinos visitados", exclusives_bought = "Exclusivos de viaje",
+	studio_rentals = "Platós alquilados", workouts = "Entrenamientos", leisure = "Ocio",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
@@ -113,6 +117,7 @@ local singular = {
 	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
 	{ "objetivos", "objetivo" }, { "mascotas", "mascota" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" }, { "vehículos", "vehículo" },
 	{ "destinos", "destino" }, { "productos exclusivos", "producto exclusivo" },
+	{ "platós", "plató" }, { "actividades de ocio", "actividad de ocio" },
 }
 local function singularize(text)
 	for _, pair in ipairs(singular) do
