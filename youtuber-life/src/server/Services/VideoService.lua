@@ -221,7 +221,7 @@ function Video.recordScene(player, p)
 		gimbal = gear.Gimbal and gear.Gimbal.Stats.Stab or 0,
 		mount = gear.Mount and gear.Mount.Stats.Stab or 0,
 		portableLight = gear.Light and gear.Light.Stats.Light or 0,
-		homeLight = spot.IsHome and ((gear.HomeLight and gear.HomeLight.Stats.Light or 0) + (spot.ExtraLight or 0)) or 0,
+		homeLight = (spot.IsHome and ((gear.HomeLight and gear.HomeLight.Stats.Light or 0) + (spot.ExtraLight or 0)) or 0) + (spot.StudioLight or 0),
 		decor = spot.Decor or (spot.IsHome and (5 + (gear.Decor and gear.Decor.Stats.Decor or 0))) or 0,
 		presentation = spot.IsHome and gear.Teleprompter and gear.Teleprompter.Stats.Presentation or 0,
 		indoor = spot.Indoor,
@@ -229,7 +229,7 @@ function Video.recordScene(player, p)
 		goldenHour = F.isGoldenHour(hour),
 		weather = S.Time.Weather,
 		spotTags = spot.Tags,
-		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0) + (S.Pet and S.Pet.interestBonus(player) or 0) + (S.Friend and S.Friend.interestBonus(player, rec.Pid) or 0),
+		spotInterest = spot.Interest * S.Events.sceneBonus(spot) + (S.Needs and S.Needs.interestBonus(player) or 0) + (S.Pet and S.Pet.interestBonus(player) or 0) + (S.Friend and S.Friend.interestBonus(player, rec.Pid) or 0) + (S.Leisure and S.Leisure.interestBonus(player, cat) or 0),
 		spotNoise = spot.Noise,
 		busy = spot.Busy,
 		categoryTags = cat.Tags,
@@ -246,7 +246,7 @@ function Video.recordScene(player, p)
 		Spot = spot.Id,
 		SpotName = spot.Name,
 		District = spot.District,
-		Q = math.min(100, Util.round(result.Quality + (S.Company and S.Company.sceneBonus(player) or 0), 1)),
+		Q = math.min(100, Util.round(result.Quality + (S.Company and S.Company.sceneBonus(player) or 0) + (S.Studio and S.Studio.sceneBonus(player) or 0), 1)),
 		Img = result.Image,
 		Aud = result.Audio,
 		Light = result.Lighting,
@@ -378,13 +378,20 @@ function Video.takePhoto(player, p)
 		goldenHour = F.isGoldenHour(hour),
 		weather = S.Time.Weather,
 		spotTags = spot.Tags,
-		homeLight = spot.IsHome and ((gear.HomeLight and gear.HomeLight.Stats.Light or 0) + (spot.ExtraLight or 0)) or 0,
+		homeLight = (spot.IsHome and ((gear.HomeLight and gear.HomeLight.Stats.Light or 0) + (spot.ExtraLight or 0)) or 0) + (spot.StudioLight or 0),
 		portableLight = gear.Light and gear.Light.Stats.Light or 0,
 		tripod = gear.Tripod and gear.Tripod.Stats.Stability or 0,
 		composition = num(p.composition, 0, 10) or 5,
 	})
 	if petBonus > 0 then
 		result.Quality = Util.round(Util.clamp(result.Quality + petBonus, 1, 100), 1)
+	end
+	-- Estudio fotográfico y demás platós alquilados: +calidad mientras estás dentro con el alquiler activo
+	if S.Studio then
+		local studioBonus = S.Studio.photoBonus(player)
+		if studioBonus > 0 then
+			result.Quality = Util.round(Util.clamp(result.Quality + studioBonus, 1, 100), 1)
+		end
 	end
 	data.Counters.photo_id = (data.Counters.photo_id or 0) + 1
 	local cam = nil

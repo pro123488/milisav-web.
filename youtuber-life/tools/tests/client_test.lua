@@ -286,6 +286,43 @@ if not okPet then
 	errors[#errors + 1] = "mascotas: " .. tostring(errPet)
 end
 
+-- Apps Estudios y Ocio dentro de sus edificios (alquiler real de un plató, entrenar, cine, karaoke y bolos)
+local okSt, errSt = pcall(function()
+	local WorldDataS = senv.require(services.ReplicatedStorage.Shared.WorldData)
+	local d = senv.require(services.ServerScriptService.Server.Services.DataService).get(player)
+	d.Money = math.max(d.Money, 5000)
+	d.Level = math.max(d.Level, 5)
+	Shell.close()
+	for _, sp in ipairs(WorldDataS.Specials) do
+		if sp.Type == "studios" then
+			M.moveTo(player, sp.WX, 3, sp.WZ + 6)
+			M.stepBackground()
+			Shell.openPanel("studios")
+			clickAll(gui, "estudios en la recepción", 60)
+			Shell.close()
+			M.stepBackground()
+			Shell.openPanel("studios")
+			clickAll(gui, "estudios con alquiler", 60)
+			Shell.close()
+		end
+	end
+	assert((d.Counters.studio_rentals or 0) >= 1, "se alquila un plató desde la app")
+	for _, sp in ipairs(WorldDataS.Specials) do
+		if sp.Type == "gym" or sp.Type == "cinema" or sp.Type == "karaoke" or sp.Type == "bowling" then
+			M.moveTo(player, sp.WX, 3, sp.WZ)
+			M.stepBackground()
+			Shell.openPanel("leisure")
+			clickAll(gui, "ocio en " .. sp.Type, 80)
+			Shell.close()
+		end
+	end
+	assert((d.Counters.workouts or 0) >= 1 and (d.Counters.movies or 0) >= 1 and (d.Counters.bowling or 0) >= 1 and (d.Counters.leisure or 0) >= 4, "actividades de ocio desde la app")
+	M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+end)
+if not okSt then
+	errors[#errors + 1] = "estudios/ocio: " .. tostring(errSt)
+end
+
 -- Modo construcción dentro de una propiedad
 local okB, errB = pcall(function()
 	local Data = senv.require(services.ServerScriptService.Server.Services.DataService)

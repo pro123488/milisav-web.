@@ -27,6 +27,8 @@ local order = {
 	{ "Sponsor", "SponsorService" },
 	{ "Live", "LiveService" },
 	{ "Vehicle", "VehicleService" },
+	{ "Studio", "StudioService" },
+	{ "Leisure", "LeisureService" },
 	{ "Video", "VideoService" },
 	{ "Pet", "PetService" },
 	{ "Collab", "CollabService" },

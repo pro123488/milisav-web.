@@ -1668,6 +1668,215 @@ FriendSvc.refresh(player)
 assert(f.Pts == 0 and FD.levelOf(f.Pts) == 1 and data.Friends.lucia == f, "nunca por debajo del nivel 1")
 end
 
+do
+-- ESTUDIOS PRISMA (platós de alquiler) y OCIO (gimnasio, cine, karaoke, bolera)
+local Studio = req(ServerScriptService.Server.Services.StudioService)
+local Leisure = req(ServerScriptService.Server.Services.LeisureService)
+local TravelS = req(ServerScriptService.Server.Services.TravelService)
+local CompanyS = req(ServerScriptService.Server.Services.CompanyService)
+local SD = req(Shared.StudioData)
+local Util = req(Shared.Util)
+local VD = req(Shared.VideoData)
+local FV = req(Shared.VideoFormulas)
+local places = {}
+for _, sp in ipairs(WorldData.Specials) do
+	if sp.Type == "studios" or sp.Type == "gym" or sp.Type == "cinema" or sp.Type == "karaoke" or sp.Type == "bowling" then
+		places[sp.Type] = sp
+		for _, o in ipairs(WorldData.Specials) do
+			assert(o == sp or (o.WX - sp.WX) ^ 2 + (o.WZ - sp.WZ) ^ 2 >= 60 ^ 2, sp.Type .. " encima de " .. o.Type)
+		end
+		for _, s in ipairs(WorldData.Spots) do
+			assert((s.X - sp.WX) ^ 2 + (s.Z - sp.WZ) ^ 2 >= 45 ^ 2, sp.Type .. " encima del lugar " .. s.Name)
+		end
+	end
+end
+assert(places.studios and places.gym and places.cinema and places.karaoke and places.bowling, "edificios de estudios y ocio en el mapa")
+assert(M.workspace:FindFirstChild("City"):FindFirstChild("EstudiosPrismaPlatos"), "platós construidos en la zona de interiores")
+data.Money = 50000
+data.Level = math.max(data.Level, 5)
+for _, r in pairs(data.Inventory) do
+	if r.Charge then
+		r.Charge = 100
+	end
+end
+-- Alquilar: solo en la recepción
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+assert(not call(player, "Studio.Rent", { set = "gaming", hours = 1 }).ok, "solo se alquila en la recepción")
+local lobbyPos = Studio.lobbyPosition()
+M.moveTo(player, lobbyPos.X, 3, lobbyPos.Z)
+assert(TravelS.currentSpot(player).Id == "studios_lobby", "el vestíbulo es un lugar de grabación")
+assert(not call(player, "Studio.Rent", { set = "nada" }).ok and not call(player, "Studio.Rent", { set = "gaming", hours = 9 }).ok, "plató y horas válidos")
+assert(not call(player, "Studio.Extend", {}).ok, "no se amplía sin alquiler")
+local gaming = SD.ById.gaming
+local mS = data.Money
+must(player, "Studio.Rent", { set = "gaming", hours = 1 })
+assert(mS - data.Money == gaming.Price and data.Studio.Set == "gaming", "cobra el plató por hora")
+local rp = player.Character.HumanoidRootPart.Position
+assert(math.abs(rp.X - gaming.OX) < 30 and math.abs(rp.Z - gaming.OZ) < 30, "al alquilar te lleva dentro del plató")
+local spot = TravelS.currentSpot(player)
+assert(spot and spot.Id == "studio_gaming" and spot.StudioLight == gaming.Light and spot.Interest == gaming.Interest, "el plató es el lugar actual")
+assert(Studio.sceneBonus(player) == gaming.Scene and Studio.photoBonus(player) == gaming.Photo, "bonus dentro del plató")
+-- La escena gana el bonus de calidad y la luz del plató
+local pr = call(player, "Video.CreateProject", { category = "gaming", name = "Gaming en Prisma" })
+if not pr.ok then
+	for k in pairs(data.Projects) do
+		data.Projects[k] = nil
+		break
+	end
+	pr = must(player, "Video.CreateProject", { category = "gaming", name = "Gaming en Prisma" })
+end
+local spid = pr.data.pid
+must(player, "Video.StartRecording", { pid = spid })
+local origScene, origPhoto = FV.scene, FV.photo
+local lastRes, lastCtx
+FV.scene = function(ctx, rng)
+	lastCtx = ctx
+	lastRes = origScene(ctx, rng)
+	return lastRes
+end
+FV.photo = function(ctx, rng)
+	lastCtx = ctx
+	lastRes = origPhoto(ctx, rng)
+	return lastRes
+end
+M.clock = M.clock + 5
+local sc = must(player, "Video.RecordScene", { shot = "wide" }).data.scene
+local expected = math.min(100, Util.round(lastRes.Quality + CompanyS.sceneBonus(player) + gaming.Scene, 1))
+assert(sc.Q == expected and sc.Spot == "studio_gaming", "la escena suma el bonus del plató: " .. sc.Q .. " vs " .. expected)
+assert(lastCtx.homeLight >= gaming.Light and lastCtx.indoor, "luz de plató")
+while #data.Photos > 5 do
+	table.remove(data.Photos)
+end
+M.clock = M.clock + 3
+local ph = must(player, "Photo.Take", { mode = "interior", composition = 6 }).data.photo
+assert(ph.Q == Util.round(Util.clamp(lastRes.Quality + gaming.Photo, 1, 100), 1), "la foto suma el bonus del plató")
+-- Ampliar 1 hora y no se puede alquilar otro a la vez
+local ends = data.Studio.Ends
+must(player, "Studio.Extend", {})
+assert(data.Studio.Ends == ends + SD.HourSeconds, "ampliar 1 hora")
+assert(not call(player, "Studio.SetBackdrop", { category = "food" }).ok, "el fondo solo en el croma")
+-- Salir y volver a entrar desde la recepción
+must(player, "Studio.Leave", {})
+assert(Studio.sceneBonus(player) == 0 and data.Studio.Set == "gaming", "fuera no hay bonus pero el alquiler sigue")
+assert(not call(player, "Studio.Rent", { set = "podcast" }).ok, "un alquiler a la vez")
+must(player, "Studio.Enter", {})
+assert(Studio.current(player) == gaming, "vuelve a entrar")
+-- Aviso 5 minutos antes y fin del alquiler
+M.time = data.Studio.Ends - SD.WarnSeconds + 1
+M.stepBackground()
+assert(data.Studio.Warned, "avisa antes de acabar")
+local warned = false
+for i = #M.pushes, math.max(1, #M.pushes - 30), -1 do
+	if M.pushes[i].kind == "notify" and M.pushes[i].player == player and tostring(M.pushes[i].data.text):find("1 minuto", 1, true) then
+		warned = true
+	end
+end
+assert(warned, "notificación de aviso")
+M.time = data.Studio.Ends + 1
+M.clock = M.clock + 2
+M.stepBackground()
+assert(data.Studio.Set == "" and Studio.sceneBonus(player) == 0 and Studio.photoBonus(player) == 0, "al acabar se pierde el bonus")
+local afterPos = player.Character.HumanoidRootPart.Position
+assert(math.abs(afterPos.X - lobbyPos.X) < 5 and math.abs(afterPos.Z - lobbyPos.Z) < 5, "al acabar vuelves a la recepción")
+local spot2 = TravelS.currentSpot(player)
+assert(not spot2 or spot2.Id ~= "studio_gaming", "el plató ya no es tu lugar")
+-- Croma: el fondo cambia las etiquetas; otro jugador no puede alquilarlo a la vez
+must(player, "Studio.Rent", { set = "chroma", hours = 1 })
+assert(not call(player, "Studio.SetBackdrop", { category = "nada" }).ok)
+must(player, "Studio.SetBackdrop", { category = "tourism" })
+local cspot = TravelS.currentSpot(player)
+assert(cspot.Id == "studio_chroma" and table.concat(cspot.Tags, ",") == table.concat(VD.CategoryById.tourism.Tags, ","), "fondo de turismo")
+must(player, "Studio.SetBackdrop", { category = "food" })
+assert(table.concat(TravelS.currentSpot(player).Tags, ",") == table.concat(VD.CategoryById.food.Tags, ","), "fondo de restaurantes")
+local rival = M.newPlayer(Players, 910, "Rival")
+Players.PlayerAdded:Fire(rival)
+Data.get(rival).Level = 10
+Data.get(rival).Money = 5000
+M.moveTo(rival, lobbyPos.X, 3, lobbyPos.Z)
+assert(not call(rival, "Studio.Rent", { set = "chroma" }).ok, "plató ocupado")
+local rv = Studio.view(rival)
+for _, s in ipairs(rv.Sets) do
+	assert(s.Free == (s.Id ~= "chroma"), "disponibilidad de los platós")
+end
+must(rival, "Studio.Rent", { set = "podcast" })
+Players.PlayerRemoving:Fire(rival)
+rival.Parent = nil
+M.time = data.Studio.Ends + 1
+M.stepBackground()
+assert(data.Studio.Set == "" and Studio.view(player).Sets[4].Free, "el croma termina y el podcast se libera al salir el rival")
+FV.scene, FV.photo = origScene, origPhoto
+-- GIMNASIO
+local nd = data.Needs
+nd.Energy, nd.Mood = 100, 50
+assert(not call(player, "Leisure.Workout", {}).ok, "hay que estar en el gimnasio")
+M.moveTo(player, places.gym.WX, 3, places.gym.WZ)
+local fit0 = data.Fitness
+must(player, "Leisure.Workout", {})
+assert(data.Fitness == fit0 + SD.fitnessGain(fit0) and nd.Energy == 100 - SD.Gym.Energy and nd.Mood == 50 + SD.Gym.Mood, "entrenar sube la forma física y gasta energía")
+assert(not call(player, "Leisure.Workout", {}).ok, "descanso entre series")
+M.clock = M.clock + SD.Gym.Cooldown + 1
+nd.Energy = 10
+assert(not call(player, "Leisure.Workout", {}).ok, "sin energía no se entrena")
+nd.Energy = 100
+assert(Leisure.interestBonus(player, { Id = "sports", Tags = { "sport" } }) == 1 and Leisure.interestBonus(player, VD.CategoryById.vlog) == 0, "interés en vídeos de deporte")
+data.Fitness = 90
+assert(Leisure.interestBonus(player, { Id = "fitness", Tags = {} }) == 3)
+data.Fitness = fit0 + SD.fitnessGain(fit0)
+-- CINE
+M.moveTo(player, places.cinema.WX, 3, places.cinema.WZ)
+nd.Mood = 40
+assert(not call(player, "Leisure.Movie", { movie = "nada" }).ok)
+must(player, "Leisure.Movie", { movie = "summit" })
+assert(nd.Mood == 40 + SD.Cinema.Mood and data.Leisure.Idea.Category == "adventure" and data.Leisure.Idea.Title ~= "", "el cine sube el ánimo y da una idea")
+assert(not call(player, "Leisure.Movie", { movie = "queen" }).ok, "una película ocupa 2 horas de juego")
+M.time = M.time + SD.Cinema.Hours * SD.HourSeconds + 1
+must(player, "Leisure.Movie", { movie = "queen" })
+assert(data.Leisure.Idea.Category == "gaming")
+-- KARAOKE: sin micrófono solo ánimo; con micrófono y grabando, escena especial de música
+M.moveTo(player, places.karaoke.WX, 3, places.karaoke.WZ)
+for _, r in pairs(data.Inventory) do
+	local def = req(Shared.ItemCatalog).get(r.Id)
+	if def and def.Slot == "mic" and r.Loc == "backpack" then
+		r.Loc = "home"
+	end
+end
+local mood0 = nd.Mood
+local scenesBefore = #data.Projects[spid].Scenes
+must(player, "Leisure.Karaoke", {})
+assert(nd.Mood == math.min(100, mood0 + SD.Karaoke.Mood) and #data.Projects[spid].Scenes == scenesBefore, "karaoke sin micrófono")
+assert(not call(player, "Leisure.Karaoke", {}).ok, "espera entre canciones")
+local micUid = req(ServerScriptService.Server.Services.InventoryService).add(player, "mic_lav", { src = "test", paid = 0, loc = "backpack" })
+data.Inventory[micUid].Loc = "backpack"
+must(player, "Video.StartRecording", { pid = spid })
+M.clock = M.clock + SD.Karaoke.Cooldown + 1
+local kr = must(player, "Leisure.Karaoke", {})
+local ks = data.Projects[spid].Scenes[#data.Projects[spid].Scenes]
+assert(kr.data.scene and ks.Special == "karaoke" and ks.Spot == "karaoke" and (data.Counters.karaoke_mic or 0) >= 1, "con micrófono cuenta como escena especial de música")
+must(player, "Video.StopRecording", {})
+-- BOLERA: minijuego con premio pequeño y límite diario
+M.moveTo(player, places.bowling.WX, 3, places.bowling.WZ)
+assert(not call(player, "Leisure.Bowl", { aim = 9, power = 3 }).ok, "efecto no válido")
+local lane = SD.lane(req(ServerScriptService.Server.Services.TimeWeatherService).day())
+for i = 1, SD.Bowling.DailyLimit do
+	local mB = data.Money
+	local r = must(player, "Leisure.Bowl", { aim = lane.Aim, power = lane.Power })
+	assert(#r.data.frames == 10 and r.data.score >= 0 and r.data.score <= 200 and r.data.prize == SD.bowlPrize(r.data.score), "partida de bolos")
+	assert(data.Money == mB - SD.Bowling.Price + r.data.prize, "coste y premio")
+end
+assert(not call(player, "Leisure.Bowl", { aim = 3, power = 3 }).ok, "límite diario de partidas")
+assert(Leisure.view(player).BowlLeft == 0)
+M.time = M.time + req(Shared.Config).DayLengthSeconds
+assert(Leisure.view(player).BowlLeft == SD.Bowling.DailyLimit, "al día siguiente se puede volver a jugar")
+local perfect = SD.bowlScore(1, function() return 0.99 end)
+assert(perfect == 200 and SD.bowlPrize(perfect) == 30 and SD.bowlPrize(50) == 0, "puntuación y premios")
+-- Logros
+Quest.check(player)
+assert(data.Quests.Completed["studio_rentals_1"] and data.Quests.Completed["workouts_1"] and data.Quests.Completed["leisure_1"], "logros de estudios y ocio")
+assert(data.Counters.studio_rentals == 2 and data.Counters.workouts == 1 and data.Counters.leisure >= 10, "contadores")
+M.stepBackground()
+assert(state().Derived.Studio and state().Derived.Leisure, "el cliente recibe el estado de estudios y ocio")
+end
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]

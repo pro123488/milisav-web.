@@ -90,7 +90,7 @@ district({ Id = "hotels", Name = "Zona de hoteles", Col = 6, Row = 2, Ground = {
 district({ Id = "residential", Name = "Barrio residencial", Col = 1, Row = 3, Ground = { 110, 160, 100 }, Material = "Grass",
 	Style = "house", Count = 8, Palette = { { 230, 220, 200 }, { 200, 150, 120 }, { 170, 190, 210 } }, Trees = 14,
 	Tags = { "urban", "home" }, Noise = 2, Busy = 3,
-	Specials = { { Type = "store", StoreId = "home", X = 70, Z = -70 } },
+	Specials = { { Type = "store", StoreId = "home", X = 70, Z = -70 }, { Type = "gym", Name = "Gimnasio Pulso Fit", X = -70, Z = -70 } },
 	Spots = { { Name = "Calle de los jardines", X = 0, Z = 0, Tags = { "urban", "home" }, Interest = 6 },
 		{ Name = "Parque infantil", X = -70, Z = 70, Tags = { "fun", "urban" }, Interest = 6 } } })
 district({ Id = "creators", Name = "Barrio de creadores", Col = 2, Row = 3, Ground = { 80, 80, 90 }, Material = "Concrete",
@@ -113,7 +113,8 @@ district({ Id = "commercial", Name = "Zona comercial", Col = 4, Row = 3, Ground 
 district({ Id = "restaurants", Name = "Distrito de restaurantes", Col = 5, Row = 3, Ground = { 95, 85, 80 }, Material = "Brick",
 	Style = "shop", Count = 7, Palette = { { 200, 90, 60 }, { 240, 200, 150 }, { 90, 50, 40 } }, Trees = 6,
 	Tags = { "food", "urban" }, Noise = 4, Busy = 6,
-	Specials = { { Type = "store", StoreId = "market", X = -70, Z = -70 }, { Type = "restaurant", Name = "Restaurante La Plaza", X = 70, Z = -70 } },
+	Specials = { { Type = "store", StoreId = "market", X = -70, Z = -70 }, { Type = "restaurant", Name = "Restaurante La Plaza", X = 70, Z = -70 },
+		{ Type = "karaoke", Name = "Karaoke Micrófono de Oro", X = 70, Z = 70 } },
 	Spots = { { Name = "Terraza gourmet", X = 0, Z = 0, Tags = { "food", "luxury" }, Interest = 10 },
 		{ Name = "Callejón de comida callejera", X = -70, Z = 70, Tags = { "food", "cheap" }, Interest = 9 } } })
 district({ Id = "tourist", Name = "Zona turística", Col = 6, Row = 3, Ground = { 200, 180, 140 }, Material = "Cobblestone",
@@ -138,11 +139,13 @@ district({ Id = "apartments", Name = "Zona de apartamentos", Col = 2, Row = 4, G
 district({ Id = "studios", Name = "Distrito de estudios de grabación", Col = 3, Row = 4, Ground = { 60, 60, 66 }, Material = "Concrete",
 	Style = "warehouse", Count = 5, Palette = { { 40, 40, 45 }, { 200, 60, 60 } }, Trees = 0, Neon = { 255, 40, 40 },
 	Tags = { "studio", "business" }, Noise = 2, Busy = 3,
+	Specials = { { Type = "studios", Name = "Complejo de Estudios Prisma", X = 70, Z = -70 } },
 	Spots = { { Name = "Plató de alquiler", X = 0, Z = 0, Tags = { "studio" }, Interest = 9, Indoor = true },
 		{ Name = "Callejón de los estudios", X = -70, Z = 70, Tags = { "studio", "urban" }, Interest = 7 } } })
 district({ Id = "entertainment", Name = "Distrito de entretenimiento", Col = 4, Row = 4, Ground = { 60, 50, 70 }, Material = "Concrete",
 	Style = "shop", Count = 6, Palette = { { 140, 60, 200 }, { 255, 80, 160 } }, Trees = 2, Neon = { 200, 80, 255 },
 	Tags = { "fun", "night", "urban" }, Noise = 6, Busy = 7,
+	Specials = { { Type = "cinema", Name = "Cines Lumière", X = 70, Z = -70 }, { Type = "bowling", Name = "Bolera Strike & Recreativos", X = -75, Z = 40 } },
 	Spots = { { Name = "Bolera retro", X = -50, Z = -50, Tags = { "fun" }, Interest = 9 },
 		{ Name = "Sala de recreativos", X = 60, Z = 40, Tags = { "fun", "night" }, Interest = 10 } } })
 district({ Id = "events", Name = "Distrito de eventos", Col = 5, Row = 4, Ground = { 80, 80, 85 }, Material = "Concrete",
