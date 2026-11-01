@@ -9,6 +9,7 @@ local Config = require(Shared.Config)
 local WorldData = require(Shared.WorldData)
 local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
+local LifeData = require(Shared.LifeData)
 
 local Travel = {}
 local S
@@ -73,6 +74,8 @@ function Travel.currentSpot(player)
 				return { Id = "bank", Name = sp.Name, Tags = { "business" }, Indoor = true, Interest = 5, Noise = 2, Busy = 4, District = sp.District, Decor = 10 }
 			elseif sp.Type == "dealer" then
 				return { Id = "dealer", Name = sp.Name, Tags = { "vehicle", "luxury", "shop" }, Indoor = true, Interest = 10, Noise = 3, Busy = 4, District = sp.District, Decor = 14 }
+			elseif sp.Type == "airport" then
+				return { Id = "airport_terminal", Name = sp.Name, Tags = { "travel", "urban", "business" }, Indoor = true, Interest = 9, Noise = 5, Busy = 6, District = sp.District, Decor = 10 }
 			end
 		end
 	end
@@ -100,6 +103,10 @@ function Travel.genericSpot(player)
 	local root = rootOf(player)
 	local d = root and WorldData.districtAt(root.Position.X, root.Position.Z)
 	if not d then
+		local dest = root and LifeData.destinationAt(root.Position.X, root.Position.Z)
+		if dest then
+			return { Id = "free_" .. dest.Id, Name = dest.Name, Tags = { "travel", "tourism" }, Indoor = false, Interest = 6, Noise = dest.Noise or 3, Busy = dest.Busy or 3, District = dest.Id }
+		end
 		return { Id = "outside", Name = "Afueras", Tags = { "nature" }, Indoor = false, Interest = 2, Noise = 2, Busy = 1 }
 	end
 	return { Id = "free_" .. d.Id, Name = d.Name, Tags = d.Tags, Indoor = false, Interest = 3, Noise = d.Noise, Busy = d.Busy, District = d.Id }
@@ -119,12 +126,12 @@ function Travel.taxiStop(district)
 	return Vector3.new(cx + 24, 4, cz + WorldData.CellSize / 2 - WorldData.RoadWidth / 2 - 8)
 end
 
-function Travel.teleport(player, pos)
+function Travel.teleport(player, pos, label)
 	local char = player.Character
 	if not char or not rootOf(player) then
 		return false
 	end
-	S.Net.push(player, "travelFade", {})
+	S.Net.push(player, "travelFade", { text = label })
 	task.delay(0.35, function()
 		if char.Parent then
 			char:PivotTo(CFrame.new(pos + Vector3.new(0, 3, 0)))
@@ -137,6 +144,10 @@ function Travel.taxiTo(player, pos, label)
 	local root = rootOf(player)
 	if not root then
 		return false, "No puedes viajar ahora."
+	end
+	local abroad = LifeData.destinationAt(root.Position.X, root.Position.Z)
+	if abroad then
+		return false, "Estás de viaje en " .. abroad.Name .. ": vuelve en avión desde la puerta de embarque (app Viajes)."
 	end
 	if lastTaxi[player] and os.clock() - lastTaxi[player] < 4 then
 		return false, "Espera un momento antes de pedir otro taxi."
@@ -170,7 +181,7 @@ function Travel.Start()
 
 	Net.on("Travel.TaxiSpot", function(player, p)
 		local spot = WorldData.SpotById[p.spot or ""]
-		if not spot or spot.Secret then
+		if not spot or spot.Secret or spot.Dest then
 			return false, "Destino no válido."
 		end
 		return Travel.taxiTo(player, Vector3.new(spot.X, 4, spot.Z + 12), spot.Name)
@@ -224,7 +235,9 @@ function Travel.Start()
 							S.Quest.check(player)
 						end
 					elseif not d then
-						player:SetAttribute("District", "Afueras")
+						local dest = LifeData.destinationAt(pos.X, pos.Z)
+						lastDistrict[player] = nil
+						player:SetAttribute("District", dest and ("✈️ " .. dest.Name) or "Afueras")
 					end
 					-- Tiendas
 					local storeId = S.Shop.storeNear(player)

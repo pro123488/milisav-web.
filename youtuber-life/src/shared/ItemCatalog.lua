@@ -6,7 +6,8 @@
 --   Id, Name, Brand, Cat, Sub, Price, Quality (1-100), Desc, Stats, Compat, Req {Level},
 --   Slot (uso), Portable (se puede llevar en la mochila), Size (espacios de mochila),
 --   Stores (tiendas físicas que lo venden), Color {r,g,b}, Shape (modelo de exposición),
---   Hidden (no se vende), Upgradable, Collectible (pieza de colección de Rastro & Retro).
+--   Hidden (no se vende), Exclusive (id del destino de viaje cuya tienda lo vende), Upgradable,
+--   Collectible (pieza de colección de Rastro & Retro).
 
 local ItemCatalog = {}
 
@@ -544,6 +545,68 @@ for _, m in ipairs(FoodData.Meals) do
 end
 
 ---------------------------------------------------------------------------
+-- EXCLUSIVOS DE VIAJE: no se venden en la ciudad (Hidden). Solo se compran en la tienda del destino
+-- indicado en Exclusive (LifeData.Destinations[].Shop), estando allí.
+---------------------------------------------------------------------------
+local function exclusive(dest, cat, sub, data)
+	data.Exclusive = dest
+	data.Hidden = true
+	return add(cat, sub, data)
+end
+-- Isla Tropical Coral
+exclusive("island", "camera", "Submarina", { Id = "x_cam_dive", Name = "Pixelia Abyss (submarina)", Brand = "Pixelia", Price = 1400, Quality = 74,
+	Desc = "Exclusiva de la Isla Tropical Coral. Sumergible hasta 40 m y muy estable: perfecta para playa, agua y aventura.",
+	Stats = { Video = 70, Photo = 72, LowLight = 58, Stab = 72, Battery = 16, GbPerMin = 2.5, Weather = true },
+	Portable = true, Slot = "camera", Req = { Level = 3 }, Color = { 255, 200, 40 } })
+exclusive("island", "gadget", "Recuerdo", { Id = "x_hat_straw", Name = "Sombrero de paja Coral", Brand = "", Price = 60, Quality = 50,
+	Desc = "Sombrero trenzado a mano en el pueblo pesquero. Un recuerdo perfecto para reseñas de viaje.",
+	Stats = { Performance = 40, Durability = 55 }, Portable = true, Slot = "product", Color = { 230, 200, 120 } })
+exclusive("island", "gadget", "Recuerdo", { Id = "x_shell", Name = "Concha del arrecife pulida", Brand = "", Price = 35, Quality = 45,
+	Desc = "Concha pulida por artesanos de la isla. Pequeña, bonita y muy resistente.",
+	Stats = { Performance = 20, Durability = 90 }, Portable = true, Size = 0, Slot = "product", Color = { 255, 220, 210 } })
+-- Neo Ciudad 2099
+exclusive("neo", "gadget", "Proyector", { Id = "x_holo", Name = "Proyector holográfico Neo H1", Brand = "Neo", Price = 1800, Quality = 88,
+	Desc = "Proyecta hologramas a todo color en cualquier superficie. Solo se vende en Neo Ciudad 2099.",
+	Stats = { Performance = 90, Durability = 70 }, Portable = true, Slot = "product", Req = { Level = 6 }, Color = { 80, 230, 230 } })
+exclusive("neo", "gadget", "Dron", { Id = "x_drone_neo", Name = "Dron Neo Skyline", Brand = "Neo", Price = 2400, Quality = 90,
+	Desc = "Dron de vuelo silencioso con cámara estabilizada. Tomas aéreas espectaculares (vuelo simulado).",
+	Stats = { Performance = 92, Durability = 75, Aerial = true }, Portable = true, Slot = "drone", Req = { Level = 6 }, Color = { 40, 40, 60 } })
+exclusive("neo", "gadget", "Realidad aumentada", { Id = "x_visor", Name = "Visor AR Neo Lens", Brand = "Neo", Price = 1300, Quality = 84,
+	Desc = "Gafas de realidad aumentada ligeras con información flotante. Un producto que aún no ha llegado a la ciudad.",
+	Stats = { Performance = 85, Durability = 65 }, Portable = true, Slot = "product", Req = { Level = 6 }, Color = { 200, 80, 255 } })
+-- Estación de Esquí Cumbre Blanca
+exclusive("ski", "gadget", "Ropa técnica", { Id = "x_jacket", Name = "Chaqueta de nieve Cumbre", Brand = "Ferro", Price = 220, Quality = 72,
+	Desc = "Chaqueta impermeable y cálida de la tienda alpina. Ideal para reseñas de equipo de montaña.",
+	Stats = { Performance = 70, Durability = 85 }, Portable = true, Slot = "product", Color = { 220, 40, 50 } })
+exclusive("ski", "camera", "Ártica", { Id = "x_cam_snow", Name = "Ferro Polar (cámara ártica)", Brand = "Ferro", Price = 1600, Quality = 78,
+	Desc = "Cámara preparada para el frío extremo: batería enorme, sellada y buena con poca luz.",
+	Stats = { Video = 74, Photo = 75, LowLight = 66, Stab = 64, Battery = 24, GbPerMin = 3.0, Weather = true },
+	Portable = true, Slot = "camera", Req = { Level = 5 }, Color = { 235, 240, 250 } })
+-- Feria Tecnológica Internacional
+exclusive("expo", "phone", "Prototipo", { Id = "x_proto_phone", Name = "Prototipo Zenit Fold X", Brand = "Zenit", Price = 2600, Quality = 96,
+	Desc = "Prototipo plegable presentado en la feria. Fotos 94/100, vídeo 92/100 y 300 fotos de capacidad.",
+	Stats = { Photo = 94, Video = 92, Battery = 22, PhotoStorage = 300, Night = true, Weather = true, LowLight = 70, Stab = 50, GbPerMin = 1 },
+	Portable = true, Size = 0, Slot = "phone", Req = { Level = 8 }, Color = { 30, 30, 40 } })
+exclusive("expo", "camera", "Prototipo", { Id = "x_proto_cam", Name = "Prototipo Lumina Alpha X", Brand = "Lumina", Price = 4800, Quality = 94,
+	Desc = "Cámara prototipo con sensor experimental: imagen y poca luz de primer nivel. Archivos pesados.",
+	Stats = { Video = 93, Photo = 94, LowLight = 92, Stab = 70, Battery = 18, GbPerMin = 5.0, Weather = false },
+	Portable = true, Slot = "camera", Req = { Level = 8 }, Color = { 20, 20, 24 } })
+-- Parque Nacional Valle Esmeralda
+exclusive("valley", "gadget", "Óptica", { Id = "x_binoculars", Name = "Prismáticos Ferro Ranger", Brand = "Ferro", Price = 180, Quality = 70,
+	Desc = "Prismáticos de los guardas del parque. Resistentes y con gran nitidez.",
+	Stats = { Performance = 72, Durability = 80 }, Portable = true, Slot = "product", Color = { 60, 90, 50 } })
+exclusive("valley", "audio", "Campo", { Id = "x_mic_field", Name = "Micrófono de campo Zenit Bosque", Brand = "Zenit", Price = 380, Quality = 82,
+	Desc = "Micrófono portátil con protector de viento: sonido limpio en exteriores. Llévalo en la mochila.",
+	Stats = { Audio = 82 }, Portable = true, Slot = "mic", Color = { 70, 110, 60 } })
+-- Festival de Creadores Aurora
+exclusive("fest", "accessory", "Luz", { Id = "x_light_aurora", Name = "Luz RGB Aurora", Brand = "Lumina", Price = 190, Quality = 76,
+	Desc = "Luz portátil de colores de la edición del festival. Mejora la iluminación de noche y en interiores.",
+	Stats = { Light = 30 }, Portable = true, Slot = "light", Shape = "light", Color = { 255, 90, 200 } })
+exclusive("fest", "gadget", "Merchandising", { Id = "x_merch_aurora", Name = "Pack de merchandising Aurora", Brand = "", Price = 90, Quality = 60,
+	Desc = "Camiseta, pulsera y chapas oficiales del festival. Perfecto para un unboxing.",
+	Stats = { Performance = 50, Durability = 60 }, Portable = true, Slot = "product", Color = { 140, 60, 220 } })
+
+---------------------------------------------------------------------------
 -- Finalización: precio de los PC completos = suma de piezas (con 5% de descuento de montaje)
 ---------------------------------------------------------------------------
 for _, id in ipairs(Order) do
@@ -573,6 +636,9 @@ for _, id in ipairs(Order) do
 				table.insert(item.Stores, storeId)
 			end
 		end
+	end
+	if item.Exclusive then
+		item.Stores = {} -- solo en la tienda de su destino
 	end
 	table.sort(item.Stores)
 end

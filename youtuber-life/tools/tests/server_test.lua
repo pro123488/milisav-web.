@@ -1215,6 +1215,123 @@ assert(Trade.get(player) == nil and Trade.view(player).Last.Status == "cancelled
 assert(M.store["u_909"] and M.store["u_909"].__lock == nil, "el perfil del amigo se guarda al salir")
 end
 
+do
+-- VIAJES Y TURISMO: aeropuerto, destinos, grabación allí, exclusivos, hotel, invitación y vuelta
+local LifeData = req(Shared.LifeData)
+local Cat3 = req(Shared.ItemCatalog)
+local Dest = req(ServerScriptService.Server.Services.DestinationService)
+local Progress = req(ServerScriptService.Server.Services.ProgressService)
+for _, d in ipairs(LifeData.Destinations) do
+	for _, id in ipairs(d.Shop) do
+		local def = Cat3.get(id)
+		assert(def and def.Hidden and def.Exclusive == d.Id and not Cat3.isForSale(id) and #def.Stores == 0, "exclusivo mal definido: " .. id)
+	end
+	for i = 1, #d.Spots do
+		local sp = WorldData.SpotById["dest_" .. d.Id .. "_" .. i]
+		assert(sp and sp.Dest and sp.District == d.Id and WorldData.districtAt(sp.X, sp.Z) == nil, "lugar del destino " .. d.Id)
+	end
+end
+local builtTerminal, builtDest = false, 0
+for _, inst in ipairs(M.workspace:FindFirstChild("City"):GetDescendants()) do
+	if inst.Name == "TerminalInternacional" then
+		builtTerminal = true
+	elseif inst.Name == "DestGround" then
+		builtDest = builtDest + 1
+	end
+end
+assert(builtTerminal and builtDest == #LifeData.Destinations, "terminal y destinos construidos")
+data.Money = 100000
+data.Level = 10
+data.Job = {}
+M.clock = M.clock + 10
+-- Volar sin estar en el aeropuerto falla
+M.moveTo(player, room.Center.X, room.Center.Y + 2, room.Center.Z)
+local far = call(player, "Destination.Fly", { dest = "island" })
+assert(not far.ok and far.msg:find("Terminal"), "solo se vuela desde el mostrador: " .. tostring(far.msg))
+-- Taxi hasta la terminal
+must(player, "Destination.Taxi", {})
+assert(Dest.atAirport(player), "el taxi deja en la Terminal Internacional")
+-- Requisitos de nivel y dinero
+data.Level = 2
+local lowLvl = call(player, "Destination.Fly", { dest = "island" })
+assert(not lowLvl.ok and lowLvl.msg:find("nivel"), "requisito de nivel: " .. tostring(lowLvl.msg))
+data.Level = 10
+data.Money = 10
+assert(not call(player, "Destination.Fly", { dest = "island" }).ok, "sin dinero no hay billete")
+data.Money = 100000
+-- Feria bloqueada sin rango ni patrocinio (invitación)
+local spons = Sponsor.state(data)
+local savedActive = spons.Active
+spons.Active = {}
+assert(Progress.rank(data) < LifeData.DestById.expo.Req.Rank)
+local mE = data.Money
+local expoNo = call(player, "Destination.Fly", { dest = "expo" })
+assert(not expoNo.ok and expoNo.msg:find("invitación") and data.Money == mE, "la Feria pide invitación: " .. tostring(expoNo.msg))
+-- Un exclusivo no se compra fuera de su destino
+assert(not call(player, "Destination.Buy", { item = "x_shell", nonce = "dest-buy-0" }).ok, "exclusivo solo en su destino")
+assert(not call(player, "Shop.BuyInStore", { itemId = "x_cam_dive", qty = 1, nonce = "dest-buy-c" }).ok, "no se vende en la ciudad")
+-- Volar a la isla
+local isl = LifeData.DestById.island
+local mF = data.Money
+must(player, "Destination.Fly", { dest = "island" })
+assert(mF - data.Money == isl.Cost, "cobra el billete")
+assert(Dest.at(player) == isl and data.Trip.At == "island" and data.Visited.Destinations.island and data.Counters.flights == 1, "llega a la isla")
+assert(not call(player, "Destination.Fly", { dest = "ski" }).ok, "desde un destino no se vuela a otro")
+assert(not call(player, "Travel.Taxi", { district = "beach" }).ok, "no hay taxi desde la isla")
+assert(not call(player, "Travel.TaxiSpot", { spot = "dest_neo_1" }).ok, "no hay taxi a otro destino")
+-- Grabar una escena y una foto en un lugar del destino
+local beach = WorldData.SpotById.dest_island_1
+M.moveTo(player, beach.X, 3, beach.Z)
+local tpid = must(player, "Video.CreateProject", { category = "travel" }).data.pid
+must(player, "Video.StartRecording", { pid = tpid })
+M.clock = M.clock + 5
+local tsc = must(player, "Video.RecordScene", { shot = "wide" }).data.scene
+assert(tsc.SpotName == "Playa de coral" and tsc.District == "island", "escena en el destino: " .. tostring(tsc.SpotName))
+assert(data.Visited.Recorded.island, "cuenta como lugar grabado")
+must(player, "Video.StopRecording", {})
+M.clock = M.clock + 3
+local tph = must(player, "Photo.Take", { mode = "tourist", composition = 7, cam = { 1, 2, 3, 4, 5, 6 } })
+assert(tph.data.photo.SpotName == "Playa de coral", "foto en el destino")
+-- Tienda exclusiva: solo los de este destino, sin doble cobro
+assert(not call(player, "Destination.Buy", { item = "x_holo", nonce = "dest-buy-1" }).ok, "el proyector solo se vende en Neo Ciudad")
+local mB = data.Money
+local bought = must(player, "Destination.Buy", { item = "x_shell", nonce = "dest-buy-2" })
+must(player, "Destination.Buy", { item = "x_shell", nonce = "dest-buy-2" })
+assert(mB - data.Money == 35, "cobra una sola vez: " .. (mB - data.Money))
+local shellRec = data.Inventory[bought.data.uid]
+assert(shellRec and shellRec.Id == "x_shell" and shellRec.Loc == "backpack" and data.Counters.exclusives_bought == 1, "exclusivo en la mochila")
+-- Hotel: recupera energía, con espera entre noches
+data.Needs.Energy = 20
+must(player, "Destination.Hotel", {})
+assert(data.Needs.Energy >= 20 + isl.Hotel.Energy - 1 and data.Counters.hotel_nights == 1, "el hotel recupera energía")
+assert(not call(player, "Destination.Hotel", {}).ok, "una noche cada cierto tiempo")
+Quest.check(player)
+assert(data.Quests.Completed.destinations_visited_1 and data.Quests.Completed.exclusives_bought_1, "logros de viaje")
+-- Volver
+M.clock = M.clock + 5
+must(player, "Destination.Return", {})
+assert(Dest.atAirport(player) and Dest.at(player) == nil and data.Trip.At == "", "de vuelta en la terminal")
+assert(not call(player, "Destination.Return", {}).ok, "ya no está de viaje")
+assert(not call(player, "Destination.Hotel", {}).ok, "el hotel de viaje solo en el destino")
+-- Con un patrocinio activo la Feria sí invita
+M.clock = M.clock + 5
+spons.Active = { tinv = { Brand = "zenit", Kind = "campaign", Category = "tech" } }
+must(player, "Destination.Fly", { dest = "expo" })
+assert(Dest.at(player).Id == "expo" and data.Visited.Destinations.expo, "invitación por patrocinio")
+spons.Active = savedActive
+must(player, "Destination.Buy", { item = "x_proto_cam", nonce = "dest-buy-3" })
+M.clock = M.clock + 5
+must(player, "Destination.Return", {})
+-- Los encargos de la ciudad no mandan a los destinos
+for _, jt in ipairs({ "photo", "camera" }) do
+	data.Job = {}
+	M.clock = M.clock + 2000
+	must(player, "Job.Start", { type = jt })
+	assert(not WorldData.SpotById[data.Job.Spot].Dest, "encargo en la ciudad")
+end
+data.Job = {}
+end
+
 -- Guardado: al salir se guarda y se libera el bloqueo
 Players.PlayerRemoving:Fire(player)
 local saved = M.store["u_101"]

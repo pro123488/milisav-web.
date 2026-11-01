@@ -398,6 +398,38 @@ if not okV then
 	errors[#errors + 1] = "vehículo: " .. tostring(errV)
 end
 
+-- App Viajes: en el mostrador del aeropuerto (volar) y en el destino (tienda, hotel y vuelta)
+local okT, errT = pcall(function()
+	local Data = senv.require(services.ServerScriptService.Server.Services.DataService)
+	local Dest = senv.require(services.ServerScriptService.Server.Services.DestinationService)
+	local d = Data.get(player)
+	d.Money = 100000
+	d.Level = 10
+	Shell.close()
+	local ap = Dest.airportArrival()
+	M.moveTo(player, ap.X, ap.Y, ap.Z)
+	M.stepBackground()
+	local app = Registry.get("travel")
+	for _, step in ipairs({ "aeropuerto", "destino" }) do
+		M.clock = M.clock + 5
+		local container = M.newInstance("Frame", { Name = "TravelTest" })
+		container.Parent = gui
+		app.build(container, { kind = "panel", params = {}, close = function() end, open = function() end, onState = function() end, session = function()
+			return nil
+		end })
+		clickAll(container, "viajes@" .. step, 80)
+		container:Destroy()
+		if step == "aeropuerto" then
+			assert(Dest.at(player), "el botón Volar lleva al destino")
+		end
+	end
+	assert(not Dest.at(player), "el botón Volver trae de vuelta")
+	assert((d.Counters.exclusives_bought or 0) >= 1, "se compran exclusivos desde la app")
+end)
+if not okT then
+	errors[#errors + 1] = "viajes: " .. tostring(errT)
+end
+
 if #errors > 0 then
 	local shown = {}
 	for i = 1, math.min(12, #errors) do

@@ -44,6 +44,11 @@ local roleLines = {
 		"Con un buen maletero llevas mucho más equipo cuando grabas fuera de casa." },
 	mechanic = { "Aquí repostamos, cargamos eléctricos y reparamos. Un vehículo cuidado corre más.",
 		"Si te quedas sin combustible irás muy despacio: no esperes a la reserva." },
+	travel = { "¡Bienvenido! Desde este mostrador salen los vuelos a todos los destinos. El billete incluye la vuelta.",
+		"Algunos destinos piden invitación: sube de rango o consigue un patrocinio activo.",
+		"En cada destino hay lugares 🎥 únicos, un hotel y una tienda con productos que no se venden en la ciudad." },
+	dest_shop = { "Todo lo que ves aquí es exclusivo: no lo encontrarás en la ciudad.", "Si no cabe en tu mochila, te lo enviamos a casa." },
+	hotel = { "Una noche en el hotel te deja como nuevo para seguir grabando.", "Las vistas desde las habitaciones son de postal." },
 }
 
 function NPC.Init(services)
@@ -140,6 +145,8 @@ function NPC.talk(player, id)
 		options[#options + 1] = { label = "Abrir banco", ui = "app", app = "bank" }
 	elseif p.Role == "dealer" or p.Role == "mechanic" then
 		options[#options + 1] = { label = "Vehículos", ui = "app", app = "vehicles" }
+	elseif p.Role == "travel" or p.Role == "dest_shop" or p.Role == "hotel" then
+		options[#options + 1] = { label = "Abrir Viajes", ui = "app", app = "travel" }
 	elseif p.Role == "citizen" then
 		local d = WorldData.DistrictById[p.District or ""]
 		text = tips[(npc.Count + #(p.Name)) % #tips + 1]

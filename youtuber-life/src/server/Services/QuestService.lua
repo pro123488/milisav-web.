@@ -39,6 +39,8 @@ function Quest.valueOf(data, key)
 		return Util.count(data.Visited.Cameras)
 	elseif key == "collectibles" then
 		return Util.count(data.Visited.Collectibles or {})
+	elseif key == "destinations_visited" then
+		return Util.count(data.Visited.Destinations)
 	elseif key == "properties_owned" then
 		local n = 0
 		for _, rec in pairs(data.Properties or {}) do

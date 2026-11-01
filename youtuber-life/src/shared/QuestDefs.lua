@@ -3,6 +3,7 @@
 -- Cada logro se completa UNA sola vez y su recompensa se cobra una sola vez.
 
 local QuestDefs = {}
+local LifeData = require(script.Parent.LifeData)
 
 -- Tutorial: avanza cuando ocurre el evento indicado en el paso actual.
 -- Target: veces que debe ocurrir el evento. Marker: lugar al que apunta la flecha guía.
@@ -80,6 +81,8 @@ local tracks = {
 	{ "used_bought", "Compra %s artículos de segunda mano", { 1, 10 }, 60, 30, { [2] = "Cazagangas" } },
 	{ "collectibles", "Consigue %s coleccionables distintos", { 1, 4, 8 }, 150, 70, { [3] = "Gran coleccionista" } },
 	{ "trades", "Completa %s intercambios con otros jugadores", { 1, 10 }, 100, 50, { [2] = "Negociante" } },
+	{ "destinations_visited", "Viaja a %s destinos", { 1, 3, #LifeData.Destinations }, 150, 60, { [1] = "Viajero", [3] = "Trotamundos" } },
+	{ "exclusives_bought", "Compra %s productos exclusivos de viaje", { 1, 5 }, 100, 50, { [2] = "Cazador de exclusivas" } },
 }
 
 QuestDefs.TrackNames = {
@@ -97,6 +100,7 @@ QuestDefs.TrackNames = {
 	vehicles_bought = "Vehículos comprados", drive_km = "Kilómetros conducidos",
 	pets_adopted = "Mascotas adoptadas", pet_walk = "Paseos con mascota", pet_photos = "Fotos de mascotas",
 	used_bought = "Segunda mano", collectibles = "Coleccionables", trades = "Intercambios",
+	destinations_visited = "Destinos visitados", exclusives_bought = "Exclusivos de viaje",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
@@ -108,6 +112,7 @@ local singular = {
 	{ "eventos", "evento" }, { "directos", "directo" }, { "shorts", "short" }, { "podcasts", "podcast" }, { "documentales", "documental" },
 	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
 	{ "objetivos", "objetivo" }, { "mascotas", "mascota" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" }, { "vehículos", "vehículo" },
+	{ "destinos", "destino" }, { "productos exclusivos", "producto exclusivo" },
 }
 local function singularize(text)
 	for _, pair in ipairs(singular) do

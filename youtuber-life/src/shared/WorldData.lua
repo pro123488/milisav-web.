@@ -48,6 +48,7 @@ district({ Id = "lake", Name = "Lago", Col = 5, Row = 1, Ground = { 80, 130, 70 
 district({ Id = "airport", Name = "Aeropuerto", Col = 6, Row = 1, Ground = { 90, 90, 95 }, Material = "Asphalt",
 	Style = "office", Count = 2, Palette = { { 210, 215, 225 } }, Trees = 0, Runway = true,
 	Tags = { "travel", "vehicle", "urban" }, Noise = 7, Busy = 6,
+	Specials = { { Type = "airport", Name = "Terminal Internacional", X = -30, Z = -100 } },
 	Spots = { { Name = "Terminal de salidas", X = -80, Z = -80, Tags = { "travel", "urban" }, Interest = 9 },
 		{ Name = "Mirador de la pista", X = 60, Z = 60, Tags = { "travel", "vehicle" }, Interest = 10 } } })
 
@@ -260,6 +261,18 @@ for _, s in ipairs(WorldData.Secrets) do
 	-- El secreto también es un lugar de grabación especial
 	WorldData.Spots[#WorldData.Spots + 1] = { Id = s.Id, Name = s.Name, District = s.District, X = s.WX, Z = s.WZ,
 		Tags = { "tourism", "fun" }, Interest = 15, Noise = 1, Busy = 0, Indoor = false, Secret = true }
+end
+
+-- Lugares de grabación de los destinos de viaje (zonas lejos de la ciudad, fuera de la cuadrícula:
+-- districtAt devuelve nil allí). District = id del destino y Dest = true (no son de la ciudad:
+-- los encargos, el taxi y los repartos no los usan).
+local LifeData = require(script.Parent.LifeData)
+for _, dest in ipairs(LifeData.Destinations) do
+	for i, s in ipairs(dest.Spots) do
+		WorldData.Spots[#WorldData.Spots + 1] = { Id = "dest_" .. dest.Id .. "_" .. i, Name = s[1], District = dest.Id,
+			X = dest.Center[1] + s[2], Z = dest.Center[2] + s[3], Tags = s[4], Interest = s[5] or 10,
+			Noise = dest.Noise or 3, Busy = dest.Busy or 3, Indoor = false, Dest = true }
+	end
 end
 
 WorldData.SpotById = {}

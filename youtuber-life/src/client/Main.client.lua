@@ -211,10 +211,10 @@ Net.on("dialog", function(d)
 		end
 	end)
 end)
-Net.on("travelFade", function()
+Net.on("travelFade", function(d)
 	local f = UI.frame(gui, { Size = UDim2.fromScale(1, 1), Color = Color3.new(0, 0, 0), Transparency = 1, Radius = false })
 	f.ZIndex = 100
-	UI.label(f, "🚕 Viajando...", { Size = UDim2.fromScale(1, 1), Align = Enum.TextXAlignment.Center, TextSize = 28, Font = Enum.Font.GothamBlack })
+	UI.label(f, (type(d) == "table" and type(d.text) == "string") and d.text or "🚕 Viajando...", { Size = UDim2.fromScale(1, 1), Align = Enum.TextXAlignment.Center, TextSize = 28, Font = Enum.Font.GothamBlack })
 	UI.tween(f, { BackgroundTransparency = 0 }, 0.3)
 	task.wait(0.9)
 	UI.tween(f, { BackgroundTransparency = 1 }, 0.4)

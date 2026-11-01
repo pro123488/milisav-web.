@@ -86,7 +86,7 @@ UI.register("ideas", { name: "Ideas", icon: "💡", order: 1, surfaces: ALL, w: 
   arr(D.Video.Categories).forEach(c => g.append(UI.btn((G.trends.hot.includes(c.Id) ? "🔥 " : "") + c.Name, () => UI.res(G.createProject(c.Id, name.value)), G.trends.hot.includes(c.Id) ? "primary" : "")));
   el.append(g, h("h3", null, "📁 Tus proyectos (" + Object.keys(S.projects).length + "/" + D.Config.BaseProjectSlots + ")"));
   projList().forEach(p => {
-    const good = D.World.Spots.filter(s => !s.Secret && overlap(s.Tags, CATS[p.cat].Tags) > 0).slice(0, 4);
+    const good = D.World.Spots.filter(s => !s.Secret && !s.Dest && overlap(s.Tags, CATS[p.cat].Tags) > 0).slice(0, 4);
     el.append(card(h("b", null, p.name + " · " + catName(p.cat)), sub((STATUS[p.status] || p.status) + " · " + p.scenes.length + " escenas (" + p.scenes.filter(s => s.imp).length + " importadas)"),
       row(h("span", { class: "small" }, "Duración:"), select(arr(D.Video.Durations).map(d => [d.Id, d.Name]), p.plan.dur, v => { p.plan.dur = v; G.changed(); }),
         h("span", { class: "small" }, "Estilo:"), select(arr(D.Video.Styles).map((s, i) => [i, s]), p.plan.style, v => { p.plan.style = Number(v); G.changed(); })),

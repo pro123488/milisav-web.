@@ -123,28 +123,66 @@ LifeData.PetCare = {
 
 ---------------------------------------------------------------------------
 -- DESTINOS DE VIAJE (zonas lejos de la ciudad, se llega en avión desde el aeropuerto)
+--   Spots = { { nombre, x, z, etiquetas, interés } } relativos a Center (x, z).
+--   Shop = objetos exclusivos (ItemCatalog, Exclusive = Id) que solo se compran allí.
+--   Req = { Level, Rank } (Rank = invitación: rango de creador o un patrocinio activo).
 ---------------------------------------------------------------------------
 LifeData.Destinations = {
 	{ Id = "island", Name = "Isla Tropical Coral", Cost = 900, Req = { Level = 3 }, Center = { 3600, 0 }, Ground = { 230, 210, 160 }, Material = "Sand",
+		Noise = 2, Busy = 4, Theme = "island",
 		Desc = "Playas de arena blanca, arrecife y un pueblo pesquero.",
 		Spots = { { "Playa de coral", 0, 60, { "beach", "water", "tourism", "travel" }, 16 }, { "Muelle del pueblo", -80, -40, { "travel", "food", "tourism" }, 14 }, { "Mirador de la palmera", 90, -70, { "nature", "tourism", "travel" }, 15 } },
-		Shop = { "x_cam_dive", "x_hat_straw", "x_shell" } },
-	{ Id = "neo", Name = "Neo Ciudad 2099", Cost = 1600, Req = { Level = 6 }, Center = { 3600, 900 }, Ground = { 40, 40, 60 }, Material = "Neon",
+		Shop = { "x_cam_dive", "x_hat_straw", "x_shell" }, ShopName = "Bazar del Arrecife",
+		Hotel = { Name = "Hotel Palmeras Coral", Price = 140, Energy = 60, Mood = 18 } },
+	{ Id = "neo", Name = "Neo Ciudad 2099", Cost = 1600, Req = { Level = 6 }, Center = { 3600, 900 }, Ground = { 40, 40, 60 }, Material = "Glass",
+		Noise = 5, Busy = 7, Theme = "neo",
 		Desc = "Una ciudad futurista ficticia llena de pantallas y robots.",
 		Spots = { { "Avenida de hologramas", 0, 0, { "tech", "urban", "night", "travel" }, 16 }, { "Torre de datos", 80, -60, { "tech", "business", "travel" }, 15 }, { "Mercado robótico", -70, 60, { "shop", "tech", "travel" }, 14 } },
-		Shop = { "x_holo", "x_drone_neo", "x_visor" } },
+		Shop = { "x_holo", "x_drone_neo", "x_visor" }, ShopName = "Neo Store 2099",
+		Hotel = { Name = "Cápsulas Hotel Órbita", Price = 220, Energy = 65, Mood = 15 } },
 	{ Id = "ski", Name = "Estación de Esquí Cumbre Blanca", Cost = 1200, Req = { Level = 5 }, Center = { 3600, -900 }, Ground = { 245, 248, 255 }, Material = "Snow",
+		Noise = 2, Busy = 4, Theme = "ski",
 		Desc = "Nieve, cabañas y pistas con vistas espectaculares.",
 		Spots = { { "Pista principal", 0, 40, { "mountain", "nature", "travel", "challenge" }, 16 }, { "Refugio de montaña", -70, -50, { "mountain", "food", "travel" }, 13 }, { "Telesilla", 80, -60, { "mountain", "tourism", "travel" }, 15 } },
-		Shop = { "x_jacket", "x_cam_snow" } },
+		Shop = { "x_jacket", "x_cam_snow" }, ShopName = "Tienda Alpina Cumbre",
+		Hotel = { Name = "Chalet Cumbre Blanca", Price = 180, Energy = 70, Mood = 20 } },
 	{ Id = "expo", Name = "Feria Tecnológica Internacional", Cost = 2500, Req = { Level = 8, Rank = 5 }, Center = { 4500, 0 }, Ground = { 210, 215, 225 }, Material = "Marble",
-		Desc = "Solo con invitación (rango Especialista o superior). Lanzamientos y prototipos.",
+		Noise = 6, Busy = 8, Theme = "expo",
+		Desc = "Solo con invitación (rango Especialista o superior, o un patrocinio activo). Lanzamientos y prototipos.",
 		Spots = { { "Pabellón principal", 0, 0, { "tech", "event", "business", "travel" }, 17 }, { "Zona de prototipos", 70, 60, { "tech", "event", "travel" }, 16 } },
-		Shop = { "x_proto_phone", "x_proto_cam" } },
+		Shop = { "x_proto_phone", "x_proto_cam" }, ShopName = "Stand de prototipos",
+		Hotel = { Name = "Hotel Congresos Nexo", Price = 260, Energy = 60, Mood = 12 } },
+	{ Id = "valley", Name = "Parque Nacional Valle Esmeralda", Cost = 700, Req = { Level = 2 }, Center = { 4500, 900 }, Ground = { 80, 140, 70 }, Material = "Grass",
+		Noise = 1, Busy = 2, Theme = "valley",
+		Desc = "Cascadas, un lago cristalino y senderos entre secuoyas gigantes. Ideal para naturaleza y aventura.",
+		Spots = { { "Cascada esmeralda", -60, -60, { "nature", "water", "mountain", "travel" }, 16 }, { "Lago del valle", 80, -20, { "nature", "water", "tourism", "travel" }, 14 }, { "Sendero de las secuoyas", 0, 40, { "nature", "rural", "travel" }, 13 } },
+		Shop = { "x_binoculars", "x_mic_field" }, ShopName = "Centro de visitantes",
+		Hotel = { Name = "Refugio del Guarda", Price = 90, Energy = 55, Mood = 22 } },
+	{ Id = "fest", Name = "Festival de Creadores Aurora", Cost = 1800, Req = { Level = 6, Rank = 4 }, Center = { 4500, -900 }, Ground = { 70, 70, 80 }, Material = "Concrete",
+		Noise = 7, Busy = 9, Theme = "fest",
+		Desc = "El mayor encuentro de creadores ficticio: escenarios, firmas y food trucks. Acreditación: rango Creador constante o un patrocinio activo.",
+		Spots = { { "Escenario Aurora", 0, -60, { "event", "fun", "travel" }, 17 }, { "Zona de firmas", -80, 30, { "event", "urban", "travel" }, 14 }, { "Calle de food trucks", 80, 30, { "food", "fun", "travel" }, 14 } },
+		Shop = { "x_light_aurora", "x_merch_aurora" }, ShopName = "Tienda oficial Aurora",
+		Hotel = { Name = "Glamping Aurora", Price = 160, Energy = 50, Mood = 25 } },
 }
 LifeData.DestById = {}
 for _, d in ipairs(LifeData.Destinations) do
 	LifeData.DestById[d.Id] = d
+end
+
+-- Tamaño de cada zona de destino (mitad del lado, studs) y disposición común relativa al centro:
+-- puerta de embarque (vuelta), punto de llegada, tienda exclusiva y hotel.
+LifeData.DestHalf = 230
+LifeData.DestLayout = { Gate = { 0, 168 }, Arrival = { 0, 138 }, Shop = { -100, 115 }, Hotel = { 100, 115 } }
+
+-- Destino en el que está una posición (o nil si está en la ciudad)
+function LifeData.destinationAt(x, z)
+	for _, d in ipairs(LifeData.Destinations) do
+		if math.abs(x - d.Center[1]) <= LifeData.DestHalf and math.abs(z - d.Center[2]) <= LifeData.DestHalf then
+			return d
+		end
+	end
+	return nil
 end
 
 ---------------------------------------------------------------------------
