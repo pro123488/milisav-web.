@@ -29,7 +29,7 @@ R.size = l => ({ land: [28, 24, 0], garage: [18, 16, 8], studio: [28, 22, 14], w
   const byD = {}; D.Properties.forEach(l => (byD[l.District] = byD[l.District] || []).push(l));
   Object.entries(byD).forEach(([did, list]) => {
     const d = DISTRICTS[did]; if (!d) return; const [cx, cz] = districtCenter(d);
-    const circles = arr(d.Spots).map(s => [s.X, s.Z, 44]).concat(arr(d.Specials).map(s => [s.X, s.Z, 46]), [[24, 121, 22], [10, 123, 10], [-124, -62, 14], [124, 62, 14], [62, -124, 14], [-62, 124, 14]]);
+    const circles = arr(d.Spots).map(s => [s.X, s.Z, 44]).concat(arr(d.Specials).map(s => [s.X, s.Z, 46]), [[24, 121, 22], [10, 123, 10], [-124, -62, 20], [124, 62, 20], [62, -124, 20], [-62, 124, 20]]);
     const rects = [[-106, -78, 104, 120]];
     if (d.Water && d.Water.W) rects.push([d.Water.X - d.Water.W / 2 - 6, d.Water.X + d.Water.W / 2 + 6, d.Water.Z - d.Water.D / 2 - 6, d.Water.Z + d.Water.D / 2 + 6]);
     if (d.Runway) rects.push([55, 105, -130, 130]);
@@ -76,7 +76,7 @@ R.signText = function (id) {
 R.refreshSign = function (id) {
   const lot = R.lots[id]; if (!lot || !W.scene) return; const old = R.signs[id];
   if (old) { W.scene.remove(old); W.labels = W.labels.filter(x => x !== old); old.material.map.dispose(); old.material.dispose(); }
-  const [lines, bg] = R.signText(id); R.signs[id] = R.signSprite(lines, bg, lot.x, SIDEWALK_Y + Math.min(lot.h || 6, 12) + 3, lot.z + lot.d / 2 + 1.5, 0.045);
+  const [lines, bg] = R.signText(id); const pp = lot.post || [lot.x, lot.z + lot.d / 2 + 5]; R.signs[id] = R.signSprite(lines, bg, pp[0], SIDEWALK_Y + 8.4, pp[1], 0.04);
 };
 
 // ---------------------------------------------------------------- Exteriores
@@ -87,7 +87,6 @@ R.buildLot = function (M, l) {
   if (st === "land") {
     M.solid.box(x, y0 + 0.05, z, w, 0.1, d, [110, 160, 80]);
     [[x, z - d / 2, w, 0.4], [x - w / 2, z, 0.4, d], [x + w / 2, z, 0.4, d], [x - w / 4 - 2.5, z + d / 2, w / 2 - 5, 0.4], [x + w / 4 + 2.5, z + d / 2, w / 2 - 5, 0.4]].forEach(f => { M.solid.box(f[0], y0 + 1.2, f[1], f[2], 2.4, f[3], [245, 245, 240]); addCollider(f[0], f[1], f[2] + 0.2, f[3] + 0.2); });
-    M.solid.box(x + 4, y0 + 3, z + d / 2 + 1, 0.4, 6, 0.4, [90, 70, 50]);
   } else {
     M.solid.box(x, y0 + h / 2, z, w, h, d, col, 0, 0.05);
     if (st === "house" || st === "mansion") M.solid.add(U.box, new THREE.Matrix4().compose(new THREE.Vector3(x, y0 + h + 2.2, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 4, 0, 0)), new THREE.Vector3(w + 1, d / 1.42, d / 1.42)), st === "mansion" ? [70, 70, 80] : [150, 60, 50]);
@@ -103,6 +102,8 @@ R.buildLot = function (M, l) {
   // puerta (o portón) y escalón
   if (st !== "land" && st !== "garage") { M.solid.box(x, y0 + 3.6, z + d / 2 + 0.3, 4.6, 7.2, 0.5, [95, 62, 40]); M.glow.box(x + 1.5, y0 + 3.4, z + d / 2 + 0.6, 0.4, 0.4, 0.2, [255, 214, 100]); }
   M.solid.box(x, y0 + 0.2, z + d / 2 + 2.2, 7, 0.4, 3.6, [205, 205, 210]);
+  // poste del cartel de la inmobiliaria, a un lado de la puerta
+  M.solid.box(x + w / 2 - 3, y0 + 3.2, z + d / 2 + 5, 0.4, 6.4, 0.4, [80, 64, 48]); addCollider(x + w / 2 - 3, z + d / 2 + 5, 0.6, 0.6); lot.post = [x + w / 2 - 3, z + d / 2 + 5];
   const it = addInteract(lot.door.x, lot.door.z, 7, "", () => { if (R.held(l.Id)) UI.res(R.enter(l.Id)); else UI.openApp("realty", { id: l.Id }); }, { property: l.Id });
   Object.defineProperty(it, "label", { get: () => R.held(l.Id) ? "Entrar en " + l.Type + (R.st().home === l.Id ? " (tu casa)" : "") : "Ver anuncio: " + l.Type + " · " + (l.Rent ? fmtMoney(l.Rent) + "/sem" : fmtMoney(l.Buy)) });
 };
@@ -316,12 +317,13 @@ R.enter = function (id) {
   const l = R.byId[id]; if (!R.held(id)) return fail("No tienes acceso a esta propiedad.");
   if (!R.nearDoor(id)) return fail("Ve a la puerta de la propiedad (🚕 desde la app Inmobiliaria).");
   const r = R.rooms[id]; P.teleport(r.cx, r.cz + r.D / 2 - 7); P.yaw = 0; UI.fade("🔑 " + l.Name);
+  W.camera.position.set(r.cx, 9, r.cz + r.D / 2 - 1.5); W.camera.lookAt(r.cx, 5, r.cz);
   R.renderFurniture(id); W.updateSky(G.hour(), G.weather); R.checkDecorEvent(); G.slowTick(); G.changed();
   return ok("Entras en " + l.Name + (R.st().home === id ? " (tu casa)." : "."));
 };
 R.exit = function () {
   const id = P.obj && R.roomAt(P.obj.position); if (!id) return fail("No estás dentro de una propiedad.");
-  R.closeBuild(); const lot = R.lots[id]; P.teleport(lot.door.x, lot.door.z + 3); P.yaw = 0; W.updateSky(G.hour(), G.weather); G.changed();
+  R.closeBuild(); const lot = R.lots[id]; P.teleport(lot.door.x, lot.door.z + 3); P.yaw = 0; W.camera.position.set(lot.door.x, 12, lot.door.z + 22); W.camera.lookAt(lot.door.x, 5, lot.door.z); W.updateSky(G.hour(), G.weather); G.changed();
   return ok("Sales a la calle.");
 };
 R.go = function (id) { const lot = R.lots[id]; return lot ? G.taxi(lot.door.x, lot.door.z + 4, R.byId[id].Type) : fail("Propiedad no encontrada."); };
@@ -411,7 +413,7 @@ R.drawBuild = function () {
   el.append(h("div", { class: "row" }, free.length ? select(free.map(([u, r]) => [u, ITEMS[r.id].Name + " (+" + (ITEMS[r.id].Stats.Decor || 0) + ")"]), R.selUid, v => { R.selUid = v; R.selPlaced = ""; R.drawBuild(); }) : sub("No tienes muebles sin colocar: cómpralos en Hogar & Deco o en ♻ segunda mano."),
     UI.btn("⟳ " + R.rot + "°", () => { R.rot = (R.rot + 90) % 360; R.drawBuild(); })));
   // plano: clic para colocar o seleccionar
-  const maxW = Math.min(300, window.innerWidth - 60), sc = Math.min(maxW / l.W, 190 / l.D), cv = h("canvas", { width: Math.round(l.W * sc), height: Math.round(l.D * sc), class: "plan" });
+  const maxW = Math.min(300, (el.clientWidth || 340) - 28), sc = Math.min(maxW / l.W, 190 / l.D), cv = h("canvas", { width: Math.round(l.W * sc), height: Math.round(l.D * sc), class: "plan" });
   const ctx = cv.getContext("2d"); const tx = x => (x + l.W / 2) * sc, tz = z => (z + l.D / 2) * sc;
   ctx.fillStyle = "#2b2f3c"; ctx.fillRect(0, 0, cv.width, cv.height); ctx.strokeStyle = "rgba(255,255,255,.07)";
   for (let x = 2; x < l.W; x += 2) { ctx.beginPath(); ctx.moveTo(x * sc, 0); ctx.lineTo(x * sc, cv.height); ctx.stroke(); } for (let z = 2; z < l.D; z += 2) { ctx.beginPath(); ctx.moveTo(0, z * sc); ctx.lineTo(cv.width, z * sc); ctx.stroke(); }

@@ -26,6 +26,7 @@ Object.assign(D.Quests.TrackNames || (D.Quests.TrackNames = {}), EXTRA_NAMES);
 (function () {
   const css = `
 #hudTop { display: contents; }
+#actionBar { width: max-content; }
 .plan { display: block; margin: 6px auto; border-radius: 6px; cursor: crosshair; touch-action: none; }
 #buildPanel { position: fixed; left: 10px; top: 220px; width: 340px; max-height: calc(100vh - 300px); overflow: auto; z-index: 25; display: none; border: 2px solid var(--accent2); }
 #buildPanel select { width: auto; flex: 1; min-width: 0; }
@@ -40,29 +41,30 @@ Object.assign(D.Quests.TrackNames || (D.Quests.TrackNames = {}), EXTRA_NAMES);
   #hudMid { grid-column: 2; grid-row: 2; font-size: 14px; gap: 10px; justify-content: flex-end; align-self: start; }
   #objective { grid-column: 1 / span 2; grid-row: 3; font-size: 11px; }
   #objective div { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  #actionBar { left: 4px; right: 4px; bottom: 4px; transform: none; max-width: none; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px; -webkit-overflow-scrolling: touch; }
+  #actionBar { left: 4px; right: 4px; bottom: 4px; transform: none; width: auto; max-width: none; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px; -webkit-overflow-scrolling: touch; }
   #actionBar button { flex: 0 0 auto; width: 58px; height: 50px; font-size: 9px; }
   #touchBtns { right: 8px; bottom: 74px; gap: 10px; }
   #touchBtns button { width: 60px; height: 60px; font-size: 12px; white-space: pre-line; }
   #joy { bottom: 80px; }
   #prompt { bottom: 70px; max-width: calc(100vw - 90px); left: 8px; transform: none; font-size: 13px; padding: 10px 14px; min-height: 44px; }
-  #toasts { top: auto; bottom: 150px; left: 8px; right: 78px; width: auto; }
+  #toasts { top: 176px; left: 8px; right: 8px; width: auto; }
   .toast { font-size: 12px; padding: 7px 10px; }
   #banner { min-width: 0; width: 92vw; padding: 10px; } #banner.show { top: 150px; } #banner h2 { font-size: 18px; }
-  #rec { top: auto; bottom: 62px; max-height: 48vh; overflow: auto; width: calc(100vw - 8px); }
+  #rec { top: auto; bottom: 62px; left: 4px; right: 76px; transform: none; max-height: 48vh; overflow: auto; width: auto; }
   #photoUI .ctrl { bottom: 62px; width: calc(100vw - 8px); }
   .modal-back { align-items: stretch; }
   .window { max-width: 100vw !important; width: 100vw !important; height: 100% !important; max-height: 100% !important; border-radius: 0; }
   .window > header { padding: 8px; } .window > header button { min-width: 44px; min-height: 40px; font-size: 16px; }
   .window button, .phone button, .desktop button, #buildPanel button, #rec button { min-height: 38px; }
   input, select, textarea { font-size: 16px; min-height: 38px; }
+  input[type=checkbox], input[type=range] { min-height: 0; }
   .phone { left: 0; right: 0; top: 0; bottom: 0; width: auto; height: auto; max-height: none; transform: none; border-radius: 0; border: 0; padding: 28px 6px 8px; }
   .phone .homegrid { grid-template-columns: repeat(4, 1fr); }
   .desktop { inset: 0; border-radius: 0; border-width: 0; }
   .desktop .win { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
   .desktop .icons { grid-template-columns: repeat(4, 1fr); max-width: none; }
   .desktop .taskbar { height: 52px; overflow-x: auto; }
-  #buildPanel { left: 4px; right: 4px; width: auto; top: auto; bottom: 62px; max-height: 52vh; }
+  #buildPanel { left: 4px; right: 76px; width: auto; top: auto; bottom: 62px; max-height: 52vh; }
   .grid[style*="2fr 1fr"] { grid-template-columns: 1fr !important; }
 }`;
   document.head.appendChild(h("style", null, css));

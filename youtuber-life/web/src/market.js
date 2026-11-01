@@ -40,8 +40,8 @@ W.build = function () {
   const M = { solid: new Mesher(), win: new Mesher(), glow: new Mesher() }, x = MK.x, z = MK.z, w = MK.w, d = MK.d, hh = 14;
   R.clearArea(x - w / 2 - 2, x + w / 2 + 2, z - d / 2 - 2, z + d / 2 + 4);
   shell(M, x, z, w, d, hh, [205, 180, 150], [150, 120, 90]);
-  makeLabel("♻ " + MK.name, { x, y: SIDEWALK_Y + hh - 2, z: z + d / 2 + 1, bg: "rgba(110,70,30,.95)", scale: 0.11, maxDist: 400 });
-  makeLabel("Objetos usados y coleccionables raros", { x, y: SIDEWALK_Y + hh - 6, z: z + d / 2 + 1, bg: "rgba(40,30,20,.9)", scale: 0.05, maxDist: 160 });
+  makeLabel("♻ " + MK.name, { x, y: SIDEWALK_Y + hh - 3.2, z: z + d / 2 + 3, bg: "rgba(110,70,30,.95)", scale: 0.08, maxDist: 400 });
+  makeLabel("Objetos usados y coleccionables raros", { x, y: SIDEWALK_Y + hh - 6.4, z: z + d / 2 + 3, bg: "rgba(40,30,20,.9)", scale: 0.04, maxDist: 160 });
   M.solid.box(x - 14, SIDEWALK_Y + 2, z - d / 2 + 7, 16, 4, 3, [120, 80, 50]); addCollider(x - 14, z - d / 2 + 7, 16, 3); npcStatic(x - 14, z - d / 2 + 4, 0);
   addInteract(x - 14, z - d / 2 + 10.5, 6, "Ver el stock de segunda mano", () => UI.openApp("secondhand", { tab: "buy" }));
   M.solid.box(x + 14, SIDEWALK_Y + 2, z - d / 2 + 7, 12, 4, 3, [90, 70, 60]); addCollider(x + 14, z - d / 2 + 7, 12, 3); npcStatic(x + 14, z - d / 2 + 4, 0);

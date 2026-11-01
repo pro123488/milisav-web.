@@ -239,12 +239,12 @@ const fs = require("fs");
   });
   console.log(life.join("\n"));
   // capturas de los sistemas nuevos
-  const snap = async (name, fn, ms) => { await page.evaluate(fn); await page.waitForTimeout(ms || 900); await page.screenshot({ path: path.join(shots, name) }); };
+  const snap = async (name, fn, ms) => { await page.evaluate(fn); await page.evaluate(() => { for (let i = 0; i < 80; i++) window.YT.P.update(0.016); }); await page.waitForTimeout(ms || 900); await page.screenshot({ path: path.join(shots, name) }); };
   await snap("08-inmobiliaria.png", () => { const { UI } = window.YT; UI.closeAll(); UI.openModal("realty"); });
   await snap("09-casa-exterior.png", () => { const { UI, R, P } = window.YT; UI.closeAll(); window.YT.S().clock = Math.floor(window.YT.S().clock / 24) * 24 + 11; const l = R.lots.rural_house; P.teleport(l.door.x + 6, l.door.z + 20); P.yaw = 0.3; P.pitch = 0.25; }, 1500);
   await snap("10-interior-construccion.png", () => { const { R, P } = window.YT; const l = R.lots.apt_modern; P.teleport(l.door.x, l.door.z); R.enter("apt_modern"); const S = window.YT.S(); ["dec_sofa_gamer", "dec_lamp_gamer", "dec_rug", "dec_bookshelf", "dec_neon", "dec_plant_big"].forEach((it, i) => { const u = window.YT.G.addItem(it); R.place("apt_modern", u, [-4, 4, -2, 6, 0, -10][i], [-2, -2, 2, -10, -10, 5][i], 0); }); R.openBuild(); P.pitch = 0.55; P.yaw = 0.2; }, 1500);
   await snap("11-productora.png", () => { const { UI, R } = window.YT; R.exit(); UI.openModal("company"); });
-  await snap("12-segunda-mano.png", () => { const { UI, MK, P } = window.YT; UI.closeAll(); P.teleport(MK.x + 8, MK.z + 46); P.yaw = 0.15; P.pitch = 0.2; }, 1500);
+  await snap("12-segunda-mano.png", () => { const { UI, MK, P } = window.YT; UI.closeAll(); P.teleport(MK.x + 6, MK.z + 62); P.yaw = 0.1; P.pitch = 0.18; P.dist = 30; }, 1500);
   await snap("13-segunda-mano-app.png", () => { const { UI, MK, P } = window.YT; P.teleport(MK.x, MK.z); UI.openModal("secondhand"); });
   await snap("14-empleo-disenador.png", () => { const { UI, G, W, P } = window.YT; UI.closeAll(); P.teleport(W.homePos.x, W.homePos.z); G.openComputer("home"); G.startJob("design"); UI.openWindow("jobs"); });
   await page.evaluate(() => { window.YT.UI.closeAll(); window.YT.S().job = null; });
@@ -261,7 +261,7 @@ const fs = require("fs");
   await mp.click("#menu button.primary"); await mp.waitForTimeout(4200);
   const checkLayout = async (what) => mp.evaluate(what => {
     const rect = id => { const el = document.getElementById(id); if (!el || getComputedStyle(el).display === "none") return null; const r = el.getBoundingClientRect(); return r.width && r.height ? r : null; };
-    const ids = ["hudLeft", "hudRight", "hudMid", "objective", "actionBar", "touchBtns"]; const errs = [];
+    const ids = ["hudLeft", "hudRight", "hudMid", "objective", "actionBar", "touchBtns", "rec", "buildPanel"]; const errs = [];
     for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { const a = rect(ids[i]), b = rect(ids[j]); if (a && b && a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) errs.push(what + ": " + ids[i] + " se solapa con " + ids[j]); }
     ids.forEach(id => { const r = rect(id); if (r && (r.left < -1 || r.right > innerWidth + 1 || r.bottom > innerHeight + 1)) errs.push(what + ": " + id + " se sale de la pantalla"); });
     document.querySelectorAll("#actionBar button, #touchBtns button").forEach(b => { const r = b.getBoundingClientRect(); if (r.width && (r.height < 44 || r.width < 44)) errs.push(what + ": botón táctil pequeño " + b.textContent); });
@@ -271,7 +271,7 @@ const fs = require("fs");
   }, what);
   const mErr = [];
   mErr.push(...await checkLayout("HUD")); await mp.screenshot({ path: path.join(shots, "m02-hud.png") });
-  const mstep = async (name, fn, ms) => { await mp.evaluate(fn); await mp.waitForTimeout(ms || 700); mErr.push(...await checkLayout(name)); await mp.screenshot({ path: path.join(shots, name) }); };
+  const mstep = async (name, fn, ms) => { await mp.evaluate(fn); await mp.evaluate(() => { for (let i = 0; i < 80; i++) window.YT.P.update(0.016); }); await mp.waitForTimeout(ms || 700); mErr.push(...await checkLayout(name)); await mp.screenshot({ path: path.join(shots, name) }); };
   await mstep("m03-telefono.png", () => { window.YT.UI.openPhone(); });
   await mstep("m04-inmobiliaria.png", () => { window.YT.UI.closeAll(); window.YT.UI.openModal("realty"); });
   await mstep("m05-productora.png", () => { window.YT.UI.closeAll(); window.YT.UI.openModal("company"); });
