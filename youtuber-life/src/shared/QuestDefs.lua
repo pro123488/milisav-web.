@@ -3,6 +3,7 @@
 -- Cada logro se completa UNA sola vez y su recompensa se cobra una sola vez.
 
 local QuestDefs = {}
+local LifeData = require(script.Parent.LifeData)
 
 -- Tutorial: avanza cuando ocurre el evento indicado en el paso actual.
 -- Target: veces que debe ocurrir el evento. Marker: lugar al que apunta la flecha guía.
@@ -69,6 +70,8 @@ local tracks = {
 	{ "meals", "Come %s veces", { 1, 25, 100 }, 30, 15, {} },
 	{ "cooked", "Cocina %s platos", { 1, 10, 40 }, 60, 30, { [3] = "Chef casero" } },
 	{ "restaurant_meals", "Come %s veces en el restaurante", { 1, 10 }, 40, 20, {} },
+	{ "destinations_visited", "Viaja a %s destinos", { 1, 3, #LifeData.Destinations }, 150, 60, { [1] = "Viajero", [3] = "Trotamundos" } },
+	{ "exclusives_bought", "Compra %s productos exclusivos de viaje", { 1, 5 }, 100, 50, { [2] = "Cazador de exclusivas" } },
 }
 
 QuestDefs.TrackNames = {
@@ -82,6 +85,7 @@ QuestDefs.TrackNames = {
 	furniture_placed = "Muebles colocados", remodels = "Remodelaciones", decor_max = "Mejor decoración",
 	sponsors_done = "Patrocinios", events_joined = "Eventos", events_goals = "Objetivos de eventos", lives = "Directos",
 	meals = "Comidas", cooked = "Platos cocinados", restaurant_meals = "Restaurante", posts = "Publicaciones en redes", shorts = "Shorts", podcasts = "Podcasts", series_eps = "Episodios", docs = "Documentales",
+	destinations_visited = "Destinos visitados", exclusives_bought = "Exclusivos de viaje",
 }
 
 -- Singulares para objetivos de 1 ("Publica 1 vídeo" en vez de "1 vídeos")
@@ -93,6 +97,7 @@ local singular = {
 	{ "eventos", "evento" }, { "directos", "directo" }, { "shorts", "short" }, { "podcasts", "podcast" }, { "documentales", "documental" },
 	{ "platos", "plato" }, { "lugares secretos", "lugar secreto" }, { "categorías distintas", "categoría" }, { "tiendas distintas", "tienda" },
 	{ "objetivos", "objetivo" }, { "episodios", "episodio" }, { "suscriptores", "suscriptor" },
+	{ "destinos", "destino" }, { "productos exclusivos", "producto exclusivo" },
 }
 local function singularize(text)
 	for _, pair in ipairs(singular) do

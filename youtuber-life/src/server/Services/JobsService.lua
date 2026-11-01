@@ -155,7 +155,7 @@ function Jobs.Start()
 		elseif p.type == "photo" then
 			local candidates = {}
 			for _, s in ipairs(WorldData.Spots) do
-				if not s.Secret then
+				if not s.Secret and not s.Dest then
 					candidates[#candidates + 1] = s
 				end
 			end
@@ -184,7 +184,7 @@ function Jobs.Start()
 			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 			local candidates = {}
 			for _, s in ipairs(WorldData.Spots) do
-				if not s.Secret and root then
+				if not s.Secret and not s.Dest and root then
 					local d = math.sqrt((s.X - root.Position.X) ^ 2 + (s.Z - root.Position.Z) ^ 2)
 					if d > 200 and d < 900 then
 						candidates[#candidates + 1] = { s = s, d = d }
@@ -213,7 +213,7 @@ function Jobs.Start()
 		elseif p.type == "camera" then
 			local candidates = {}
 			for _, s in ipairs(WorldData.Spots) do
-				if not s.Secret then
+				if not s.Secret and not s.Dest then
 					candidates[#candidates + 1] = s
 				end
 			end

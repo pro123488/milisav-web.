@@ -13,6 +13,7 @@ local WorldData = require(Shared.WorldData)
 local Catalog = require(Shared.ItemCatalog)
 local Util = require(Shared.Util)
 local PropertyData = require(Shared.PropertyData)
+local LifeData = require(Shared.LifeData)
 
 local World = {}
 local S
@@ -633,6 +634,607 @@ local function buildPropertySign(parent, l)
 end
 
 ---------------------------------------------------------------------------
+-- Aeropuerto (Terminal Internacional) y destinos de viaje (lejos de la ciudad)
+---------------------------------------------------------------------------
+local function signBoth(part, text, bg, fg, font)
+	sign(part, Enum.NormalId.Front, text, bg, fg, font)
+	sign(part, Enum.NormalId.Back, text, bg, fg, font)
+end
+
+-- Marcador 🎥 de un lugar de grabación (igual que los de la ciudad)
+local function recordMarker(parent, x, z, name)
+	local marker = P(parent, "RecordSpot", Vector3.new(0.3, 10, 10), CFrame.new(x, GROUND_TOP + 0.2, z) * CFrame.Angles(0, 0, math.rad(90)),
+		{ 255, 50, 90 }, Enum.Material.Neon, { Shape = Enum.PartType.Cylinder, NoCollide = true, Transparency = 0.45, NoShadow = true })
+	marker.CanQuery = false
+	CollectionService:AddTag(marker, "RecordSpot")
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromOffset(220, 40)
+	bb.StudsOffset = Vector3.new(0, 7, 0)
+	bb.MaxDistance = 160
+	bb.Parent = marker
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.fromScale(1, 1)
+	t.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+	t.BackgroundTransparency = 0.25
+	t.TextColor3 = Color3.new(1, 1, 1)
+	t.Font = Enum.Font.GothamBold
+	t.TextScaled = true
+	t.Text = "🎥 " .. name
+	t.Parent = bb
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = t
+	return marker
+end
+
+local function buildAirport(parent, sp)
+	local m = model(parent, "TerminalInternacional")
+	local w, d, h = 56, 34, 16
+	local base = shell(m, sp.WX, sp.WZ, w, d, h, { 225, 230, 238 }, { 205, 210, 218 })
+	local board = P(m, "TerminalSign", Vector3.new(30, 4, 0.6), base * CFrame.new(0, h - 2.5, d / 2 + 1.2), { 20, 40, 80 })
+	signBoth(board, "✈ " .. sp.Name, Color3.fromRGB(20, 40, 80), Color3.new(1, 1, 1))
+	-- Mostrador de facturación
+	local counter = P(m, "CheckInCounter", Vector3.new(22, 4, 3), base * CFrame.new(0, 2, -d / 2 + 8), { 60, 70, 90 }, Enum.Material.Metal)
+	P(m, "CounterTop", Vector3.new(22.4, 0.4, 3.4), base * CFrame.new(0, 4.2, -d / 2 + 8), { 235, 235, 240 }, Enum.Material.Marble)
+	prompt(counter, "airport", "Ver vuelos", sp.Name)
+	table.insert(World.NpcPoints, { Pos = (base * CFrame.new(0, 0, -d / 2 + 4)).Position, Look = (base * CFrame.new(0, 0, 0)).Position, Name = "Agente de viajes", Role = "travel" })
+	-- Panel de salidas con todos los destinos
+	local names = {}
+	for _, dest in ipairs(LifeData.Destinations) do
+		names[#names + 1] = "✈ " .. dest.Name .. "  $" .. Util.formatInt(dest.Cost)
+	end
+	local screen = P(m, "DeparturesBoard", Vector3.new(26, 9, 0.4), base * CFrame.new(0, 9.5, -d / 2 + 1), { 10, 14, 30 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(screen, "SALIDAS\n" .. table.concat(names, "\n"), Color3.fromRGB(10, 14, 30), Color3.fromRGB(255, 214, 80), Enum.Font.Code)
+	-- Asientos de espera (pasillo central libre)
+	for _, sx in ipairs({ -1, 1 }) do
+		for row = 0, 1 do
+			for i = 0, 2 do
+				P(m, "Seat", Vector3.new(3, 1.2, 3), base * CFrame.new(sx * (10 + i * 4), 1.6, 5 + row * 6), { 40, 90, 160 }, Enum.Material.Fabric)
+				P(m, "SeatBack", Vector3.new(3, 2, 0.4), base * CFrame.new(sx * (10 + i * 4), 2.8, 6.3 + row * 6), { 40, 90, 160 }, Enum.Material.Fabric)
+			end
+		end
+	end
+	-- Torre de control en el tejado
+	P(m, "ControlTower", Vector3.new(4, 10, 4), base * CFrame.new(w / 2 - 6, h + 5, -d / 2 + 6), { 200, 205, 215 }, Enum.Material.Concrete)
+	local cab = P(m, "ControlCab", Vector3.new(8, 4, 8), base * CFrame.new(w / 2 - 6, h + 12, -d / 2 + 6), { 120, 180, 220 }, Enum.Material.Glass, { Transparency = 0.3 })
+	nightLight(cab, 30, Color3.fromRGB(120, 200, 255))
+end
+
+-- Edificio abierto por delante (+Z local): suelo, paredes trasera y laterales, techo y luz
+local function destBooth(parent, cf, w, d, h, wallColor, floorColor)
+	P(parent, "Floor", Vector3.new(w, 0.6, d), cf * CFrame.new(0, 0.3, 0), floorColor, Enum.Material.WoodPlanks)
+	P(parent, "WallBack", Vector3.new(w, h, 1), cf * CFrame.new(0, h / 2, -d / 2), wallColor, Enum.Material.Concrete)
+	P(parent, "WallSide", Vector3.new(1, h, d), cf * CFrame.new(-w / 2, h / 2, 0), wallColor, Enum.Material.Concrete)
+	P(parent, "WallSide", Vector3.new(1, h, d), cf * CFrame.new(w / 2, h / 2, 0), wallColor, Enum.Material.Concrete)
+	P(parent, "Roof", Vector3.new(w + 2, 1, d + 2), cf * CFrame.new(0, h + 0.5, 0), { 60, 60, 66 }, Enum.Material.Concrete)
+	local lamp = P(parent, "CeilingLamp", Vector3.new(4, 0.4, 4), cf * CFrame.new(0, h - 0.3, 0), { 255, 250, 230 }, Enum.Material.Neon, { NoShadow = true })
+	local l = Instance.new("PointLight")
+	l.Range = 30
+	l.Brightness = 1.2
+	l.Parent = lamp
+end
+
+local function palm(parent, x, z, h, rng)
+	local lean = math.rad(rng:NextInteger(-8, 8))
+	P(parent, "PalmTrunk", Vector3.new(h, 1.4, 1.4), CFrame.new(x, GROUND_TOP + h / 2, z) * CFrame.Angles(lean, 0, math.rad(90)), { 150, 110, 70 }, Enum.Material.Wood, { Shape = Enum.PartType.Cylinder })
+	for i = 1, 6 do
+		local a = i / 6 * math.pi * 2
+		P(parent, "PalmFrond", Vector3.new(9, 0.4, 2.4), CFrame.new(x, GROUND_TOP + h + 0.5, z) * CFrame.Angles(0, a, 0) * CFrame.new(4, 0, 0) * CFrame.Angles(0, 0, math.rad(-18)),
+			{ 60, 150, 70 }, Enum.Material.Grass)
+	end
+	for i = 1, 3 do
+		P(parent, "Coconut", Vector3.new(1.1, 1.1, 1.1), Vector3.new(x + math.cos(i * 2.1), GROUND_TOP + h - 0.6, z + math.sin(i * 2.1)), { 110, 80, 40 }, Enum.Material.Wood, { Shape = Enum.PartType.Ball })
+	end
+end
+
+local function pine(parent, x, z, s, snow)
+	P(parent, "PineTrunk", Vector3.new(6 * s, 1.4 * s, 1.4 * s), CFrame.new(x, GROUND_TOP + 3 * s, z) * CFrame.Angles(0, 0, math.rad(90)), { 100, 70, 45 }, Enum.Material.Wood, { Shape = Enum.PartType.Cylinder })
+	for i = 0, 2 do
+		local r = (9 - i * 2.5) * s
+		P(parent, "PineLeaves", Vector3.new(r, r * 0.8, r), Vector3.new(x, GROUND_TOP + (7 + i * 4.5) * s, z), { 40, 95, 60 }, Enum.Material.Grass, { Shape = Enum.PartType.Ball })
+	end
+	if snow then
+		P(parent, "SnowCap", Vector3.new(3 * s, 2 * s, 3 * s), Vector3.new(x, GROUND_TOP + 18.5 * s, z), { 250, 252, 255 }, Enum.Material.Snow, { Shape = Enum.PartType.Ball })
+	end
+end
+
+-- Cable recto entre dos puntos (telesilla, guirnaldas)
+local function cable(parent, a, b, thickness, color, material)
+	local dx, dy, dz = b.X - a.X, b.Y - a.Y, b.Z - a.Z
+	local len = math.sqrt(dx * dx + dy * dy + dz * dz)
+	local yaw = math.atan2(dx, dz)
+	local pitch = -math.asin(dy / len)
+	local mid = Vector3.new((a.X + b.X) / 2, (a.Y + b.Y) / 2, (a.Z + b.Z) / 2)
+	return P(parent, "Cable", Vector3.new(thickness, thickness, len), CFrame.new(mid) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0), color, material or Enum.Material.Metal, { NoShadow = true })
+end
+
+local destThemes = {}
+
+destThemes.island = function(m, dest, cx, cz, rng, free, block)
+	-- Mar alrededor de la isla y laguna del arrecife junto a la playa
+	workspace.Terrain:FillBlock(CFrame.new(cx, -4, cz), Vector3.new(820, 8, 820), Enum.Material.Water)
+	workspace.Terrain:FillBlock(CFrame.new(cx, GROUND_TOP + 1, cz + 90), Vector3.new(110, 4, 28), Enum.Material.Water)
+	block(cx - 30, cz + 90, 26)
+	block(cx + 30, cz + 90, 26)
+	for _, c in ipairs({ { -20, 86, { 255, 120, 120 } }, { 15, 94, { 255, 200, 80 } }, { 35, 84, { 200, 120, 255 } } }) do
+		P(m, "Coral", Vector3.new(3, 3, 3), Vector3.new(cx + c[1], GROUND_TOP + 0.8, cz + c[2]), c[3], Enum.Material.Pebble, { Shape = Enum.PartType.Ball })
+	end
+	-- Playa: sombrillas y toallas
+	for i, p in ipairs({ { -24, 48 }, { 22, 46 }, { 34, 70 }, { -30, 72 } }) do
+		local x, z = cx + p[1], cz + p[2]
+		P(m, "UmbrellaPole", Vector3.new(0.4, 8, 0.4), Vector3.new(x, GROUND_TOP + 4, z), { 240, 240, 240 }, Enum.Material.Metal)
+		P(m, "Umbrella", Vector3.new(0.6, 10, 10), CFrame.new(x, GROUND_TOP + 8, z) * CFrame.Angles(0, 0, math.rad(90)), i % 2 == 0 and { 255, 90, 90 } or { 60, 180, 230 }, Enum.Material.Fabric, { Shape = Enum.PartType.Cylinder })
+		P(m, "Towel", Vector3.new(3, 0.1, 6), Vector3.new(x + 4, GROUND_TOP + 0.15, z), i % 2 == 0 and { 255, 220, 80 } or { 255, 140, 200 }, Enum.Material.Fabric, { NoCollide = true })
+	end
+	-- Muelle del pueblo pesquero, barcas y casas
+	P(m, "Pier", Vector3.new(44, 1, 8), Vector3.new(cx - 120, GROUND_TOP + 1, cz - 40), { 130, 95, 65 }, Enum.Material.WoodPlanks)
+	for _, b in ipairs({ { -150, -55 }, { -150, -25 } }) do
+		P(m, "Boat", Vector3.new(14, 2.4, 5), Vector3.new(cx + b[1], GROUND_TOP + 1.2, cz + b[2]), { 240, 240, 245 }, Enum.Material.Wood)
+		P(m, "BoatStripe", Vector3.new(14.2, 0.6, 5.2), Vector3.new(cx + b[1], GROUND_TOP + 1.8, cz + b[2]), { 30, 110, 200 }, Enum.Material.SmoothPlastic)
+	end
+	local village = { Palette = { { 250, 245, 230 }, { 120, 200, 220 }, { 255, 200, 150 } } }
+	for _, hpos in ipairs({ { -150, -110 }, { -110, -140 }, { -160, 30 }, { -60, -150 } }) do
+		if free(cx + hpos[1], cz + hpos[2], 14) then
+			styleBuilders.house(m, cx + hpos[1], cz + hpos[2], village, rng)
+			block(cx + hpos[1], cz + hpos[2], 18)
+		end
+	end
+	-- Mirador: colina con una palmera gigante
+	P(m, "Hill", Vector3.new(70, 40, 70), Vector3.new(cx + 150, GROUND_TOP - 10, cz - 120), { 200, 185, 130 }, Enum.Material.Sand, { Shape = Enum.PartType.Ball })
+	block(cx + 150, cz - 120, 38)
+	palm(m, cx + 104, cz - 84, 30, rng)
+	for _ = 1, 60 do
+		local x, z = cx + rng:NextInteger(-195, 195), cz + rng:NextInteger(-195, 195)
+		if free(x, z, 6) then
+			palm(m, x, z, rng:NextInteger(14, 22), rng)
+			block(x, z, 10)
+		end
+	end
+end
+
+destThemes.neo = function(m, dest, cx, cz, rng, free, block)
+	local neon = { { 0, 220, 255 }, { 255, 40, 200 }, { 140, 80, 255 }, { 60, 255, 160 } }
+	-- Rejilla luminosa en el suelo
+	for i = -3, 3 do
+		P(m, "GridLine", Vector3.new(0.6, 0.1, 400), Vector3.new(cx + i * 60, GROUND_TOP + 0.12, cz), neon[1], Enum.Material.Neon, { NoCollide = true, NoShadow = true })
+		P(m, "GridLine", Vector3.new(400, 0.1, 0.6), Vector3.new(cx, GROUND_TOP + 0.12, cz + i * 60), neon[2], Enum.Material.Neon, { NoCollide = true, NoShadow = true })
+	end
+	-- Avenida de hologramas: columnas holográficas
+	for _, sx in ipairs({ -26, 26 }) do
+		for k = -2, 2 do
+			local col = P(m, "HoloPillar", Vector3.new(14, 3, 3), CFrame.new(cx + sx, GROUND_TOP + 7, cz + k * 26) * CFrame.Angles(0, 0, math.rad(90)),
+				neon[(k + 3) % #neon + 1], Enum.Material.Neon, { Shape = Enum.PartType.Cylinder, Transparency = 0.35, NoShadow = true })
+			col.CanCollide = false
+		end
+	end
+	-- Torre de datos
+	local tx, tz = cx + 125, cz - 100
+	P(m, "DataTower", Vector3.new(30, 200, 30), Vector3.new(tx, GROUND_TOP + 100, tz), { 25, 25, 40 }, Enum.Material.Glass)
+	for i = 1, 8 do
+		P(m, "DataBand", Vector3.new(31, 1.2, 31), Vector3.new(tx, GROUND_TOP + i * 24, tz), neon[i % #neon + 1], Enum.Material.Neon, { NoShadow = true })
+	end
+	P(m, "Antenna", Vector3.new(1, 40, 1), Vector3.new(tx, GROUND_TOP + 220, tz), { 200, 200, 210 }, Enum.Material.Metal)
+	block(tx, tz, 26)
+	-- Mercado robótico: puestos con toldos de neón
+	for i, s in ipairs({ { -110, 40 }, { -95, 80 }, { -40, 80 }, { -45, 35 } }) do
+		local x, z = cx + s[1], cz + s[2]
+		if free(x, z, 6) then
+			P(m, "Stall", Vector3.new(10, 4, 6), Vector3.new(x, GROUND_TOP + 2, z), { 50, 50, 70 }, Enum.Material.Metal)
+			P(m, "StallAwning", Vector3.new(11, 0.4, 7), Vector3.new(x, GROUND_TOP + 7, z), neon[i % #neon + 1], Enum.Material.Neon, { NoShadow = true })
+			block(x, z, 8)
+		end
+	end
+	-- Robots
+	for _ = 1, 10 do
+		local x, z = cx + rng:NextInteger(-150, 150), cz + rng:NextInteger(-150, 150)
+		if free(x, z, 3) then
+			P(m, "RobotBody", Vector3.new(2, 3, 1.4), Vector3.new(x, GROUND_TOP + 2.5, z), { 200, 205, 215 }, Enum.Material.Metal)
+			P(m, "RobotHead", Vector3.new(1.6, 1.6, 1.6), Vector3.new(x, GROUND_TOP + 4.8, z), { 220, 225, 235 }, Enum.Material.Metal, { Shape = Enum.PartType.Ball })
+			P(m, "RobotEye", Vector3.new(1.2, 0.3, 0.2), Vector3.new(x, GROUND_TOP + 5, z + 0.75), neon[1], Enum.Material.Neon, { NoShadow = true })
+			block(x, z, 4)
+		end
+	end
+	-- Rascacielos con franjas de neón y pantallas
+	local screens = { "NEO 2099", "HOLOGRAMAS 24 h", "ROBÓTICA ORBIS", "NEO STORE", "VIAJA AL FUTURO" }
+	local placed = 0
+	for _ = 1, 80 do
+		if placed >= 12 then
+			break
+		end
+		local x, z = cx + rng:NextInteger(-185, 185), cz + rng:NextInteger(-185, 185)
+		if free(x, z, 18) then
+			local h = rng:NextInteger(70, 170)
+			local w = rng:NextInteger(22, 32)
+			P(m, "NeoTower", Vector3.new(w, h, w), Vector3.new(x, GROUND_TOP + h / 2, z), { 30 + rng:NextInteger(0, 20), 30, 50 }, Enum.Material.Glass)
+			local c = neon[rng:NextInteger(1, #neon)]
+			for k = 1, 4 do
+				P(m, "NeonStrip", Vector3.new(w + 0.6, 0.8, w + 0.6), Vector3.new(x, GROUND_TOP + h * k / 5, z), c, Enum.Material.Neon, { NoShadow = true })
+			end
+			if placed < #screens then
+				local scr = P(m, "HoloScreen", Vector3.new(w - 4, 10, 0.4), Vector3.new(x, GROUND_TOP + h * 0.5, z + w / 2 + 0.6), { 10, 10, 20 }, Enum.Material.Neon, { NoShadow = true })
+				signBoth(scr, screens[placed + 1], Color3.fromRGB(10, 10, 30), rgb(c))
+			end
+			block(x, z, w * 0.8)
+			placed = placed + 1
+		end
+	end
+	-- Coches voladores (decoración)
+	for i = 1, 6 do
+		local a = i / 6 * math.pi * 2
+		P(m, "HoverCar", Vector3.new(5, 2, 10), CFrame.new(cx + math.cos(a) * 90, GROUND_TOP + 30 + i * 4, cz + math.sin(a) * 90) * CFrame.Angles(0, a, 0), neon[i % #neon + 1], Enum.Material.SmoothPlastic, { NoShadow = true })
+	end
+end
+
+destThemes.ski = function(m, dest, cx, cz, rng, free, block)
+	-- Pista principal: rampa nevada que baja hacia el lugar 🎥
+	P(m, "SkiSlope", Vector3.new(60, 40, 160), Vector3.new(cx, GROUND_TOP + 20, cz - 60), { 245, 248, 255 }, Enum.Material.Snow, { Class = "WedgePart" })
+	for i = -2, 2 do
+		if i ~= 0 then
+			P(m, "SlalomFlag", Vector3.new(0.3, 4, 0.3), Vector3.new(cx + i * 9, GROUND_TOP + 2, cz + 24), { 220, 40, 40 }, Enum.Material.SmoothPlastic)
+		end
+	end
+	for z = -130, 10, 20 do
+		block(cx, cz + z, 34)
+	end
+	-- Colinas nevadas alrededor
+	for i = 1, 14 do
+		local a = i / 14 * math.pi * 2
+		local x, z = cx + math.cos(a) * 205, cz + math.sin(a) * 205
+		local s = rng:NextInteger(60, 110)
+		if math.sin(a) < 0.3 and free(x, z, s * 0.35) then
+			P(m, "SnowHill", Vector3.new(s, s * 0.7, s), Vector3.new(x, GROUND_TOP - s * 0.1, z), { 245, 248, 255 }, Enum.Material.Snow, { Shape = Enum.PartType.Ball })
+		end
+	end
+	-- Refugio de montaña
+	local cabinStyle = { Palette = { { 120, 80, 50 }, { 150, 100, 60 } } }
+	styleBuilders.cabin(m, cx - 100, cz - 80, cabinStyle, rng)
+	P(m, "Chimney", Vector3.new(2, 6, 2), Vector3.new(cx - 95, GROUND_TOP + 14, cz - 80), { 120, 110, 100 }, Enum.Material.Brick)
+	block(cx - 100, cz - 80, 14)
+	-- Telesilla: estación, torres, cable y sillas
+	local stations = { Vector3.new(cx + 100, GROUND_TOP + 14, cz - 70), Vector3.new(cx + 125, GROUND_TOP + 22, cz - 105), Vector3.new(cx + 150, GROUND_TOP + 30, cz - 140), Vector3.new(cx + 175, GROUND_TOP + 38, cz - 175) }
+	P(m, "LiftStation", Vector3.new(12, 8, 10), Vector3.new(cx + 96, GROUND_TOP + 4, cz - 62), { 200, 60, 50 }, Enum.Material.WoodPlanks)
+	for i, top in ipairs(stations) do
+		P(m, "LiftTower", Vector3.new(1.4, top.Y - GROUND_TOP, 1.4), Vector3.new(top.X, (top.Y + GROUND_TOP) / 2, top.Z), { 90, 90, 100 }, Enum.Material.Metal)
+		P(m, "LiftArm", Vector3.new(6, 0.8, 0.8), CFrame.new(top) * CFrame.Angles(0, math.rad(-35), 0), { 90, 90, 100 }, Enum.Material.Metal)
+		block(top.X, top.Z, 6)
+		if i > 1 then
+			local a = stations[i - 1]
+			cable(m, a, top, 0.3, { 40, 40, 44 })
+			local mid = Vector3.new((a.X + top.X) / 2, (a.Y + top.Y) / 2 - 3, (a.Z + top.Z) / 2)
+			P(m, "ChairHanger", Vector3.new(0.2, 3, 0.2), mid + Vector3.new(0, 1.5, 0), { 40, 40, 44 }, Enum.Material.Metal)
+			P(m, "Chair", Vector3.new(4, 0.5, 2), mid, { 30, 90, 200 }, Enum.Material.SmoothPlastic)
+		end
+	end
+	-- Cabañas, pinos nevados y muñecos de nieve
+	local placed = 0
+	for _ = 1, 40 do
+		if placed >= 5 then
+			break
+		end
+		local x, z = cx + rng:NextInteger(-170, 170), cz + rng:NextInteger(-170, 170)
+		if free(x, z, 14) then
+			styleBuilders.cabin(m, x, z, cabinStyle, rng)
+			block(x, z, 16)
+			placed = placed + 1
+		end
+	end
+	for _ = 1, 70 do
+		local x, z = cx + rng:NextInteger(-185, 185), cz + rng:NextInteger(-185, 185)
+		if free(x, z, 5) then
+			pine(m, x, z, 0.8 + rng:NextNumber() * 0.6, true)
+			block(x, z, 8)
+		end
+	end
+	for _, s in ipairs({ { -30, 70 }, { 40, 80 }, { -60, 10 } }) do
+		local x, z = cx + s[1], cz + s[2]
+		if free(x, z, 2) then
+			P(m, "SnowmanBase", Vector3.new(4, 4, 4), Vector3.new(x, GROUND_TOP + 2, z), { 250, 252, 255 }, Enum.Material.Snow, { Shape = Enum.PartType.Ball })
+			P(m, "SnowmanHead", Vector3.new(2.6, 2.6, 2.6), Vector3.new(x, GROUND_TOP + 5, z), { 250, 252, 255 }, Enum.Material.Snow, { Shape = Enum.PartType.Ball })
+			P(m, "SnowmanNose", Vector3.new(0.3, 0.3, 1.2), Vector3.new(x, GROUND_TOP + 5, z + 1.5), { 255, 140, 40 }, Enum.Material.SmoothPlastic)
+		end
+	end
+end
+
+destThemes.expo = function(m, dest, cx, cz, rng, free, block)
+	-- Pabellón principal: gran cubierta con columnas, pantalla gigante y stands de marcas ficticias
+	P(m, "HallFloor", Vector3.new(130, 0.4, 90), Vector3.new(cx, GROUND_TOP + 0.2, cz - 10), { 235, 238, 245 }, Enum.Material.Marble)
+	for _, x in ipairs({ -64, -32, 0, 32, 64 }) do
+		for _, z in ipairs({ -54, 34 }) do
+			P(m, "HallColumn", Vector3.new(2, 26, 2), Vector3.new(cx + x, GROUND_TOP + 13, cz + z), { 200, 205, 215 }, Enum.Material.Metal)
+		end
+	end
+	P(m, "HallRoof", Vector3.new(134, 1.5, 94), Vector3.new(cx, GROUND_TOP + 26.5, cz - 10), { 230, 235, 245 }, Enum.Material.Glass, { Transparency = 0.4 })
+	local screen = P(m, "MainScreen", Vector3.new(60, 18, 0.6), Vector3.new(cx, GROUND_TOP + 14, cz - 53), { 20, 40, 90 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(screen, "FERIA TECNOLÓGICA INTERNACIONAL", Color3.fromRGB(10, 20, 60), Color3.fromRGB(120, 220, 255))
+	local brands = { "Nexo", "Kairo", "Zenit", "Lumina", "Orbis", "Stratos", "Pixelia", "Ferro" }
+	local i = 0
+	for _, z in ipairs({ -36, 20 }) do
+		for _, x in ipairs({ -50, -25, 25, 50 }) do
+			i = i + 1
+			local bx, bz = cx + x, cz + z
+			P(m, "Stand", Vector3.new(16, 0.6, 12), Vector3.new(bx, GROUND_TOP + 0.7, bz), { 40, 45, 60 }, Enum.Material.SmoothPlastic)
+			P(m, "StandDesk", Vector3.new(8, 3.5, 2.5), Vector3.new(bx, GROUND_TOP + 2.75, bz + 3), { 250, 250, 252 }, Enum.Material.SmoothPlastic)
+			local panel = P(m, "StandPanel", Vector3.new(14, 7, 0.4), Vector3.new(bx, GROUND_TOP + 5, bz - 5.5), { 30, 30, 40 }, Enum.Material.Neon, { NoShadow = true })
+			signBoth(panel, brands[i], Color3.fromRGB(20 + i * 20, 30, 80), Color3.new(1, 1, 1))
+			P(m, "StandGadget", Vector3.new(1.4, 1.4, 1.4), Vector3.new(bx, GROUND_TOP + 5.2, bz + 3), { 255, 214, 0 }, Enum.Material.Neon, { Shape = Enum.PartType.Ball, NoShadow = true })
+			block(bx, bz, 10)
+		end
+	end
+	-- Zona de prototipos: vitrinas brillantes en círculo
+	for k = 1, 6 do
+		local a = k / 6 * math.pi * 2
+		local x, z = cx + 70 + math.cos(a) * 16, cz + 60 + math.sin(a) * 16
+		P(m, "ProtoPedestal", Vector3.new(3, 3, 3), Vector3.new(x, GROUND_TOP + 1.5, z), { 250, 250, 252 }, Enum.Material.Marble)
+		P(m, "ProtoGlass", Vector3.new(3, 3, 3), Vector3.new(x, GROUND_TOP + 4.5, z), { 200, 230, 255 }, Enum.Material.Glass, { Transparency = 0.6 })
+		P(m, "ProtoItem", Vector3.new(1.2, 1.2, 1.2), Vector3.new(x, GROUND_TOP + 4.2, z), ({ { 0, 220, 255 }, { 255, 40, 200 }, { 60, 255, 160 } })[k % 3 + 1], Enum.Material.Neon, { NoShadow = true })
+	end
+	-- Banderas de países ficticios en la entrada
+	for k = -3, 3 do
+		local x, z = cx + k * 14, cz + 75
+		if free(x, z, 1) then
+			P(m, "FlagPole", Vector3.new(0.4, 14, 0.4), Vector3.new(x, GROUND_TOP + 7, z), { 220, 220, 225 }, Enum.Material.Metal)
+			P(m, "Flag", Vector3.new(4, 2.6, 0.1), Vector3.new(x + 2, GROUND_TOP + 12.5, z), ({ { 220, 40, 40 }, { 40, 120, 220 }, { 250, 200, 40 }, { 60, 170, 90 } })[(k + 4) % 4 + 1], Enum.Material.Fabric)
+		end
+	end
+	-- Jardines y bancos alrededor
+	for _ = 1, 30 do
+		local x, z = cx + rng:NextInteger(-190, 190), cz + rng:NextInteger(-190, 190)
+		if free(x, z, 6) and (math.abs(x - cx) > 70 or math.abs(z - cz + 10) > 50) then
+			tree(m, x, z, 0.8, rng)
+			block(x, z, 9)
+		end
+	end
+end
+
+destThemes.valley = function(m, dest, cx, cz, rng, free, block)
+	-- Lago del valle con orilla y embarcadero
+	local lx, lz, lw, ld = cx + 140, cz - 30, 100, 90
+	workspace.Terrain:FillBlock(CFrame.new(lx, GROUND_TOP + 1, lz), Vector3.new(lw, 4, ld), Enum.Material.Water)
+	P(m, "Shore", Vector3.new(lw + 4, 2.4, 2), Vector3.new(lx, GROUND_TOP + 1.2, lz - ld / 2 - 1), { 120, 110, 100 }, Enum.Material.Slate)
+	P(m, "Shore", Vector3.new(lw + 4, 2.4, 2), Vector3.new(lx, GROUND_TOP + 1.2, lz + ld / 2 + 1), { 120, 110, 100 }, Enum.Material.Slate)
+	P(m, "Shore", Vector3.new(2, 2.4, ld), Vector3.new(lx - lw / 2 - 1, GROUND_TOP + 1.2, lz), { 120, 110, 100 }, Enum.Material.Slate)
+	P(m, "Shore", Vector3.new(2, 2.4, ld), Vector3.new(lx + lw / 2 + 1, GROUND_TOP + 1.2, lz), { 120, 110, 100 }, Enum.Material.Slate)
+	P(m, "Pier", Vector3.new(30, 1, 6), Vector3.new(lx - lw / 2 + 14, GROUND_TOP + 2.6, cz - 20), { 130, 95, 65 }, Enum.Material.WoodPlanks)
+	block(lx, lz, 62)
+	-- Cascada esmeralda: acantilado, caída de agua y poza
+	P(m, "Cliff", Vector3.new(70, 50, 22), Vector3.new(cx - 60, GROUND_TOP + 25, cz - 117), { 110, 105, 95 }, Enum.Material.Slate)
+	local fall = P(m, "Waterfall", Vector3.new(14, 46, 1), Vector3.new(cx - 60, GROUND_TOP + 24, cz - 105.6), { 120, 200, 255 }, Enum.Material.Glass, { Transparency = 0.35, NoCollide = true, NoShadow = true })
+	fall.CanQuery = false
+	workspace.Terrain:FillBlock(CFrame.new(cx - 60, GROUND_TOP + 1, cz - 92), Vector3.new(36, 4, 22), Enum.Material.Water)
+	block(cx - 60, cz - 105, 40)
+	-- Sendero de las secuoyas gigantes
+	for _, sx in ipairs({ -26, 26 }) do
+		for _, z in ipairs({ -10, 15, 65, 90 }) do
+			local x, zz = cx + sx, cz + z
+			local h = rng:NextInteger(40, 55)
+			P(m, "SequoiaTrunk", Vector3.new(h, 4.5, 4.5), CFrame.new(x, GROUND_TOP + h / 2, zz) * CFrame.Angles(0, 0, math.rad(90)), { 140, 70, 45 }, Enum.Material.Wood, { Shape = Enum.PartType.Cylinder })
+			P(m, "SequoiaLeaves", Vector3.new(18, 22, 18), Vector3.new(x, GROUND_TOP + h + 4, zz), { 40, 110, 55 }, Enum.Material.Grass, { Shape = Enum.PartType.Ball })
+			block(x, zz, 8)
+		end
+	end
+	-- Montañas en el horizonte
+	for i = 1, 10 do
+		local a = i / 10 * math.pi * 2
+		local s = rng:NextInteger(90, 140)
+		local x, z = cx + math.cos(a) * 215, cz + math.sin(a) * 215
+		if math.sin(a) < 0.3 and free(x, z, s * 0.35) then
+			P(m, "Mountain", Vector3.new(s, s, s), Vector3.new(x, GROUND_TOP - s * 0.15, z), { 100, 120, 90 }, Enum.Material.Rock, { Shape = Enum.PartType.Ball })
+		end
+	end
+	-- Señal de los guardas, rocas y bosque
+	local ranger = P(m, "RangerSign", Vector3.new(12, 4, 0.4), Vector3.new(cx + 30, GROUND_TOP + 5, cz + 110), { 90, 60, 35 }, Enum.Material.Wood)
+	signBoth(ranger, "Parque Nacional · No dejes huella", Color3.fromRGB(90, 60, 35), Color3.fromRGB(255, 240, 200), Enum.Font.GothamBold)
+	for _ = 1, 12 do
+		local x, z = cx + rng:NextInteger(-180, 180), cz + rng:NextInteger(-180, 180)
+		if free(x, z, 4) then
+			P(m, "Rock", Vector3.new(5, 3.5, 4), CFrame.new(x, GROUND_TOP + 1.2, z) * CFrame.Angles(0, rng:NextNumber() * 6, 0), { 130, 125, 115 }, Enum.Material.Rock, { Shape = Enum.PartType.Ball })
+			block(x, z, 5)
+		end
+	end
+	for _ = 1, 80 do
+		local x, z = cx + rng:NextInteger(-185, 185), cz + rng:NextInteger(-185, 185)
+		if free(x, z, 5) then
+			if rng:NextNumber() < 0.5 then
+				pine(m, x, z, 0.9 + rng:NextNumber() * 0.5, false)
+			else
+				tree(m, x, z, 0.9 + rng:NextNumber() * 0.5, rng)
+			end
+			block(x, z, 8)
+		end
+	end
+end
+
+destThemes.fest = function(m, dest, cx, cz, rng, free, block)
+	-- Escenario Aurora frente al lugar 🎥
+	P(m, "Stage", Vector3.new(60, 4, 26), Vector3.new(cx, GROUND_TOP + 2, cz - 100), { 30, 30, 36 }, Enum.Material.Wood)
+	P(m, "StageBack", Vector3.new(64, 32, 2), Vector3.new(cx, GROUND_TOP + 16, cz - 114), { 20, 20, 26 }, Enum.Material.SmoothPlastic)
+	local screen = P(m, "StageScreen", Vector3.new(40, 16, 0.6), Vector3.new(cx, GROUND_TOP + 17, cz - 112.6), { 255, 60, 200 }, Enum.Material.Neon, { NoShadow = true })
+	signBoth(screen, "FESTIVAL DE CREADORES AURORA", Color3.fromRGB(40, 0, 70), Color3.fromRGB(255, 220, 255))
+	for _, sx in ipairs({ -36, 36 }) do
+		P(m, "LightTower", Vector3.new(2, 30, 2), Vector3.new(cx + sx, GROUND_TOP + 15, cz - 100), { 60, 60, 66 }, Enum.Material.Metal)
+		local lamp = P(m, "StageLight", Vector3.new(4, 3, 4), Vector3.new(cx + sx, GROUND_TOP + 31, cz - 100), { 255, 240, 200 }, Enum.Material.Neon, { NoShadow = true })
+		nightLight(lamp, 60, Color3.fromRGB(255, 120, 220))
+		P(m, "Speaker", Vector3.new(5, 10, 4), Vector3.new(cx + sx * 0.75, GROUND_TOP + 9, cz - 90), { 25, 25, 28 }, Enum.Material.SmoothPlastic)
+	end
+	block(cx, cz - 100, 44)
+	-- Zona de firmas: mesas, vallas y cartel
+	for k = 0, 2 do
+		local x, z = cx - 115, cz + 5 + k * 22
+		P(m, "SigningTable", Vector3.new(4, 3, 12), Vector3.new(x, GROUND_TOP + 1.5, z), { 245, 245, 245 }, Enum.Material.Fabric)
+		P(m, "QueueFence", Vector3.new(0.4, 2.4, 16), Vector3.new(x + 10, GROUND_TOP + 1.2, z), { 200, 40, 120 }, Enum.Material.Metal)
+		block(x, z, 9)
+	end
+	local fb = P(m, "SigningBanner", Vector3.new(20, 5, 0.4), Vector3.new(cx - 115, GROUND_TOP + 10, cz - 15), { 140, 60, 220 }, Enum.Material.Fabric)
+	signBoth(fb, "✍ ZONA DE FIRMAS", Color3.fromRGB(140, 60, 220), Color3.new(1, 1, 1))
+	-- Calle de food trucks
+	local truckColors = { { 255, 200, 40 }, { 60, 200, 220 }, { 255, 90, 90 }, { 120, 220, 120 } }
+	local foods = { "Tacos Aurora", "Burger Live", "Crepes Stream", "Ramen Viral" }
+	for k, tz in ipairs({ -15, 20, 55, 90 }) do
+		local x, z = cx + 122, cz + tz
+		if free(x, z, 8) then
+			P(m, "FoodTruck", Vector3.new(8, 8, 16), Vector3.new(x, GROUND_TOP + 5, z), truckColors[k], Enum.Material.SmoothPlastic)
+			local win = P(m, "TruckWindow", Vector3.new(0.3, 3, 8), Vector3.new(x - 4.1, GROUND_TOP + 6, z), { 255, 230, 160 }, Enum.Material.Neon, { NoShadow = true })
+			signBoth(win, foods[k], Color3.fromRGB(40, 20, 10), Color3.fromRGB(255, 230, 160))
+			for _, w in ipairs({ { -4, 5 }, { 4, 5 }, { -4, -5 }, { 4, -5 } }) do
+				P(m, "Wheel", Vector3.new(1.2, 2.4, 2.4), Vector3.new(x + w[1], GROUND_TOP + 1.2, z + w[2]), { 20, 20, 20 }, Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Cylinder })
+			end
+			block(x, z, 12)
+		end
+	end
+	-- Carpas de patrocinadores y guirnaldas de luces
+	local placed = 0
+	for _ = 1, 40 do
+		if placed >= 8 then
+			break
+		end
+		local x, z = cx + rng:NextInteger(-180, 180), cz + rng:NextInteger(-180, 180)
+		if free(x, z, 8) then
+			local c = ({ { 255, 80, 160 }, { 80, 160, 255 }, { 255, 200, 60 }, { 140, 80, 255 } })[rng:NextInteger(1, 4)]
+			P(m, "Tent", Vector3.new(12, 6, 6), CFrame.new(x, GROUND_TOP + 3, z + 3), c, Enum.Material.Fabric, { Class = "WedgePart" })
+			P(m, "Tent", Vector3.new(12, 6, 6), CFrame.new(x, GROUND_TOP + 3, z - 3) * CFrame.Angles(0, math.pi, 0), c, Enum.Material.Fabric, { Class = "WedgePart" })
+			block(x, z, 12)
+			placed = placed + 1
+		end
+	end
+	local poles = {}
+	for k = -3, 3 do
+		local p = Vector3.new(cx + k * 24, GROUND_TOP + 12, cz - 30)
+		P(m, "LightPole", Vector3.new(0.5, 12, 0.5), Vector3.new(p.X, GROUND_TOP + 6, p.Z), { 60, 60, 66 }, Enum.Material.Metal)
+		poles[#poles + 1] = p
+	end
+	for k = 2, #poles do
+		cable(m, poles[k - 1], poles[k], 0.4, { 255, 220, 120 }, Enum.Material.Neon)
+	end
+end
+
+local function buildDestination(dest)
+	local cx, cz = dest.Center[1], dest.Center[2]
+	local rng = Random.new(Util.hashString(dest.Id))
+	local m = model(city, "Destino " .. dest.Name)
+	m:SetAttribute("Destination", dest.Id)
+	local half = LifeData.DestHalf - 20
+	local L = LifeData.DestLayout
+	-- Suelo con su material, borde visible y muros invisibles en el límite
+	P(m, "DestGround", Vector3.new(half * 2, 2, half * 2), Vector3.new(cx, GROUND_TOP - 0.9, cz), dest.Ground, Enum.Material[dest.Material] or Enum.Material.Grass)
+	local edgeColor = { math.floor(dest.Ground[1] * 0.75), math.floor(dest.Ground[2] * 0.75), math.floor(dest.Ground[3] * 0.75) }
+	for _, e in ipairs({ { 0, -half, half * 2 + 2, 2 }, { 0, half, half * 2 + 2, 2 }, { -half, 0, 2, half * 2 + 2 }, { half, 0, 2, half * 2 + 2 } }) do
+		P(m, "DestEdge", Vector3.new(e[3], 2, e[4]), Vector3.new(cx + e[1], GROUND_TOP + 1, cz + e[2]), edgeColor, Enum.Material.Rock)
+		local wall = P(m, "DestBarrier", Vector3.new(e[3], 80, e[4]), Vector3.new(cx + e[1], GROUND_TOP + 40, cz + e[2]), { 255, 255, 255 }, Enum.Material.SmoothPlastic, { Transparency = 1, NoShadow = true })
+		wall.CanQuery = false
+	end
+	-- Zonas reservadas (lugares, edificios y llegada) para no poner decoración encima
+	local keep = {}
+	local function block(x, z, r)
+		keep[#keep + 1] = { x, z, r }
+	end
+	local function free(x, z, r)
+		for _, k in ipairs(keep) do
+			if (x - k[1]) ^ 2 + (z - k[2]) ^ 2 < (k[3] + (r or 0)) ^ 2 then
+				return false
+			end
+		end
+		return true
+	end
+	for _, s in ipairs(dest.Spots) do
+		block(cx + s[2], cz + s[3], 22)
+	end
+	local shopX, shopZ = cx + L.Shop[1], cz + L.Shop[2]
+	local hotelX, hotelZ = cx + L.Hotel[1], cz + L.Hotel[2]
+	local gateX, gateZ = cx + L.Gate[1], cz + L.Gate[2]
+	local arrX, arrZ = cx + L.Arrival[1], cz + L.Arrival[2]
+	block(shopX, shopZ, 28)
+	block(hotelX + 12, hotelZ, 36)
+	block(gateX, gateZ, 30)
+	block(arrX, arrZ, 22)
+	block(cx + 60, gateZ + 24, 26)
+
+	-- Arco de bienvenida
+	for _, sx in ipairs({ -10, 10 }) do
+		P(m, "ArchPillar", Vector3.new(2, 14, 2), Vector3.new(arrX + sx, GROUND_TOP + 7, arrZ - 14), { 240, 240, 245 }, Enum.Material.Marble)
+	end
+	local arch = P(m, "ArchSign", Vector3.new(24, 4, 0.6), Vector3.new(arrX, GROUND_TOP + 15, arrZ - 14), { 20, 30, 50 })
+	signBoth(arch, "Bienvenido a " .. dest.Name, Color3.fromRGB(20, 30, 50), Color3.fromRGB(255, 214, 120))
+
+	-- Puerta de embarque (vuelo de vuelta), pista y avión
+	local gcf = CFrame.new(gateX, GROUND_TOP, gateZ)
+	P(m, "GateFloor", Vector3.new(36, 0.6, 18), gcf * CFrame.new(0, 0.3, 0), { 220, 222, 228 }, Enum.Material.Concrete)
+	for _, sx in ipairs({ -1, 1 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			P(m, "GateColumn", Vector3.new(1.2, 10, 1.2), gcf * CFrame.new(sx * 17, 5, sz * 8), { 200, 205, 215 }, Enum.Material.Metal)
+		end
+	end
+	P(m, "GateRoof", Vector3.new(38, 1, 20), gcf * CFrame.new(0, 10.5, 0), { 40, 90, 160 }, Enum.Material.Metal)
+	local gsign = P(m, "GateSign", Vector3.new(20, 3, 0.4), gcf * CFrame.new(0, 12.6, -9), { 20, 40, 80 })
+	signBoth(gsign, "🛫 Puerta de embarque · Vuelo a la ciudad", Color3.fromRGB(20, 40, 80), Color3.new(1, 1, 1))
+	local desk = P(m, "GateDesk", Vector3.new(10, 3.6, 2.5), gcf * CFrame.new(0, 1.8, 2), { 60, 70, 90 }, Enum.Material.Metal)
+	prompt(desk, "dest_return", "Volar de vuelta", "Vuelo a la ciudad (incluido)")
+	table.insert(World.NpcPoints, { Pos = (gcf * CFrame.new(0, 0, 5)).Position, Look = (gcf * CFrame.new(0, 0, -4)).Position, Name = "Auxiliar de vuelo", Role = "travel" })
+	P(m, "Airstrip", Vector3.new(320, 0.3, 18), Vector3.new(cx, GROUND_TOP + 0.15, gateZ + 24), { 50, 50, 55 }, Enum.Material.Asphalt)
+	local plane = model(m, "Plane")
+	P(plane, "Fuselage", Vector3.new(30, 5, 5), Vector3.new(cx + 60, GROUND_TOP + 4, gateZ + 24), { 245, 245, 250 }, Enum.Material.SmoothPlastic, { Shape = Enum.PartType.Cylinder })
+	P(plane, "Wings", Vector3.new(7, 0.8, 30), Vector3.new(cx + 58, GROUND_TOP + 3.5, gateZ + 24), { 220, 220, 230 }, Enum.Material.SmoothPlastic)
+	P(plane, "Tail", Vector3.new(4, 6, 0.6), Vector3.new(cx + 73, GROUND_TOP + 8, gateZ + 24), { 255, 60, 80 }, Enum.Material.SmoothPlastic)
+
+	-- Tienda exclusiva (abierta hacia el centro)
+	local scf = CFrame.new(shopX, GROUND_TOP, shopZ) * CFrame.Angles(0, math.pi / 2, 0)
+	destBooth(m, scf, 34, 24, 14, { 245, 240, 230 }, { 190, 170, 140 })
+	local sboard = P(m, "ShopSign", Vector3.new(28, 2.6, 0.4), scf * CFrame.new(0, 12.4, 12.4), { 20, 20, 24 })
+	signBoth(sboard, "🛍 " .. dest.ShopName .. " · exclusivos", Color3.fromRGB(255, 40, 70), Color3.new(1, 1, 1))
+	local scounter = P(m, "ShopCounter", Vector3.new(14, 4, 3), scf * CFrame.new(0, 2, -6), { 40, 40, 48 }, Enum.Material.Wood)
+	prompt(scounter, "dest_shop", "Ver tienda exclusiva", dest.ShopName)
+	table.insert(World.NpcPoints, { Pos = (scf * CFrame.new(0, 0, -9.5)).Position, Look = (scf * CFrame.new(0, 0, 0)).Position, Name = "Dependiente de " .. dest.ShopName, Role = "dest_shop" })
+	for i, id in ipairs(dest.Shop) do
+		local def = Catalog.get(id)
+		if def then
+			local px = -11 + (i - 1) * 11
+			local pedestal = P(m, "Pedestal", Vector3.new(4, 3, 4), scf * CFrame.new(px, 1.5, 4), { 250, 250, 252 }, Enum.Material.Marble)
+			displayModel(m, def, scf * CFrame.new(px, 3, 4))
+			local tag = P(m, "PriceTag", Vector3.new(4, 1, 0.2), scf * CFrame.new(px, 2.2, 6.2), { 255, 214, 0 })
+			signBoth(tag, "$" .. Util.formatInt(def.Price), nil, Color3.fromRGB(20, 20, 24))
+			prompt(pedestal, "dest_shop", "Ver exclusivo", def.Name)
+		end
+	end
+
+	-- Hotel: vestíbulo abierto hacia el centro y torre de habitaciones detrás
+	local hcf = CFrame.new(hotelX, GROUND_TOP, hotelZ) * CFrame.Angles(0, -math.pi / 2, 0)
+	destBooth(m, hcf, 30, 20, 12, { 250, 235, 215 }, { 160, 120, 90 })
+	local tower = hcf * CFrame.new(0, 20, -20)
+	P(m, "HotelTower", Vector3.new(34, 40, 18), tower, { 235, 225, 205 }, Enum.Material.Concrete)
+	windowBands(m, tower, 34, 40, 18, rng)
+	local hboard = P(m, "HotelSign", Vector3.new(24, 4, 0.5), hcf * CFrame.new(0, 15, -9), { 30, 30, 40 })
+	signBoth(hboard, "🏨 " .. dest.Hotel.Name, Color3.fromRGB(30, 30, 40), Color3.fromRGB(255, 214, 120))
+	local reception = P(m, "Reception", Vector3.new(12, 4, 3), hcf * CFrame.new(0, 2, -4), { 120, 80, 50 }, Enum.Material.Wood)
+	prompt(reception, "dest_hotel", "Dormir aquí ($" .. dest.Hotel.Price .. ")", dest.Hotel.Name)
+	table.insert(World.NpcPoints, { Pos = (hcf * CFrame.new(0, 0, -7.5)).Position, Look = (hcf * CFrame.new(0, 0, 0)).Position, Name = "Recepcionista del " .. dest.Hotel.Name, Role = "hotel" })
+	for _, sx in ipairs({ -9, 9 }) do
+		P(m, "LobbySofa", Vector3.new(6, 2, 3), hcf * CFrame.new(sx, 1.6, 4), { 180, 60, 60 }, Enum.Material.Fabric)
+	end
+
+	-- Lugares de grabación con banco
+	for _, s in ipairs(dest.Spots) do
+		recordMarker(m, cx + s[2], cz + s[3], s[1])
+		bench(m, cx + s[2] + 10, cz + s[3] + 10, rng:NextNumber() * 6)
+	end
+	-- Decoración temática
+	local theme = destThemes[dest.Theme or dest.Id]
+	if theme then
+		theme(m, dest, cx, cz, rng, free, block)
+	end
+	-- Farolas y un vecino del lugar
+	for _, p in ipairs({ { -40, 120 }, { 40, 120 }, { -40, 150 }, { 40, 150 } }) do
+		streetLamp(m, cx + p[1], cz + p[2])
+	end
+	local s1 = dest.Spots[1]
+	table.insert(World.NpcPoints, { Pos = Vector3.new(cx + s1[2] - 8, GROUND_TOP, cz + s1[3] - 6), Look = Vector3.new(cx + s1[2], GROUND_TOP, cz + s1[3]), Name = "Turista en " .. dest.Name, Role = "citizen" })
+end
+
+local function buildDestinations()
+	for _, dest in ipairs(LifeData.Destinations) do
+		buildDestination(dest)
+	end
+end
+
+---------------------------------------------------------------------------
 -- Distritos
 ---------------------------------------------------------------------------
 local function buildDistrict(d)
@@ -828,6 +1430,8 @@ local function buildDistrict(d)
 				buildRestaurant(m, sp)
 			elseif sp.Type == "home" then
 				buildResidence(m, sp)
+			elseif sp.Type == "airport" then
+				buildAirport(m, sp)
 			end
 		end
 	end
@@ -962,6 +1566,16 @@ local function onPrompt(pp, player)
 		local cf = S.Property.enterCFrame(player, id)
 		S.Travel.teleport(player, cf.Position)
 		S.Quest.tutorialEvent(player, "enter_home")
+	elseif action == "airport" or action == "dest_shop" then
+		S.Net.push(player, "openUI", { ui = "app", app = "travel" })
+	elseif action == "dest_hotel" or action == "dest_return" then
+		local ok, msg
+		if action == "dest_hotel" then
+			ok, msg = S.Destination.hotel(player)
+		else
+			ok, msg = S.Destination.goBack(player)
+		end
+		S.Net.notify(player, msg, ok and "success" or "error")
 	elseif action == "prop_exit" then
 		local id = S.Property.inside(player)
 		if id then
@@ -987,6 +1601,7 @@ function World.build()
 		buildDistrict(d)
 	end
 	buildSecrets()
+	buildDestinations()
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "FallbackSpawn"
 	spawn.Anchored = true
