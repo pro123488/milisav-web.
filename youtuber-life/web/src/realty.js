@@ -221,7 +221,7 @@ W.build = function () {
   D.Properties.forEach(l => { R.refreshSign(l.Id); if (R.held(l.Id)) R.renderFurniture(l.Id); });
   R.light = new THREE.PointLight(0xfff2dc, 1.3, 95, 0); R.light.position.set(0, -500, 0); W.scene.add(R.light);
 };
-W.freeZone = p => p.x > R.IX0 - 120;
+W.freeZone = p => p.x > R.IX0 - 120 && p.x < 3000; // interiores (x 1500-2100); más allá están los destinos de viaje
 W.isIndoor = p => { const id = R.roomAt(p); return !!id && R.byId[id].Kind !== "land"; };
 const _wSky = W.updateSky;
 W.updateSky = function (hour, weather) {

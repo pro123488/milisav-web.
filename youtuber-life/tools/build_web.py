@@ -11,7 +11,8 @@ import os
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 WEB = os.path.join(ROOT, "web")
 OUT = os.path.join(ROOT, "build", "YoutuberLife3D.html")
-ORDER = ["engine.js", "world.js", "player.js", "systems.js", "ui.js", "apps.js", "realty.js", "market.js", "company.js", "lifejobs.js", "extras.js", "main.js"]
+ORDER = ["engine.js", "world.js", "player.js", "systems.js", "ui.js", "apps.js", "lifedata.js", "vehicles.js", "pets.js", "travel.js",
+         "realty.js", "market.js", "company.js", "lifejobs.js", "extras.js", "main.js"]
 
 
 def read(*p):

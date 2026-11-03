@@ -77,6 +77,7 @@ function resolveCollision(p, r) {
     }
   }
   if (W.freeZone && W.freeZone(p)) return; // interiores fuera del mapa (realty.js)
+  if (W.areaClamp && W.areaClamp(p)) return; // zonas fuera de la ciudad (destinos de viaje)
   p.x = clamp(p.x, -MAPW / 2 - 120, MAPW / 2 + 120); p.z = clamp(p.z, -MAPH / 2 - 120, MAPH / 2 + 120);
 }
 
@@ -482,7 +483,7 @@ W.update = function (dt, player, time) {
   // coches (frenan si el jugador está delante)
   W.cars.forEach(c => {
     const u = c.userData; const fwd = u.vertical ? new THREE.Vector3(0, 0, u.lane) : new THREE.Vector3(u.lane, 0, 0);
-    const ahead = c.position.clone().addScaledVector(fwd, 9); const blocked = ahead.distanceTo(p) < 7;
+    const ahead = c.position.clone().addScaledVector(fwd, 9); const blocked = ahead.distanceTo(p) < 7 || (W.carBlocked && W.carBlocked(ahead));
     if (!blocked) c.position.addScaledVector(fwd, u.speed * dt);
     if (u.vertical && Math.abs(c.position.z) > MAPH / 2 + 50) c.position.z = -Math.sign(c.position.z) * (MAPH / 2 + 49);
     if (!u.vertical && Math.abs(c.position.x) > MAPW / 2 + 50) c.position.x = -Math.sign(c.position.x) * (MAPW / 2 + 49);

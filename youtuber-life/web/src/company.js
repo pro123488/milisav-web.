@@ -4,15 +4,15 @@
 // Los empleados tienen efectos reales enganchados a los sistemas del juego.
 // ============================================================================
 "use strict";
-const LIFE = D.Life || {};
+const CO_LIFE = D.Life || {};
 const Co = {
-  roles: arr(LIFE.Roles).length ? LIFE.Roles : [
+  roles: arr(CO_LIFE.Roles).length ? CO_LIFE.Roles : [
     { Id: "editor", Name: "Editor", Pay: 4.0, Effect: "Exportaciones más rápidas" }, { Id: "camera", Name: "Camarógrafo", Pay: 4.2, Effect: "Más calidad en tus escenas" },
     { Id: "designer", Name: "Diseñador", Pay: 3.6, Effect: "Mejores miniaturas" }, { Id: "assistant", Name: "Asistente", Pay: 2.6, Effect: "Gastas menos energía" },
     { Id: "manager", Name: "Gestor", Pay: 4.6, Effect: "Más y mejores patrocinios y clientes" }, { Id: "technician", Name: "Técnico", Pay: 3.4, Effect: "Reparaciones a mitad de precio" },
     { Id: "photographer", Name: "Fotógrafo", Pay: 3.8, Effect: "Ingresos diarios por venta de fotos" }],
-  tiers: arr(LIFE.CompanyTiers).length ? LIFE.CompanyTiers : [{ Name: "Productora pequeña", Contracts: 0, MaxStaff: 2 }, { Name: "Productora mediana", Contracts: 5, MaxStaff: 4 }, { Name: "Estudio de medios", Contracts: 15, MaxStaff: 6 }, { Name: "Gran estudio", Contracts: 40, MaxStaff: 8 }],
-  clients: arr(LIFE.Clients).length ? LIFE.Clients : ["Panadería La Espiga", "Gimnasio Fuerza", "Hotel Brisa", "Tienda Moda Urbana", "Clínica Sonrisa", "Inmobiliaria Horizonte", "Café Central", "Academia Futuro", "Taller Rueda", "Floristería Pétalo"],
+  tiers: arr(CO_LIFE.CompanyTiers).length ? CO_LIFE.CompanyTiers : [{ Name: "Productora pequeña", Contracts: 0, MaxStaff: 2 }, { Name: "Productora mediana", Contracts: 5, MaxStaff: 4 }, { Name: "Estudio de medios", Contracts: 15, MaxStaff: 6 }, { Name: "Gran estudio", Contracts: 40, MaxStaff: 8 }],
+  clients: arr(CO_LIFE.Clients).length ? CO_LIFE.Clients : ["Panadería La Espiga", "Gimnasio Fuerza", "Hotel Brisa", "Tienda Moda Urbana", "Clínica Sonrisa", "Inmobiliaria Horizonte", "Café Central", "Academia Futuro", "Taller Rueda", "Floristería Pétalo"],
   FEE: 1000, REQ_LEVEL: 10, REQ_SUBS: 5000,
 };
 Co.role = id => Co.roles.find(r => r.Id === id);

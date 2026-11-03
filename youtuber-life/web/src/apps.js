@@ -248,7 +248,7 @@ UI.register("inventory", { name: "Inventario", icon: "🎒", order: 7, surfaces:
   const st = ctx.state; el.append(tabs(ctx, [["all", "Todo"], ["backpack", "🎒 Mochila"], ["home", "🏠 Casa"], ["rig", "💻 Instalado"]], "f"));
   el.append(sub("Mochila " + G.bagUsed() + "/" + G.bagCap() + (G.atHome() ? " · estás en casa" : " · prepara la mochila en casa")));
   Object.entries(S.inv).filter(([u, r]) => st.f === "all" || (st.f === "rig" ? r.loc.startsWith("rig:") : r.loc === st.f)).sort((a, b) => ITEMS[a[1].id].Cat.localeCompare(ITEMS[b[1].id].Cat)).forEach(([uid, r]) => {
-    const d = ITEMS[r.id]; const loc = r.loc === "backpack" ? "🎒" : r.loc === "home" ? "🏠" : "💻";
+    const d = ITEMS[r.id]; const loc = r.loc === "backpack" ? "🎒" : r.loc === "home" ? "🏠" : r.loc.startsWith("trunk") ? "🚗" : "💻";
     el.append(card(h("b", null, loc + " " + d.Name + ((d.Cat === "camera" || d.Cat === "phone") ? " · 🔋" + Math.floor(r.charge) + "%" : "") + (S.phone === uid ? " · 📱 en uso" : "") + (r.loan ? " · prestado" : "")), sub(catName(d.Cat) + " · condición " + Math.floor(r.cond) + "%"),
       row(r.loc === "home" && d.Portable ? UI.btn("→ Mochila", () => UI.res(G.moveItem(uid, "backpack")), "blue") : null, r.loc === "backpack" ? UI.btn("→ Casa", () => UI.res(G.moveItem(uid, "home"))) : null,
         d.Cat === "food" ? UI.btn("🍽 Comer", () => G.act("eatItem", uid), "ok") : null, d.Slot === "phone" && S.phone !== uid ? UI.btn("Usar teléfono", () => { S.phone = uid; G.changed(); }) : null,
