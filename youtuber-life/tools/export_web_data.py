@@ -40,6 +40,16 @@ def to_py(lua, value, depth=0):
     return value
 
 
+# Logros de sistemas que solo existen en la versión de Roblox (multijugador o servicios propios).
+# La versión web tiene sus propias listas de logros para los sistemas que sí implementa.
+ROBLOX_ONLY_TRACKS = {
+    "company_created", "employees_hired", "client_contracts", "vehicles_bought", "drive_km",
+    "pets_adopted", "pet_walk", "pet_photos", "used_bought", "collectibles", "trades",
+    "destinations_visited", "exclusives_bought", "collabs", "friends_made", "gifts_given",
+    "studio_rentals", "workouts", "leisure",
+}
+
+
 def main():
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
     lua.globals().READ = read
@@ -74,7 +84,7 @@ def main():
         },
         "Quests": {
             "Tutorial": to_py(lua, mods["QuestDefs"].Tutorial),
-            "Achievements": to_py(lua, mods["QuestDefs"].Achievements),
+            "Achievements": [a for a in to_py(lua, mods["QuestDefs"].Achievements) if a.get("Counter") not in ROBLOX_ONLY_TRACKS],
             "TrackNames": to_py(lua, mods["QuestDefs"].TrackNames),
         },
         "Ranks": to_py(lua, mods["Progression"].Ranks),
