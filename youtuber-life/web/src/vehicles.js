@@ -33,7 +33,7 @@ V.near = r => { if (V.cur) return true; const rec = V.outRec(); return !!(rec &&
 // ---------------------------------------------------------------- Modelos 3D de cada vehículo
 V.mesh = function (def, colorIdx) {
   const g = new THREE.Group(), B = LIFE.box, wheels = [];
-  const body = new THREE.MeshLambertMaterial({ color: LIFE.rgb3(V.color(colorIdx)) });
+  const body = new THREE.MeshStandardMaterial({ color: LIFE.rgb3(V.color(colorIdx)), roughness: 0.28, metalness: 0.45, envMapIntensity: 1.1 });
   const dark = LIFE.mat(0x22252b), glass = LIFE.mat(0x2b3c50), chrome = LIFE.mat(0xc8ccd4), tire = LIFE.mat(0x151515), head = LIFE.mat(0xfff2c0, true), tail = LIFE.mat(0xff2a2a, true);
   const wheel = (x, y, z, r, w) => {
     const piv = new THREE.Group(); piv.position.set(x, y, z);

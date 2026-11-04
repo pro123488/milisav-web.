@@ -23,7 +23,7 @@ class Mesher {
   add(geom, m, color, jitter) {
     const pos = geom.attributes.position, nor = geom.attributes.normal;
     const nm = new THREE.Matrix3().getNormalMatrix(m); const v = new THREE.Vector3();
-    const col = new THREE.Color(color[0] / 255, color[1] / 255, color[2] / 255);
+    const col = GFX.rgb(color[0], color[1], color[2]);
     if (jitter) col.offsetHSL(0, 0, (Math.random() - 0.5) * jitter);
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).applyMatrix4(m); this.p.push(v.x, v.y, v.z);
@@ -31,7 +31,7 @@ class Mesher {
       this.c.push(col.r, col.g, col.b);
     }
   }
-  box(x, y, z, sx, sy, sz, color, ry, jitter) { this.add(U.box, U.mat(x, y, z, sx, sy, sz, ry || 0), color, jitter); }
+  box(x, y, z, sx, sy, sz, color, ry, jitter) { if (sy >= 12) this.lastTall = color; this.add(U.box, U.mat(x, y, z, sx, sy, sz, ry || 0), color, jitter); }
   cyl(x, y, z, r, h, color, ry) { this.add(U.cyl, U.mat(x, y, z, r * 2, h, r * 2, ry || 0), color); }
   cone(x, y, z, r, h, color) { this.add(U.cone, U.mat(x, y, z, r * 2, h, r * 2, 0), color); }
   ball(x, y, z, r, color, jitter) { this.add(U.ball, U.mat(x, y, z, r * 2, r * 2, r * 2, 0), color, jitter); }
@@ -43,6 +43,8 @@ class Mesher {
     g.computeBoundingSphere();
     const mesh = new THREE.Mesh(g, material);
     if (shadows) { mesh.castShadow = true; mesh.receiveShadow = true; }
+    // fachadas con ventanas (graphics.js): piel exterior de los edificios con su propio material
+    if (this.skin) { mesh.add(this.skin.build(W.matBld || (W.matBld = GFX.facade()), true)); this.skin = null; }
     return mesh;
   }
 }
@@ -107,9 +109,10 @@ function addInteract(x, z, r, label, fn, extra) { const it = Object.assign({ x, 
 // ---------------------------------------------------------------- Edificios por estilo
 const SHOPNAMES = ["Panadería", "Café Central", "Moda Urbana", "Zapatería", "Librería", "Papelería", "Deportes", "Bicicletas", "Electrodomésticos", "Mascotas", "Jardinería", "Viajes", "Coleccionables", "Herramientas", "Juegos", "Instrumentos", "Floristería"];
 const FOODNAMES = ["Pizzería Napoli", "Sushi Zen", "Tacos El Sol", "Hamburguesas 24", "Paella & Co.", "Ramen Nube", "Heladería Polar", "Arepas Doña Ana"];
-function windowBands(M, x, z, w, h, d, base) {
-  const floors = Math.min(10, Math.floor(h / 10));
-  for (let i = 1; i <= floors; i++) { const y = base + i * (h / (floors + 1)); M.win.box(x, y, z, w + 0.3, 2.4, d + 0.3, [255, 255, 255]); }
+// Ventanas: una "piel" de fachada un poco más grande que el edificio; el shader de graphics.js dibuja la rejilla de ventanas
+function windowBands(M, x, z, w, h, d, base, color) {
+  const sk = M.solid.skin || (M.solid.skin = new Mesher());
+  sk.box(x, base + (h - 0.5) / 2, z, w + 0.24, h - 0.5, d + 0.24, color || M.solid.lastTall || [200, 200, 205]);
 }
 const STYLES = {
   tower(M, x, z, d, R) { const w = R.int(30, 42), dd = R.int(30, 42), h = R.int(60, 140); M.solid.box(x, SIDEWALK_Y + h / 2, z, w, h, dd, R.pick(d.Palette), 0, 0.06); windowBands(M, x, z, w, h, dd, SIDEWALK_Y); if (d.Neon) M.glow.box(x, SIDEWALK_Y + h + 0.5, z, w + 1, 1, dd + 1, d.Neon); addCollider(x, z, w, dd); },
@@ -159,7 +162,11 @@ function car(M, x, z, color, ry) {
 function tree(M, x, z, s, R) {
   const h = (10 + R.num() * 6) * s;
   M.solid.cyl(x, SIDEWALK_Y + h / 2, z, 0.8 * s, h, [110, 80, 55]);
-  M.solid.ball(x, SIDEWALK_Y + h + 2 * s, z, 4.8 * s, [60 + R.int(0, 30), 130 + R.int(0, 40), 60], 0.08);
+  const leaf = [50 + R.int(0, 30), 115 + R.int(0, 40), 45 + R.int(0, 15)];
+  M.solid.ball(x, SIDEWALK_Y + h + 2 * s, z, 4.6 * s, leaf, 0.06);
+  M.solid.ball(x + 2.6 * s, SIDEWALK_Y + h + 0.6 * s, z + 1.2 * s, 3.2 * s, [leaf[0] - 10, leaf[1] - 14, leaf[2]], 0.08);
+  M.solid.ball(x - 2.2 * s, SIDEWALK_Y + h + 1 * s, z - 1.6 * s, 3.4 * s, [leaf[0] + 8, leaf[1] + 10, leaf[2] + 6], 0.08);
+  M.solid.ball(x + 0.4 * s, SIDEWALK_Y + h + 4.6 * s, z - 0.4 * s, 2.8 * s, [leaf[0] + 14, leaf[1] + 20, leaf[2] + 8], 0.06);
   addCollider(x, z, 1.6 * s, 1.6 * s);
 }
 function rng(seed) { let s = seed % 2147483647; if (s <= 0) s += 2147483646; const next = () => (s = s * 16807 % 2147483647) / 2147483647; return { num: next, int: (a, b) => Math.floor(a + (b - a + 1) * next()), pick: l => l[Math.floor(next() * l.length)] }; }
@@ -173,6 +180,13 @@ function shell(M, cx, cz, w, d, h, wallC, floorC) {
   walls.push([cx - w / 2 + side / 2, cz + d / 2, side, 1], [cx + w / 2 - side / 2, cz + d / 2, side, 1]);
   walls.forEach(wl => { M.solid.box(wl[0], SIDEWALK_Y + h / 2, wl[1], wl[2], h, wl[3], wallC); addCollider(wl[0], wl[1], wl[2], wl[3]); });
   M.solid.box(cx, SIDEWALK_Y + 9 + (h - 9) / 2, cz + d / 2, 10, h - 9, 1, wallC);
+  // zócalo, cornisa y marco de la puerta (detalle exterior)
+  const base = [Math.round(wallC[0] * 0.62), Math.round(wallC[1] * 0.6), Math.round(wallC[2] * 0.58)];
+  M.solid.box(cx, SIDEWALK_Y + 0.6, cz - d / 2 - 0.7, w + 1.8, 1.2, 0.4, base);
+  M.solid.box(cx - w / 2 - 0.7, SIDEWALK_Y + 0.6, cz, 0.4, 1.2, d + 1.8, base); M.solid.box(cx + w / 2 + 0.7, SIDEWALK_Y + 0.6, cz, 0.4, 1.2, d + 1.8, base);
+  M.solid.box(cx - w / 2 + side / 2 - 0.6, SIDEWALK_Y + 0.6, cz + d / 2 + 0.7, side + 1.2, 1.2, 0.4, base); M.solid.box(cx + w / 2 - side / 2 + 0.6, SIDEWALK_Y + 0.6, cz + d / 2 + 0.7, side + 1.2, 1.2, 0.4, base);
+  M.solid.box(cx, SIDEWALK_Y + h + 1.1, cz, w + 2, 0.5, d + 2, [235, 232, 225]);
+  [-5.4, 5.4].forEach(o => M.solid.box(cx + o, SIDEWALK_Y + 4.6, cz + d / 2 + 0.6, 0.8, 9.2, 0.6, [245, 242, 235])); M.solid.box(cx, SIDEWALK_Y + 9.2, cz + d / 2 + 0.6, 11.6, 0.8, 0.6, [245, 242, 235]);
   M.glow.box(cx - w / 4, SIDEWALK_Y + h - 0.3, cz, 4, 0.3, 4, [255, 250, 230]); M.glow.box(cx + w / 4, SIDEWALK_Y + h - 0.3, cz, 4, 0.3, 4, [255, 250, 230]);
 }
 function displayItem(M, def, x, y, z) {
@@ -213,7 +227,20 @@ function buildHome(M, sp) {
   // Tu apartamento: casa de partida con todo lo necesario
   const x = sp.WX, z = sp.WZ, w = 40, d = 30, h = 13;
   shell(M, x, z, w, d, h, [215, 200, 175], [140, 105, 80]);
-  makeLabel("🏠 Tu apartamento", { x, y: SIDEWALK_Y + h + 2, z: z + d / 2 + 1, bg: "rgba(20,110,70,.95)", scale: 0.1, maxDist: 500 });
+  makeLabel("🏠 Tu apartamento", { x, y: SIDEWALK_Y + h + 3, z: z + d / 2 + 1, bg: "rgba(20,110,70,.95)", scale: 0.07, maxDist: 500 });
+  // fachada: ventanas con marco y alféizar, toldo, apliques de luz y jardineras
+  const fz = z + d / 2;
+  [-1, 1].forEach(sd => {
+    const wx = x + sd * 12.5;
+    M.solid.box(wx, SIDEWALK_Y + 6.2, fz + 0.62, 8.2, 5.4, 0.2, [245, 242, 235]);
+    M.win.box(wx, SIDEWALK_Y + 6.2, fz + 0.76, 7, 4.4, 0.12, [255, 255, 255]);
+    M.solid.box(wx, SIDEWALK_Y + 6.2, fz + 0.86, 0.3, 4.4, 0.1, [245, 242, 235]);
+    M.solid.box(wx, SIDEWALK_Y + 3.4, fz + 1.0, 8.8, 0.35, 1.0, [200, 195, 185]);
+    M.solid.box(x + sd * 8.2, SIDEWALK_Y + 1, fz + 2.2, 3, 2, 3, [120, 80, 60]); M.solid.ball(x + sd * 8.2, SIDEWALK_Y + 2.8, fz + 2.2, 1.9, [70, 140, 70], 0.08);
+    M.glow.box(x + sd * 6.8, SIDEWALK_Y + 8, fz + 0.9, 0.6, 1, 0.6, [255, 230, 170]); GFX.glowAt(x + sd * 6.8, SIDEWALK_Y + 8, fz + 1.4);
+  });
+  M.solid.box(x, SIDEWALK_Y + 9.9, fz + 2, 13, 0.4, 4, [40, 120, 85]);
+  M.ground.box(x, SIDEWALK_Y + 0.08, fz + 6, 10, 0.12, 12, [190, 180, 165]);
   M.solid.box(x, SIDEWALK_Y + 0.35, z + 2, 12, 0.1, 8, [150, 60, 80]);
   // escritorio + PC
   M.solid.box(x - 10, SIDEWALK_Y + 3, z - d / 2 + 3, 9, 0.5, 4, [150, 115, 80]); addCollider(x - 10, z - d / 2 + 3, 9, 4);
@@ -269,6 +296,14 @@ function personMesh(shirt, pants, skin) {
   const m = c => new THREE.MeshLambertMaterial({ color: c });
   const torso = new THREE.Mesh(new THREE.BoxGeometry(2, 2.2, 1), m(shirt)); torso.position.y = 3.3; g.add(torso);
   const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), m(skin)); head.position.y = 5.1; g.add(head);
+  // cara (ojos y boca) y pelo
+  const dark = FACE_MAT || (FACE_MAT = new THREE.MeshStandardMaterial({ color: 0x1a1414, roughness: 0.4 }));
+  [-0.27, 0.27].forEach(ex => { const e = new THREE.Mesh(FACE_EYE, dark); e.position.set(ex, 0.12, 0.61); head.add(e); });
+  const mo = new THREE.Mesh(FACE_MOUTH, dark); mo.position.set(0, -0.25, 0.61); head.add(mo);
+  const hairM = m(HAIRS[Math.floor(Math.random() * HAIRS.length)]);
+  const hair = new THREE.Mesh(FACE_HAIR, hairM); hair.position.set(0, 0.62, -0.04); head.add(hair);
+  const back = new THREE.Mesh(FACE_BACK, hairM); back.position.set(0, 0.1, -0.56); head.add(back);
+  g.userData.hair = [hair, back];
   const la = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.1, 0.7), m(shirt)); la.geometry.translate(0, -0.9, 0); la.position.set(-1.35, 4.3, 0); g.add(la);
   const ra = la.clone(); ra.position.x = 1.35; g.add(ra);
   const ll = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.2, 0.9), m(pants)); ll.geometry.translate(0, -1.1, 0); ll.position.set(-0.5, 2.2, 0); g.add(ll);
@@ -277,6 +312,10 @@ function personMesh(shirt, pants, skin) {
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return g;
 }
+let FACE_MAT = null;
+const FACE_EYE = new THREE.BoxGeometry(0.17, 0.24, 0.04), FACE_MOUTH = new THREE.BoxGeometry(0.42, 0.08, 0.04);
+const FACE_HAIR = new THREE.BoxGeometry(1.3, 0.3, 1.32), FACE_BACK = new THREE.BoxGeometry(1.3, 0.95, 0.24);
+const HAIRS = [0x1c1410, 0x3b2414, 0x6a4020, 0xc89a50, 0x2a2a2a, 0x8a2a1a, 0xd8d0c8];
 function animateLimbs(g, phase, amount) { const L = g.userData.limbs; const s = Math.sin(phase) * amount; L.la.rotation.x = s; L.ra.rotation.x = -s; L.ll.rotation.x = -s; L.rl.rotation.x = s; }
 const SKINS = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac];
 const CLOTHES = [0xd23c3c, 0x2a5ac8, 0x32a05a, 0xf0c828, 0x8c46c8, 0xf07800, 0x333338, 0xeeeeee, 0x00aabe, 0xff6eaa];
@@ -296,7 +335,7 @@ function placeNpc(g, near) {
 function spawnCars() {
   const colors = [0xd21e28, 0x1e5ac8, 0xeeeeee, 0x18181c, 0xf0c828, 0x3ca05a, 0xff7800];
   for (let i = 0; i < 26; i++) {
-    const g = new THREE.Group(); const c = new THREE.MeshLambertMaterial({ color: pick(colors) });
+    const g = new THREE.Group(); const c = new THREE.MeshStandardMaterial({ color: pick(colors), roughness: 0.3, metalness: 0.4, envMapIntensity: 1.1 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.8, 10), c); body.position.y = 1.4; body.castShadow = true; g.add(body);
     const cab = new THREE.Mesh(new THREE.BoxGeometry(4.6, 1.6, 5), new THREE.MeshLambertMaterial({ color: 0x28323c })); cab.position.set(0, 3, -0.5); g.add(cab);
     const vertical = i % 2 === 0; const k = 1 + Math.floor(Math.random() * (vertical ? COLS - 1 : ROWS - 1));
@@ -318,8 +357,8 @@ W.build = function () {
   M.ground.box(0, -1, 0, MAPW + 600, 2, MAPH + 600, [90, 140, 80]);
   M.water.box(0, -0.2, MAPH / 2 + 300, MAPW + 600, 0.4, 560, [40, 120, 190]);
   // calles
-  for (let k = 0; k <= COLS; k++) { const x = -MAPW / 2 + k * CELL; M.ground.box(x, 0.02, 0, ROAD, 0.04, MAPH + ROAD, [45, 45, 50]); M.glow.box(x, 0.06, 0, 0.5, 0.02, MAPH, [240, 200, 40]); }
-  for (let j = 0; j <= ROWS; j++) { const z = -MAPH / 2 + j * CELL; M.ground.box(0, 0.03, z, MAPW + ROAD, 0.04, ROAD, [45, 45, 50]); M.glow.box(0, 0.07, z, MAPW, 0.02, 0.5, [240, 200, 40]); }
+  for (let k = 0; k <= COLS; k++) { const x = -MAPW / 2 + k * CELL; M.ground.box(x, 0.02, 0, ROAD, 0.04, MAPH + ROAD, [68, 68, 74]); M.glow.box(x, 0.06, 0, 0.5, 0.02, MAPH, [240, 200, 40]); }
+  for (let j = 0; j <= ROWS; j++) { const z = -MAPH / 2 + j * CELL; M.ground.box(0, 0.03, z, MAPW + ROAD, 0.04, ROAD, [68, 68, 74]); M.glow.box(0, 0.07, z, MAPW, 0.02, 0.5, [240, 200, 40]); }
   // semáforos
   for (let k = 1; k < COLS; k++) for (let j = 1; j < ROWS; j++) {
     const x = -MAPW / 2 + k * CELL + ROAD / 2 + 2, z = -MAPH / 2 + j * CELL + ROAD / 2 + 2;
@@ -331,15 +370,17 @@ W.build = function () {
   D.World.Districts.forEach(d => buildDistrict(M, d));
   D.World.Secrets.forEach(s => { const m = new THREE.Mesh(new THREE.OctahedronGeometry(1.2), new THREE.MeshBasicMaterial({ color: 0xfff08c })); m.position.set(s.WX, 3, s.WZ); W.scene.add(m); W.spin.push({ obj: m, axis: "y", speed: 1.5 }); });
   // materiales
-  W.matSolid = new THREE.MeshLambertMaterial({ vertexColors: true });
-  W.matWin = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x405a78, emissive: 0x000000 });
+  W.matSolid = GFX.solid();
+  W.matWin = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x405a78, emissive: 0x000000, roughness: 0.12, metalness: 0.3, envMapIntensity: 0.9 });
   W.matGlow = new THREE.MeshBasicMaterial({ vertexColors: true });
-  W.matWater = new THREE.MeshPhongMaterial({ vertexColors: true, transparent: true, opacity: 0.85, shininess: 90 });
-  const ground = M.ground.build(new THREE.MeshLambertMaterial({ vertexColors: true })); ground.receiveShadow = true; W.scene.add(ground);
+  W.matWater = GFX.water();
+  W.matGround = GFX.ground();
+  const ground = M.ground.build(W.matGround); ground.receiveShadow = true; W.scene.add(ground);
   W.scene.add(M.solid.build(W.matSolid, true));
   W.scene.add(M.win.build(W.matWin));
   W.scene.add(M.glow.build(W.matGlow));
   W.scene.add(M.water.build(W.matWater));
+  GFX.buildGlows(W.scene);
   spawnPedestrians(); spawnCars();
 };
 
@@ -354,7 +395,7 @@ function buildDistrict(M, d) {
   // farolas
   const half = inner / 2 - 3;
   [[-half, -half / 2], [half, half / 2], [half / 2, -half], [-half / 2, half]].forEach(p => {
-    M.solid.box(cx + p[0], SIDEWALK_Y + 7, cz + p[1], 0.6, 14, 0.6, [60, 60, 66]); M.glow.box(cx + p[0], SIDEWALK_Y + 14.2, cz + p[1], 1.6, 0.8, 1.6, [255, 240, 200]); addCollider(cx + p[0], cz + p[1], 0.8, 0.8);
+    M.solid.box(cx + p[0], SIDEWALK_Y + 7, cz + p[1], 0.6, 14, 0.6, [60, 60, 66]); M.glow.box(cx + p[0], SIDEWALK_Y + 14.2, cz + p[1], 1.6, 0.8, 1.6, [255, 240, 200]); GFX.glowAt(cx + p[0], SIDEWALK_Y + 13.6, cz + p[1]); addCollider(cx + p[0], cz + p[1], 0.8, 0.8);
   });
   const blocked = [];
   arr(d.Spots).forEach(s => blocked.push([cx + s.X, cz + s.Z, 40]));
@@ -414,15 +455,17 @@ W.initScene = function (canvas, quality) {
   r.setSize(window.innerWidth, window.innerHeight, false);
   r.shadowMap.enabled = quality !== "low"; r.shadowMap.type = THREE.PCFSoftShadowMap;
   r.outputColorSpace = THREE.SRGBColorSpace;
+  r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
   W.renderer = r;
   W.scene = new THREE.Scene();
   W.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.5, 1600);
   W.scene.fog = new THREE.Fog(0x9ccbf0, 160, 900);
   W.hemi = new THREE.HemisphereLight(0xdfefff, 0x4a5a3a, 0.9); W.scene.add(W.hemi);
   W.sun = new THREE.DirectionalLight(0xffffff, 1.6); W.sun.castShadow = true;
-  const sm = quality === "high" ? 2048 : 1024; W.sun.shadow.mapSize.set(sm, sm);
+  const sm = quality === "high" ? 4096 : 2048; W.sun.shadow.mapSize.set(sm, sm); W.sun.shadow.normalBias = 0.35; W.sun.shadow.radius = 3;
   const sc = W.sun.shadow.camera; sc.left = -140; sc.right = 140; sc.top = 140; sc.bottom = -140; sc.near = 10; sc.far = 600; W.sun.shadow.bias = -0.0008;
   W.scene.add(W.sun); W.scene.add(W.sun.target);
+  GFX.initSky(W.scene);
   // estrellas
   const sg = new THREE.BufferGeometry(); const sp = [];
   for (let i = 0; i < 900; i++) { const t = Math.random() * Math.PI * 2, p = Math.random() * Math.PI * 0.45; sp.push(Math.cos(t) * Math.sin(p) * 1200, Math.cos(p) * 1200, Math.sin(t) * Math.sin(p) * 1200); }
@@ -455,11 +498,16 @@ W.updateSky = function (hour, weather) {
   W.rain.visible = weather === "Rain" || weather === "Storm";
   W.sunDir = new THREE.Vector3(Math.cos(t) * 0.6, Math.max(0.15, elev), 0.5).normalize();
   W.night = night;
+  // luz ambiente y de luna (con materiales PBR la noche quedaba negra)
+  W.hemi.intensity = 0.5 + 0.4 * day; W.hemi.color.set(night ? 0x7f94c8 : 0xdfefff); W.hemi.groundColor.set(night ? 0x2a2a3a : 0x4a5a3a);
+  if (day < 0.35) { W.sun.intensity = Math.max(W.sun.intensity, 0.55 * (1 - day)); W.sun.color.set(0x9ab4e8); }
+  GFX.updateSky(hour, weather, W.renderer, W.scene);
 };
 W.update = function (dt, player, time) {
   // sol siguiendo al jugador (sombras nítidas cerca)
   const p = player.position;
   W.sun.position.set(p.x + W.sunDir.x * 300, p.y + W.sunDir.y * 300, p.z + W.sunDir.z * 300); W.sun.target.position.copy(p);
+  GFX.update(dt, W.camera);
   // lluvia alrededor de la cámara
   if (W.rain.visible) {
     const a = W.rain.geometry.attributes.position;

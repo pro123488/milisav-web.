@@ -20,7 +20,7 @@ P.applyLook = function () {
   if (!P.obj || !S) return;
   const sh = SHIRTS[S.look.shirt] || SHIRTS[3], pa = SHIRTS[S.look.pants] || SHIRTS[1];
   const L = P.obj.userData.limbs; const torso = P.obj.children[0];
-  const c1 = new THREE.Color(sh[0] / 255, sh[1] / 255, sh[2] / 255), c2 = new THREE.Color(pa[0] / 255, pa[1] / 255, pa[2] / 255);
+  const c1 = GFX.rgb(sh[0], sh[1], sh[2]), c2 = GFX.rgb(pa[0], pa[1], pa[2]);
   torso.material = torso.material.clone(); torso.material.color.copy(c1);
   L.la.material = torso.material; L.ra.material = torso.material;
   L.ll.material = L.ll.material.clone(); L.ll.material.color.copy(c2); L.rl.material = L.ll.material;

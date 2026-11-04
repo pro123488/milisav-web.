@@ -117,7 +117,7 @@ G.qval = function (k) {
 // ---------------------------------------------------------------- Utilidades comunes
 LIFE.STATN = { Night: "Modo noche", GbPerMin: "GB por minuto", Weather: "Resistente al agua", Aerial: "Tomas aéreas", Slots: "Espacios de mochila" };
 LIFE.statName = k => LIFE.STATN[k] || STATN[k] || k;
-LIFE.rgb3 = c => new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255);
+LIFE.rgb3 = c => GFX.rgb(c[0], c[1], c[2]);
 LIFE.mats = {};
 LIFE.mat = function (c, basic) { const k = (basic ? "b" : "l") + c; if (!LIFE.mats[k]) LIFE.mats[k] = basic ? new THREE.MeshBasicMaterial({ color: c }) : new THREE.MeshLambertMaterial({ color: c }); return LIFE.mats[k]; };
 LIFE.box = function (parent, w, h, d, x, y, z, mat, shadow) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); if (shadow !== false) m.castShadow = true; parent.add(m); return m; };

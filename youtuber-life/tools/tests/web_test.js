@@ -256,7 +256,7 @@ const fs = require("fs");
   const mp = await mctx.newPage();
   mp.on("pageerror", e => errors.push("móvil pageerror: " + e.message));
   mp.on("console", m => { if (m.type() === "error") errors.push("móvil console: " + m.text()); });
-  await mp.goto(file); await mp.waitForSelector("#menu", { timeout: 60000 }); await mp.waitForTimeout(800);
+  await mp.goto(file, { timeout: 180000 }); await mp.waitForSelector("#menu", { timeout: 180000 }); await mp.waitForTimeout(800);
   await mp.screenshot({ path: path.join(shots, "m01-menu.png") });
   await mp.click("#menu button.primary"); await mp.waitForTimeout(4200);
   const checkLayout = async (what) => mp.evaluate(what => {

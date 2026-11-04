@@ -171,7 +171,7 @@ R.paintRoom = function (id, rec) {
 
 // ---------------------------------------------------------------- Muebles en 3D
 const FMATS = {};
-R.mat = (c, glow) => { const k = c.join(",") + (glow ? "g" : ""); return FMATS[k] || (FMATS[k] = glow ? new THREE.MeshBasicMaterial({ color: new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255) }) : new THREE.MeshLambertMaterial({ color: new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255) })); };
+R.mat = (c, glow) => { const k = c.join(",") + (glow ? "g" : ""); return FMATS[k] || (FMATS[k] = glow ? new THREE.MeshBasicMaterial({ color: GFX.rgb(c[0], c[1], c[2]) }) : new THREE.MeshLambertMaterial({ color: GFX.rgb(c[0], c[1], c[2]) })); };
 R.furnModel = function (def) {
   const g = new THREE.Group(), c = def.Color || [120, 120, 120], f = def.Foot || [4, 4, 3], w = f[0], d = f[1], hgt = Math.max(0.2, f[2]);
   const B = (sx, sy, sz, x, y, z, col, glow) => { const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), R.mat(col || c, glow)); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; };
