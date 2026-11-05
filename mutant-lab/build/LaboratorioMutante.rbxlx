@@ -1,0 +1,3497 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX000001"><Properties><string name="Name">Workspace</string><bool name="StreamingEnabled">false</bool></Properties></Item><Item class="Lighting" referent="RBX000002"><Properties><string name="Name">Lighting</string><float name="Brightness">2.5</float><bool name="GlobalShadows">true</bool></Properties></Item><Item class="ReplicatedStorage" referent="RBX000009"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX000003"><Properties><string name="Name">Shared</string></Properties><Item class="ModuleScript" referent="RBX000004"><Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- Config: equilibrio del juego. Todo en un solo sitio para poder ajustarlo sin tocar la lógica.
+
+local Config = {}
+
+Config.GameName = "Laboratorio Mutante"
+Config.Version = "1.0.0"
+Config.DataStoreName = "LabMutante_Datos_v1"
+
+-- Economía
+Config.StartingCredits = 60
+Config.SellRate = 0.5 -- al vender recibes la mitad del valor
+Config.DiscoverReward = 0.25 -- recompensa única al descubrir una especie (fracción de su precio)
+
+-- Cinta de cápsulas (centro del mapa, a lo largo del eje X)
+Config.BeltStartX = -235
+Config.BeltEndX = 235
+Config.BeltZ = 0
+Config.BeltY = 3.2
+Config.BeltSpeed = 7 -- studs por segundo
+Config.CapsuleInterval = 2.2 -- segundos entre cápsulas
+Config.MaxCapsules = 70
+Config.BuyRadius = 16
+
+-- Asaltos
+Config.StealRadius = 11 -- distancia máxima al pedestal para robar
+Config.GrabHoldSeconds = 1.6 -- hay que mantener pulsado
+Config.RecaptureRadius = 12
+Config.NormalWalkSpeed = 16
+Config.CarryWalkSpeed = 10
+Config.DeliverRadius = 11 -- radio de la zona de llegada de tu laboratorio
+Config.LaserCooldown = 25
+Config.TrapRadius = 4
+Config.TrapRearm = 12
+Config.TrapSlowSeconds = 5
+Config.TrapWalkSpeed = 6
+Config.DroneCooldown = 30
+Config.AlarmCooldown = 20
+
+-- Fusión y niveles
+Config.MaxLevel = 5
+Config.LevelIncomeMult = 2.2 -- cada nivel multiplica la producción
+Config.LevelValueMult = 1.9
+Config.FusionBaseSeconds = 25
+
+-- Tiempo
+Config.IncomeTick = 1
+Config.EventEvery = 240 -- cada cuánto empieza un evento
+Config.EventDuration = 120
+Config.AutosaveInterval = 90
+Config.RequestsPerSecond = 12
+Config.SessionLockTimeout = 600
+Config.LoadRetries = 4
+
+return Config
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000005"><Properties><string name="Name">LabData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- LabData: niveles del laboratorio, investigación, defensas y eventos.
+
+local LabData = {}
+
+-- Niveles del laboratorio: huecos (pedestales), capacidad del tanque de créditos y duración del láser
+LabData.Tiers = {
+	{ Name = "Laboratorio de garaje", Slots = 6, Tank = 500, Laser = 40, Cost = 0 },
+	{ Name = "Laboratorio universitario", Slots = 9, Tank = 4000, Laser = 55, Cost = 2500 },
+	{ Name = "Instituto genético", Slots = 12, Tank = 30000, Laser = 70, Cost = 30000 },
+	{ Name = "Complejo secreto", Slots = 15, Tank = 250000, Laser = 85, Cost = 400000 },
+	{ Name = "Megalaboratorio orbital", Slots = 18, Tank = 3000000, Laser = 100, Cost = 5000000 },
+}
+LabData.MaxSlots = 18
+
+-- Investigación: mejoras permanentes que se compran con créditos
+LabData.Research = {
+	{ Id = "income", Name = "Nutrientes mejorados", Desc = "+10% de producción por nivel", Max = 10, Base = 600, Growth = 2.1 },
+	{ Id = "discount", Name = "Contrato con el generador", Desc = "-4% en el precio de las cápsulas por nivel", Max = 8, Base = 900, Growth = 2.3 },
+	{ Id = "mutate", Name = "Reactor de mutación", Desc = "Las cápsulas sin mutación pueden mutar al comprarlas (+ probabilidad por nivel)", Max = 6, Base = 1500, Growth = 2.5 },
+	{ Id = "fusion", Name = "Fusión acelerada", Desc = "-10% de tiempo de fusión por nivel", Max = 5, Base = 1200, Growth = 2.4 },
+	{ Id = "sprint", Name = "Botas antigravedad", Desc = "+1 de velocidad al cargar un mutante", Max = 4, Base = 2000, Growth = 2.6 },
+	{ Id = "tank", Name = "Tanque ampliado", Desc = "+25% de capacidad del tanque por nivel", Max = 6, Base = 1000, Growth = 2.4 },
+}
+LabData.ResearchById = {}
+for _, r in ipairs(LabData.Research) do
+	LabData.ResearchById[r.Id] = r
+end
+function LabData.researchCost(id, level)
+	local r = LabData.ResearchById[id]
+	return math.floor(r.Base * r.Growth ^ level)
+end
+
+-- Defensas
+LabData.Defenses = {
+	trap = { Name = "Trampa de baba", Desc = "Frena a los ladrones y les hace soltar lo que llevan. Máximo: una por nivel del laboratorio.", Cost = 1500 },
+	alarm = { Name = "Alarma de intrusos", Desc = "Te avisa cuando alguien entra en tu laboratorio.", Cost = 600 },
+	drone = { Name = "Dron guardián", Desc = "Recupera solo un mutante robado si el ladrón sigue dentro (cada 30 s). Requiere nivel 3.", Cost = 40000, Tier = 3 },
+}
+
+-- Colores de las 8 parcelas
+LabData.PlotColors = {
+	{ 0, 220, 255 }, { 255, 70, 160 }, { 120, 255, 80 }, { 255, 190, 40 },
+	{ 170, 100, 255 }, { 255, 110, 60 }, { 60, 255, 200 }, { 255, 255, 120 },
+}
+
+-- Eventos de todo el servidor
+LabData.Events = {
+	{ Id = "storm", Name = "Tormenta radiactiva", Desc = "Mutaciones x3 en las cápsulas", MutMult = 3, Sky = { 80, 255, 80 } },
+	{ Id = "rush", Name = "Fiebre de cápsulas", Desc = "Las cápsulas salen el doble de rápido", SpawnMult = 0.5, Sky = { 255, 200, 60 } },
+	{ Id = "legend", Name = "Hora legendaria", Desc = "Mucha más suerte de rareza", Luck = 2.5, Sky = { 255, 150, 40 } },
+	{ Id = "double", Name = "Doble producción", Desc = "Todos los laboratorios producen el doble", IncomeMult = 2, Sky = { 60, 200, 255 } },
+}
+
+return LabData
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000006"><Properties><string name="Name">MonetizationConfig</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- MonetizationConfig: PON AQUÍ TUS IDS REALES de Game Passes y Developer Products (Creator Hub de Roblox).
+-- Mientras valgan 0 no se ofrecen en el juego (no hay botones falsos ni IDs inventados).
+-- Nada del juego queda bloqueado por pagar.
+
+local MonetizationConfig = {}
+
+MonetizationConfig.GamePasses = {
+	{ Key = "VIP", Name = "Laboratorio VIP", Desc = "+10% de producción y etiqueta VIP", Id = 0 },
+	{ Key = "BigTank", Name = "Tanque gigante", Desc = "+50% de capacidad del tanque", Id = 0 },
+}
+
+-- Paquetes de créditos: dan minutos de tu producción actual (mínimo garantizado)
+MonetizationConfig.Products = {
+	{ Key = "CreditsSmall", Name = "Bote de créditos", Minutes = 10, Min = 500, Id = 0 },
+	{ Key = "CreditsBig", Name = "Barril de créditos", Minutes = 60, Min = 5000, Id = 0 },
+}
+
+function MonetizationConfig.isConfigured(entry)
+	return type(entry.Id) == "number" and entry.Id > 0
+end
+
+return MonetizationConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000007"><Properties><string name="Name">MutantData</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- MutantData: rarezas, mutaciones y especies de criaturas (todas inventadas para este juego).
+-- Cada especie describe su cuerpo con piezas sencillas: el servidor construye el modelo a partir de esto.
+
+local Config = require(script.Parent.Config)
+
+local MutantData = {}
+
+MutantData.Rarities = {
+	{ Id = "common", Name = "Común", Color = { 190, 200, 205 }, Weight = 60 },
+	{ Id = "uncommon", Name = "Poco común", Color = { 90, 220, 110 }, Weight = 25 },
+	{ Id = "rare", Name = "Raro", Color = { 70, 150, 255 }, Weight = 10 },
+	{ Id = "epic", Name = "Épico", Color = { 180, 90, 255 }, Weight = 3.5 },
+	{ Id = "legendary", Name = "Legendario", Color = { 255, 180, 40 }, Weight = 1.2 },
+	{ Id = "mythic", Name = "Mítico", Color = { 255, 70, 120 }, Weight = 0.25 },
+	{ Id = "secret", Name = "Secreto", Color = { 20, 255, 230 }, Weight = 0.05 },
+}
+MutantData.RarityById = {}
+for i, r in ipairs(MutantData.Rarities) do
+	r.Order = i
+	MutantData.RarityById[r.Id] = r
+end
+
+-- Mutaciones: multiplican producción y valor
+MutantData.Mutations = {
+	{ Id = "rad", Name = "Radiactivo", Mult = 2, Color = { 120, 255, 60 }, Chance = 0.06 },
+	{ Id = "crystal", Name = "Cristalino", Mult = 3, Color = { 160, 230, 255 }, Chance = 0.025 },
+	{ Id = "shadow", Name = "Sombrío", Mult = 4, Color = { 90, 40, 140 }, Chance = 0.01 },
+	{ Id = "galaxy", Name = "Galáctico", Mult = 6, Color = { 255, 110, 230 }, Chance = 0.004 },
+}
+MutantData.MutationById = {}
+for _, m in ipairs(MutantData.Mutations) do
+	MutantData.MutationById[m.Id] = m
+end
+
+-- Body: "ball" | "block" | "cyl"; Scale = {x, y, z}; Eyes = número de ojos; Parts = piezas extra
+local S = {
+	-- Comunes
+	{ Id = "blobito", Name = "Blobito", Rarity = "common", Price = 25, Income = 1, Body = "ball", Scale = { 2.4, 1.8, 2.4 }, Eyes = 2, Parts = {}, C1 = { 120, 220, 120 }, C2 = { 60, 160, 60 } },
+	{ Id = "saltarrana", Name = "Saltarrana", Rarity = "common", Price = 40, Income = 1.5, Body = "ball", Scale = { 2.4, 1.6, 2.6 }, Eyes = 2, Parts = { "legs", "eyestalks" }, C1 = { 80, 200, 90 }, C2 = { 240, 230, 80 } },
+	{ Id = "gusarrin", Name = "Gusarrín", Rarity = "common", Price = 55, Income = 2, Body = "ball", Scale = { 1.6, 1.6, 1.6 }, Eyes = 2, Parts = { "segments" }, C1 = { 240, 150, 170 }, C2 = { 200, 90, 120 } },
+	{ Id = "burbujon", Name = "Burbujón", Rarity = "common", Price = 70, Income = 2.5, Body = "ball", Scale = { 2.6, 2.6, 2.6 }, Eyes = 2, Parts = { "bubbles" }, C1 = { 140, 210, 255 }, C2 = { 255, 255, 255 }, Glass = true },
+	{ Id = "champibaile", Name = "Champibaile", Rarity = "common", Price = 90, Income = 3, Body = "cyl", Scale = { 1.4, 2, 1.4 }, Eyes = 2, Parts = { "cap" }, C1 = { 240, 230, 210 }, C2 = { 220, 50, 50 } },
+	-- Poco comunes
+	{ Id = "tentaculin", Name = "Tentaculín", Rarity = "uncommon", Price = 180, Income = 6, Body = "ball", Scale = { 2.2, 2.2, 2.2 }, Eyes = 2, Parts = { "tentacles" }, C1 = { 170, 90, 220 }, C2 = { 120, 50, 170 } },
+	{ Id = "ojoton", Name = "Ojotón", Rarity = "uncommon", Price = 260, Income = 8, Body = "ball", Scale = { 2.8, 2.8, 2.8 }, Eyes = 1, Parts = { "bigeye", "legs" }, C1 = { 250, 120, 60 }, C2 = { 255, 255, 255 } },
+	{ Id = "murcineon", Name = "Murcineón", Rarity = "uncommon", Price = 340, Income = 10, Body = "ball", Scale = { 1.8, 1.8, 1.8 }, Eyes = 2, Parts = { "wings", "ears" }, C1 = { 50, 50, 70 }, C2 = { 0, 255, 200 } },
+	{ Id = "pinchito", Name = "Pinchito", Rarity = "uncommon", Price = 420, Income = 12, Body = "cyl", Scale = { 1.6, 2.8, 1.6 }, Eyes = 2, Parts = { "arms", "spikes" }, C1 = { 60, 170, 90 }, C2 = { 250, 240, 200 } },
+	{ Id = "rocaflip", Name = "Rocaflip", Rarity = "uncommon", Price = 520, Income = 14, Body = "block", Scale = { 2.6, 2.2, 2.6 }, Eyes = 2, Parts = { "spikes" }, C1 = { 130, 120, 115 }, C2 = { 255, 140, 40 } },
+	-- Raros
+	{ Id = "calamarciano", Name = "Calamarciano", Rarity = "rare", Price = 1400, Income = 30, Body = "cyl", Scale = { 2, 3, 2 }, Eyes = 2, Parts = { "tentacles", "antenna" }, C1 = { 90, 230, 200 }, C2 = { 255, 80, 160 } },
+	{ Id = "gatoplasma", Name = "Gatoplasma", Rarity = "rare", Price = 2100, Income = 40, Body = "block", Scale = { 2.2, 2, 3 }, Eyes = 2, Parts = { "ears", "tail", "legs" }, C1 = { 200, 120, 255 }, C2 = { 255, 220, 255 }, Glass = true },
+	{ Id = "medusazap", Name = "Medusazap", Rarity = "rare", Price = 2900, Income = 52, Body = "ball", Scale = { 2.8, 2, 2.8 }, Eyes = 2, Parts = { "tentacles", "glow" }, C1 = { 120, 200, 255 }, C2 = { 255, 255, 120 }, Glass = true },
+	{ Id = "hongozilla", Name = "Hongozilla Mini", Rarity = "rare", Price = 3600, Income = 62, Body = "cyl", Scale = { 2, 2.6, 2 }, Eyes = 2, Parts = { "cap", "arms", "spikes" }, C1 = { 230, 220, 200 }, C2 = { 120, 60, 200 } },
+	{ Id = "pulpotron", Name = "Pulpotrón", Rarity = "rare", Price = 4400, Income = 75, Body = "ball", Scale = { 2.6, 2.6, 2.6 }, Eyes = 2, Parts = { "tentacles", "visor", "antenna" }, C1 = { 180, 190, 200 }, C2 = { 255, 60, 60 } },
+	-- Épicos
+	{ Id = "dragoacido", Name = "Dragoácido", Rarity = "epic", Price = 11000, Income = 160, Body = "block", Scale = { 2.4, 2.2, 4 }, Eyes = 2, Parts = { "wings", "tail", "horns", "legs" }, C1 = { 140, 230, 40 }, C2 = { 255, 255, 80 } },
+	{ Id = "cristalodonte", Name = "Cristalodonte", Rarity = "epic", Price = 16000, Income = 220, Body = "block", Scale = { 2.8, 2.4, 3.4 }, Eyes = 2, Parts = { "crystals", "legs", "tail" }, C1 = { 150, 220, 255 }, C2 = { 255, 255, 255 }, Glass = true },
+	{ Id = "fantasmon", Name = "Fantasmón Glotón", Rarity = "epic", Price = 22000, Income = 290, Body = "ball", Scale = { 3, 3.4, 3 }, Eyes = 2, Parts = { "skirt", "mouth" }, C1 = { 235, 235, 255 }, C2 = { 120, 120, 200 }, Ghost = true },
+	{ Id = "lavapuff", Name = "Lavapuff", Rarity = "epic", Price = 30000, Income = 370, Body = "ball", Scale = { 3, 2.6, 3 }, Eyes = 2, Parts = { "cracks", "horns" }, C1 = { 60, 30, 30 }, C2 = { 255, 110, 20 } },
+	-- Legendarios
+	{ Id = "hidraneon", Name = "Hidra Neón", Rarity = "legendary", Price = 90000, Income = 1000, Body = "block", Scale = { 3.4, 2.6, 4 }, Eyes = 0, Parts = { "necks", "tail", "legs" }, C1 = { 40, 60, 120 }, C2 = { 0, 255, 255 } },
+	{ Id = "titangel", Name = "Titán de Gelatina", Rarity = "legendary", Price = 150000, Income = 1500, Body = "block", Scale = { 4.4, 4.4, 4.4 }, Eyes = 2, Parts = { "mouth", "bubbles" }, C1 = { 255, 90, 140 }, C2 = { 255, 200, 220 }, Glass = true },
+	{ Id = "fenixrad", Name = "Fénix Radiactivo", Rarity = "legendary", Price = 240000, Income = 2300, Body = "ball", Scale = { 2.4, 2.8, 2.4 }, Eyes = 2, Parts = { "bigwings", "tail", "crest", "glow" }, C1 = { 255, 140, 30 }, C2 = { 140, 255, 60 } },
+	-- Míticos
+	{ Id = "krakenbolsillo", Name = "Kraken de Bolsillo", Rarity = "mythic", Price = 900000, Income = 8500, Body = "ball", Scale = { 3.6, 3.6, 3.6 }, Eyes = 2, Parts = { "tentacles", "tentacles2", "crest" }, C1 = { 120, 30, 80 }, C2 = { 255, 220, 60 } },
+	{ Id = "quimeracuantica", Name = "Quimera Cuántica", Rarity = "mythic", Price = 1800000, Income = 16000, Body = "block", Scale = { 3, 2.6, 4.6 }, Eyes = 3, Parts = { "bigwings", "horns", "tail", "legs", "glow" }, C1 = { 30, 30, 50 }, C2 = { 180, 90, 255 } },
+	-- Secretos
+	{ Id = "experimentox", Name = "Experimento X", Rarity = "secret", Price = 7000000, Income = 65000, Body = "cyl", Scale = { 2.6, 4.2, 2.6 }, Eyes = 1, Parts = { "bigeye", "rings", "antenna", "glow" }, C1 = { 20, 20, 24 }, C2 = { 0, 255, 120 } },
+	{ Id = "nucleovivo", Name = "Núcleo Viviente", Rarity = "secret", Price = 14000000, Income = 120000, Body = "ball", Scale = { 3.4, 3.4, 3.4 }, Eyes = 2, Parts = { "rings", "glow", "crystals" }, C1 = { 255, 255, 255 }, C2 = { 255, 60, 220 }, Glass = true },
+}
+MutantData.Species = S
+MutantData.SpeciesById = {}
+for i, sp in ipairs(S) do
+	sp.Order = i
+	MutantData.SpeciesById[sp.Id] = sp
+end
+
+-- Producción por segundo de un mutante concreto (sin mejoras del jugador)
+function MutantData.income(rec)
+	local sp = MutantData.SpeciesById[rec.S]
+	if not sp then
+		return 0
+	end
+	local mut = rec.M and MutantData.MutationById[rec.M]
+	return sp.Income * (mut and mut.Mult or 1) * Config.LevelIncomeMult ^ ((rec.L or 1) - 1)
+end
+
+-- Valor de referencia (para vender)
+function MutantData.value(rec)
+	local sp = MutantData.SpeciesById[rec.S]
+	if not sp then
+		return 0
+	end
+	local mut = rec.M and MutantData.MutationById[rec.M]
+	return sp.Price * (mut and mut.Mult or 1) * Config.LevelValueMult ^ ((rec.L or 1) - 1)
+end
+
+function MutantData.label(rec)
+	local sp = MutantData.SpeciesById[rec.S]
+	local mut = rec.M and MutantData.MutationById[rec.M]
+	local name = (mut and (mut.Name .. " ") or "") .. (sp and sp.Name or "?")
+	if (rec.L or 1) > 1 then
+		name = name .. " Nv." .. rec.L
+	end
+	return name
+end
+
+-- Elige especie y mutación para una cápsula. luck > 1 favorece rarezas altas; mutLuck multiplica mutaciones.
+function MutantData.roll(rng, luck, mutLuck)
+	luck = luck or 1
+	mutLuck = mutLuck or 1
+	local rarity = nil
+	local total = 0
+	for _, r in ipairs(MutantData.Rarities) do
+		total = total + (r.Order == 1 and r.Weight or r.Weight * luck)
+	end
+	local x = rng:NextNumber() * total
+	for _, r in ipairs(MutantData.Rarities) do
+		x = x - (r.Order == 1 and r.Weight or r.Weight * luck)
+		if x <= 0 then
+			rarity = r
+			break
+		end
+	end
+	rarity = rarity or MutantData.Rarities[1]
+	local pool = {}
+	for _, sp in ipairs(S) do
+		if sp.Rarity == rarity.Id then
+			pool[#pool + 1] = sp
+		end
+	end
+	local sp = pool[rng:NextInteger(1, #pool)]
+	local mutation = nil
+	for i = #MutantData.Mutations, 1, -1 do
+		local m = MutantData.Mutations[i]
+		if rng:NextNumber() < m.Chance * mutLuck then
+			mutation = m.Id
+			break
+		end
+	end
+	return sp.Id, mutation
+end
+
+return MutantData
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000008"><Properties><string name="Name">Util</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- Util: funciones pequeñas compartidas por servidor y cliente.
+
+local Util = {}
+
+function Util.clamp(x, a, b)
+	if x < a then
+		return a
+	elseif x > b then
+		return b
+	end
+	return x
+end
+
+function Util.round(x)
+	return math.floor(x + 0.5)
+end
+
+function Util.deepCopy(t)
+	if type(t) ~= "table" then
+		return t
+	end
+	local o = {}
+	for k, v in pairs(t) do
+		o[k] = Util.deepCopy(v)
+	end
+	return o
+end
+
+-- Añade a "data" los campos que falten de "template" (perfiles antiguos)
+function Util.reconcile(data, template)
+	for k, v in pairs(template) do
+		if data[k] == nil then
+			data[k] = Util.deepCopy(v)
+		elseif type(v) == "table" and type(data[k]) == "table" and next(v) ~= nil and #v == 0 then
+			Util.reconcile(data[k], v)
+		end
+	end
+	return data
+end
+
+function Util.count(t)
+	local n = 0
+	for _ in pairs(t or {}) do
+		n = n + 1
+	end
+	return n
+end
+
+-- 1234 -> "1,2 K"; 2500000 -> "2,5 M"
+function Util.short(n)
+	n = n or 0
+	local sign = n < 0 and "-" or ""
+	n = math.abs(n)
+	local units = { { 1e12, " T" }, { 1e9, " B" }, { 1e6, " M" }, { 1e3, " K" } }
+	for _, u in ipairs(units) do
+		if n >= u[1] then
+			local v = n / u[1]
+			local s = v >= 100 and string.format("%d", math.floor(v)) or string.format("%.1f", math.floor(v * 10) / 10)
+			s = s:gsub("%.0$", ""):gsub("%.", ",")
+			return sign .. s .. u[2]
+		end
+	end
+	return sign .. tostring(math.floor(n))
+end
+
+-- Elige un elemento de "list" con pesos (weightFn devuelve el peso de cada uno)
+function Util.weighted(list, weightFn, r)
+	local total = 0
+	for _, it in ipairs(list) do
+		total = total + math.max(0, weightFn(it))
+	end
+	local x = r * total
+	for _, it in ipairs(list) do
+		x = x - math.max(0, weightFn(it))
+		if x <= 0 then
+			return it
+		end
+	end
+	return list[#list]
+end
+
+function Util.time(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	local m = math.floor(seconds / 60)
+	local s = seconds % 60
+	if m > 0 then
+		return m .. " min " .. s .. " s"
+	end
+	return s .. " s"
+end
+
+return Util
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX000024"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX000010"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX000011"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- Arranque del servidor de Laboratorio Mutante.
+
+local Players = game:GetService("Players")
+local Services = script.Parent.Services
+
+local S = {}
+local order = {
+	{ "Net", "Net" },
+	{ "Data", "DataService" },
+	{ "World", "WorldService" },
+	{ "Event", "EventService" },
+	{ "Monetization", "MonetizationService" },
+	{ "Lab", "LabService" },
+	{ "Conveyor", "ConveyorService" },
+	{ "Raid", "RaidService" },
+	{ "Fusion", "FusionService" },
+	{ "Sync", "SyncService" },
+}
+for _, e in ipairs(order) do
+	S[e[1]] = require(Services[e[2]])
+end
+for _, e in ipairs(order) do
+	S[e[1]].Init(S)
+end
+for _, e in ipairs(order) do
+	if S[e[1]].Start then
+		S[e[1]].Start()
+	end
+end
+
+local function onPlayerAdded(player)
+	local data = S.Data.load(player)
+	if not data or not player.Parent then
+		return
+	end
+	S.Monetization.onPlayerReady(player)
+	if not S.Lab.assign(player) then
+		player:Kick("El servidor está lleno (8 laboratorios). Prueba en otro servidor.")
+		return
+	end
+	S.Fusion.onReady(player)
+	S.Sync.send(player)
+	S.Net.push(player, "ready", { first = data.Stats.Bought == 0 })
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, p in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerAdded, p)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	S.Raid.onLeave(player)
+	S.Fusion.onLeave(player)
+	S.Lab.release(player)
+	S.Monetization.onLeave(player)
+	S.Data.release(player)
+end)
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX000012"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX000013"><Properties><string name="Name">ConveyorService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- ConveyorService: el generador suelta cápsulas con mutantes que avanzan por la cinta central.
+-- Cualquiera puede comprar una cápsula si está cerca, tiene créditos y un pedestal libre.
+-- La compra se valida y se marca en el servidor sin esperas intermedias (dos jugadores nunca compran la misma).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Util = require(ReplicatedStorage.Shared.Util)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+local MM = require(script.Parent.MutantModel)
+
+local Conveyor = {}
+local S
+Conveyor.capsules = {} -- [id] = { Id, S, M, X, Price, Model, Sold }
+local nextId = 0
+local rng = Random.new()
+
+function Conveyor.Init(services)
+	S = services
+end
+
+local function capsuleCF(x)
+	return CFrame.new(x, Config.BeltY, Config.BeltZ)
+end
+
+-- Precio de la cápsula (el precio base de la especie con su mutación)
+function Conveyor.basePrice(speciesId, mutationId)
+	local sp = MutantData.SpeciesById[speciesId]
+	local mut = mutationId and MutantData.MutationById[mutationId]
+	return math.floor(sp.Price * (mut and (1 + (mut.Mult - 1) * 0.6) or 1))
+end
+
+function Conveyor.priceFor(player, cap)
+	local data = S.Data.get(player)
+	local disc = data and (data.Research.discount or 0) or 0
+	return math.max(1, math.floor(cap.Price * (1 - 0.04 * disc)))
+end
+
+local function buildCapsule(cap)
+	local m = Instance.new("Model")
+	m.Name = "Capsule" .. cap.Id
+	local base = S.World.P(m, "Base", Vector3.new(6, 0.6, 6), capsuleCF(cap.X), { 40, 40, 50 }, Enum.Material.Metal, { CanCollide = false })
+	base.Shape = Enum.PartType.Block
+	local sp = MutantData.SpeciesById[cap.S]
+	local rar = MutantData.RarityById[sp.Rarity]
+	local glass = S.World.P(m, "Glass", Vector3.new(7.5, 5.6, 5.6), capsuleCF(cap.X) * CFrame.new(0, 3.9, 0) * CFrame.Angles(0, 0, math.pi / 2), rar.Color, Enum.Material.Glass, { Transparency = 0.7, CanCollide = false, Shape = Enum.PartType.Cylinder })
+	local creature = MM.build({ S = cap.S, M = cap.M, L = 1 }, capsuleCF(cap.X) * CFrame.new(0, 0.3, 0) * CFrame.Angles(0, math.pi / 2, 0), { scale = 0.7, price = cap.Price, maxDistance = 90 })
+	creature.Parent = m
+	m.PrimaryPart = base
+	local pp = S.World.prompt(glass, "buy", "Comprar", sp.Name .. " · $" .. Util.short(cap.Price), { Capsule = cap.Id })
+	pp.MaxActivationDistance = Config.BuyRadius
+	-- todas las piezas soldadas a la base: para moverla basta con cambiar el CFrame de la base
+	for _, p in ipairs(m:GetDescendants()) do
+		if p:IsA("BasePart") and p ~= base then
+			p.Anchored = false
+			p.CanCollide = false
+			p.Massless = true
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = base
+			w.Part1 = p
+			w.Parent = p
+		end
+	end
+	m.Parent = S.World.dynamic
+	cap.Model = m
+	cap.Root = base
+end
+
+function Conveyor.spawn(speciesId, mutationId)
+	nextId = nextId + 1
+	local luck = S.Event and S.Event.luck() or 1
+	local mutLuck = S.Event and S.Event.mutMult() or 1
+	local sid, mid = speciesId, mutationId
+	if not sid then
+		sid, mid = MutantData.roll(rng, luck, mutLuck)
+	end
+	local cap = { Id = nextId, S = sid, M = mid, X = Config.BeltStartX, Sold = false }
+	cap.Price = Conveyor.basePrice(sid, mid)
+	buildCapsule(cap)
+	Conveyor.capsules[cap.Id] = cap
+	local rar = MutantData.SpeciesById[sid].Rarity
+	if rar == "legendary" or rar == "mythic" or rar == "secret" then
+		S.Net.pushAll("notify", { text = "⚠ ¡Ha salido un " .. MutantData.label({ S = sid, M = mid }) .. " (" .. MutantData.RarityById[rar].Name .. ") en la cinta!", style = "gold" })
+	end
+	return cap
+end
+
+local function removeCapsule(cap)
+	Conveyor.capsules[cap.Id] = nil
+	if cap.Model then
+		cap.Model:Destroy()
+	end
+end
+
+local function moveCapsule(cap)
+	cap.Root.CFrame = capsuleCF(cap.X)
+end
+
+function Conveyor.buy(player, capId)
+	local cap = Conveyor.capsules[capId]
+	if not cap or cap.Sold then
+		return false, "Esa cápsula ya no está disponible."
+	end
+	local data = S.Data.get(player)
+	if not data or not S.Lab.state(player) then
+		return false, "No tienes laboratorio asignado."
+	end
+	if not S.Lab.near(player, Vector3.new(cap.X, Config.BeltY, Config.BeltZ), Config.BuyRadius) then
+		return false, "Acércate a la cápsula para comprarla."
+	end
+	local price = Conveyor.priceFor(player, cap)
+	if data.Credits < price then
+		return false, "Te faltan " .. Util.short(price - data.Credits) .. " créditos."
+	end
+	local slot = S.Lab.freeSlot(player)
+	if not slot then
+		return false, "Tu laboratorio está lleno. Vende, fusiona o mejora el laboratorio."
+	end
+	-- a partir de aquí no hay esperas: la cápsula queda vendida a este jugador
+	cap.Sold = true
+	data.Credits = data.Credits - price
+	local rec = { S = cap.S, M = cap.M, L = 1 }
+	-- Reactor de mutación: una cápsula sin mutación puede mutar al comprarla
+	local mlvl = data.Research.mutate or 0
+	if not rec.M and mlvl > 0 then
+		for i = #MutantData.Mutations, 1, -1 do
+			local m = MutantData.Mutations[i]
+			if rng:NextNumber() < m.Chance * 0.6 * mlvl then
+				rec.M = m.Id
+				break
+			end
+		end
+	end
+	S.Lab.addMutant(player, rec, slot)
+	data.Stats.Bought = data.Stats.Bought + 1
+	removeCapsule(cap)
+	local extra = (rec.M and not cap.M) and (" ¡Ha mutado a " .. MutantData.MutationById[rec.M].Name .. "!") or ""
+	return true, "🧪 Has comprado " .. MutantData.label(rec) .. ". Ya está en tu laboratorio." .. extra, { slot = slot }
+end
+
+function Conveyor.step(dt)
+	for _, cap in pairs(Conveyor.capsules) do
+		cap.X = cap.X + Config.BeltSpeed * dt
+		if cap.X > Config.BeltEndX then
+			removeCapsule(cap)
+		else
+			moveCapsule(cap)
+		end
+	end
+end
+
+function Conveyor.list()
+	local out = {}
+	for _, cap in pairs(Conveyor.capsules) do
+		out[#out + 1] = cap
+	end
+	table.sort(out, function(a, b)
+		return a.X > b.X
+	end)
+	return out
+end
+
+function Conveyor.Start()
+	S.World.onPrompt("buy", function(player, pp)
+		local ok, msg = Conveyor.buy(player, pp:GetAttribute("Capsule"))
+		S.Net.notify(player, msg, ok and "success" or "error")
+		if ok then
+			S.Data.markDirty(player)
+		end
+	end)
+	S.Net.on("Capsule.Buy", function(player, p)
+		return Conveyor.buy(player, tonumber(p.id))
+	end)
+	-- generador
+	task.spawn(function()
+		while true do
+			local mult = S.Event and S.Event.spawnMult() or 1
+			task.wait(Config.CapsuleInterval * mult)
+			if Util.count(Conveyor.capsules) < Config.MaxCapsules then
+				local ok, err = pcall(Conveyor.spawn)
+				if not ok then
+					warn("[LabMutante] generador: " .. tostring(err))
+				end
+			end
+		end
+	end)
+	-- movimiento de la cinta
+	task.spawn(function()
+		local last = os.clock()
+		while true do
+			task.wait(0.05)
+			local now = os.clock()
+			local ok, err = pcall(Conveyor.step, math.min(1, now - last))
+			if not ok then
+				warn("[LabMutante] cinta: " .. tostring(err))
+			end
+			last = now
+		end
+	end)
+end
+
+return Conveyor
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000014"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- DataService: guardado seguro con DataStore.
+--  * UpdateAsync con bloqueo de sesión (evita que dos servidores escriban el mismo perfil).
+--  * Reintentos limitados; si la carga falla NUNCA se sobrescribe: en un servidor real se expulsa con un
+--    mensaje claro y en Studio se usa un perfil temporal que no se guarda.
+--  * Autoguardado, guardado al salir y en BindToClose.
+
+local DataStoreService = game:GetService("DataStoreService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Util = require(ReplicatedStorage.Shared.Util)
+
+local Data = {}
+local S
+local profiles = {} -- [player] = { data, temp, dirty }
+local store
+
+Data.Template = {
+	Version = 1,
+	Credits = Config.StartingCredits,
+	Lab = { Tier = 1, Slots = {}, Tank = 0, Traps = 0, Alarm = false, Drone = false, Fusion = nil },
+	Research = {},
+	Index = {},
+	Stats = { Bought = 0, Stolen = 0, Lost = 0, Recovered = 0, Fusions = 0, Earned = 0, Sold = 0 },
+	Receipts = {},
+	NextUid = 1,
+}
+
+function Data.Init(services)
+	S = services
+	local ok, ds = pcall(function()
+		return DataStoreService:GetDataStore(Config.DataStoreName)
+	end)
+	store = ok and ds or nil
+end
+
+local function key(player)
+	return "u_" .. tostring(player.UserId)
+end
+
+local function tryLoad(player)
+	local result, locked
+	local ok, err = pcall(function()
+		store:UpdateAsync(key(player), function(old)
+			old = old or Util.deepCopy(Data.Template)
+			local lock = old.__lock
+			if lock and lock.job ~= game.JobId and os.time() - (lock.t or 0) < Config.SessionLockTimeout then
+				locked = true
+				result = nil
+				return nil -- no escribir nada
+			end
+			old.__lock = { job = game.JobId, t = os.time() }
+			result = old
+			return old
+		end)
+	end)
+	if not ok then
+		return nil, "error", err
+	end
+	if locked then
+		return nil, "locked"
+	end
+	return result
+end
+
+function Data.load(player)
+	local data, why, err
+	if store then
+		for attempt = 1, Config.LoadRetries do
+			data, why, err = tryLoad(player)
+			if data or why == "locked" then
+				break
+			end
+			task.wait(1.5 * attempt)
+		end
+	else
+		why = "error"
+	end
+	local temp = false
+	if not data then
+		if RunService:IsStudio() then
+			warn("[LabMutante] Studio: usando perfil temporal (activa 'Studio Access to API Services' para guardar). " .. tostring(err or why))
+			data = Util.deepCopy(Data.Template)
+			temp = true
+		else
+			warn("[LabMutante] [load] " .. tostring(why) .. " " .. tostring(err))
+			player:Kick(why == "locked"
+				and "Tu partida sigue abierta en otro servidor. Espera un momento y vuelve a entrar."
+				or "No se pudieron cargar tus datos. Vuelve a entrar en unos segundos (tu progreso está a salvo).")
+			return nil
+		end
+	end
+	data.__lock = nil
+	Util.reconcile(data, Data.Template)
+	profiles[player] = { data = data, temp = temp, dirty = true }
+	return data
+end
+
+function Data.get(player)
+	local p = profiles[player]
+	return p and p.data
+end
+
+function Data.markDirty(player)
+	local p = profiles[player]
+	if p then
+		p.dirty = true
+	end
+end
+
+function Data.nextUid(player)
+	local d = Data.get(player)
+	local id = tostring(player.UserId) .. "-" .. tostring(d.NextUid)
+	d.NextUid = d.NextUid + 1
+	return id
+end
+
+function Data.save(player, release)
+	local p = profiles[player]
+	if not p or p.temp or not store then
+		return true
+	end
+	local copy = Util.deepCopy(p.data)
+	local ok, err = pcall(function()
+		store:UpdateAsync(key(player), function(old)
+			if old and old.__lock and old.__lock.job ~= game.JobId and os.time() - (old.__lock.t or 0) < Config.SessionLockTimeout then
+				return nil -- otro servidor tiene el perfil: no pisarlo
+			end
+			if not release then
+				copy.__lock = { job = game.JobId, t = os.time() }
+			end
+			return copy
+		end)
+	end)
+	if not ok then
+		warn("[LabMutante] [save] " .. tostring(err))
+	end
+	return ok
+end
+
+function Data.release(player)
+	Data.save(player, true)
+	profiles[player] = nil
+end
+
+function Data.Start()
+	task.spawn(function()
+		while true do
+			task.wait(Config.AutosaveInterval)
+			for player in pairs(profiles) do
+				Data.save(player, false)
+			end
+		end
+	end)
+	game:BindToClose(function()
+		for player in pairs(profiles) do
+			Data.save(player, true)
+		end
+	end)
+end
+
+return Data
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000015"><Properties><string name="Name">EventService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- EventService: eventos de todo el servidor que se repiten (tormenta radiactiva, fiebre de cápsulas,
+-- hora legendaria, doble producción). Cambian el tono del cielo y se anuncian a todos.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local LabData = require(ReplicatedStorage.Shared.LabData)
+
+local Event = {}
+local S
+Event.current = nil
+Event.endsAt = 0
+Event.nextAt = 0
+local order = 0
+
+function Event.Init(services)
+	S = services
+end
+
+function Event.luck()
+	return Event.current and Event.current.Luck or 1
+end
+function Event.mutMult()
+	return Event.current and Event.current.MutMult or 1
+end
+function Event.spawnMult()
+	return Event.current and Event.current.SpawnMult or 1
+end
+function Event.incomeMult()
+	return Event.current and Event.current.IncomeMult or 1
+end
+
+function Event.view()
+	if not Event.current then
+		return { Name = nil, NextIn = math.max(0, Event.nextAt - os.clock()) }
+	end
+	return { Id = Event.current.Id, Name = Event.current.Name, Desc = Event.current.Desc, Left = math.max(0, Event.endsAt - os.clock()) }
+end
+
+local function tint(color)
+	if S.World.Tint then
+		S.World.Tint.TintColor = color and Color3.fromRGB(200 + math.floor(color[1] / 5), 200 + math.floor(color[2] / 5), 200 + math.floor(color[3] / 5)) or Color3.new(1, 1, 1)
+	end
+end
+
+function Event.begin(ev)
+	Event.current = ev
+	Event.endsAt = os.clock() + Config.EventDuration
+	tint(ev.Sky)
+	S.Net.pushAll("event", Event.view())
+	S.Net.pushAll("notify", { text = "⚡ EVENTO: " .. ev.Name .. " — " .. ev.Desc, style = "gold" })
+end
+
+function Event.finish()
+	if Event.current then
+		S.Net.pushAll("notify", { text = "El evento " .. Event.current.Name .. " ha terminado.", style = "info" })
+	end
+	Event.current = nil
+	Event.nextAt = os.clock() + Config.EventEvery
+	tint(nil)
+	S.Net.pushAll("event", Event.view())
+end
+
+function Event.Start()
+	Event.nextAt = os.clock() + Config.EventEvery
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			local now = os.clock()
+			if Event.current and now >= Event.endsAt then
+				Event.finish()
+			elseif not Event.current and now >= Event.nextAt then
+				order = order % #LabData.Events + 1
+				Event.begin(LabData.Events[order])
+			end
+		end
+	end)
+end
+
+return Event
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000016"><Properties><string name="Name">FusionService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- FusionService: la cámara de fusión une dos mutantes de la misma especie y nivel en uno de nivel superior.
+-- Los dos entran en la cámara (dejan libres sus pedestales) y, al terminar, el resultado se recoge en un pedestal libre.
+-- La mejor mutación de los dos se conserva. Nadie puede robar lo que está dentro de la cámara.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Util = require(ReplicatedStorage.Shared.Util)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+local MM = require(script.Parent.MutantModel)
+
+local Fusion = {}
+local S
+local shown = {} -- [player] = modelo en la cámara
+
+function Fusion.Init(services)
+	S = services
+end
+
+function Fusion.duration(data, level)
+	return math.floor(Config.FusionBaseSeconds * level * (1 - 0.1 * (data.Research.fusion or 0)))
+end
+
+local function bestMutation(a, b)
+	local ma = a and MutantData.MutationById[a]
+	local mb = b and MutantData.MutationById[b]
+	if ma and mb then
+		return ma.Mult >= mb.Mult and a or b
+	end
+	return a or b
+end
+
+local function showInChamber(player)
+	if shown[player] then
+		shown[player]:Destroy()
+		shown[player] = nil
+	end
+	local data = S.Data.get(player)
+	local index = S.Lab.indexOf(player)
+	local f = data and data.Lab.Fusion
+	if not f or not index then
+		return
+	end
+	local fl = S.World.FusionLocal
+	local rec = { S = f.S, M = f.M, L = f.L }
+	local model = MM.build(rec, S.World.labCF(index, fl[1], 2.1, fl[2]), { scale = 0.7, maxDistance = 50 })
+	model.Parent = S.World.labs[index].Model
+	shown[player] = model
+end
+
+function Fusion.start(player, a, b)
+	local data = S.Data.get(player)
+	local st = S.Lab.state(player)
+	if type(a) ~= "number" or type(b) ~= "number" or a == b or not st then
+		return false, "Elige dos mutantes distintos."
+	end
+	if data.Lab.Fusion then
+		return false, "La cámara de fusión ya está ocupada."
+	end
+	if st.Carried[a] or st.Carried[b] then
+		return false, "No puedes fusionar un mutante que te están robando."
+	end
+	local ra, rb = S.Lab.getMutant(player, a), S.Lab.getMutant(player, b)
+	if not ra or not rb then
+		return false, "Faltan mutantes en esos pedestales."
+	end
+	if ra.S ~= rb.S then
+		return false, "Solo se fusionan mutantes de la misma especie."
+	end
+	local level = ra.L or 1
+	if (rb.L or 1) ~= level then
+		return false, "Los dos deben tener el mismo nivel."
+	end
+	if level >= Config.MaxLevel then
+		return false, "Ya está al nivel máximo (" .. Config.MaxLevel .. ")."
+	end
+	S.Lab.removeMutant(player, a)
+	S.Lab.removeMutant(player, b)
+	local secs = Fusion.duration(data, level)
+	data.Lab.Fusion = { S = ra.S, M = bestMutation(ra.M, rb.M), L = level + 1, Ends = os.time() + secs, From = { ra, rb } }
+	showInChamber(player)
+	return true, "🧬 Fusión en marcha: " .. MutantData.label({ S = ra.S, L = level + 1 }) .. " en " .. Util.time(secs) .. ".", { seconds = secs }
+end
+
+function Fusion.claim(player)
+	local data = S.Data.get(player)
+	local f = data.Lab.Fusion
+	if not f then
+		return false, "La cámara de fusión está vacía."
+	end
+	if os.time() < f.Ends then
+		return false, "Aún faltan " .. Util.time(f.Ends - os.time()) .. "."
+	end
+	local slot = S.Lab.freeSlot(player)
+	if not slot then
+		return false, "No tienes pedestales libres para el resultado."
+	end
+	data.Lab.Fusion = nil
+	local rec = { S = f.S, M = f.M, L = f.L }
+	S.Lab.addMutant(player, rec, slot)
+	data.Stats.Fusions = data.Stats.Fusions + 1
+	showInChamber(player)
+	return true, "✨ ¡Fusión completada! " .. MutantData.label(rec) .. " produce +" .. Util.short(MutantData.income(rec)) .. "/s."
+end
+
+function Fusion.cancel(player)
+	local data = S.Data.get(player)
+	local f = data.Lab.Fusion
+	if not f then
+		return false, "La cámara de fusión está vacía."
+	end
+	local free = S.Lab.tier(data).Slots - Util.count(data.Lab.Slots) - S.Lab.state(player).Reserved
+	if free < 2 then
+		return false, "Necesitas dos pedestales libres para recuperar a los dos mutantes."
+	end
+	data.Lab.Fusion = nil
+	for _, r in ipairs(f.From or {}) do
+		S.Lab.addMutant(player, { S = r.S, M = r.M, L = r.L })
+	end
+	showInChamber(player)
+	return true, "Fusión cancelada: los dos mutantes vuelven a sus pedestales."
+end
+
+function Fusion.view(player)
+	local data = S.Data.get(player)
+	local f = data and data.Lab.Fusion
+	if not f then
+		return nil
+	end
+	return { Name = MutantData.label({ S = f.S, M = f.M, L = f.L }), Left = math.max(0, f.Ends - os.time()), Ready = os.time() >= f.Ends }
+end
+
+function Fusion.onReady(player)
+	showInChamber(player)
+end
+function Fusion.onLeave(player)
+	if shown[player] then
+		shown[player]:Destroy()
+		shown[player] = nil
+	end
+end
+
+function Fusion.Start()
+	S.Net.on("Fusion.Start", function(player, p)
+		return Fusion.start(player, tonumber(p.a), tonumber(p.b))
+	end)
+	S.Net.on("Fusion.Claim", function(player)
+		return Fusion.claim(player)
+	end)
+	S.Net.on("Fusion.Cancel", function(player)
+		return Fusion.cancel(player)
+	end)
+end
+
+return Fusion
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000017"><Properties><string name="Name">LabService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- LabService: tu laboratorio. Asignación de parcela, pedestales con mutantes, producción en el tanque,
+-- colector, puerta láser, mejoras de nivel, investigación, defensas, venta y bestiario.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Util = require(ReplicatedStorage.Shared.Util)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+local LabData = require(ReplicatedStorage.Shared.LabData)
+local MM = require(script.Parent.MutantModel)
+
+local Lab = {}
+local S
+local owners = {} -- [labIndex] = player
+local state = {} -- [player] = { Index, Models = {[slot]=model}, Carried = {[slot]=true}, Reserved = n, LaserUntil, LaserReadyAt, DroneReadyAt, AlarmAt }
+
+function Lab.Init(services)
+	S = services
+end
+
+local function rkey(slot)
+	return tostring(slot)
+end
+
+function Lab.state(player)
+	return state[player]
+end
+function Lab.indexOf(player)
+	local st = state[player]
+	return st and st.Index
+end
+function Lab.ownerOf(index)
+	return owners[index]
+end
+
+function Lab.tier(data)
+	return LabData.Tiers[data.Lab.Tier] or LabData.Tiers[1]
+end
+function Lab.research(data, id)
+	return data.Research[id] or 0
+end
+
+function Lab.tankCap(player, data)
+	local cap = Lab.tier(data).Tank * (1 + 0.25 * Lab.research(data, "tank"))
+	if S.Monetization and S.Monetization.has(player, "BigTank") then
+		cap = cap * 1.5
+	end
+	return math.floor(cap)
+end
+
+function Lab.incomeMult(player, data)
+	local m = 1 + 0.1 * Lab.research(data, "income")
+	if S.Monetization and S.Monetization.has(player, "VIP") then
+		m = m * 1.1
+	end
+	if S.Event then
+		m = m * S.Event.incomeMult()
+	end
+	return m
+end
+
+-- Producción total por segundo (los mutantes que te están robando no producen)
+function Lab.incomePerSecond(player)
+	local data = S.Data.get(player)
+	local st = state[player]
+	if not data or not st then
+		return 0
+	end
+	local sum = 0
+	for k, rec in pairs(data.Lab.Slots) do
+		if not st.Carried[tonumber(k)] then
+			sum = sum + MutantData.income(rec)
+		end
+	end
+	return sum * Lab.incomeMult(player, data)
+end
+
+-- Primer hueco libre (sin contar reservas de mutantes que vienen de camino)
+function Lab.freeSlot(player, ignoreReserved)
+	local data = S.Data.get(player)
+	local st = state[player]
+	if not data or not st then
+		return nil
+	end
+	local slots = Lab.tier(data).Slots
+	local used = Util.count(data.Lab.Slots) + (ignoreReserved and 0 or st.Reserved)
+	if used >= slots then
+		return nil
+	end
+	for s = 1, slots do
+		if not data.Lab.Slots[rkey(s)] then
+			return s
+		end
+	end
+	return nil
+end
+
+-- Modelo del mutante sobre su pedestal
+function Lab.placeModel(player, slot)
+	local st = state[player]
+	local data = S.Data.get(player)
+	if not st or not data then
+		return
+	end
+	if st.Models[slot] then
+		st.Models[slot]:Destroy()
+		st.Models[slot] = nil
+	end
+	local ped = S.World.labs[st.Index].Pedestals[slot]
+	local rec = data.Lab.Slots[rkey(slot)]
+	if rec then
+		local cf = S.World.labCF(st.Index, S.World.SlotLocal[slot][1], 2.2, S.World.SlotLocal[slot][2])
+		local model = MM.build(rec, cf, { maxDistance = 60 })
+		model.Parent = S.World.labs[st.Index].Model
+		st.Models[slot] = model
+		local rar = MutantData.RarityById[MutantData.SpeciesById[rec.S].Rarity]
+		ped.Ring.Color = Color3.fromRGB(rar.Color[1], rar.Color[2], rar.Color[3])
+		ped.Prompt.Enabled = true
+		ped.Prompt.ObjectText = MutantData.label(rec)
+	else
+		ped.Prompt.Enabled = false
+		ped.Ring.Color = slot <= Lab.tier(data).Slots and Color3.fromRGB(70, 80, 100) or Color3.fromRGB(30, 30, 34)
+	end
+end
+
+function Lab.refresh(player)
+	local st = state[player]
+	local data = S.Data.get(player)
+	if not st or not data then
+		return
+	end
+	S.World.setTier(st.Index, Lab.tier(data).Slots, data.Lab.Traps)
+	for s = 1, LabData.MaxSlots do
+		Lab.placeModel(player, s)
+	end
+	S.World.setTank(st.Index, data.Lab.Tank, Lab.tankCap(player, data))
+end
+
+-- Añade un mutante al laboratorio (devuelve el hueco o nil si no cabe)
+function Lab.addMutant(player, rec, slot)
+	local data = S.Data.get(player)
+	slot = slot or Lab.freeSlot(player, true)
+	if not data or not slot or data.Lab.Slots[rkey(slot)] then
+		return nil
+	end
+	rec.Id = S.Data.nextUid(player)
+	data.Lab.Slots[rkey(slot)] = rec
+	-- bestiario: recompensa única por especie descubierta
+	if not data.Index[rec.S] then
+		data.Index[rec.S] = 1
+		local sp = MutantData.SpeciesById[rec.S]
+		local reward = math.floor(sp.Price * Config.DiscoverReward)
+		data.Credits = data.Credits + reward
+		S.Net.push(player, "discover", { name = sp.Name, rarity = sp.Rarity, reward = reward })
+	else
+		data.Index[rec.S] = data.Index[rec.S] + 1
+	end
+	Lab.placeModel(player, slot)
+	S.Data.markDirty(player)
+	return slot
+end
+
+function Lab.removeMutant(player, slot)
+	local data = S.Data.get(player)
+	local rec = data and data.Lab.Slots[rkey(slot)]
+	if not rec then
+		return nil
+	end
+	data.Lab.Slots[rkey(slot)] = nil
+	Lab.placeModel(player, slot)
+	S.Data.markDirty(player)
+	return rec
+end
+
+function Lab.getMutant(player, slot)
+	local data = S.Data.get(player)
+	return data and data.Lab.Slots[rkey(slot)]
+end
+
+function Lab.isInside(player, index)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	local i = S.World.labIndexAt(root.Position)
+	return i ~= nil and (index == nil or i == index), i
+end
+
+function Lab.near(player, pos, radius)
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	local d = root.Position - pos
+	return d.X * d.X + d.Z * d.Z <= radius * radius and math.abs(d.Y) < 20
+end
+
+function Lab.laserActive(index)
+	local p = owners[index]
+	local st = p and state[p]
+	return st ~= nil and st.LaserUntil > os.clock()
+end
+
+function Lab.teleportHome(player)
+	local st = state[player]
+	local char = player.Character
+	if st and char then
+		char:PivotTo(S.World.labs[st.Index].SpawnCF)
+	end
+end
+
+-- Asigna una parcela libre al entrar
+function Lab.assign(player)
+	for i = 1, 8 do
+		if not owners[i] then
+			owners[i] = player
+			state[player] = { Index = i, Models = {}, Carried = {}, Reserved = 0, LaserUntil = 0, LaserReadyAt = 0, DroneReadyAt = 0, AlarmAt = 0 }
+			S.World.setOwner(i, player)
+			Lab.refresh(player)
+			Lab.teleportHome(player)
+			player.CharacterAdded:Connect(function()
+				task.wait(0.2)
+				Lab.teleportHome(player)
+			end)
+			-- tabla de clasificación
+			local ls = Instance.new("Folder")
+			ls.Name = "leaderstats"
+			local credits = Instance.new("NumberValue")
+			credits.Name = "Créditos"
+			credits.Parent = ls
+			local count = Instance.new("IntValue")
+			count.Name = "Mutantes"
+			count.Parent = ls
+			ls.Parent = player
+			return i
+		end
+	end
+	return nil
+end
+
+function Lab.release(player)
+	local st = state[player]
+	if not st then
+		return
+	end
+	for _, m in pairs(st.Models) do
+		m:Destroy()
+	end
+	S.World.setLaser(st.Index, false)
+	S.World.setOwner(st.Index, nil)
+	S.World.setTier(st.Index, 0, 0)
+	for _, ped in ipairs(S.World.labs[st.Index].Pedestals) do
+		ped.Prompt.Enabled = false
+	end
+	S.World.setTank(st.Index, 0, 1)
+	owners[st.Index] = nil
+	state[player] = nil
+end
+
+-- Bucle de producción: llena el tanque, actualiza el láser y la clasificación
+local function tick(dt)
+	for player, st in pairs(state) do
+		local data = S.Data.get(player)
+		if data then
+			local cap = Lab.tankCap(player, data)
+			local inc = Lab.incomePerSecond(player)
+			data.Lab.Tank = math.min(cap, data.Lab.Tank + inc * dt)
+			S.World.setTank(st.Index, data.Lab.Tank, cap)
+			if S.World.labs[st.Index].LaserOn and st.LaserUntil <= os.clock() then
+				S.World.setLaser(st.Index, false)
+				S.Net.notify(player, "🔴 Tu puerta láser se ha apagado.", "warn")
+			end
+			local ls = player:FindFirstChild("leaderstats")
+			if ls then
+				ls["Créditos"].Value = math.floor(data.Credits)
+				ls.Mutantes.Value = Util.count(data.Lab.Slots)
+			end
+		end
+	end
+end
+
+Lab.tick = tick
+
+function Lab.collect(player)
+	local data = S.Data.get(player)
+	local st = state[player]
+	if not st then
+		return false, "No tienes laboratorio."
+	end
+	local col = S.World.CollectorLocal
+	if not Lab.near(player, S.World.labPos(st.Index, col[1], 1, col[2]), 10) then
+		return false, "Ve al colector de tu laboratorio para recoger los créditos."
+	end
+	local amount = math.floor(data.Lab.Tank)
+	if amount <= 0 then
+		return false, "El tanque está vacío. Tus mutantes lo irán llenando."
+	end
+	data.Lab.Tank = data.Lab.Tank - amount
+	data.Credits = data.Credits + amount
+	data.Stats.Earned = data.Stats.Earned + amount
+	S.World.setTank(st.Index, data.Lab.Tank, Lab.tankCap(player, data))
+	return true, "💰 +" .. Util.short(amount) .. " créditos", { amount = amount }
+end
+
+function Lab.activateLaser(player)
+	local data = S.Data.get(player)
+	local st = state[player]
+	if not st then
+		return false, "No tienes laboratorio."
+	end
+	if not Lab.isInside(player, st.Index) then
+		return false, "Solo puedes activar el láser dentro de tu laboratorio."
+	end
+	local now = os.clock()
+	if st.LaserUntil > now then
+		return false, "El láser ya está activo (" .. Util.time(st.LaserUntil - now) .. ")."
+	end
+	if st.LaserReadyAt > now then
+		return false, "El láser se está recargando: " .. Util.time(st.LaserReadyAt - now) .. "."
+	end
+	local dur = Lab.tier(data).Laser
+	st.LaserUntil = now + dur
+	st.LaserReadyAt = now + dur + Config.LaserCooldown
+	S.World.setLaser(st.Index, true)
+	return true, "🟢 Puerta láser activa durante " .. dur .. " s. Nadie puede robarte mientras tanto.", { untilIn = dur }
+end
+
+function Lab.upgrade(player)
+	local data = S.Data.get(player)
+	local nextTier = LabData.Tiers[data.Lab.Tier + 1]
+	if not nextTier then
+		return false, "Tu laboratorio ya está al máximo."
+	end
+	if data.Credits < nextTier.Cost then
+		return false, "Necesitas " .. Util.short(nextTier.Cost) .. " créditos."
+	end
+	data.Credits = data.Credits - nextTier.Cost
+	data.Lab.Tier = data.Lab.Tier + 1
+	Lab.refresh(player)
+	return true, "🏗 ¡Ahora tienes un " .. nextTier.Name .. "! (" .. nextTier.Slots .. " pedestales)"
+end
+
+function Lab.buyResearch(player, id)
+	local data = S.Data.get(player)
+	local r = LabData.ResearchById[id]
+	if not r then
+		return false, "Investigación desconocida."
+	end
+	local lvl = Lab.research(data, id)
+	if lvl >= r.Max then
+		return false, r.Name .. " ya está al máximo."
+	end
+	local cost = LabData.researchCost(id, lvl)
+	if data.Credits < cost then
+		return false, "Necesitas " .. Util.short(cost) .. " créditos."
+	end
+	data.Credits = data.Credits - cost
+	data.Research[id] = lvl + 1
+	if id == "tank" then
+		Lab.refresh(player)
+	end
+	return true, "🔬 " .. r.Name .. " nivel " .. (lvl + 1)
+end
+
+function Lab.buyDefense(player, id)
+	local data = S.Data.get(player)
+	local def = LabData.Defenses[id]
+	if not def then
+		return false, "Defensa desconocida."
+	end
+	if id == "trap" then
+		if data.Lab.Traps >= math.min(data.Lab.Tier, #S.World.TrapLocal) then
+			return false, "Ya tienes todas las trampas que permite tu laboratorio (una por nivel)."
+		end
+	elseif data.Lab[id == "alarm" and "Alarm" or "Drone"] then
+		return false, "Ya tienes " .. def.Name .. "."
+	end
+	if def.Tier and data.Lab.Tier < def.Tier then
+		return false, def.Name .. " requiere laboratorio de nivel " .. def.Tier .. "."
+	end
+	if data.Credits < def.Cost then
+		return false, "Necesitas " .. Util.short(def.Cost) .. " créditos."
+	end
+	data.Credits = data.Credits - def.Cost
+	if id == "trap" then
+		data.Lab.Traps = data.Lab.Traps + 1
+	elseif id == "alarm" then
+		data.Lab.Alarm = true
+	else
+		data.Lab.Drone = true
+	end
+	Lab.refresh(player)
+	return true, "🛡 " .. def.Name .. " instalada."
+end
+
+function Lab.sell(player, slot)
+	local st = state[player]
+	local data = S.Data.get(player)
+	if type(slot) ~= "number" or not st then
+		return false, "Hueco no válido."
+	end
+	slot = math.floor(slot)
+	if st.Carried[slot] then
+		return false, "¡Te lo están robando! Recupéralo primero."
+	end
+	local rec = data.Lab.Slots[rkey(slot)]
+	if not rec then
+		return false, "Ese pedestal está vacío."
+	end
+	local value = math.floor(MutantData.value(rec) * Config.SellRate)
+	Lab.removeMutant(player, slot)
+	data.Credits = data.Credits + value
+	data.Stats.Sold = data.Stats.Sold + 1
+	return true, "Vendido " .. MutantData.label(rec) .. " por " .. Util.short(value) .. " créditos.", { value = value }
+end
+
+-- Mueve un mutante a otro pedestal propio (para ordenar)
+function Lab.move(player, from, to)
+	local data = S.Data.get(player)
+	local st = state[player]
+	if type(from) ~= "number" or type(to) ~= "number" or not st then
+		return false, "Datos no válidos."
+	end
+	if st.Carried[from] or st.Carried[to] then
+		return false, "No se puede mover un mutante que te están robando."
+	end
+	if to < 1 or to > Lab.tier(data).Slots then
+		return false, "Ese pedestal no está desbloqueado."
+	end
+	local a, b = data.Lab.Slots[rkey(from)], data.Lab.Slots[rkey(to)]
+	if not a then
+		return false, "No hay mutante en ese pedestal."
+	end
+	data.Lab.Slots[rkey(from)], data.Lab.Slots[rkey(to)] = b, a
+	Lab.placeModel(player, from)
+	Lab.placeModel(player, to)
+	return true, "Mutante movido."
+end
+
+function Lab.view(player)
+	local data = S.Data.get(player)
+	local st = state[player]
+	if not data or not st then
+		return nil
+	end
+	local slots = {}
+	for k, rec in pairs(data.Lab.Slots) do
+		local sp = MutantData.SpeciesById[rec.S]
+		slots[#slots + 1] = {
+			Slot = tonumber(k), Id = rec.Id, S = rec.S, M = rec.M, L = rec.L or 1, Name = MutantData.label(rec), Rarity = sp.Rarity,
+			Income = MutantData.income(rec) * Lab.incomeMult(player, data), Value = math.floor(MutantData.value(rec) * Config.SellRate),
+			Carried = st.Carried[tonumber(k)] or false,
+		}
+	end
+	table.sort(slots, function(a, b)
+		return a.Slot < b.Slot
+	end)
+	local now = os.clock()
+	return {
+		Index = st.Index, Tier = data.Lab.Tier, TierName = Lab.tier(data).Name, Slots = Lab.tier(data).Slots, Mutants = slots,
+		Tank = math.floor(data.Lab.Tank), TankCap = Lab.tankCap(player, data), Income = Lab.incomePerSecond(player),
+		LaserLeft = math.max(0, st.LaserUntil - now), LaserReady = math.max(0, st.LaserReadyAt - now), LaserTime = Lab.tier(data).Laser,
+		Traps = data.Lab.Traps, Alarm = data.Lab.Alarm, Drone = data.Lab.Drone,
+	}
+end
+
+function Lab.Start()
+	S.World.onPrompt("collect", function(player, pp)
+		if pp:GetAttribute("Lab") ~= Lab.indexOf(player) then
+			return S.Net.notify(player, "Este colector no es tuyo.", "error")
+		end
+		local ok, msg = Lab.collect(player)
+		S.Net.notify(player, msg, ok and "gold" or "error")
+		S.Data.markDirty(player)
+	end)
+	S.World.onPrompt("laser", function(player, pp)
+		if pp:GetAttribute("Lab") ~= Lab.indexOf(player) then
+			return S.Net.notify(player, "Este botón no es tuyo.", "error")
+		end
+		local ok, msg = Lab.activateLaser(player)
+		S.Net.notify(player, msg, ok and "success" or "error")
+	end)
+	S.World.onPrompt("terminal", function(player, pp)
+		if pp:GetAttribute("Lab") ~= Lab.indexOf(player) then
+			return S.Net.notify(player, "Esta terminal no es tuya.", "error")
+		end
+		S.Net.push(player, "openPanel", { tab = "upgrades" })
+	end)
+	S.World.onPrompt("fusion", function(player, pp)
+		if pp:GetAttribute("Lab") ~= Lab.indexOf(player) then
+			return S.Net.notify(player, "Esta cámara de fusión no es tuya.", "error")
+		end
+		S.Net.push(player, "openPanel", { tab = "fusion" })
+	end)
+	-- el dueño atraviesa su propia puerta láser (entra o sale según de qué lado la toque)
+	for i, labW in ipairs(S.World.labs) do
+		labW.LaserWall.Touched:Connect(function(hit)
+			local owner = owners[i]
+			local char = hit and hit.Parent
+			if not owner or not char or owner.Character ~= char or not labW.LaserOn then
+				return
+			end
+			local root = char:FindFirstChild("HumanoidRootPart")
+			if not root then
+				return
+			end
+			local _, _, s = S.World.labOrigin(i)
+			local x, z = S.World.labOrigin(i)
+			local lz = (root.Position.Z - z) * s
+			local target = lz < 30.5 and S.World.labCF(i, 0, 4, 36) or S.World.labCF(i, 0, 4, 24)
+			char:PivotTo(target)
+		end)
+	end
+	S.Net.on("Lab.Collect", function(player)
+		return Lab.collect(player)
+	end)
+	S.Net.on("Lab.Laser", function(player)
+		return Lab.activateLaser(player)
+	end)
+	S.Net.on("Lab.Upgrade", function(player)
+		return Lab.upgrade(player)
+	end)
+	S.Net.on("Lab.Research", function(player, p)
+		return Lab.buyResearch(player, tostring(p.id))
+	end)
+	S.Net.on("Lab.Defense", function(player, p)
+		return Lab.buyDefense(player, tostring(p.id))
+	end)
+	S.Net.on("Lab.Sell", function(player, p)
+		return Lab.sell(player, tonumber(p.slot))
+	end)
+	S.Net.on("Lab.Move", function(player, p)
+		return Lab.move(player, tonumber(p.from), tonumber(p.to))
+	end)
+	S.Net.on("Lab.Home", function(player)
+		Lab.teleportHome(player)
+		return true, "🏠 De vuelta a tu laboratorio."
+	end)
+	task.spawn(function()
+		local last = os.clock()
+		while true do
+			task.wait(Config.IncomeTick)
+			local now = os.clock()
+			local ok, err = pcall(tick, math.min(5, now - last))
+			if not ok then
+				warn("[LabMutante] producción: " .. tostring(err))
+			end
+			last = now
+		end
+	end)
+end
+
+return Lab
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000018"><Properties><string name="Name">MonetizationService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- MonetizationService: Game Passes y Developer Products con los IDs de MonetizationConfig.
+-- Si un ID es 0 no se ofrece nada. ProcessReceipt es idempotente: guarda el PurchaseId en el perfil y
+-- guarda el perfil ANTES de confirmar la compra a Roblox. Los créditos del juego nunca se mezclan con Robux.
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local MC = require(ReplicatedStorage.Shared.MonetizationConfig)
+local Util = require(ReplicatedStorage.Shared.Util)
+
+local Mon = {}
+local S
+local owned = {} -- [player] = { VIP = true, ... }
+
+function Mon.Init(services)
+	S = services
+end
+
+function Mon.has(player, key)
+	return owned[player] ~= nil and owned[player][key] == true
+end
+
+function Mon.onPlayerReady(player)
+	owned[player] = {}
+	for _, gp in ipairs(MC.GamePasses) do
+		if MC.isConfigured(gp) then
+			local ok, has = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, gp.Id)
+			end)
+			if ok and has then
+				owned[player][gp.Key] = true
+			end
+		end
+	end
+end
+
+function Mon.onLeave(player)
+	owned[player] = nil
+end
+
+local function productByKeyId(id)
+	for _, p in ipairs(MC.Products) do
+		if MC.isConfigured(p) and p.Id == id then
+			return p
+		end
+	end
+	return nil
+end
+
+function Mon.processReceipt(info)
+	local player = Players:GetPlayerByUserId(info.PlayerId)
+	if not player then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local data = S.Data.get(player)
+	if not data then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local pid = tostring(info.PurchaseId)
+	if data.Receipts[pid] then
+		return Enum.ProductPurchaseDecision.PurchaseGranted -- ya entregado antes
+	end
+	local product = productByKeyId(info.ProductId)
+	if not product then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local amount = math.max(product.Min, math.floor(S.Lab.incomePerSecond(player) * 60 * product.Minutes))
+	data.Credits = data.Credits + amount
+	data.Receipts[pid] = os.time()
+	if not S.Data.save(player, false) then
+		-- deshacer y reintentar más tarde: Roblox volverá a llamar
+		data.Credits = data.Credits - amount
+		data.Receipts[pid] = nil
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	S.Net.notify(player, "🎁 +" .. Util.short(amount) .. " créditos. ¡Gracias por tu apoyo!", "gold")
+	S.Data.markDirty(player)
+	return Enum.ProductPurchaseDecision.PurchaseGranted
+end
+
+function Mon.view(player)
+	local passes, products = {}, {}
+	for _, gp in ipairs(MC.GamePasses) do
+		passes[#passes + 1] = { Key = gp.Key, Name = gp.Name, Desc = gp.Desc, Configured = MC.isConfigured(gp), Owned = Mon.has(player, gp.Key) }
+	end
+	for _, p in ipairs(MC.Products) do
+		products[#products + 1] = { Key = p.Key, Name = p.Name, Minutes = p.Minutes, Min = p.Min, Configured = MC.isConfigured(p) }
+	end
+	return { Passes = passes, Products = products }
+end
+
+function Mon.Start()
+	MarketplaceService.ProcessReceipt = Mon.processReceipt
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+		if not purchased then
+			return
+		end
+		for _, gp in ipairs(MC.GamePasses) do
+			if gp.Id == passId and MC.isConfigured(gp) then
+				owned[player] = owned[player] or {}
+				owned[player][gp.Key] = true
+				S.Net.notify(player, "⭐ ¡" .. gp.Name .. " activado!", "gold")
+				S.Data.markDirty(player)
+			end
+		end
+	end)
+	-- el cliente pide comprar: solo se acepta si el ID está configurado (el cliente no decide nada más)
+	S.Net.on("Shop.Prompt", function(player, p)
+		local key = tostring(p.key)
+		for _, gp in ipairs(MC.GamePasses) do
+			if gp.Key == key then
+				if not MC.isConfigured(gp) then
+					return false, "Este pase aún no está disponible."
+				end
+				MarketplaceService:PromptGamePassPurchase(player, gp.Id)
+				return true, "Abriendo la compra..."
+			end
+		end
+		for _, pr in ipairs(MC.Products) do
+			if pr.Key == key then
+				if not MC.isConfigured(pr) then
+					return false, "Este paquete aún no está disponible."
+				end
+				MarketplaceService:PromptProductPurchase(player, pr.Id)
+				return true, "Abriendo la compra..."
+			end
+		end
+		return false, "Producto desconocido."
+	end)
+end
+
+return Mon
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000019"><Properties><string name="Name">MutantModel</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- MutantModel: construye el modelo 3D de un mutante a partir de su ficha (piezas sencillas, sin recursos externos).
+-- El modelo mira hacia -Z (LookVector) y apoya los pies en el origen del CFrame que se le pasa.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+local Util = require(ReplicatedStorage.Shared.Util)
+
+local MM = {}
+
+local function c3(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+-- Crea una pieza relativa al CFrame base del modelo
+local function piece(model, base, name, shape, size, offset, color, material, transparency)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CastShadow = true
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.Color = c3(color)
+	p.Transparency = transparency or 0
+	if shape == "ball" then
+		p.Shape = Enum.PartType.Ball
+		p.Size = size
+		p.CFrame = base * offset
+	elseif shape == "cyl" then
+		-- los cilindros de Roblox van a lo largo del eje X: se giran para que queden de pie
+		p.Shape = Enum.PartType.Cylinder
+		p.Size = Vector3.new(size.Y, size.X, size.Z)
+		p.CFrame = base * offset * CFrame.Angles(0, 0, math.pi / 2)
+	else
+		p.Size = size
+		p.CFrame = base * offset
+	end
+	p.Parent = model
+	return p
+end
+
+local function eye(model, base, pos, d, pupilColor)
+	piece(model, base, "Eye", "ball", Vector3.new(d, d, d), CFrame.new(pos), { 255, 255, 255 })
+	piece(model, base, "Pupil", "ball", Vector3.new(d * 0.5, d * 0.5, d * 0.5), CFrame.new(pos + Vector3.new(0, 0, -d * 0.32)), pupilColor or { 20, 20, 24 })
+end
+
+-- rec = { S = especie, M = mutación, L = nivel }; opts = { scale = n, label = true, price = n }
+function MM.build(rec, cf, opts)
+	opts = opts or {}
+	local sp = MutantData.SpeciesById[rec.S]
+	local rarity = MutantData.RarityById[sp.Rarity]
+	local mut = rec.M and MutantData.MutationById[rec.M]
+	local level = rec.L or 1
+	local sc = (opts.scale or 1) * (1 + 0.12 * (level - 1))
+	local model = Instance.new("Model")
+	model.Name = sp.Name
+	local sx, sy, sz = sp.Scale[1] * sc, sp.Scale[2] * sc, sp.Scale[3] * sc
+	local c1, c2 = sp.C1, sp.C2
+	local bodyMat = sp.Glass and Enum.Material.Glass or Enum.Material.SmoothPlastic
+	local bodyT = sp.Ghost and 0.35 or (sp.Glass and 0.25 or 0)
+	local has = {}
+	for _, p in ipairs(sp.Parts) do
+		has[p] = true
+	end
+
+	local legH = has.legs and 0.7 * sc or 0
+	local by = legH + sy / 2 -- centro del cuerpo
+	local body = piece(model, cf, "Body", sp.Body, Vector3.new(sx, sy, sz), CFrame.new(0, by, 0), c1, bodyMat, bodyT)
+	model.PrimaryPart = body
+	local front = -sz / 2
+
+	-- ojos
+	local eyeD = math.min(sx, sy) * (has.bigeye and 0.62 or 0.3)
+	if sp.Eyes == 1 then
+		eye(model, cf, Vector3.new(0, by + sy * 0.12, front * 0.92), eyeD)
+	elseif sp.Eyes >= 2 then
+		for i = 1, sp.Eyes do
+			local t = sp.Eyes == 2 and (i == 1 and -1 or 1) or (i - 2)
+			eye(model, cf, Vector3.new(t * sx * 0.22, by + sy * 0.15, front * 0.9), eyeD)
+		end
+	end
+	if has.mouth then
+		piece(model, cf, "Mouth", "block", Vector3.new(sx * 0.4, sy * 0.1, 0.2 * sc), CFrame.new(0, by - sy * 0.15, front * 0.95), { 40, 10, 20 })
+	end
+	if has.legs then
+		for _, q in ipairs({ { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } }) do
+			piece(model, cf, "Leg", "cyl", Vector3.new(0.5 * sc, legH + 0.3, 0.5 * sc), CFrame.new(q[1] * sx * 0.3, legH / 2, q[2] * sz * 0.3), c2)
+		end
+	end
+	if has.eyestalks then
+		for _, s in ipairs({ -1, 1 }) do
+			piece(model, cf, "Stalk", "cyl", Vector3.new(0.3 * sc, 0.9 * sc, 0.3 * sc), CFrame.new(s * sx * 0.25, by + sy * 0.5 + 0.3 * sc, front * 0.4), c1)
+			eye(model, cf, Vector3.new(s * sx * 0.25, by + sy * 0.5 + 0.9 * sc, front * 0.4), 0.7 * sc)
+		end
+	end
+	if has.segments then
+		for i = 1, 3 do
+			local d = sx * (1 - i * 0.18)
+			piece(model, cf, "Segment", "ball", Vector3.new(d, d, d), CFrame.new(0, d / 2 + legH, sz * 0.45 * i), i % 2 == 0 and c1 or c2)
+		end
+	end
+	if has.bubbles then
+		for i = 1, 3 do
+			local a = i * 2.1
+			local d = 0.6 * sc
+			piece(model, cf, "Bubble", "ball", Vector3.new(d, d, d), CFrame.new(math.cos(a) * sx * 0.7, by + sy * 0.5 + i * 0.4 * sc, math.sin(a) * sz * 0.7), c2, Enum.Material.Glass, 0.4)
+		end
+	end
+	if has.cap then
+		piece(model, cf, "Cap", "ball", Vector3.new(sx * 2.1, sy * 0.9, sz * 2.1), CFrame.new(0, by + sy * 0.55, 0), c2)
+		for i = 1, 4 do
+			local a = i * 1.6
+			piece(model, cf, "Dot", "ball", Vector3.new(0.45 * sc, 0.25 * sc, 0.45 * sc), CFrame.new(math.cos(a) * sx * 0.6, by + sy * 0.92, math.sin(a) * sz * 0.6), { 255, 255, 255 })
+		end
+	end
+	local function tentacles(n, len, off)
+		for i = 1, n do
+			local a = (i / n) * math.pi * 2 + (off or 0)
+			piece(model, cf, "Tentacle", "block", Vector3.new(0.35 * sc, len, 0.35 * sc),
+				CFrame.new(math.cos(a) * sx * 0.32, by - sy * 0.45, math.sin(a) * sz * 0.32) * CFrame.Angles(math.sin(a) * 0.5, 0, -math.cos(a) * 0.5) * CFrame.new(0, -len / 2, 0), c2)
+		end
+	end
+	if has.tentacles then
+		tentacles(4, sy * 0.7, 0.4)
+	end
+	if has.tentacles2 then
+		tentacles(4, sy * 0.55, 1.2)
+	end
+	if has.wings or has.bigwings then
+		local w = has.bigwings and 2.4 or 1.4
+		for _, s in ipairs({ -1, 1 }) do
+			piece(model, cf, "Wing", "block", Vector3.new(sx * w, 0.2 * sc, sz * 0.7), CFrame.new(s * (sx / 2 + sx * w * 0.4), by + sy * 0.25, 0) * CFrame.Angles(0, 0, s * 0.35),
+				c2, has.bigwings and Enum.Material.Neon or Enum.Material.SmoothPlastic, has.bigwings and 0.15 or 0)
+		end
+	end
+	if has.ears then
+		for _, s in ipairs({ -1, 1 }) do
+			piece(model, cf, "Ear", "block", Vector3.new(0.5 * sc, 0.8 * sc, 0.3 * sc), CFrame.new(s * sx * 0.3, by + sy * 0.55, front * 0.4) * CFrame.Angles(0, 0, s * 0.3), c2)
+		end
+	end
+	if has.arms then
+		for _, s in ipairs({ -1, 1 }) do
+			piece(model, cf, "Arm", "block", Vector3.new(sx * 0.6, 0.45 * sc, 0.45 * sc), CFrame.new(s * sx * 0.75, by, 0) * CFrame.Angles(0, 0, s * 0.5), c1)
+		end
+	end
+	if has.spikes then
+		for i = 1, 5 do
+			local a = i * 1.25
+			piece(model, cf, "Spike", "block", Vector3.new(0.3 * sc, 0.8 * sc, 0.3 * sc), CFrame.new(math.cos(a) * sx * 0.3, by + sy * 0.5, math.sin(a) * sz * 0.3) * CFrame.Angles(0.3, a, 0.3), c2)
+		end
+	end
+	if has.antenna then
+		piece(model, cf, "Antenna", "cyl", Vector3.new(0.15 * sc, 1.4 * sc, 0.15 * sc), CFrame.new(0, by + sy / 2 + 0.7 * sc, 0), { 60, 60, 70 })
+		piece(model, cf, "AntennaTip", "ball", Vector3.new(0.5 * sc, 0.5 * sc, 0.5 * sc), CFrame.new(0, by + sy / 2 + 1.45 * sc, 0), c2, Enum.Material.Neon)
+	end
+	if has.tail then
+		piece(model, cf, "Tail", "block", Vector3.new(0.5 * sc, 0.5 * sc, sz * 0.7), CFrame.new(0, by - sy * 0.1, sz / 2 + sz * 0.3) * CFrame.Angles(0.4, 0, 0), c2)
+	end
+	if has.visor then
+		piece(model, cf, "Visor", "block", Vector3.new(sx * 0.8, sy * 0.18, 0.2 * sc), CFrame.new(0, by + sy * 0.15, front * 1.02), c2, Enum.Material.Neon)
+	end
+	if has.horns then
+		for _, s in ipairs({ -1, 1 }) do
+			piece(model, cf, "Horn", "block", Vector3.new(0.35 * sc, 1.1 * sc, 0.35 * sc), CFrame.new(s * sx * 0.25, by + sy * 0.55, front * 0.3) * CFrame.Angles(-0.3, 0, s * 0.35), { 240, 230, 210 })
+		end
+	end
+	if has.crystals then
+		for i = 1, 4 do
+			piece(model, cf, "Crystal", "block", Vector3.new(0.6 * sc, (1 + i * 0.25) * sc, 0.6 * sc), CFrame.new((i - 2.5) * sx * 0.2, by + sy * 0.5, sz * 0.15) * CFrame.Angles(0.2 * i, i, 0.25), c2, Enum.Material.Neon, 0.2)
+		end
+	end
+	if has.skirt then
+		piece(model, cf, "Skirt", "cyl", Vector3.new(sx * 0.9, sy * 0.5, sz * 0.9), CFrame.new(0, by - sy * 0.45, 0), c1, Enum.Material.SmoothPlastic, 0.45)
+	end
+	if has.cracks then
+		for i = 1, 4 do
+			piece(model, cf, "Crack", "block", Vector3.new(sx * 0.7, 0.12 * sc, 0.12 * sc), CFrame.new(0, by + (i - 2.5) * sy * 0.18, front * 0.98) * CFrame.Angles(0, 0, i * 0.7), c2, Enum.Material.Neon)
+		end
+	end
+	if has.necks then
+		for i = -1, 1 do
+			local nx = i * sx * 0.32
+			piece(model, cf, "Neck", "cyl", Vector3.new(0.7 * sc, 2.4 * sc, 0.7 * sc), CFrame.new(nx, by + sy / 2 + 1 * sc, front * 0.5) * CFrame.Angles(-0.3, 0, i * 0.25), c1)
+			local hp = Vector3.new(nx * 1.5, by + sy / 2 + 2.2 * sc, front * 0.9)
+			piece(model, cf, "Head", "block", Vector3.new(1.2 * sc, 0.9 * sc, 1.4 * sc), CFrame.new(hp), c1)
+			eye(model, cf, hp + Vector3.new(0, 0.2 * sc, -0.6 * sc), 0.4 * sc, c2)
+		end
+	end
+	if has.crest then
+		for i = 1, 3 do
+			piece(model, cf, "Crest", "block", Vector3.new(0.2 * sc, (0.6 + i * 0.2) * sc, 0.5 * sc), CFrame.new(0, by + sy / 2 + 0.3 * sc, (i - 2) * 0.5 * sc), c2, Enum.Material.Neon)
+		end
+	end
+	if has.rings then
+		for i = 1, 2 do
+			local r = math.max(sx, sz) * (1.25 + 0.25 * i)
+			piece(model, cf, "Ring", "cyl", Vector3.new(r, 0.15 * sc, r), CFrame.new(0, by, 0) * CFrame.Angles(i * 0.5, 0, i * 0.4), c2, Enum.Material.Neon, 0.3)
+		end
+	end
+	if has.glow or mut then
+		local light = Instance.new("PointLight")
+		light.Range = 10 * sc
+		light.Brightness = 1.5
+		light.Color = c3(mut and mut.Color or c2)
+		light.Parent = body
+	end
+	if mut then
+		-- aura de mutación: anillo de neón en el suelo y destellos (objeto Sparkles incluido en Roblox)
+		piece(model, cf, "Aura", "cyl", Vector3.new(math.max(sx, sz) * 1.5, 0.15, math.max(sx, sz) * 1.5), CFrame.new(0, 0.1, 0), mut.Color, Enum.Material.Neon, 0.35)
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = c3(mut.Color)
+		sparkles.Parent = body
+		if mut.Id == "shadow" then
+			body.Color = Color3.fromRGB(40, 25, 60)
+		elseif mut.Id == "crystal" then
+			body.Material = Enum.Material.Glass
+			body.Transparency = 0.2
+		elseif mut.Id == "galaxy" then
+			body.Material = Enum.Material.Neon
+		end
+	end
+
+	if opts.label ~= false then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "Info"
+		bb.Size = UDim2.new(0, 220, 0, 64)
+		bb.StudsOffset = Vector3.new(0, sy / 2 + 2.6 + (has.necks and 2.5 * sc or 0), 0)
+		bb.MaxDistance = opts.maxDistance or 70
+		bb.AlwaysOnTop = false
+		bb.Parent = body
+		local function line(text, y, h, color, font)
+			local t = Instance.new("TextLabel")
+			t.BackgroundTransparency = 1
+			t.Size = UDim2.new(1, 0, 0, h)
+			t.Position = UDim2.new(0, 0, 0, y)
+			t.Text = text
+			t.TextColor3 = color
+			t.TextStrokeTransparency = 0.3
+			t.Font = font or Enum.Font.GothamBold
+			t.TextScaled = true
+			t.Parent = bb
+			return t
+		end
+		local stars = level > 1 and (" " .. string.rep("★", level - 1)) or ""
+		line((mut and (mut.Name .. " ") or "") .. sp.Name .. stars, 0, 22, mut and c3(mut.Color) or Color3.new(1, 1, 1), Enum.Font.GothamBlack)
+		line(rarity.Name, 22, 18, c3(rarity.Color))
+		local txt = "+" .. Util.short(MutantData.income(rec)) .. "/s"
+		if opts.price then
+			txt = "$" .. Util.short(opts.price) .. "  ·  " .. txt
+		end
+		line(txt, 40, 22, Color3.fromRGB(255, 230, 90))
+	end
+	return model
+end
+
+return MM
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000020"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- Net: un único RemoteFunction ("Request") para las acciones del cliente y un RemoteEvent ("Push")
+-- para avisos del servidor. Límite de peticiones por jugador y errores registrados sin tumbar el servidor.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+
+local Net = {}
+local S
+local handlers = {}
+local rate = {}
+
+function Net.Init(services)
+	S = services
+	local folder = Instance.new("Folder")
+	folder.Name = "Remotes"
+	folder.Parent = ReplicatedStorage
+	Net.Request = Instance.new("RemoteFunction")
+	Net.Request.Name = "Request"
+	Net.Request.Parent = folder
+	Net.Push = Instance.new("RemoteEvent")
+	Net.Push.Name = "Push"
+	Net.Push.Parent = folder
+
+	Net.Request.OnServerInvoke = function(player, action, payload)
+		if type(action) ~= "string" or #action > 40 then
+			return { ok = false, msg = "Petición no válida." }
+		end
+		if payload ~= nil and type(payload) ~= "table" then
+			return { ok = false, msg = "Datos no válidos." }
+		end
+		-- límite de peticiones por segundo
+		local now = os.clock()
+		local r = rate[player]
+		if not r or now - r.t >= 1 then
+			r = { t = now, n = 0 }
+			rate[player] = r
+		end
+		r.n = r.n + 1
+		if r.n > Config.RequestsPerSecond then
+			return { ok = false, msg = "Demasiadas acciones seguidas. Espera un momento." }
+		end
+		local fn = handlers[action]
+		if not fn then
+			return { ok = false, msg = "Acción desconocida." }
+		end
+		if not S.Data.get(player) then
+			return { ok = false, msg = "Tus datos aún se están cargando." }
+		end
+		local ok, a, b, c = pcall(fn, player, payload or {})
+		if not ok then
+			warn("[LabMutante] error en " .. action .. ": " .. tostring(a))
+			return { ok = false, msg = "Algo salió mal. Inténtalo de nuevo." }
+		end
+		if a then
+			S.Data.markDirty(player)
+		end
+		return { ok = a and true or false, msg = b, data = c }
+	end
+	Players.PlayerRemoving:Connect(function(p)
+		rate[p] = nil
+	end)
+end
+
+function Net.on(action, fn)
+	handlers[action] = fn
+end
+
+function Net.push(player, kind, data)
+	if player and player.Parent then
+		Net.Push:FireClient(player, kind, data)
+	end
+end
+
+function Net.pushAll(kind, data)
+	for _, p in ipairs(Players:GetPlayers()) do
+		Net.push(p, kind, data)
+	end
+end
+
+function Net.notify(player, text, style)
+	Net.push(player, "notify", { text = text, style = style or "info" })
+end
+
+return Net
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000021"><Properties><string name="Name">RaidService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- RaidService: asaltos a otros laboratorios.
+--  * Robar: mantener pulsado el aviso de un pedestal ajeno (puerta láser apagada, sitio libre en tu laboratorio).
+--  * El ladrón lleva el mutante sobre la cabeza, más despacio, hasta la zona de llegada de SU laboratorio.
+--  * El dueño puede recuperarlo tocando al ladrón; también lo devuelven las trampas, el dron, morir o salir del juego.
+--  * Nunca se duplica: el mutante sigue en el perfil del dueño hasta la entrega, que lo mueve en un solo paso.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local Util = require(ReplicatedStorage.Shared.Util)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+local MM = require(script.Parent.MutantModel)
+
+local Raid = {}
+local S
+Raid.carrying = {} -- [thief] = { Owner, OwnerIndex, Slot, Rec, Model, Prompt }
+local slowedUntil = {} -- [player] = clock
+
+function Raid.Init(services)
+	S = services
+end
+
+local function humanoid(player)
+	local char = player.Character
+	return char and char:FindFirstChildOfClass("Humanoid")
+end
+
+function Raid.walkSpeed(player)
+	local data = S.Data.get(player)
+	local hum = humanoid(player)
+	if not hum then
+		return
+	end
+	local speed = Config.NormalWalkSpeed
+	if Raid.carrying[player] then
+		speed = Config.CarryWalkSpeed + (data and (data.Research.sprint or 0) or 0)
+	end
+	if (slowedUntil[player] or 0) > os.clock() then
+		speed = math.min(speed, Config.TrapWalkSpeed)
+	end
+	hum.WalkSpeed = speed
+end
+
+local function attachModel(thief, rec)
+	local char = thief.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+	local model = MM.build(rec, root.CFrame * CFrame.new(0, 3.2, 0), { scale = 0.6, maxDistance = 120 })
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.Anchored = false
+			p.CanCollide = false
+			p.Massless = true
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = root
+			w.Part1 = p
+			w.Parent = p
+		end
+	end
+	model.Name = "Robado"
+	model.Parent = char
+	return model
+end
+
+-- Devuelve el mutante a su dueño (cancela el robo)
+function Raid.returnCarried(thief, reason)
+	local c = Raid.carrying[thief]
+	if not c then
+		return false
+	end
+	Raid.carrying[thief] = nil
+	if c.Model then
+		c.Model:Destroy()
+	end
+	if c.Prompt then
+		c.Prompt:Destroy()
+	end
+	local tst = S.Lab.state(thief)
+	if tst then
+		tst.Reserved = math.max(0, tst.Reserved - 1)
+	end
+	local ost = S.Lab.state(c.Owner)
+	if ost then
+		ost.Carried[c.Slot] = nil
+		S.Lab.placeModel(c.Owner, c.Slot)
+	end
+	Raid.walkSpeed(thief)
+	local name = MutantData.label(c.Rec)
+	if thief.Parent then
+		S.Net.notify(thief, "❌ " .. (reason or "Has perdido el mutante") .. ": " .. name .. " vuelve a su laboratorio.", "error")
+		S.Net.push(thief, "carry", { on = false })
+	end
+	if c.Owner.Parent then
+		S.Net.notify(c.Owner, "✅ " .. name .. " ha vuelto a tu laboratorio.", "success")
+		S.Net.push(c.Owner, "alert", { on = false })
+		S.Data.markDirty(c.Owner)
+	end
+	return true
+end
+
+function Raid.grab(thief, labIndex, slot)
+	if type(labIndex) ~= "number" or type(slot) ~= "number" then
+		return false, "Datos no válidos."
+	end
+	local owner = S.Lab.ownerOf(labIndex)
+	if not owner then
+		return false, "Este laboratorio está vacío."
+	end
+	if owner == thief then
+		local rec = S.Lab.getMutant(thief, slot)
+		if rec then
+			S.Net.push(thief, "openPanel", { tab = "mutants", slot = slot })
+			return true, MutantData.label(rec)
+		end
+		return false, "Pedestal vacío."
+	end
+	if Raid.carrying[thief] then
+		return false, "Ya llevas un mutante. Llévalo primero a tu laboratorio."
+	end
+	if S.Lab.laserActive(labIndex) then
+		return false, "La puerta láser está activa: espera a que se apague."
+	end
+	local ost = S.Lab.state(owner)
+	local rec = S.Lab.getMutant(owner, slot)
+	if not rec or not ost then
+		return false, "Ese pedestal está vacío."
+	end
+	if ost.Carried[slot] then
+		return false, "Alguien ya se lo está llevando."
+	end
+	local tst = S.Lab.state(thief)
+	if not tst then
+		return false, "Necesitas un laboratorio propio."
+	end
+	if not S.Lab.freeSlot(thief) then
+		return false, "Tu laboratorio está lleno: no tendrías dónde dejarlo."
+	end
+	if not S.Lab.near(thief, S.World.labs[labIndex].Pedestals[slot].Top, Config.StealRadius) then
+		return false, "Acércate más al pedestal."
+	end
+	-- reservar: el mutante sigue siendo del dueño hasta la entrega
+	ost.Carried[slot] = true
+	tst.Reserved = tst.Reserved + 1
+	if ost.Models[slot] then
+		ost.Models[slot]:Destroy()
+		ost.Models[slot] = nil
+	end
+	S.World.labs[labIndex].Pedestals[slot].Prompt.Enabled = false
+	local c = { Owner = owner, OwnerIndex = labIndex, Slot = slot, Rec = Util.deepCopy(rec), Since = os.clock() }
+	c.Model = attachModel(thief, c.Rec)
+	-- aviso para que el dueño lo recupere tocando al ladrón
+	local root = thief.Character and thief.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		local pp = S.World.prompt(root, "recapture", "Recuperar", "Mutante robado", { Thief = thief.UserId })
+		pp.MaxActivationDistance = Config.RecaptureRadius
+		c.Prompt = pp
+	end
+	Raid.carrying[thief] = c
+	Raid.walkSpeed(thief)
+	local name = MutantData.label(c.Rec)
+	S.Net.notify(owner, "🚨 ¡" .. thief.DisplayName .. " te está robando " .. name .. "! Tócale para recuperarlo.", "error")
+	S.Net.push(owner, "alert", { on = true, thief = thief.DisplayName, name = name })
+	S.Net.push(thief, "carry", { on = true, name = name })
+	return true, "🏃 ¡Lo tienes! Llévalo a la zona de llegada de tu laboratorio."
+end
+
+-- Entrega: el mutante pasa del dueño al ladrón en un único paso
+function Raid.deliver(thief)
+	local c = Raid.carrying[thief]
+	if not c then
+		return false
+	end
+	local owner = c.Owner
+	local ost = S.Lab.state(owner)
+	local tst = S.Lab.state(thief)
+	if not ost or not tst then
+		return Raid.returnCarried(thief, "El robo se ha cancelado")
+	end
+	local current = S.Lab.getMutant(owner, c.Slot)
+	if not current or current.Id ~= c.Rec.Id then
+		return Raid.returnCarried(thief, "Ese mutante ya no está")
+	end
+	Raid.carrying[thief] = nil
+	if c.Prompt then
+		c.Prompt:Destroy()
+	end
+	if c.Model then
+		c.Model:Destroy()
+	end
+	ost.Carried[c.Slot] = nil
+	tst.Reserved = math.max(0, tst.Reserved - 1)
+	local rec = S.Lab.removeMutant(owner, c.Slot)
+	local newRec = { S = rec.S, M = rec.M, L = rec.L }
+	local slot = S.Lab.addMutant(thief, newRec)
+	local od, td = S.Data.get(owner), S.Data.get(thief)
+	od.Stats.Lost = od.Stats.Lost + 1
+	td.Stats.Stolen = td.Stats.Stolen + 1
+	Raid.walkSpeed(thief)
+	local name = MutantData.label(newRec)
+	S.Net.notify(thief, "🎉 ¡Robo completado! " .. name .. " ya es tuyo.", "gold")
+	S.Net.push(thief, "carry", { on = false })
+	S.Net.notify(owner, "💔 " .. thief.DisplayName .. " se ha llevado tu " .. name .. ".", "error")
+	S.Net.push(owner, "alert", { on = false })
+	S.Data.markDirty(owner)
+	S.Data.markDirty(thief)
+	return true, slot
+end
+
+function Raid.recapture(owner, thief)
+	local c = thief and Raid.carrying[thief]
+	if not c then
+		return false, "Esa persona no lleva nada."
+	end
+	if c.Owner ~= owner then
+		return false, "Ese mutante no es tuyo."
+	end
+	local root = thief.Character and thief.Character:FindFirstChild("HumanoidRootPart")
+	if not root or not S.Lab.near(owner, root.Position, Config.RecaptureRadius) then
+		return false, "Estás demasiado lejos."
+	end
+	local od = S.Data.get(owner)
+	od.Stats.Recovered = od.Stats.Recovered + 1
+	Raid.returnCarried(thief, thief == owner and "" or (owner.DisplayName .. " te ha atrapado"))
+	return true, "💪 ¡Recuperado!"
+end
+
+-- Bucle: entregas, trampas, dron, alarma y cancelaciones
+local function step()
+	local now = os.clock()
+	for thief, c in pairs(Raid.carrying) do
+		local hum = humanoid(thief)
+		local root = thief.Character and thief.Character:FindFirstChild("HumanoidRootPart")
+		if not thief.Parent or not root or (hum and hum.Health ~= nil and hum.Health <= 0) then
+			Raid.returnCarried(thief, "Has caído")
+		elseif not c.Owner.Parent then
+			Raid.returnCarried(thief, "El dueño se ha ido")
+		else
+			local tIndex = S.Lab.indexOf(thief)
+			local entry = tIndex and S.World.labs[tIndex].EntryPos
+			if entry and S.Lab.near(thief, entry, Config.DeliverRadius) then
+				Raid.deliver(thief)
+			else
+				-- dron guardián del dueño: si el ladrón sigue dentro de su laboratorio
+				local od = S.Data.get(c.Owner)
+				local ost = S.Lab.state(c.Owner)
+				local inside = S.World.labIndexAt(root.Position) == c.OwnerIndex
+				if od and ost and od.Lab.Drone and inside and ost.DroneReadyAt <= now and now - c.Since > 1.5 then
+					ost.DroneReadyAt = now + Config.DroneCooldown
+					Raid.returnCarried(thief, "El dron guardián te lo ha quitado")
+				end
+			end
+		end
+	end
+	-- trampas y alarma: afectan a quien no es el dueño
+	for _, player in ipairs(Players:GetPlayers()) do
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local i = root and S.World.labIndexAt(root.Position)
+		local owner = i and S.Lab.ownerOf(i)
+		if owner and owner ~= player then
+			local od = S.Data.get(owner)
+			local ost = S.Lab.state(owner)
+			if od and ost then
+				if od.Lab.Alarm and ost.AlarmAt <= now then
+					ost.AlarmAt = now + Config.AlarmCooldown
+					S.Net.notify(owner, "🔔 Alarma: " .. player.DisplayName .. " ha entrado en tu laboratorio.", "warn")
+				end
+				for k = 1, math.min(od.Lab.Traps, #S.World.labs[i].Traps) do
+					local trap = S.World.labs[i].Traps[k]
+					if trap.ReadyAt <= now and S.Lab.near(player, trap.Pos, Config.TrapRadius) then
+						trap.ReadyAt = now + Config.TrapRearm
+						slowedUntil[player] = now + Config.TrapSlowSeconds
+						S.Net.notify(player, "🟢 ¡Has pisado una trampa de baba!", "warn")
+						if Raid.carrying[player] then
+							Raid.returnCarried(player, "La trampa de baba te ha hecho soltarlo")
+						end
+						Raid.walkSpeed(player)
+					end
+				end
+			end
+		end
+		if slowedUntil[player] and slowedUntil[player] <= now then
+			slowedUntil[player] = nil
+			Raid.walkSpeed(player)
+		end
+	end
+end
+Raid.step = step
+
+function Raid.onLeave(player)
+	if Raid.carrying[player] then
+		Raid.returnCarried(player, "Has salido del juego")
+	end
+	-- si el dueño se va, se cancelan los robos a su laboratorio (su perfil se guarda con el mutante dentro)
+	for thief, c in pairs(Raid.carrying) do
+		if c.Owner == player then
+			Raid.returnCarried(thief, "El dueño se ha ido")
+		end
+	end
+	slowedUntil[player] = nil
+end
+
+function Raid.isCarrying(player)
+	return Raid.carrying[player] ~= nil
+end
+
+function Raid.Start()
+	S.World.onPrompt("steal", function(player, pp)
+		local ok, msg = Raid.grab(player, pp:GetAttribute("Lab"), pp:GetAttribute("Slot"))
+		if msg then
+			S.Net.notify(player, msg, ok and "success" or "error")
+		end
+	end)
+	S.World.onPrompt("recapture", function(player, pp)
+		local thief = Players:GetPlayerByUserId(pp:GetAttribute("Thief"))
+		local ok, msg = Raid.recapture(player, thief)
+		S.Net.notify(player, msg, ok and "success" or "error")
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(0.2)
+			local ok, err = pcall(step)
+			if not ok then
+				warn("[LabMutante] asaltos: " .. tostring(err))
+			end
+		end
+	end)
+end
+
+return Raid
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000022"><Properties><string name="Name">SyncService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- SyncService: envía al cliente una vista compacta de su estado (solo lectura; el cliente nunca decide nada).
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+local LabData = require(ReplicatedStorage.Shared.LabData)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+
+local Sync = {}
+local S
+
+function Sync.Init(services)
+	S = services
+end
+
+function Sync.build(player)
+	local data = S.Data.get(player)
+	if not data then
+		return nil
+	end
+	local research = {}
+	for _, r in ipairs(LabData.Research) do
+		local lvl = data.Research[r.Id] or 0
+		research[#research + 1] = { Id = r.Id, Name = r.Name, Desc = r.Desc, Level = lvl, Max = r.Max, Cost = lvl < r.Max and LabData.researchCost(r.Id, lvl) or nil }
+	end
+	local index = {}
+	for _, sp in ipairs(MutantData.Species) do
+		index[#index + 1] = { Id = sp.Id, Name = sp.Name, Rarity = sp.Rarity, Count = data.Index[sp.Id] or 0, Price = sp.Price, Income = sp.Income }
+	end
+	local carry = S.Raid and S.Raid.carrying[player]
+	return {
+		Credits = math.floor(data.Credits),
+		Lab = S.Lab.view(player),
+		Fusion = S.Fusion and S.Fusion.view(player) or nil,
+		Research = research,
+		Index = index,
+		Stats = data.Stats,
+		Event = S.Event and S.Event.view() or nil,
+		Carrying = carry and MutantData.label(carry.Rec) or nil,
+		Shop = S.Monetization and S.Monetization.view(player) or nil,
+		NextTier = LabData.Tiers[data.Lab.Tier + 1],
+	}
+end
+
+function Sync.send(player)
+	local view = Sync.build(player)
+	if view then
+		S.Net.push(player, "state", view)
+	end
+end
+
+function Sync.Start()
+	S.Net.on("State.Get", function(player)
+		return true, nil, Sync.build(player)
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for _, player in ipairs(Players:GetPlayers()) do
+				local ok, err = pcall(Sync.send, player)
+				if not ok then
+					warn("[LabMutante] sync: " .. tostring(err))
+				end
+			end
+		end
+	end)
+end
+
+return Sync
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000023"><Properties><string name="Name">WorldService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- WorldService: construye el mapa (cinta central de cápsulas y 8 laboratorios) y gestiona los avisos
+-- (ProximityPrompt). Cada laboratorio tiene 18 pedestales, colector de créditos, terminal, cámara de fusión,
+-- botón del láser, puerta láser, zona de llegada y trampas de baba.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local LabData = require(ReplicatedStorage.Shared.LabData)
+
+local World = {}
+local S
+World.labs = {}
+local promptHandlers = {}
+
+local function c3(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local function P(parent, name, size, cf, color, material, props)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.Size = size
+	p.CFrame = cf
+	p.Color = c3(color)
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if props then
+		for k, v in pairs(props) do
+			p[k] = v
+		end
+	end
+	p.Parent = parent
+	return p
+end
+World.P = P
+
+local function cylinder(parent, name, diameter, height, cf, color, material, props)
+	local p = P(parent, name, Vector3.new(height, diameter, diameter), cf * CFrame.Angles(0, 0, math.pi / 2), color, material, props)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+local function label(part, text, color, size)
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "Label"
+	bb.Size = size or UDim2.new(0, 260, 0, 46)
+	bb.StudsOffset = Vector3.new(0, 3, 0)
+	bb.MaxDistance = 160
+	bb.Parent = part
+	local t = Instance.new("TextLabel")
+	t.Name = "Text"
+	t.Size = UDim2.new(1, 0, 1, 0)
+	t.BackgroundTransparency = 1
+	t.Text = text
+	t.TextColor3 = color or Color3.new(1, 1, 1)
+	t.TextStrokeTransparency = 0.2
+	t.Font = Enum.Font.GothamBlack
+	t.TextScaled = true
+	t.Parent = bb
+	return t
+end
+World.label = label
+
+function World.prompt(part, kind, actionText, objectText, attrs, hold)
+	local pp = Instance.new("ProximityPrompt")
+	pp.ActionText = actionText
+	pp.ObjectText = objectText or ""
+	pp.HoldDuration = hold or 0
+	pp.MaxActivationDistance = 12
+	pp.RequiresLineOfSight = false
+	pp:SetAttribute("Kind", kind)
+	for k, v in pairs(attrs or {}) do
+		pp:SetAttribute(k, v)
+	end
+	pp.Parent = part
+	pp.Triggered:Connect(function(player)
+		local fn = promptHandlers[kind]
+		if fn then
+			local ok, err = pcall(fn, player, pp)
+			if not ok then
+				warn("[LabMutante] aviso " .. kind .. ": " .. tostring(err))
+			end
+		end
+	end)
+	return pp
+end
+
+function World.onPrompt(kind, fn)
+	promptHandlers[kind] = fn
+end
+
+-- Posición del laboratorio i: 4 al norte (miran al sur, hacia la cinta) y 4 al sur
+function World.labOrigin(i)
+	local col = (i - 1) % 4
+	local north = i <= 4
+	local x = -165 + col * 110
+	local z = north and -100 or 100
+	return x, z, north and 1 or -1
+end
+
+-- Coordenadas locales del laboratorio (x a lo ancho, z hacia la puerta) -> mundo
+function World.labPos(i, lx, ly, lz)
+	local x, z, s = World.labOrigin(i)
+	return Vector3.new(x + s * lx, ly, z + s * lz)
+end
+function World.labCF(i, lx, ly, lz)
+	local x, z, s = World.labOrigin(i)
+	return CFrame.new(x + s * lx, ly, z + s * lz) * CFrame.Angles(0, s == 1 and 0 or math.pi, 0)
+end
+-- Índice del laboratorio que contiene una posición (o nil)
+function World.labIndexAt(pos)
+	for i = 1, Config.MaxLabs or 8 do
+		local x, z, s = World.labOrigin(i)
+		local lx, lz = (pos.X - x) * s, (pos.Z - z) * s
+		if math.abs(lx) <= 32 and math.abs(lz) <= 31 then
+			return i, lx, lz
+		end
+	end
+	return nil
+end
+
+World.SlotLocal = {}
+for r = 1, 3 do
+	for c = 1, 6 do
+		World.SlotLocal[#World.SlotLocal + 1] = { -25 + (c - 1) * 10, -21 + (r - 1) * 9 }
+	end
+end
+World.TrapLocal = { { -6, 23 }, { 6, 23 }, { -14, 17 }, { 14, 17 }, { 0, 27 } }
+World.CollectorLocal = { 0, 9 }
+World.TerminalLocal = { -23, 10 }
+World.FusionLocal = { 23, 10 }
+World.LaserButtonLocal = { -14, 26 }
+World.EntryLocal = { 0, 21 }
+
+local function buildLab(root, i)
+	local color = LabData.PlotColors[i]
+	local m = Instance.new("Model")
+	m.Name = "Lab" .. i
+	m.Parent = root
+	local lab = { Index = i, Model = m, Pedestals = {}, Slots = {}, LaserParts = {}, Traps = {} }
+	local function cf(lx, ly, lz)
+		return World.labCF(i, lx, ly, lz)
+	end
+	-- suelo, paredes (abajo metal, arriba cristal) y franja de neón
+	P(m, "Floor", Vector3.new(64, 1, 62), cf(0, 0.5, 0), { 38, 40, 48 }, Enum.Material.DiamondPlate)
+	P(m, "FloorTrim", Vector3.new(66, 0.3, 64), cf(0, 0.15, 0), color, Enum.Material.Neon)
+	local walls = { { 0, -30.5, 64, 1 }, { -32.5, 0, 1, 62 }, { 32.5, 0, 1, 62 }, { -20.5, 30.5, 24, 1 }, { 20.5, 30.5, 24, 1 } }
+	for _, w in ipairs(walls) do
+		P(m, "Wall", Vector3.new(w[3], 5, w[4]), cf(w[1], 3.5, w[2]), { 70, 75, 88 }, Enum.Material.Metal)
+		P(m, "Glass", Vector3.new(w[3], 9, w[4]), cf(w[1], 10.5, w[2]), { 150, 220, 255 }, Enum.Material.Glass, { Transparency = 0.55 })
+		P(m, "Cap", Vector3.new(w[3] + 0.4, 0.5, w[4] + 0.4), cf(w[1], 15.2, w[2]), color, Enum.Material.Neon)
+	end
+	-- dintel de la puerta y cartel con el dueño
+	P(m, "Lintel", Vector3.new(18, 3, 1.2), cf(0, 13.5, 30.5), { 50, 55, 66 }, Enum.Material.Metal)
+	local signPart = P(m, "Sign", Vector3.new(16, 2.4, 0.4), cf(0, 13.5, 31.3), color, Enum.Material.Neon)
+	lab.SignText = label(signPart, "Laboratorio libre", Color3.new(1, 1, 1), UDim2.new(0, 320, 0, 54))
+	-- puerta láser: rayos + muro invisible que bloquea cuando está activa
+	for k = 1, 6 do
+		local beam = P(m, "LaserBeam", Vector3.new(18, 0.25, 0.25), cf(0, 1.6 + k * 1.7, 30.5), { 255, 40, 60 }, Enum.Material.Neon, { CanCollide = false, Transparency = 1 })
+		lab.LaserParts[#lab.LaserParts + 1] = beam
+	end
+	lab.LaserWall = P(m, "LaserWall", Vector3.new(18, 12, 1), cf(0, 7, 30.5), { 255, 40, 60 }, Enum.Material.ForceField, { CanCollide = false, Transparency = 1 })
+	-- pedestales (18). Los que no están desbloqueados se ven apagados
+	for s, pos in ipairs(World.SlotLocal) do
+		local ped = cylinder(m, "Pedestal" .. s, 6, 1.2, cf(pos[1], 1.6, pos[2]), { 60, 64, 76 }, Enum.Material.Metal)
+		local ring = cylinder(m, "Ring" .. s, 6.6, 0.3, cf(pos[1], 1.1, pos[2]), { 40, 40, 46 }, Enum.Material.Neon)
+		local pp = World.prompt(ped, "steal", "Robar", "Mutante", { Lab = i, Slot = s }, Config.GrabHoldSeconds)
+		pp.Enabled = false
+		lab.Pedestals[s] = { Part = ped, Ring = ring, Prompt = pp, Top = World.labPos(i, pos[1], 2.2, pos[2]) }
+	end
+	-- colector con tanque de vidrio que se llena
+	local col = World.CollectorLocal
+	P(m, "CollectorPad", Vector3.new(8, 0.4, 8), cf(col[1], 1.2, col[2]), { 255, 220, 60 }, Enum.Material.Neon)
+	cylinder(m, "TankGlass", 4, 6, cf(col[1], 4.4, col[2]), { 180, 255, 200 }, Enum.Material.Glass, { Transparency = 0.6, CanCollide = false })
+	lab.TankFill = cylinder(m, "TankFill", 3.4, 0.2, cf(col[1], 1.6, col[2]), { 120, 255, 120 }, Enum.Material.Neon, { CanCollide = false })
+	lab.Collector = P(m, "Collector", Vector3.new(4, 1, 4), cf(col[1], 1.9, col[2]), { 60, 60, 70 }, Enum.Material.Metal)
+	World.prompt(lab.Collector, "collect", "Recoger créditos", "Colector", { Lab = i })
+	lab.CollectorText = label(lab.Collector, "Tanque: 0", Color3.fromRGB(150, 255, 150))
+	lab.CollectorText.Parent.StudsOffset = Vector3.new(0, 7, 0)
+	-- terminal de mejoras
+	local t = World.TerminalLocal
+	local term = P(m, "Terminal", Vector3.new(4, 5, 2), cf(t[1], 3.5, t[2]), { 40, 44, 56 }, Enum.Material.Metal)
+	P(m, "Screen", Vector3.new(3.4, 2.4, 0.2), cf(t[1], 4.5, t[2] + 1.05), { 60, 200, 255 }, Enum.Material.Neon)
+	World.prompt(term, "terminal", "Abrir terminal", "Mejoras e investigación", { Lab = i })
+	label(term, "🖥 Terminal", Color3.fromRGB(150, 220, 255), UDim2.new(0, 160, 0, 34)).Parent.StudsOffset = Vector3.new(0, 4.5, 0)
+	-- cámara de fusión
+	local f = World.FusionLocal
+	cylinder(m, "FusionBase", 8, 1, cf(f[1], 1.5, f[2]), { 60, 50, 80 }, Enum.Material.Metal)
+	lab.FusionGlass = cylinder(m, "FusionGlass", 6, 7, cf(f[1], 5.5, f[2]), { 200, 120, 255 }, Enum.Material.Glass, { Transparency = 0.6, CanCollide = false })
+	lab.FusionCore = P(m, "FusionCore", Vector3.new(1.4, 1.4, 1.4), cf(f[1], 5, f[2]), { 210, 120, 255 }, Enum.Material.Neon, { Shape = Enum.PartType.Ball, CanCollide = false, Transparency = 0.5 })
+	World.prompt(lab.FusionGlass, "fusion", "Cámara de fusión", "Fusiona dos mutantes iguales", { Lab = i })
+	label(lab.FusionGlass, "🧬 Fusión", Color3.fromRGB(220, 160, 255), UDim2.new(0, 160, 0, 34)).Parent.StudsOffset = Vector3.new(0, 5, 0)
+	-- botón del láser
+	local lb = World.LaserButtonLocal
+	P(m, "LaserPost", Vector3.new(1.2, 4, 1.2), cf(lb[1], 3, lb[2]), { 50, 50, 60 }, Enum.Material.Metal)
+	lab.LaserButton = P(m, "LaserButton", Vector3.new(1.8, 1, 1.8), cf(lb[1], 5.4, lb[2]), { 255, 50, 70 }, Enum.Material.Neon)
+	World.prompt(lab.LaserButton, "laser", "Activar láser", "Puerta láser", { Lab = i })
+	-- zona de llegada (donde se entregan los mutantes robados)
+	local e = World.EntryLocal
+	lab.EntryPos = World.labPos(i, e[1], 1, e[2])
+	cylinder(m, "EntryZone", Config.DeliverRadius * 2, 0.1, cf(e[1], 1.05, e[2]), color, Enum.Material.Neon, { Transparency = 0.75, CanCollide = false })
+	-- trampas (se muestran según las que tenga el dueño)
+	for k, tp in ipairs(World.TrapLocal) do
+		local trap = cylinder(m, "Trap" .. k, 4, 0.2, cf(tp[1], 1.1, tp[2]), { 120, 255, 60 }, Enum.Material.Neon, { CanCollide = false, Transparency = 1 })
+		lab.Traps[k] = { Part = trap, Pos = World.labPos(i, tp[1], 1, tp[2]), ReadyAt = 0 }
+	end
+	lab.SpawnCF = cf(0, 4, 16)
+	World.labs[i] = lab
+	return lab
+end
+
+local function buildBelt(root)
+	local m = Instance.new("Model")
+	m.Name = "Belt"
+	m.Parent = root
+	local len = Config.BeltEndX - Config.BeltStartX + 20
+	local cx = (Config.BeltStartX + Config.BeltEndX) / 2
+	P(m, "BeltBase", Vector3.new(len, 1.6, 10), CFrame.new(cx, 1.2, Config.BeltZ), { 30, 30, 36 }, Enum.Material.Metal)
+	P(m, "BeltTop", Vector3.new(len, 0.2, 8), CFrame.new(cx, 2.1, Config.BeltZ), { 55, 55, 60 }, Enum.Material.DiamondPlate)
+	for _, s in ipairs({ -1, 1 }) do
+		P(m, "Rail", Vector3.new(len, 0.6, 0.6), CFrame.new(cx, 2.5, Config.BeltZ + s * 4.6), { 0, 220, 255 }, Enum.Material.Neon)
+	end
+	for x = Config.BeltStartX, Config.BeltEndX, 12 do
+		P(m, "Stripe", Vector3.new(0.6, 0.05, 7.6), CFrame.new(x, 2.22, Config.BeltZ), { 255, 210, 40 }, Enum.Material.Neon, { CanCollide = false })
+	end
+	-- generador y reciclador
+	local gen = P(m, "Generator", Vector3.new(16, 18, 18), CFrame.new(Config.BeltStartX - 14, 9, Config.BeltZ), { 50, 40, 70 }, Enum.Material.Metal)
+	P(m, "GenGlow", Vector3.new(16.4, 2, 18.4), CFrame.new(Config.BeltStartX - 14, 14, Config.BeltZ), { 200, 80, 255 }, Enum.Material.Neon)
+	label(gen, "⚗ GENERADOR DE CÁPSULAS", Color3.fromRGB(230, 180, 255), UDim2.new(0, 360, 0, 50)).Parent.StudsOffset = Vector3.new(0, 11, 0)
+	local rec = P(m, "Recycler", Vector3.new(14, 12, 16), CFrame.new(Config.BeltEndX + 13, 6, Config.BeltZ), { 60, 60, 60 }, Enum.Material.CorrodedMetal)
+	label(rec, "♻ RECICLADOR", Color3.fromRGB(200, 200, 200), UDim2.new(0, 260, 0, 44)).Parent.StudsOffset = Vector3.new(0, 8, 0)
+	-- carteles de la plaza
+	local title = P(m, "Title", Vector3.new(2, 2, 2), CFrame.new(0, 26, Config.BeltZ), { 0, 0, 0 }, Enum.Material.SmoothPlastic, { Transparency = 1, CanCollide = false })
+	label(title, "🧪 LABORATORIO MUTANTE", Color3.fromRGB(120, 255, 120), UDim2.new(0, 520, 0, 70)).Parent.MaxDistance = 600
+end
+
+local function buildScenery(root)
+	local m = Instance.new("Model")
+	m.Name = "Scenery"
+	m.Parent = root
+	P(m, "Ground", Vector3.new(620, 2, 360), CFrame.new(0, -1, 0), { 28, 30, 38 }, Enum.Material.Concrete)
+	P(m, "Walkway", Vector3.new(520, 0.2, 34), CFrame.new(0, 0.1, 0), { 50, 52, 62 }, Enum.Material.Slate)
+	-- caminos de neón de la cinta a cada puerta y farolas
+	for i = 1, 8 do
+		local x, z, s = World.labOrigin(i)
+		local color = LabData.PlotColors[i]
+		P(m, "Path", Vector3.new(14, 0.2, 52), CFrame.new(x, 0.15, z + s * 57), { 60, 62, 72 }, Enum.Material.Slate)
+		for _, side in ipairs({ -1, 1 }) do
+			P(m, "PathLine", Vector3.new(0.4, 0.05, 52), CFrame.new(x + side * 7, 0.28, z + s * 57), color, Enum.Material.Neon, { CanCollide = false })
+			local post = P(m, "Lamp", Vector3.new(0.8, 10, 0.8), CFrame.new(x + side * 9, 5, z + s * 45), { 40, 40, 48 }, Enum.Material.Metal)
+			local bulb = P(m, "Bulb", Vector3.new(1.6, 1.6, 1.6), CFrame.new(x + side * 9, 10.4, z + s * 45), color, Enum.Material.Neon, { Shape = Enum.PartType.Ball })
+			local l = Instance.new("PointLight")
+			l.Range = 22
+			l.Brightness = 1.6
+			l.Color = c3(color)
+			l.Parent = bulb
+			post.CanCollide = true
+		end
+	end
+	-- bordes del mapa
+	for _, b in ipairs({ { 0, -181, 620, 2 }, { 0, 181, 620, 2 }, { -311, 0, 2, 360 }, { 311, 0, 2, 360 } }) do
+		P(m, "Border", Vector3.new(b[3], 30, b[4]), CFrame.new(b[1], 15, b[2]), { 20, 20, 26 }, Enum.Material.ForceField, { Transparency = 0.8 })
+	end
+end
+
+local function setupLighting()
+	pcall(function()
+		Lighting.ClockTime = 20.5
+		Lighting.Brightness = 2
+		Lighting.Ambient = Color3.fromRGB(70, 60, 100)
+		Lighting.OutdoorAmbient = Color3.fromRGB(110, 100, 150)
+		Lighting.FogEnd = 1400
+		Lighting.FogColor = Color3.fromRGB(30, 20, 50)
+		local cc = Instance.new("ColorCorrectionEffect")
+		cc.Name = "EventTint"
+		cc.Saturation = 0.15
+		cc.Contrast = 0.08
+		cc.Parent = Lighting
+		World.Tint = cc
+		local bloom = Instance.new("BloomEffect")
+		bloom.Intensity = 0.6
+		bloom.Size = 30
+		bloom.Threshold = 1.4
+		bloom.Parent = Lighting
+	end)
+end
+
+function World.Init(services)
+	S = services
+	local root = Instance.new("Folder")
+	root.Name = "Map"
+	root.Parent = workspace
+	World.root = root
+	World.dynamic = Instance.new("Folder")
+	World.dynamic.Name = "Dynamic"
+	World.dynamic.Parent = workspace
+	buildScenery(root)
+	buildBelt(root)
+	for i = 1, 8 do
+		buildLab(root, i)
+	end
+	setupLighting()
+end
+
+-- Dueño del laboratorio (cartel y color)
+function World.setOwner(i, player)
+	local lab = World.labs[i]
+	lab.Owner = player
+	lab.SignText.Text = player and ("Laboratorio de " .. player.DisplayName) or "Laboratorio libre"
+end
+
+function World.setLaser(i, on)
+	local lab = World.labs[i]
+	lab.LaserOn = on
+	for _, b in ipairs(lab.LaserParts) do
+		b.Transparency = on and 0.05 or 1
+	end
+	lab.LaserWall.CanCollide = on
+	lab.LaserWall.Transparency = on and 0.6 or 1
+	lab.LaserButton.Color = on and Color3.fromRGB(60, 255, 120) or Color3.fromRGB(255, 50, 70)
+end
+
+-- Muestra pedestales desbloqueados y trampas compradas
+function World.setTier(i, slots, traps)
+	local lab = World.labs[i]
+	for s, ped in ipairs(lab.Pedestals) do
+		local unlocked = s <= slots
+		ped.Part.Transparency = unlocked and 0 or 0.7
+		ped.Ring.Color = unlocked and Color3.fromRGB(70, 80, 100) or Color3.fromRGB(30, 30, 34)
+	end
+	for k, tr in ipairs(lab.Traps) do
+		tr.Part.Transparency = k <= (traps or 0) and 0.3 or 1
+	end
+end
+
+function World.setTank(i, amount, cap)
+	local lab = World.labs[i]
+	local frac = cap > 0 and math.min(1, amount / cap) or 0
+	local h = 0.2 + 5.6 * frac
+	local col = World.CollectorLocal
+	lab.TankFill.Size = Vector3.new(h, 3.4, 3.4)
+	lab.TankFill.CFrame = World.labCF(i, col[1], 1.5 + h / 2, col[2]) * CFrame.Angles(0, 0, math.pi / 2)
+	lab.CollectorText.Text = "Tanque: " .. require(ReplicatedStorage.Shared.Util).short(amount) .. (frac >= 1 and " (¡LLENO!)" or "")
+end
+
+function World.Start() end
+
+return World
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX000030"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX000025"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX000026"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX000027"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- Arranque del cliente: interfaz, avisos del servidor y atajos de teclado.
+
+local UserInputService = game:GetService("UserInputService")
+
+local Net = require(script.Parent.Net)
+local UI = require(script.Parent.UI)
+
+UI.build()
+Net.onMessage = function(msg, style)
+	UI.notify(msg, style)
+end
+
+Net.on("state", function(data)
+	UI.setState(data)
+end)
+Net.on("notify", function(data)
+	UI.notify(data.text, data.style)
+end)
+Net.on("openPanel", function(data)
+	UI.openPanel(data and data.tab)
+end)
+Net.on("alert", function(data)
+	UI.alert(data)
+end)
+Net.on("carry", function()
+	UI.refresh(true)
+end)
+Net.on("event", function(ev)
+	if UI.state then
+		UI.state.Event = ev
+		UI.refresh(false)
+	end
+end)
+Net.on("discover", function(d)
+	UI.notify("📖 ¡Nueva especie descubierta: " .. tostring(d.name) .. "! +" .. tostring(d.reward) .. " créditos", "gold")
+end)
+Net.on("ready", function(d)
+	if d and d.first then
+		UI.notify("🧪 ¡Bienvenido a tu laboratorio! Compra tu primera cápsula en la cinta del centro.", "gold")
+	end
+end)
+
+-- Atajos: L laboratorio, F fusión, B bestiario, G láser, H ayuda
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+	local k = input.KeyCode
+	if k == Enum.KeyCode.L then
+		if UI.open then
+			UI.closePanel()
+		else
+			UI.openPanel("mutants")
+		end
+	elseif k == Enum.KeyCode.F then
+		UI.openPanel("fusion")
+	elseif k == Enum.KeyCode.B then
+		UI.openPanel("index")
+	elseif k == Enum.KeyCode.G then
+		Net.call("Lab.Laser")
+	elseif k == Enum.KeyCode.H then
+		UI.openPanel("help")
+	end
+end)
+
+-- Primer estado (por si se pierde el primer aviso)
+task.spawn(function()
+	local r = Net.call("State.Get")
+	if r.ok and r.data then
+		UI.setState(r.data)
+	end
+end)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000028"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- Net (cliente): llamadas al servidor y avisos que llegan del servidor.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Net = {}
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local request = remotes:WaitForChild("Request")
+local push = remotes:WaitForChild("Push")
+local listeners = {}
+
+-- Devuelve { ok, msg, data }. Los mensajes se muestran con Net.onMessage si está definido.
+function Net.call(action, payload)
+	local ok, result = pcall(function()
+		return request:InvokeServer(action, payload or {})
+	end)
+	if not ok or type(result) ~= "table" then
+		result = { ok = false, msg = "Sin conexión con el servidor." }
+	end
+	if result.msg and Net.onMessage then
+		Net.onMessage(result.msg, result.ok and "success" or "error")
+	end
+	return result
+end
+
+function Net.on(kind, fn)
+	listeners[kind] = listeners[kind] or {}
+	table.insert(listeners[kind], fn)
+end
+
+push.OnClientEvent:Connect(function(kind, data)
+	for _, fn in ipairs(listeners[kind] or {}) do
+		local ok, err = pcall(fn, data)
+		if not ok then
+			warn("[LabMutante] cliente " .. tostring(kind) .. ": " .. tostring(err))
+		end
+	end
+end)
+
+return Net
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000029"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- UI: interfaz del jugador (PC y móvil). HUD con créditos y producción, tarjeta del laboratorio,
+-- avisos, banner de evento, alerta de robo, guía para empezar y panel con pestañas:
+-- Mutantes, Fusión, Mejoras, Bestiario, Tienda y Ayuda. Todos los botones llaman al servidor.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Util = require(ReplicatedStorage.Shared.Util)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+local LabData = require(ReplicatedStorage.Shared.LabData)
+local Config = require(ReplicatedStorage.Shared.Config)
+local Net = require(script.Parent.Net)
+
+local UI = { state = nil, tab = "mutants", open = false, selected = {}, hideGuide = false }
+local player = Players.LocalPlayer
+local gui, hud, panel, body, tabsBar, notes, alertBar, carryBar, eventBar, guide
+local hudLabels = {}
+local lastSig = ""
+
+local C = {
+	bg = Color3.fromRGB(16, 18, 28), card = Color3.fromRGB(28, 31, 46), card2 = Color3.fromRGB(38, 42, 62),
+	text = Color3.fromRGB(235, 238, 255), sub = Color3.fromRGB(150, 158, 190), neon = Color3.fromRGB(80, 255, 140),
+	gold = Color3.fromRGB(255, 214, 70), red = Color3.fromRGB(255, 70, 90), blue = Color3.fromRGB(70, 170, 255), purple = Color3.fromRGB(180, 110, 255),
+}
+
+local function rgb(t)
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+local function new(class, props, parent)
+	local o = Instance.new(class)
+	for k, v in pairs(props or {}) do
+		o[k] = v
+	end
+	o.Parent = parent
+	return o
+end
+
+local function corner(o, r)
+	new("UICorner", { CornerRadius = UDim.new(0, r or 10) }, o)
+	return o
+end
+
+local function frame(parent, props)
+	local f = new("Frame", { BackgroundColor3 = C.card, BorderSizePixel = 0 }, parent)
+	for k, v in pairs(props or {}) do
+		f[k] = v
+	end
+	return corner(f)
+end
+
+local function label(parent, text, props)
+	local t = new("TextLabel", {
+		BackgroundTransparency = 1, Text = text, TextColor3 = C.text, Font = Enum.Font.GothamBold, TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, Size = UDim2.new(1, 0, 0, 22),
+	}, parent)
+	for k, v in pairs(props or {}) do
+		t[k] = v
+	end
+	return t
+end
+
+local function button(parent, text, fn, props)
+	local b = new("TextButton", {
+		Text = text, TextColor3 = Color3.new(1, 1, 1), Font = Enum.Font.GothamBold, TextSize = 15, AutoButtonColor = true,
+		BackgroundColor3 = C.blue, Size = UDim2.new(0, 120, 0, 40), BorderSizePixel = 0,
+	}, parent)
+	for k, v in pairs(props or {}) do
+		b[k] = v
+	end
+	corner(b, 8)
+	b.Activated:Connect(function()
+		fn()
+	end)
+	return b
+end
+
+local function list(parent)
+	local s = new("ScrollingFrame", {
+		BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6, BorderSizePixel = 0,
+	}, parent)
+	new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, s)
+	new("UIPadding", { PaddingRight = UDim.new(0, 8) }, s)
+	return s
+end
+
+local function row(parent, h)
+	local r = frame(parent, { Size = UDim2.new(1, 0, 0, h or 56), BackgroundColor3 = C.card2 })
+	new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, r)
+	return r
+end
+
+-------------------------------------------------------------------- avisos
+function UI.notify(text, style)
+	if not notes or not text or text == "" then
+		return
+	end
+	local color = ({ success = C.neon, error = C.red, warn = C.gold, gold = C.gold, info = C.blue })[style or "info"] or C.blue
+	local n = frame(notes, { Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = C.bg, BackgroundTransparency = 0.1 })
+	new("UIStroke", { Color = color, Thickness = 2 }, n)
+	label(n, text, { Size = UDim2.new(1, -16, 1, 0), Position = UDim2.new(0, 8, 0, 0), TextSize = 14, TextColor3 = color })
+	task.delay(5, function()
+		n:Destroy()
+	end)
+	local items = notes:GetChildren()
+	local count = 0
+	for _, c in ipairs(items) do
+		if c:IsA("Frame") then
+			count = count + 1
+		end
+	end
+	if count > 5 then
+		for _, c in ipairs(items) do
+			if c:IsA("Frame") then
+				c:Destroy()
+				break
+			end
+		end
+	end
+end
+
+-------------------------------------------------------------------- pestañas
+local TABS = {
+	{ "mutants", "🧪 Mutantes" }, { "fusion", "🧬 Fusión" }, { "upgrades", "🏗 Mejoras" },
+	{ "index", "📖 Bestiario" }, { "shop", "🛒 Tienda" }, { "help", "❓ Ayuda" },
+}
+
+local function signature()
+	local st = UI.state
+	if not st or not st.Lab then
+		return "none"
+	end
+	local parts = { UI.tab, st.Lab.Tier, #st.Lab.Mutants, st.Lab.Traps, tostring(st.Lab.Alarm), tostring(st.Lab.Drone), math.floor(math.log10(math.max(1, st.Credits)) * 4) }
+	for _, m in ipairs(st.Lab.Mutants) do
+		parts[#parts + 1] = m.Id .. (m.Carried and "c" or "") .. (UI.selected[m.Slot] and "s" or "")
+	end
+	for _, r in ipairs(st.Research or {}) do
+		parts[#parts + 1] = r.Level
+	end
+	if st.Fusion then
+		parts[#parts + 1] = st.Fusion.Name .. (st.Fusion.Ready and "R" or math.floor(st.Fusion.Left / 5))
+	end
+	return table.concat(parts, "|")
+end
+
+local renderers = {}
+
+renderers.mutants = function(s, st)
+	local lab = st.Lab
+	label(s, "Tu laboratorio: " .. #lab.Mutants .. "/" .. lab.Slots .. " pedestales · +" .. Util.short(lab.Income) .. "/s", { TextColor3 = C.neon })
+	if #lab.Mutants == 0 then
+		label(s, "Aún no tienes mutantes. Ve a la cinta del centro y compra una cápsula (tecla E o toca el aviso).", { Size = UDim2.new(1, 0, 0, 46), TextColor3 = C.sub })
+	end
+	local nsel = 0
+	for _ in pairs(UI.selected) do
+		nsel = nsel + 1
+	end
+	if nsel == 2 then
+		local a, b = nil, nil
+		for k in pairs(UI.selected) do
+			if a then
+				b = k
+			else
+				a = k
+			end
+		end
+		button(s, "🧬 Fusionar los 2 seleccionados", function()
+			local r = Net.call("Fusion.Start", { a = a, b = b })
+			if r.ok then
+				UI.selected = {}
+			end
+			UI.refresh(true)
+		end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.purple })
+	end
+	for _, m in ipairs(lab.Mutants) do
+		local rar = MutantData.RarityById[m.Rarity]
+		local r = row(s, 62)
+		label(r, m.Name, { TextColor3 = rgb(rar.Color), Size = UDim2.new(1, -250, 0, 22) })
+		label(r, rar.Name .. " · pedestal " .. m.Slot .. " · +" .. Util.short(m.Income) .. "/s", { Position = UDim2.new(0, 0, 0, 24), Size = UDim2.new(1, -250, 0, 20), TextSize = 13, TextColor3 = C.sub })
+		if m.Carried then
+			label(r, "🚨 ¡Te lo están robando!", { Position = UDim2.new(1, -240, 0, 10), Size = UDim2.new(0, 240, 0, 30), TextColor3 = C.red })
+		else
+			button(r, UI.selected[m.Slot] and "✓ Elegido" or "Fusión", function()
+				if UI.selected[m.Slot] then
+					UI.selected[m.Slot] = nil
+				else
+					local n = 0
+					for _ in pairs(UI.selected) do
+						n = n + 1
+					end
+					if n >= 2 then
+						UI.selected = {}
+					end
+					UI.selected[m.Slot] = true
+				end
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -236, 0, 6), Size = UDim2.new(0, 100, 0, 38), BackgroundColor3 = UI.selected[m.Slot] and C.purple or C.card })
+			button(r, "Vender " .. Util.short(m.Value), function()
+				Net.call("Lab.Sell", { slot = m.Slot })
+				UI.selected[m.Slot] = nil
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -128, 0, 6), Size = UDim2.new(0, 128, 0, 38), BackgroundColor3 = C.red })
+		end
+	end
+end
+
+renderers.fusion = function(s, st)
+	label(s, "Fusiona dos mutantes de la misma especie y nivel: obtienes uno de nivel superior que produce x" .. Config.LevelIncomeMult .. ". Se conserva la mejor mutación. Nivel máximo: " .. Config.MaxLevel .. ".", { Size = UDim2.new(1, 0, 0, 60), TextColor3 = C.sub, TextSize = 14 })
+	local f = st.Fusion
+	if f then
+		local r = row(s, 70)
+		label(r, "En la cámara: " .. f.Name, { TextColor3 = C.purple })
+		label(r, f.Ready and "¡Lista para recoger!" or ("Faltan " .. Util.time(f.Left)), { Position = UDim2.new(0, 0, 0, 26), TextSize = 14, TextColor3 = f.Ready and C.neon or C.sub, Size = UDim2.new(1, -260, 0, 22) })
+		if f.Ready then
+			button(r, "Recoger", function()
+				Net.call("Fusion.Claim")
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -250, 0, 10), BackgroundColor3 = C.neon, TextColor3 = C.bg })
+		end
+		button(r, "Cancelar", function()
+			Net.call("Fusion.Cancel")
+			UI.refresh(true)
+		end, { Position = UDim2.new(1, -124, 0, 10), BackgroundColor3 = C.red })
+	end
+	-- parejas disponibles
+	local groups, orderKeys = {}, {}
+	for _, m in ipairs(st.Lab.Mutants) do
+		if not m.Carried and m.L < Config.MaxLevel then
+			local k = m.S .. "#" .. m.L
+			if not groups[k] then
+				groups[k] = {}
+				orderKeys[#orderKeys + 1] = k
+			end
+			table.insert(groups[k], m)
+		end
+	end
+	local any = false
+	for _, k in ipairs(orderKeys) do
+		local g = groups[k]
+		if #g >= 2 then
+			any = true
+			local r = row(s, 56)
+			local sp = MutantData.SpeciesById[g[1].S]
+			label(r, sp.Name .. " Nv." .. g[1].L .. "  ×" .. #g, { Size = UDim2.new(1, -170, 0, 22), TextColor3 = rgb(MutantData.RarityById[sp.Rarity].Color) })
+			label(r, "Resultado: Nv." .. (g[1].L + 1), { Position = UDim2.new(0, 0, 0, 22), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 20) })
+			button(r, "🧬 Fusionar", function()
+				Net.call("Fusion.Start", { a = g[1].Slot, b = g[2].Slot })
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -150, 0, 4), Size = UDim2.new(0, 150, 0, 38), BackgroundColor3 = C.purple })
+		end
+	end
+	if not any then
+		label(s, "No tienes parejas iguales todavía. Compra o roba otro mutante de la misma especie.", { Size = UDim2.new(1, 0, 0, 44), TextColor3 = C.sub })
+	end
+end
+
+renderers.upgrades = function(s, st)
+	local lab = st.Lab
+	local r = row(s, 76)
+	label(r, "🏗 " .. lab.TierName .. " (nivel " .. lab.Tier .. ")", { TextColor3 = C.gold })
+	local nt = st.NextTier
+	if nt then
+		label(r, "Siguiente: " .. nt.Name .. " · " .. nt.Slots .. " pedestales · tanque " .. Util.short(nt.Tank) .. " · láser " .. nt.Laser .. " s", { Position = UDim2.new(0, 0, 0, 24), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 36) })
+		button(r, "Mejorar " .. Util.short(nt.Cost), function()
+			Net.call("Lab.Upgrade")
+			UI.refresh(true)
+		end, { Position = UDim2.new(1, -160, 0, 16), Size = UDim2.new(0, 160, 0, 40), BackgroundColor3 = st.Credits >= nt.Cost and C.neon or C.card, TextColor3 = st.Credits >= nt.Cost and C.bg or C.text })
+	else
+		label(r, "¡Laboratorio al máximo!", { Position = UDim2.new(0, 0, 0, 26), TextColor3 = C.neon })
+	end
+	label(s, "🔬 Investigación", { TextColor3 = C.blue })
+	for _, res in ipairs(st.Research) do
+		local rr = row(s, 62)
+		label(rr, res.Name .. "  (" .. res.Level .. "/" .. res.Max .. ")", { Size = UDim2.new(1, -170, 0, 22) })
+		label(rr, res.Desc, { Position = UDim2.new(0, 0, 0, 24), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 30) })
+		if res.Cost then
+			button(rr, Util.short(res.Cost), function()
+				Net.call("Lab.Research", { id = res.Id })
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -150, 0, 6), Size = UDim2.new(0, 150, 0, 38), BackgroundColor3 = st.Credits >= res.Cost and C.blue or C.card })
+		else
+			label(rr, "MÁX", { Position = UDim2.new(1, -150, 0, 14), Size = UDim2.new(0, 150, 0, 24), TextColor3 = C.neon, TextXAlignment = Enum.TextXAlignment.Center })
+		end
+	end
+	label(s, "🛡 Defensas", { TextColor3 = C.red })
+	for _, id in ipairs({ "trap", "alarm", "drone" }) do
+		local def = LabData.Defenses[id]
+		local rr = row(s, 70)
+		local status = id == "trap" and (lab.Traps .. "/" .. math.min(lab.Tier, 5)) or ((id == "alarm" and lab.Alarm or id == "drone" and lab.Drone) and "instalada" or "no instalada")
+		label(rr, def.Name .. " (" .. status .. ")", { Size = UDim2.new(1, -170, 0, 22) })
+		label(rr, def.Desc, { Position = UDim2.new(0, 0, 0, 24), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 40) })
+		local owned = (id == "alarm" and lab.Alarm) or (id == "drone" and lab.Drone) or (id == "trap" and lab.Traps >= math.min(lab.Tier, 5))
+		if not owned then
+			button(rr, Util.short(def.Cost), function()
+				Net.call("Lab.Defense", { id = id })
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -150, 0, 10), Size = UDim2.new(0, 150, 0, 38), BackgroundColor3 = st.Credits >= def.Cost and C.red or C.card })
+		end
+	end
+end
+
+renderers.index = function(s, st)
+	local found = 0
+	for _, e in ipairs(st.Index) do
+		if e.Count > 0 then
+			found = found + 1
+		end
+	end
+	label(s, "Especies descubiertas: " .. found .. "/" .. #st.Index .. " (cada especie nueva da una recompensa)", { TextColor3 = C.gold })
+	for _, e in ipairs(st.Index) do
+		local rar = MutantData.RarityById[e.Rarity]
+		local r = row(s, 48)
+		if e.Count > 0 then
+			label(r, e.Name .. "  ·  conseguidos: " .. e.Count, { TextColor3 = rgb(rar.Color), Size = UDim2.new(1, 0, 0, 20) })
+			label(r, rar.Name .. " · precio " .. Util.short(e.Price) .. " · +" .. Util.short(e.Income) .. "/s", { Position = UDim2.new(0, 0, 0, 20), TextSize = 13, TextColor3 = C.sub })
+		else
+			label(r, "???", { TextColor3 = C.sub, Size = UDim2.new(1, 0, 0, 20) })
+			label(r, rar.Name .. " · sin descubrir", { Position = UDim2.new(0, 0, 0, 20), TextSize = 13, TextColor3 = rgb(rar.Color) })
+		end
+	end
+end
+
+renderers.shop = function(s, st)
+	label(s, "Compras opcionales con Robux. El juego se puede completar sin pagar.", { TextColor3 = C.sub, Size = UDim2.new(1, 0, 0, 40) })
+	local shop = st.Shop or { Passes = {}, Products = {} }
+	local function item(name, desc, key, configured, owned)
+		local r = row(s, 62)
+		label(r, name, { Size = UDim2.new(1, -170, 0, 22), TextColor3 = C.gold })
+		label(r, desc, { Position = UDim2.new(0, 0, 0, 24), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 30) })
+		if owned then
+			label(r, "✓ Tuyo", { Position = UDim2.new(1, -150, 0, 14), Size = UDim2.new(0, 150, 0, 24), TextColor3 = C.neon })
+		elseif configured then
+			button(r, "Comprar", function()
+				Net.call("Shop.Prompt", { key = key })
+			end, { Position = UDim2.new(1, -150, 0, 8), Size = UDim2.new(0, 150, 0, 38), BackgroundColor3 = C.gold, TextColor3 = C.bg })
+		else
+			label(r, "No disponible todavía", { Position = UDim2.new(1, -170, 0, 14), Size = UDim2.new(0, 170, 0, 24), TextColor3 = C.sub, TextSize = 13 })
+		end
+	end
+	for _, p in ipairs(shop.Passes) do
+		item("⭐ " .. p.Name, p.Desc, p.Key, p.Configured, p.Owned)
+	end
+	for _, p in ipairs(shop.Products) do
+		item("💰 " .. p.Name, p.Minutes .. " minutos de tu producción (mínimo " .. Util.short(p.Min) .. ")", p.Key, p.Configured, false)
+	end
+end
+
+renderers.help = function(s, st)
+	local lines = {
+		"🧪 Compra cápsulas en la cinta del centro: cada una trae un mutante que produce créditos por segundo.",
+		"🛢 La producción se guarda en el TANQUE de tu laboratorio. Ve al colector (centro de tu laboratorio) para recogerla. ¡Si se llena, deja de subir!",
+		"🧬 Fusiona dos mutantes iguales del mismo nivel en la cámara de fusión para subirlos de nivel.",
+		"🏃 Puedes robar mutantes de otros laboratorios: mantén pulsado el aviso del pedestal y llévalo a la zona de llegada de TU laboratorio. Irás más lento.",
+		"🛡 Defiéndete: activa la puerta láser (botón rojo junto a la puerta), compra trampas de baba, alarma y el dron guardián. Si alguien te roba, tócale para recuperarlo.",
+		"⚡ Atento a los eventos: tormenta radiactiva, fiebre de cápsulas, hora legendaria y doble producción.",
+	}
+	for _, l in ipairs(lines) do
+		label(s, l, { Size = UDim2.new(1, 0, 0, 52), TextSize = 14 })
+	end
+	button(s, "🏠 Volver a mi laboratorio", function()
+		Net.call("Lab.Home")
+	end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.neon, TextColor3 = C.bg })
+	button(s, UI.hideGuide and "Mostrar guía de inicio" or "Ocultar guía de inicio", function()
+		UI.hideGuide = not UI.hideGuide
+		UI.refresh(true)
+	end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.card2 })
+end
+
+function UI.renderPanel()
+	if not panel or not UI.open then
+		return
+	end
+	for _, c in ipairs(body:GetChildren()) do
+		c:Destroy()
+	end
+	for _, b in ipairs(tabsBar:GetChildren()) do
+		if b:IsA("TextButton") then
+			b.BackgroundColor3 = b:GetAttribute("Tab") == UI.tab and C.purple or C.card2
+		end
+	end
+	local st = UI.state
+	local s = list(body)
+	if not st or not st.Lab then
+		label(s, "Cargando tu laboratorio...", { TextColor3 = C.sub })
+		return
+	end
+	renderers[UI.tab](s, st)
+	lastSig = signature()
+end
+
+function UI.openPanel(tab)
+	UI.tab = tab or UI.tab
+	UI.open = true
+	panel.Visible = true
+	UI.renderPanel()
+end
+
+function UI.closePanel()
+	UI.open = false
+	panel.Visible = false
+end
+
+-------------------------------------------------------------------- HUD
+local function guideText(st)
+	if UI.hideGuide or not st or not st.Lab then
+		return nil
+	end
+	local stats = st.Stats or {}
+	if (stats.Bought or 0) == 0 then
+		return "1/5 · Ve a la cinta del centro y compra tu primera cápsula (E / toca el aviso)."
+	elseif (stats.Earned or 0) == 0 then
+		return "2/5 · Espera a que se llene el tanque y recoge los créditos en el colector de tu laboratorio."
+	elseif #st.Lab.Mutants < 3 then
+		return "3/5 · Compra más mutantes: los raros producen mucho más."
+	elseif (stats.Fusions or 0) == 0 then
+		return "4/5 · Consigue dos mutantes iguales y fusiónalos en la cámara de fusión."
+	elseif st.Lab.Tier < 2 then
+		return "5/5 · Mejora tu laboratorio en la terminal para tener más pedestales."
+	end
+	return nil
+end
+
+function UI.refresh(force)
+	local st = UI.state
+	if not st or not hud then
+		return
+	end
+	local lab = st.Lab
+	hudLabels.credits.Text = "💰 " .. Util.short(st.Credits)
+	if lab then
+		hudLabels.income.Text = "+" .. Util.short(lab.Income) .. "/s"
+		hudLabels.lab.Text = "🔬 " .. lab.TierName .. " · " .. #lab.Mutants .. "/" .. lab.Slots
+		local frac = lab.TankCap > 0 and lab.Tank / lab.TankCap or 0
+		hudLabels.tankFill.Size = UDim2.new(math.min(1, frac), 0, 1, 0)
+		hudLabels.tank.Text = "🛢 Tanque " .. Util.short(lab.Tank) .. " / " .. Util.short(lab.TankCap) .. (frac >= 1 and "  ¡LLENO! Recoge en el colector" or "")
+		hudLabels.tankFill.BackgroundColor3 = frac >= 1 and C.red or C.neon
+		if lab.LaserLeft > 0 then
+			hudLabels.laser.Text = "🛡 Láser " .. math.ceil(lab.LaserLeft) .. " s"
+			hudLabels.laser.BackgroundColor3 = C.neon
+		elseif lab.LaserReady > 0 then
+			hudLabels.laser.Text = "🛡 Recarga " .. math.ceil(lab.LaserReady) .. " s"
+			hudLabels.laser.BackgroundColor3 = C.card2
+		else
+			hudLabels.laser.Text = "🛡 Activar láser"
+			hudLabels.laser.BackgroundColor3 = C.red
+		end
+	end
+	local ev = st.Event
+	if ev and ev.Name then
+		eventBar.Visible = true
+		eventBar.Text.Text = "⚡ " .. ev.Name .. ": " .. ev.Desc .. " (" .. Util.time(ev.Left) .. ")"
+	else
+		eventBar.Visible = false
+	end
+	carryBar.Visible = st.Carrying ~= nil
+	if st.Carrying then
+		carryBar.Text.Text = "🏃 Llevas " .. st.Carrying .. ": ¡corre a la zona de llegada de tu laboratorio!"
+	end
+	local g = guideText(st)
+	guide.Visible = g ~= nil
+	if g then
+		guide.Text.Text = "🎯 " .. g
+	end
+	if UI.open and (force or signature() ~= lastSig) then
+		UI.renderPanel()
+	end
+end
+
+function UI.setState(st)
+	UI.state = st
+	UI.refresh(false)
+end
+
+function UI.alert(data)
+	alertBar.Visible = data and data.on or false
+	if data and data.on then
+		alertBar.Text.Text = "🚨 ¡" .. tostring(data.thief) .. " te está robando " .. tostring(data.name) .. "! Persíguele y tócale."
+	end
+end
+
+function UI.build()
+	gui = new("ScreenGui", { Name = "LabMutanteUI", ResetOnSpawn = false, IgnoreGuiInset = false }, player:WaitForChild("PlayerGui"))
+	local cam = workspace.CurrentCamera
+	local vw = cam and cam.ViewportSize.X or 1280
+	new("UIScale", { Scale = vw < 700 and 0.75 or 1 }, gui)
+
+	hud = new("Frame", { Name = "HUD", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0) }, gui)
+	-- créditos (arriba al centro)
+	local top = frame(hud, { Size = UDim2.new(0, 300, 0, 64), Position = UDim2.new(0.5, -150, 0, 8), BackgroundColor3 = C.bg, BackgroundTransparency = 0.15 })
+	new("UIStroke", { Color = C.neon, Thickness = 2 }, top)
+	hudLabels.credits = label(top, "💰 0", { Size = UDim2.new(1, 0, 0, 36), TextXAlignment = Enum.TextXAlignment.Center, TextSize = 26, Font = Enum.Font.GothamBlack, TextColor3 = C.gold })
+	hudLabels.income = label(top, "+0/s", { Size = UDim2.new(1, 0, 0, 22), Position = UDim2.new(0, 0, 0, 36), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C.neon })
+	-- tarjeta del laboratorio (arriba a la izquierda)
+	local card = frame(hud, { Size = UDim2.new(0, 330, 0, 74), Position = UDim2.new(0, 10, 0, 8), BackgroundColor3 = C.bg, BackgroundTransparency = 0.15 })
+	new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10), PaddingTop = UDim.new(0, 6) }, card)
+	hudLabels.lab = label(card, "🔬 Laboratorio", { TextSize = 15 })
+	local bar = frame(card, { Size = UDim2.new(1, 0, 0, 12), Position = UDim2.new(0, 0, 0, 28), BackgroundColor3 = C.card2 })
+	hudLabels.tankFill = frame(bar, { Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = C.neon })
+	hudLabels.tank = label(card, "🛢 Tanque", { Position = UDim2.new(0, 0, 0, 42), TextSize = 13, TextColor3 = C.sub })
+	-- banners
+	local function banner(name, y, color)
+		local b = frame(hud, { Name = name, Size = UDim2.new(0, 560, 0, 40), Position = UDim2.new(0.5, -280, 0, y), BackgroundColor3 = color, Visible = false })
+		label(b, "", { Name = "Text", Size = UDim2.new(1, -16, 1, 0), Position = UDim2.new(0, 8, 0, 0), TextXAlignment = Enum.TextXAlignment.Center, TextSize = 15 })
+		return b
+	end
+	eventBar = banner("Event", 80, Color3.fromRGB(80, 50, 140))
+	alertBar = banner("Alert", 126, Color3.fromRGB(170, 30, 50))
+	carryBar = banner("Carry", 126, Color3.fromRGB(30, 120, 70))
+	guide = banner("Guide", 172, Color3.fromRGB(30, 60, 110))
+	guide.Size = UDim2.new(0, 560, 0, 46)
+	-- avisos (derecha)
+	notes = new("Frame", { Name = "Notes", BackgroundTransparency = 1, Size = UDim2.new(0, 340, 0, 300), Position = UDim2.new(1, -350, 0, 8) }, hud)
+	new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, notes)
+	-- botones (abajo)
+	local bottom = new("Frame", { BackgroundTransparency = 1, Size = UDim2.new(0, 740, 0, 52), Position = UDim2.new(0.5, -370, 1, -64) }, hud)
+	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), HorizontalAlignment = Enum.HorizontalAlignment.Center }, bottom)
+	local function hb(text, fn, color)
+		return button(bottom, text, fn, { Size = UDim2.new(0, 114, 0, 50), BackgroundColor3 = color or C.card2, TextSize = 14 })
+	end
+	hb("🔬 Laboratorio", function()
+		UI.openPanel("mutants")
+	end, C.purple)
+	hudLabels.laser = hb("🛡 Activar láser", function()
+		Net.call("Lab.Laser")
+	end, C.red)
+	hb("🧬 Fusión", function()
+		UI.openPanel("fusion")
+	end)
+	hb("📖 Bestiario", function()
+		UI.openPanel("index")
+	end)
+	hb("🏠 A casa", function()
+		Net.call("Lab.Home")
+	end)
+	hb("❓ Ayuda", function()
+		UI.openPanel("help")
+	end)
+
+	-- panel
+	panel = frame(gui, { Name = "Panel", Size = UDim2.new(0, 640, 0, 470), Position = UDim2.new(0.5, -320, 0.5, -250), BackgroundColor3 = C.bg, Visible = false })
+	new("UIStroke", { Color = C.purple, Thickness = 2 }, panel)
+	new("UISizeConstraint", { MaxSize = Vector2.new(640, 470) }, panel)
+	tabsBar = new("Frame", { Name = "Tabs", BackgroundTransparency = 1, Size = UDim2.new(1, -60, 0, 44), Position = UDim2.new(0, 8, 0, 8) }, panel)
+	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4) }, tabsBar)
+	for _, t in ipairs(TABS) do
+		local b = button(tabsBar, t[2], function()
+			UI.openPanel(t[1])
+		end, { Size = UDim2.new(0, 94, 0, 40), TextSize = 12, BackgroundColor3 = C.card2 })
+		b:SetAttribute("Tab", t[1])
+	end
+	button(panel, "✕", function()
+		UI.closePanel()
+	end, { Size = UDim2.new(0, 44, 0, 40), Position = UDim2.new(1, -52, 0, 8), BackgroundColor3 = C.red })
+	body = new("Frame", { Name = "Body", BackgroundTransparency = 1, Size = UDim2.new(1, -24, 1, -72), Position = UDim2.new(0, 12, 0, 60) }, panel)
+end
+
+UI.renderers = renderers
+UI.TABS = TABS
+return UI
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="SoundService" referent="RBX000031"><Properties><string name="Name">SoundService</string></Properties></Item></roblox>
