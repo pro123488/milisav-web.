@@ -41,30 +41,38 @@ local S = {
 	{ Id = "gusarrin", Name = "Gusarrín", Rarity = "common", Price = 55, Income = 2, Body = "ball", Scale = { 1.6, 1.6, 1.6 }, Eyes = 2, Parts = { "segments" }, C1 = { 240, 150, 170 }, C2 = { 200, 90, 120 } },
 	{ Id = "burbujon", Name = "Burbujón", Rarity = "common", Price = 70, Income = 2.5, Body = "ball", Scale = { 2.6, 2.6, 2.6 }, Eyes = 2, Parts = { "bubbles" }, C1 = { 140, 210, 255 }, C2 = { 255, 255, 255 }, Glass = true },
 	{ Id = "champibaile", Name = "Champibaile", Rarity = "common", Price = 90, Income = 3, Body = "cyl", Scale = { 1.4, 2, 1.4 }, Eyes = 2, Parts = { "cap" }, C1 = { 240, 230, 210 }, C2 = { 220, 50, 50 } },
+	{ Id = "pompon", Name = "Pompón Eléctrico", Rarity = "common", Price = 35, Income = 1.2, Body = "ball", Scale = { 2, 2, 2 }, Eyes = 2, Parts = { "antenna" }, C1 = { 255, 240, 120 }, C2 = { 80, 200, 255 } },
+	{ Id = "ladrillin", Name = "Ladrillín", Rarity = "common", Price = 65, Income = 2.2, Body = "block", Scale = { 2.2, 1.6, 1.6 }, Eyes = 2, Parts = { "legs" }, C1 = { 200, 90, 60 }, C2 = { 230, 220, 210 } },
 	-- Poco comunes
 	{ Id = "tentaculin", Name = "Tentaculín", Rarity = "uncommon", Price = 180, Income = 6, Body = "ball", Scale = { 2.2, 2.2, 2.2 }, Eyes = 2, Parts = { "tentacles" }, C1 = { 170, 90, 220 }, C2 = { 120, 50, 170 } },
 	{ Id = "ojoton", Name = "Ojotón", Rarity = "uncommon", Price = 260, Income = 8, Body = "ball", Scale = { 2.8, 2.8, 2.8 }, Eyes = 1, Parts = { "bigeye", "legs" }, C1 = { 250, 120, 60 }, C2 = { 255, 255, 255 } },
 	{ Id = "murcineon", Name = "Murcineón", Rarity = "uncommon", Price = 340, Income = 10, Body = "ball", Scale = { 1.8, 1.8, 1.8 }, Eyes = 2, Parts = { "wings", "ears" }, C1 = { 50, 50, 70 }, C2 = { 0, 255, 200 } },
 	{ Id = "pinchito", Name = "Pinchito", Rarity = "uncommon", Price = 420, Income = 12, Body = "cyl", Scale = { 1.6, 2.8, 1.6 }, Eyes = 2, Parts = { "arms", "spikes" }, C1 = { 60, 170, 90 }, C2 = { 250, 240, 200 } },
 	{ Id = "rocaflip", Name = "Rocaflip", Rarity = "uncommon", Price = 520, Income = 14, Body = "block", Scale = { 2.6, 2.2, 2.6 }, Eyes = 2, Parts = { "spikes" }, C1 = { 130, 120, 115 }, C2 = { 255, 140, 40 } },
+	{ Id = "babosaurio", Name = "Babosaurio", Rarity = "uncommon", Price = 220, Income = 7, Body = "ball", Scale = { 2, 1.6, 2.6 }, Eyes = 2, Parts = { "eyestalks", "tail" }, C1 = { 160, 220, 90 }, C2 = { 255, 120, 200 }, Glass = true },
+	{ Id = "tostadito", Name = "Tostadito", Rarity = "uncommon", Price = 470, Income = 13, Body = "block", Scale = { 2.4, 2.6, 1.2 }, Eyes = 2, Parts = { "arms", "legs" }, C1 = { 230, 180, 110 }, C2 = { 150, 90, 40 } },
 	-- Raros
 	{ Id = "calamarciano", Name = "Calamarciano", Rarity = "rare", Price = 1400, Income = 30, Body = "cyl", Scale = { 2, 3, 2 }, Eyes = 2, Parts = { "tentacles", "antenna" }, C1 = { 90, 230, 200 }, C2 = { 255, 80, 160 } },
 	{ Id = "gatoplasma", Name = "Gatoplasma", Rarity = "rare", Price = 2100, Income = 40, Body = "block", Scale = { 2.2, 2, 3 }, Eyes = 2, Parts = { "ears", "tail", "legs" }, C1 = { 200, 120, 255 }, C2 = { 255, 220, 255 }, Glass = true },
 	{ Id = "medusazap", Name = "Medusazap", Rarity = "rare", Price = 2900, Income = 52, Body = "ball", Scale = { 2.8, 2, 2.8 }, Eyes = 2, Parts = { "tentacles", "glow" }, C1 = { 120, 200, 255 }, C2 = { 255, 255, 120 }, Glass = true },
 	{ Id = "hongozilla", Name = "Hongozilla Mini", Rarity = "rare", Price = 3600, Income = 62, Body = "cyl", Scale = { 2, 2.6, 2 }, Eyes = 2, Parts = { "cap", "arms", "spikes" }, C1 = { 230, 220, 200 }, C2 = { 120, 60, 200 } },
 	{ Id = "pulpotron", Name = "Pulpotrón", Rarity = "rare", Price = 4400, Income = 75, Body = "ball", Scale = { 2.6, 2.6, 2.6 }, Eyes = 2, Parts = { "tentacles", "visor", "antenna" }, C1 = { 180, 190, 200 }, C2 = { 255, 60, 60 } },
+	{ Id = "erizotron", Name = "Erizotrón", Rarity = "rare", Price = 3200, Income = 56, Body = "ball", Scale = { 2.6, 2.2, 2.6 }, Eyes = 2, Parts = { "spikes", "visor", "legs" }, C1 = { 90, 90, 110 }, C2 = { 0, 255, 160 } },
 	-- Épicos
 	{ Id = "dragoacido", Name = "Dragoácido", Rarity = "epic", Price = 11000, Income = 160, Body = "block", Scale = { 2.4, 2.2, 4 }, Eyes = 2, Parts = { "wings", "tail", "horns", "legs" }, C1 = { 140, 230, 40 }, C2 = { 255, 255, 80 } },
 	{ Id = "cristalodonte", Name = "Cristalodonte", Rarity = "epic", Price = 16000, Income = 220, Body = "block", Scale = { 2.8, 2.4, 3.4 }, Eyes = 2, Parts = { "crystals", "legs", "tail" }, C1 = { 150, 220, 255 }, C2 = { 255, 255, 255 }, Glass = true },
 	{ Id = "fantasmon", Name = "Fantasmón Glotón", Rarity = "epic", Price = 22000, Income = 290, Body = "ball", Scale = { 3, 3.4, 3 }, Eyes = 2, Parts = { "skirt", "mouth" }, C1 = { 235, 235, 255 }, C2 = { 120, 120, 200 }, Ghost = true },
 	{ Id = "lavapuff", Name = "Lavapuff", Rarity = "epic", Price = 30000, Income = 370, Body = "ball", Scale = { 3, 2.6, 3 }, Eyes = 2, Parts = { "cracks", "horns" }, C1 = { 60, 30, 30 }, C2 = { 255, 110, 20 } },
+	{ Id = "golemplasma", Name = "Gólem de Plasma", Rarity = "epic", Price = 26000, Income = 330, Body = "block", Scale = { 3.2, 3.6, 2.4 }, Eyes = 2, Parts = { "arms", "cracks", "glow" }, C1 = { 60, 40, 90 }, C2 = { 255, 80, 255 } },
 	-- Legendarios
 	{ Id = "hidraneon", Name = "Hidra Neón", Rarity = "legendary", Price = 90000, Income = 1000, Body = "block", Scale = { 3.4, 2.6, 4 }, Eyes = 0, Parts = { "necks", "tail", "legs" }, C1 = { 40, 60, 120 }, C2 = { 0, 255, 255 } },
 	{ Id = "titangel", Name = "Titán de Gelatina", Rarity = "legendary", Price = 150000, Income = 1500, Body = "block", Scale = { 4.4, 4.4, 4.4 }, Eyes = 2, Parts = { "mouth", "bubbles" }, C1 = { 255, 90, 140 }, C2 = { 255, 200, 220 }, Glass = true },
 	{ Id = "fenixrad", Name = "Fénix Radiactivo", Rarity = "legendary", Price = 240000, Income = 2300, Body = "ball", Scale = { 2.4, 2.8, 2.4 }, Eyes = 2, Parts = { "bigwings", "tail", "crest", "glow" }, C1 = { 255, 140, 30 }, C2 = { 140, 255, 60 } },
+	{ Id = "serpecometa", Name = "Serpiente Cometa", Rarity = "legendary", Price = 190000, Income = 1900, Body = "ball", Scale = { 2.2, 2.2, 2.2 }, Eyes = 2, Parts = { "segments", "crest", "glow", "horns" }, C1 = { 40, 80, 200 }, C2 = { 255, 255, 255 } },
 	-- Míticos
 	{ Id = "krakenbolsillo", Name = "Kraken de Bolsillo", Rarity = "mythic", Price = 900000, Income = 8500, Body = "ball", Scale = { 3.6, 3.6, 3.6 }, Eyes = 2, Parts = { "tentacles", "tentacles2", "crest" }, C1 = { 120, 30, 80 }, C2 = { 255, 220, 60 } },
 	{ Id = "quimeracuantica", Name = "Quimera Cuántica", Rarity = "mythic", Price = 1800000, Income = 16000, Body = "block", Scale = { 3, 2.6, 4.6 }, Eyes = 3, Parts = { "bigwings", "horns", "tail", "legs", "glow" }, C1 = { 30, 30, 50 }, C2 = { 180, 90, 255 } },
+	{ Id = "leviatancillo", Name = "Leviatancillo", Rarity = "mythic", Price = 1300000, Income = 12000, Body = "block", Scale = { 3, 2.4, 5 }, Eyes = 2, Parts = { "tentacles", "bigwings", "tail", "crystals" }, C1 = { 10, 60, 90 }, C2 = { 0, 255, 255 } },
 	-- Secretos
 	{ Id = "experimentox", Name = "Experimento X", Rarity = "secret", Price = 7000000, Income = 65000, Body = "cyl", Scale = { 2.6, 4.2, 2.6 }, Eyes = 1, Parts = { "bigeye", "rings", "antenna", "glow" }, C1 = { 20, 20, 24 }, C2 = { 0, 255, 120 } },
 	{ Id = "nucleovivo", Name = "Núcleo Viviente", Rarity = "secret", Price = 14000000, Income = 120000, Body = "ball", Scale = { 3.4, 3.4, 3.4 }, Eyes = 2, Parts = { "rings", "glow", "crystals" }, C1 = { 255, 255, 255 }, C2 = { 255, 60, 220 }, Glass = true },

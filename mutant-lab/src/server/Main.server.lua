@@ -9,6 +9,8 @@ local order = {
 	{ "Net", "Net" },
 	{ "Data", "DataService" },
 	{ "World", "WorldService" },
+	{ "Board", "LeaderboardService" },
+	{ "Daily", "DailyService" },
 	{ "Event", "EventService" },
 	{ "Monetization", "MonetizationService" },
 	{ "Lab", "LabService" },
@@ -35,6 +37,7 @@ local function onPlayerAdded(player)
 		return
 	end
 	S.Monetization.onPlayerReady(player)
+	S.Daily.refresh(player)
 	if not S.Lab.assign(player) then
 		player:Kick("El servidor está lleno (8 laboratorios). Prueba en otro servidor.")
 		return

@@ -76,6 +76,7 @@ LabData.Research = {
 	{ Id = "fusion", Name = "Fusión acelerada", Desc = "-10% de tiempo de fusión por nivel", Max = 5, Base = 1200, Growth = 2.4 },
 	{ Id = "sprint", Name = "Botas antigravedad", Desc = "+1 de velocidad al cargar un mutante", Max = 4, Base = 2000, Growth = 2.6 },
 	{ Id = "tank", Name = "Tanque ampliado", Desc = "+25% de capacidad del tanque por nivel", Max = 6, Base = 1000, Growth = 2.4 },
+	{ Id = "pipe", Name = "Tubería de créditos", Desc = "Cada 30 s pasa un 10% del tanque por nivel a tus créditos, aunque no estés en el colector", Max = 5, Base = 2500, Growth = 2.6 },
 }
 LabData.ResearchById = {}
 for _, r in ipairs(LabData.Research) do
@@ -105,6 +106,8 @@ LabData.Events = {
 	{ Id = "rush", Name = "Fiebre de cápsulas", Desc = "Las cápsulas salen el doble de rápido", SpawnMult = 0.5, Sky = { 255, 200, 60 } },
 	{ Id = "legend", Name = "Hora legendaria", Desc = "Mucha más suerte de rareza", Luck = 2.5, Sky = { 255, 150, 40 } },
 	{ Id = "double", Name = "Doble producción", Desc = "Todos los laboratorios producen el doble", IncomeMult = 2, Sky = { 60, 200, 255 } },
+	{ Id = "meteor", Name = "Lluvia de meteoritos mutantes", Desc = "Más rareza y el doble de mutaciones", Luck = 1.6, MutMult = 2, Sky = { 255, 90, 60 } },
+	{ Id = "sale", Name = "Rebajas del generador", Desc = "Todas las cápsulas un 30% más baratas", PriceMult = 0.7, Sky = { 255, 230, 120 } },
 }
 
 return LabData
@@ -174,30 +177,38 @@ local S = {
 	{ Id = "gusarrin", Name = "Gusarrín", Rarity = "common", Price = 55, Income = 2, Body = "ball", Scale = { 1.6, 1.6, 1.6 }, Eyes = 2, Parts = { "segments" }, C1 = { 240, 150, 170 }, C2 = { 200, 90, 120 } },
 	{ Id = "burbujon", Name = "Burbujón", Rarity = "common", Price = 70, Income = 2.5, Body = "ball", Scale = { 2.6, 2.6, 2.6 }, Eyes = 2, Parts = { "bubbles" }, C1 = { 140, 210, 255 }, C2 = { 255, 255, 255 }, Glass = true },
 	{ Id = "champibaile", Name = "Champibaile", Rarity = "common", Price = 90, Income = 3, Body = "cyl", Scale = { 1.4, 2, 1.4 }, Eyes = 2, Parts = { "cap" }, C1 = { 240, 230, 210 }, C2 = { 220, 50, 50 } },
+	{ Id = "pompon", Name = "Pompón Eléctrico", Rarity = "common", Price = 35, Income = 1.2, Body = "ball", Scale = { 2, 2, 2 }, Eyes = 2, Parts = { "antenna" }, C1 = { 255, 240, 120 }, C2 = { 80, 200, 255 } },
+	{ Id = "ladrillin", Name = "Ladrillín", Rarity = "common", Price = 65, Income = 2.2, Body = "block", Scale = { 2.2, 1.6, 1.6 }, Eyes = 2, Parts = { "legs" }, C1 = { 200, 90, 60 }, C2 = { 230, 220, 210 } },
 	-- Poco comunes
 	{ Id = "tentaculin", Name = "Tentaculín", Rarity = "uncommon", Price = 180, Income = 6, Body = "ball", Scale = { 2.2, 2.2, 2.2 }, Eyes = 2, Parts = { "tentacles" }, C1 = { 170, 90, 220 }, C2 = { 120, 50, 170 } },
 	{ Id = "ojoton", Name = "Ojotón", Rarity = "uncommon", Price = 260, Income = 8, Body = "ball", Scale = { 2.8, 2.8, 2.8 }, Eyes = 1, Parts = { "bigeye", "legs" }, C1 = { 250, 120, 60 }, C2 = { 255, 255, 255 } },
 	{ Id = "murcineon", Name = "Murcineón", Rarity = "uncommon", Price = 340, Income = 10, Body = "ball", Scale = { 1.8, 1.8, 1.8 }, Eyes = 2, Parts = { "wings", "ears" }, C1 = { 50, 50, 70 }, C2 = { 0, 255, 200 } },
 	{ Id = "pinchito", Name = "Pinchito", Rarity = "uncommon", Price = 420, Income = 12, Body = "cyl", Scale = { 1.6, 2.8, 1.6 }, Eyes = 2, Parts = { "arms", "spikes" }, C1 = { 60, 170, 90 }, C2 = { 250, 240, 200 } },
 	{ Id = "rocaflip", Name = "Rocaflip", Rarity = "uncommon", Price = 520, Income = 14, Body = "block", Scale = { 2.6, 2.2, 2.6 }, Eyes = 2, Parts = { "spikes" }, C1 = { 130, 120, 115 }, C2 = { 255, 140, 40 } },
+	{ Id = "babosaurio", Name = "Babosaurio", Rarity = "uncommon", Price = 220, Income = 7, Body = "ball", Scale = { 2, 1.6, 2.6 }, Eyes = 2, Parts = { "eyestalks", "tail" }, C1 = { 160, 220, 90 }, C2 = { 255, 120, 200 }, Glass = true },
+	{ Id = "tostadito", Name = "Tostadito", Rarity = "uncommon", Price = 470, Income = 13, Body = "block", Scale = { 2.4, 2.6, 1.2 }, Eyes = 2, Parts = { "arms", "legs" }, C1 = { 230, 180, 110 }, C2 = { 150, 90, 40 } },
 	-- Raros
 	{ Id = "calamarciano", Name = "Calamarciano", Rarity = "rare", Price = 1400, Income = 30, Body = "cyl", Scale = { 2, 3, 2 }, Eyes = 2, Parts = { "tentacles", "antenna" }, C1 = { 90, 230, 200 }, C2 = { 255, 80, 160 } },
 	{ Id = "gatoplasma", Name = "Gatoplasma", Rarity = "rare", Price = 2100, Income = 40, Body = "block", Scale = { 2.2, 2, 3 }, Eyes = 2, Parts = { "ears", "tail", "legs" }, C1 = { 200, 120, 255 }, C2 = { 255, 220, 255 }, Glass = true },
 	{ Id = "medusazap", Name = "Medusazap", Rarity = "rare", Price = 2900, Income = 52, Body = "ball", Scale = { 2.8, 2, 2.8 }, Eyes = 2, Parts = { "tentacles", "glow" }, C1 = { 120, 200, 255 }, C2 = { 255, 255, 120 }, Glass = true },
 	{ Id = "hongozilla", Name = "Hongozilla Mini", Rarity = "rare", Price = 3600, Income = 62, Body = "cyl", Scale = { 2, 2.6, 2 }, Eyes = 2, Parts = { "cap", "arms", "spikes" }, C1 = { 230, 220, 200 }, C2 = { 120, 60, 200 } },
 	{ Id = "pulpotron", Name = "Pulpotrón", Rarity = "rare", Price = 4400, Income = 75, Body = "ball", Scale = { 2.6, 2.6, 2.6 }, Eyes = 2, Parts = { "tentacles", "visor", "antenna" }, C1 = { 180, 190, 200 }, C2 = { 255, 60, 60 } },
+	{ Id = "erizotron", Name = "Erizotrón", Rarity = "rare", Price = 3200, Income = 56, Body = "ball", Scale = { 2.6, 2.2, 2.6 }, Eyes = 2, Parts = { "spikes", "visor", "legs" }, C1 = { 90, 90, 110 }, C2 = { 0, 255, 160 } },
 	-- Épicos
 	{ Id = "dragoacido", Name = "Dragoácido", Rarity = "epic", Price = 11000, Income = 160, Body = "block", Scale = { 2.4, 2.2, 4 }, Eyes = 2, Parts = { "wings", "tail", "horns", "legs" }, C1 = { 140, 230, 40 }, C2 = { 255, 255, 80 } },
 	{ Id = "cristalodonte", Name = "Cristalodonte", Rarity = "epic", Price = 16000, Income = 220, Body = "block", Scale = { 2.8, 2.4, 3.4 }, Eyes = 2, Parts = { "crystals", "legs", "tail" }, C1 = { 150, 220, 255 }, C2 = { 255, 255, 255 }, Glass = true },
 	{ Id = "fantasmon", Name = "Fantasmón Glotón", Rarity = "epic", Price = 22000, Income = 290, Body = "ball", Scale = { 3, 3.4, 3 }, Eyes = 2, Parts = { "skirt", "mouth" }, C1 = { 235, 235, 255 }, C2 = { 120, 120, 200 }, Ghost = true },
 	{ Id = "lavapuff", Name = "Lavapuff", Rarity = "epic", Price = 30000, Income = 370, Body = "ball", Scale = { 3, 2.6, 3 }, Eyes = 2, Parts = { "cracks", "horns" }, C1 = { 60, 30, 30 }, C2 = { 255, 110, 20 } },
+	{ Id = "golemplasma", Name = "Gólem de Plasma", Rarity = "epic", Price = 26000, Income = 330, Body = "block", Scale = { 3.2, 3.6, 2.4 }, Eyes = 2, Parts = { "arms", "cracks", "glow" }, C1 = { 60, 40, 90 }, C2 = { 255, 80, 255 } },
 	-- Legendarios
 	{ Id = "hidraneon", Name = "Hidra Neón", Rarity = "legendary", Price = 90000, Income = 1000, Body = "block", Scale = { 3.4, 2.6, 4 }, Eyes = 0, Parts = { "necks", "tail", "legs" }, C1 = { 40, 60, 120 }, C2 = { 0, 255, 255 } },
 	{ Id = "titangel", Name = "Titán de Gelatina", Rarity = "legendary", Price = 150000, Income = 1500, Body = "block", Scale = { 4.4, 4.4, 4.4 }, Eyes = 2, Parts = { "mouth", "bubbles" }, C1 = { 255, 90, 140 }, C2 = { 255, 200, 220 }, Glass = true },
 	{ Id = "fenixrad", Name = "Fénix Radiactivo", Rarity = "legendary", Price = 240000, Income = 2300, Body = "ball", Scale = { 2.4, 2.8, 2.4 }, Eyes = 2, Parts = { "bigwings", "tail", "crest", "glow" }, C1 = { 255, 140, 30 }, C2 = { 140, 255, 60 } },
+	{ Id = "serpecometa", Name = "Serpiente Cometa", Rarity = "legendary", Price = 190000, Income = 1900, Body = "ball", Scale = { 2.2, 2.2, 2.2 }, Eyes = 2, Parts = { "segments", "crest", "glow", "horns" }, C1 = { 40, 80, 200 }, C2 = { 255, 255, 255 } },
 	-- Míticos
 	{ Id = "krakenbolsillo", Name = "Kraken de Bolsillo", Rarity = "mythic", Price = 900000, Income = 8500, Body = "ball", Scale = { 3.6, 3.6, 3.6 }, Eyes = 2, Parts = { "tentacles", "tentacles2", "crest" }, C1 = { 120, 30, 80 }, C2 = { 255, 220, 60 } },
 	{ Id = "quimeracuantica", Name = "Quimera Cuántica", Rarity = "mythic", Price = 1800000, Income = 16000, Body = "block", Scale = { 3, 2.6, 4.6 }, Eyes = 3, Parts = { "bigwings", "horns", "tail", "legs", "glow" }, C1 = { 30, 30, 50 }, C2 = { 180, 90, 255 } },
+	{ Id = "leviatancillo", Name = "Leviatancillo", Rarity = "mythic", Price = 1300000, Income = 12000, Body = "block", Scale = { 3, 2.4, 5 }, Eyes = 2, Parts = { "tentacles", "bigwings", "tail", "crystals" }, C1 = { 10, 60, 90 }, C2 = { 0, 255, 255 } },
 	-- Secretos
 	{ Id = "experimentox", Name = "Experimento X", Rarity = "secret", Price = 7000000, Income = 65000, Body = "cyl", Scale = { 2.6, 4.2, 2.6 }, Eyes = 1, Parts = { "bigeye", "rings", "antenna", "glow" }, C1 = { 20, 20, 24 }, C2 = { 0, 255, 120 } },
 	{ Id = "nucleovivo", Name = "Núcleo Viviente", Rarity = "secret", Price = 14000000, Income = 120000, Body = "ball", Scale = { 3.4, 3.4, 3.4 }, Eyes = 2, Parts = { "rings", "glow", "crystals" }, C1 = { 255, 255, 255 }, C2 = { 255, 60, 220 }, Glass = true },
@@ -369,7 +380,7 @@ function Util.time(seconds)
 end
 
 return Util
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX000024"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX000010"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX000011"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX000026"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX000010"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX000011"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Arranque del servidor de Laboratorio Mutante.
 
 local Players = game:GetService("Players")
@@ -380,6 +391,8 @@ local order = {
 	{ "Net", "Net" },
 	{ "Data", "DataService" },
 	{ "World", "WorldService" },
+	{ "Board", "LeaderboardService" },
+	{ "Daily", "DailyService" },
 	{ "Event", "EventService" },
 	{ "Monetization", "MonetizationService" },
 	{ "Lab", "LabService" },
@@ -406,6 +419,7 @@ local function onPlayerAdded(player)
 		return
 	end
 	S.Monetization.onPlayerReady(player)
+	S.Daily.refresh(player)
 	if not S.Lab.assign(player) then
 		player:Kick("El servidor está lleno (8 laboratorios). Prueba en otro servidor.")
 		return
@@ -463,7 +477,8 @@ end
 function Conveyor.priceFor(player, cap)
 	local data = S.Data.get(player)
 	local disc = data and (data.Research.discount or 0) or 0
-	return math.max(1, math.floor(cap.Price * (1 - 0.04 * disc)))
+	local ev = S.Event and S.Event.priceMult() or 1
+	return math.max(1, math.floor(cap.Price * (1 - 0.04 * disc) * ev))
 end
 
 local function buildCapsule(cap)
@@ -563,6 +578,7 @@ function Conveyor.buy(player, capId)
 	end
 	S.Lab.addMutant(player, rec, slot)
 	data.Stats.Bought = data.Stats.Bought + 1
+	S.Daily.progress(player, "buy", 1)
 	removeCapsule(cap)
 	local extra = (rec.M and not cap.M) and (" ¡Ha mutado a " .. MutantData.MutationById[rec.M].Name .. "!") or ""
 	return true, "🧪 Has comprado " .. MutantData.label(rec) .. ". Ya está en tu laboratorio." .. extra, { slot = slot }
@@ -630,7 +646,170 @@ function Conveyor.Start()
 end
 
 return Conveyor
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000014"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000014"><Properties><string name="Name">DailyService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- DailyService: premio por entrar cada día (racha de 7 días que se repite) y 3 misiones diarias.
+-- El día se calcula en el servidor (UTC). Cada premio se cobra una sola vez.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Util = require(ReplicatedStorage.Shared.Util)
+local MutantData = require(ReplicatedStorage.Shared.MutantData)
+
+local Daily = {}
+local S
+
+-- Tipos de misión: Target se escala con el nivel del laboratorio; Reward en créditos (también escalado)
+Daily.Kinds = {
+	{ Id = "buy", Text = "Compra %s cápsulas", Target = 5, Reward = 150 },
+	{ Id = "collect", Text = "Recoge %s créditos del colector", Target = 500, Reward = 200, ScaleTarget = true },
+	{ Id = "fuse", Text = "Completa %s fusión", Target = 1, Reward = 400 },
+	{ Id = "steal", Text = "Roba %s mutante y llévalo a tu laboratorio", Target = 1, Reward = 500 },
+	{ Id = "recover", Text = "Recupera %s mutante robado (tocando al ladrón, con trampas o con el dron)", Target = 1, Reward = 300 },
+	{ Id = "discover", Text = "Descubre %s especie nueva", Target = 1, Reward = 350 },
+	{ Id = "sell", Text = "Vende %s mutantes", Target = 2, Reward = 120 },
+}
+Daily.KindById = {}
+for _, k in ipairs(Daily.Kinds) do
+	Daily.KindById[k.Id] = k
+end
+Daily.LoginRewards = { 100, 150, 250, 400, 600, 900, 1500 }
+
+function Daily.Init(services)
+	S = services
+end
+
+function Daily.today()
+	return os.date("!%Y-%m-%d", os.time())
+end
+local function yesterday()
+	return os.date("!%Y-%m-%d", os.time() - 86400)
+end
+
+-- Multiplicador según el nivel del laboratorio (las recompensas crecen con el progreso)
+local function scale(data)
+	return ({ 1, 4, 25, 180, 1500 })[data.Lab.Tier] or 1
+end
+
+local function newMissions(player, data, day)
+	-- 3 misiones distintas, deterministas para ese jugador y día
+	local seed = 0
+	for i = 1, #day do
+		seed = (seed * 31 + day:byte(i)) % 2147483647
+	end
+	local rng = Random.new(seed + player.UserId)
+	local pool = {}
+	for _, k in ipairs(Daily.Kinds) do
+		pool[#pool + 1] = k
+	end
+	local out = {}
+	for _ = 1, 3 do
+		local idx = rng:NextInteger(1, #pool)
+		local k = table.remove(pool, idx)
+		local sc = scale(data)
+		out[#out + 1] = { Kind = k.Id, Target = k.ScaleTarget and k.Target * sc or k.Target, Progress = 0, Reward = k.Reward * sc, Claimed = false }
+	end
+	return out
+end
+
+-- Al entrar (y al cambiar de día): racha y misiones nuevas
+function Daily.refresh(player)
+	local data = S.Data.get(player)
+	if not data then
+		return
+	end
+	data.Daily = data.Daily or {}
+	local d = data.Daily
+	local today = Daily.today()
+	if d.Day ~= today then
+		if d.LastLogin == yesterday() then
+			d.Streak = (d.Streak or 0) + 1
+		elseif d.LastLogin ~= today then
+			d.Streak = 1
+		end
+		d.Day = today
+		d.LoginClaimed = false
+		d.Missions = newMissions(player, data, today)
+	end
+	d.LastLogin = today
+end
+
+function Daily.progress(player, kind, amount)
+	local data = S.Data.get(player)
+	local d = data and data.Daily
+	if not d or not d.Missions then
+		return
+	end
+	if d.Day ~= Daily.today() then
+		Daily.refresh(player)
+	end
+	for _, m in ipairs(d.Missions) do
+		if m.Kind == kind and not m.Claimed and m.Progress < m.Target then
+			m.Progress = math.min(m.Target, m.Progress + (amount or 1))
+			if m.Progress >= m.Target then
+				S.Net.notify(player, "📅 Misión diaria completada: cóbrala en la pestaña Diario.", "gold")
+			end
+		end
+	end
+end
+
+function Daily.claimLogin(player)
+	local data = S.Data.get(player)
+	Daily.refresh(player)
+	local d = data.Daily
+	if d.LoginClaimed then
+		return false, "Ya has cobrado el premio de hoy. ¡Vuelve mañana!"
+	end
+	local dayInCycle = ((d.Streak or 1) - 1) % #Daily.LoginRewards + 1
+	local amount = Daily.LoginRewards[dayInCycle] * scale(data)
+	d.LoginClaimed = true
+	data.Credits = data.Credits + amount
+	return true, "🎁 Premio del día " .. dayInCycle .. ": +" .. Util.short(amount) .. " créditos (racha de " .. d.Streak .. " días)", { amount = amount }
+end
+
+function Daily.claim(player, i)
+	local data = S.Data.get(player)
+	Daily.refresh(player)
+	local m = type(i) == "number" and data.Daily.Missions[math.floor(i)]
+	if not m then
+		return false, "Misión no válida."
+	end
+	if m.Claimed then
+		return false, "Ya la has cobrado."
+	end
+	if m.Progress < m.Target then
+		return false, "Aún no está completada (" .. Util.short(m.Progress) .. "/" .. Util.short(m.Target) .. ")."
+	end
+	m.Claimed = true
+	data.Credits = data.Credits + m.Reward
+	return true, "✅ +" .. Util.short(m.Reward) .. " créditos", { amount = m.Reward }
+end
+
+function Daily.view(player)
+	local data = S.Data.get(player)
+	local d = data and data.Daily
+	if not d or not d.Missions then
+		return nil
+	end
+	local missions = {}
+	for i, m in ipairs(d.Missions) do
+		local k = Daily.KindById[m.Kind]
+		missions[i] = { Text = string.format(k.Text, Util.short(m.Target)), Progress = m.Progress, Target = m.Target, Reward = m.Reward, Claimed = m.Claimed }
+	end
+	local dayInCycle = ((d.Streak or 1) - 1) % #Daily.LoginRewards + 1
+	return { Streak = d.Streak or 1, LoginClaimed = d.LoginClaimed, LoginReward = Daily.LoginRewards[dayInCycle] * scale(data), DayInCycle = dayInCycle, Missions = missions }
+end
+
+function Daily.Start()
+	S.Net.on("Daily.Login", function(player)
+		return Daily.claimLogin(player)
+	end)
+	S.Net.on("Daily.Claim", function(player, p)
+		return Daily.claim(player, tonumber(p.i))
+	end)
+end
+
+return Daily
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000015"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- DataService: guardado seguro con DataStore.
 --  * UpdateAsync con bloqueo de sesión (evita que dos servidores escriban el mismo perfil).
 --  * Reintentos limitados; si la carga falla NUNCA se sobrescribe: en un servidor real se expulsa con un
@@ -657,6 +836,7 @@ Data.Template = {
 	Index = {},
 	Stats = { Bought = 0, Stolen = 0, Lost = 0, Recovered = 0, Fusions = 0, Earned = 0, Sold = 0 },
 	Receipts = {},
+	Daily = {},
 	NextUid = 1,
 }
 
@@ -794,7 +974,7 @@ function Data.Start()
 end
 
 return Data
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000015"><Properties><string name="Name">EventService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000016"><Properties><string name="Name">EventService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- EventService: eventos de todo el servidor que se repiten (tormenta radiactiva, fiebre de cápsulas,
 -- hora legendaria, doble producción). Cambian el tono del cielo y se anuncian a todos.
 
@@ -822,6 +1002,9 @@ function Event.mutMult()
 end
 function Event.spawnMult()
 	return Event.current and Event.current.SpawnMult or 1
+end
+function Event.priceMult()
+	return Event.current and Event.current.PriceMult or 1
 end
 function Event.incomeMult()
 	return Event.current and Event.current.IncomeMult or 1
@@ -875,7 +1058,7 @@ function Event.Start()
 end
 
 return Event
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000016"><Properties><string name="Name">FusionService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000017"><Properties><string name="Name">FusionService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- FusionService: la cámara de fusión une dos mutantes de la misma especie y nivel en uno de nivel superior.
 -- Los dos entran en la cámara (dejan libres sus pedestales) y, al terminar, el resultado se recoge en un pedestal libre.
 -- La mejor mutación de los dos se conserva. Nadie puede robar lo que está dentro de la cámara.
@@ -977,6 +1160,7 @@ function Fusion.claim(player)
 	local rec = { S = f.S, M = f.M, L = f.L }
 	S.Lab.addMutant(player, rec, slot)
 	data.Stats.Fusions = data.Stats.Fusions + 1
+	S.Daily.progress(player, "fuse", 1)
 	showInChamber(player)
 	return true, "✨ ¡Fusión completada! " .. MutantData.label(rec) .. " produce +" .. Util.short(MutantData.income(rec)) .. "/s."
 end
@@ -1031,7 +1215,7 @@ function Fusion.Start()
 end
 
 return Fusion
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000017"><Properties><string name="Name">LabService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000018"><Properties><string name="Name">LabService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- LabService: tu laboratorio. Asignación de parcela, pedestales con mutantes, producción en el tanque,
 -- colector, puerta láser, mejoras de nivel, investigación, defensas, venta y bestiario.
 
@@ -1187,6 +1371,9 @@ function Lab.addMutant(player, rec, slot)
 		local reward = math.floor(sp.Price * Config.DiscoverReward)
 		data.Credits = data.Credits + reward
 		S.Net.push(player, "discover", { name = sp.Name, rarity = sp.Rarity, reward = reward })
+		if S.Daily then
+			S.Daily.progress(player, "discover", 1)
+		end
 	else
 		data.Index[rec.S] = data.Index[rec.S] + 1
 	end
@@ -1300,6 +1487,17 @@ local function tick(dt)
 			local cap = Lab.tankCap(player, data)
 			local inc = Lab.incomePerSecond(player)
 			data.Lab.Tank = math.min(cap, data.Lab.Tank + inc * dt)
+			-- Tubería de créditos: cada 30 s pasa parte del tanque a tus créditos
+			local pipe = data.Research.pipe or 0
+			if pipe > 0 and os.clock() >= (st.PipeAt or 0) then
+				st.PipeAt = os.clock() + 30
+				local moved = math.floor(data.Lab.Tank * 0.1 * pipe)
+				if moved > 0 then
+					data.Lab.Tank = data.Lab.Tank - moved
+					data.Credits = data.Credits + moved
+					data.Stats.Earned = data.Stats.Earned + moved
+				end
+			end
 			S.World.setTank(st.Index, data.Lab.Tank, cap)
 			if S.World.labs[st.Index].LaserOn and st.LaserUntil <= os.clock() then
 				S.World.setLaser(st.Index, false)
@@ -1334,6 +1532,7 @@ function Lab.collect(player)
 	data.Credits = data.Credits + amount
 	data.Stats.Earned = data.Stats.Earned + amount
 	S.World.setTank(st.Index, data.Lab.Tank, Lab.tankCap(player, data))
+	S.Daily.progress(player, "collect", amount)
 	return true, "💰 +" .. Util.short(amount) .. " créditos", { amount = amount }
 end
 
@@ -1446,6 +1645,7 @@ function Lab.sell(player, slot)
 	Lab.removeMutant(player, slot)
 	data.Credits = data.Credits + value
 	data.Stats.Sold = data.Stats.Sold + 1
+	S.Daily.progress(player, "sell", 1)
 	return true, "Vendido " .. MutantData.label(rec) .. " por " .. Util.short(value) .. " créditos.", { value = value }
 end
 
@@ -1586,7 +1786,150 @@ function Lab.Start()
 end
 
 return Lab
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000018"><Properties><string name="Name">MonetizationService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000019"><Properties><string name="Name">LeaderboardService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+-- LeaderboardService: panel físico en la plaza con los 10 laboratorios que más créditos han ganado.
+-- Usa un OrderedDataStore (todos los servidores) y, si no está disponible (Studio sin acceso), muestra
+-- la clasificación de los jugadores del servidor.
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Util = require(ReplicatedStorage.Shared.Util)
+
+local Board = {}
+local S
+local ordered
+local rows = {}
+local names = {}
+
+function Board.Init(services)
+	S = services
+	local ok, ds = pcall(function()
+		return DataStoreService:GetOrderedDataStore("LabMutante_Top_v1")
+	end)
+	ordered = ok and ds or nil
+end
+
+local function build()
+	local m = Instance.new("Model")
+	m.Name = "Leaderboard"
+	m.Parent = S.World.root
+	S.World.P(m, "Post", Vector3.new(1.5, 14, 1.5), CFrame.new(-8, 7, 22), { 40, 40, 50 }, Enum.Material.Metal)
+	S.World.P(m, "Post", Vector3.new(1.5, 14, 1.5), CFrame.new(8, 7, 22), { 40, 40, 50 }, Enum.Material.Metal)
+	local screen = S.World.P(m, "Screen", Vector3.new(18, 12, 0.6), CFrame.new(0, 10, 22), { 20, 22, 34 }, Enum.Material.SmoothPlastic)
+	S.World.P(m, "Frame", Vector3.new(18.8, 12.8, 0.4), CFrame.new(0, 10, 22.4), { 255, 214, 70 }, Enum.Material.Neon)
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		sg.PixelsPerStud = 30
+		sg.Parent = screen
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0.14, 0)
+		title.BackgroundTransparency = 1
+		title.Text = "🏆 MEJORES LABORATORIOS"
+		title.TextColor3 = Color3.fromRGB(255, 214, 70)
+		title.Font = Enum.Font.GothamBlack
+		title.TextScaled = true
+		title.Parent = sg
+		for i = 1, 10 do
+			local t = Instance.new("TextLabel")
+			t.Name = "Row" .. i
+			t.Size = UDim2.new(0.92, 0, 0.082, 0)
+			t.Position = UDim2.new(0.04, 0, 0.15 + (i - 1) * 0.085, 0)
+			t.BackgroundTransparency = 1
+			t.Text = ""
+			t.TextColor3 = i <= 3 and Color3.fromRGB(255, 230, 140) or Color3.fromRGB(220, 225, 255)
+			t.Font = Enum.Font.GothamBold
+			t.TextScaled = true
+			t.TextXAlignment = Enum.TextXAlignment.Left
+			t.Parent = sg
+			rows[#rows + 1] = { label = t, index = i }
+		end
+	end
+end
+
+local function show(list)
+	Board.entries = list
+	for _, r in ipairs(rows) do
+		local e = list[r.index]
+		r.label.Text = e and (r.index .. ". " .. e.name .. "  —  " .. Util.short(e.value)) or ""
+	end
+end
+
+local function nameOf(userId)
+	if names[userId] then
+		return names[userId]
+	end
+	local p = Players:GetPlayerByUserId(userId)
+	if p then
+		names[userId] = p.DisplayName
+		return names[userId]
+	end
+	local ok, n = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	names[userId] = ok and n or ("Jugador " .. userId)
+	return names[userId]
+end
+
+function Board.update()
+	local list = {}
+	if ordered then
+		for _, p in ipairs(Players:GetPlayers()) do
+			local d = S.Data.get(p)
+			if d then
+				pcall(function()
+					ordered:SetAsync(tostring(p.UserId), math.floor(d.Stats.Earned or 0))
+				end)
+			end
+		end
+		local ok, pages = pcall(function()
+			return ordered:GetSortedAsync(false, 10)
+		end)
+		if ok and pages then
+			local okPage, page = pcall(function()
+				return pages:GetCurrentPage()
+			end)
+			if okPage and page then
+				for _, e in ipairs(page) do
+					list[#list + 1] = { name = nameOf(tonumber(e.key) or 0), value = e.value }
+				end
+			end
+		end
+	end
+	if #list == 0 then
+		-- respaldo: jugadores de este servidor
+		for _, p in ipairs(Players:GetPlayers()) do
+			local d = S.Data.get(p)
+			if d then
+				list[#list + 1] = { name = p.DisplayName, value = math.floor(d.Stats.Earned or 0) }
+			end
+		end
+		table.sort(list, function(a, b)
+			return a.value > b.value
+		end)
+	end
+	show(list)
+	return list
+end
+
+function Board.Start()
+	build()
+	task.spawn(function()
+		while true do
+			local ok, err = pcall(Board.update)
+			if not ok then
+				warn("[LabMutante] clasificación: " .. tostring(err))
+			end
+			task.wait(90)
+		end
+	end)
+end
+
+return Board
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000020"><Properties><string name="Name">MonetizationService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- MonetizationService: Game Passes y Developer Products con los IDs de MonetizationConfig.
 -- Si un ID es 0 no se ofrece nada. ProcessReceipt es idempotente: guarda el PurchaseId en el perfil y
 -- guarda el perfil ANTES de confirmar la compra a Roblox. Los créditos del juego nunca se mezclan con Robux.
@@ -1720,7 +2063,7 @@ function Mon.Start()
 end
 
 return Mon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000019"><Properties><string name="Name">MutantModel</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000021"><Properties><string name="Name">MutantModel</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- MutantModel: construye el modelo 3D de un mutante a partir de su ficha (piezas sencillas, sin recursos externos).
 -- El modelo mira hacia -Z (LookVector) y apoya los pies en el origen del CFrame que se le pasa.
 
@@ -1977,7 +2320,7 @@ function MM.build(rec, cf, opts)
 end
 
 return MM
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000020"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000022"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Net: un único RemoteFunction ("Request") para las acciones del cliente y un RemoteEvent ("Push")
 -- para avisos del servidor. Límite de peticiones por jugador y errores registrados sin tumbar el servidor.
 
@@ -2064,7 +2407,7 @@ function Net.notify(player, text, style)
 end
 
 return Net
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000021"><Properties><string name="Name">RaidService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000023"><Properties><string name="Name">RaidService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- RaidService: asaltos a otros laboratorios.
 --  * Robar: mantener pulsado el aviso de un pedestal ajeno (puerta láser apagada, sitio libre en tu laboratorio).
 --  * El ladrón lleva el mutante sobre la cabeza, más despacio, hasta la zona de llegada de SU laboratorio.
@@ -2265,6 +2608,7 @@ function Raid.deliver(thief)
 	local od, td = S.Data.get(owner), S.Data.get(thief)
 	od.Stats.Lost = od.Stats.Lost + 1
 	td.Stats.Stolen = td.Stats.Stolen + 1
+	S.Daily.progress(thief, "steal", 1)
 	Raid.walkSpeed(thief)
 	local name = MutantData.label(newRec)
 	S.Net.notify(thief, "🎉 ¡Robo completado! " .. name .. " ya es tuyo.", "gold")
@@ -2290,6 +2634,7 @@ function Raid.recapture(owner, thief)
 	end
 	local od = S.Data.get(owner)
 	od.Stats.Recovered = od.Stats.Recovered + 1
+	S.Daily.progress(owner, "recover", 1)
 	Raid.returnCarried(thief, thief == owner and "" or (owner.DisplayName .. " te ha atrapado"))
 	return true, "💪 ¡Recuperado!"
 end
@@ -2316,6 +2661,8 @@ local function step()
 				local inside = S.World.labIndexAt(root.Position) == c.OwnerIndex
 				if od and ost and od.Lab.Drone and inside and ost.DroneReadyAt <= now and now - c.Since > 1.5 then
 					ost.DroneReadyAt = now + Config.DroneCooldown
+					od.Stats.Recovered = od.Stats.Recovered + 1
+					S.Daily.progress(c.Owner, "recover", 1)
 					Raid.returnCarried(thief, "El dron guardián te lo ha quitado")
 				end
 			end
@@ -2341,6 +2688,8 @@ local function step()
 						slowedUntil[player] = now + Config.TrapSlowSeconds
 						S.Net.notify(player, "🟢 ¡Has pisado una trampa de baba!", "warn")
 						if Raid.carrying[player] then
+							od.Stats.Recovered = od.Stats.Recovered + 1
+							S.Daily.progress(owner, "recover", 1)
 							Raid.returnCarried(player, "La trampa de baba te ha hecho soltarlo")
 						end
 						Raid.walkSpeed(player)
@@ -2397,7 +2746,7 @@ function Raid.Start()
 end
 
 return Raid
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000022"><Properties><string name="Name">SyncService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000024"><Properties><string name="Name">SyncService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- SyncService: envía al cliente una vista compacta de su estado (solo lectura; el cliente nunca decide nada).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2438,6 +2787,8 @@ function Sync.build(player)
 		Event = S.Event and S.Event.view() or nil,
 		Carrying = carry and MutantData.label(carry.Rec) or nil,
 		Shop = S.Monetization and S.Monetization.view(player) or nil,
+		Daily = S.Daily and S.Daily.view(player) or nil,
+		Top = S.Board and S.Board.entries or nil,
 		NextTier = LabData.Tiers[data.Lab.Tier + 1],
 	}
 end
@@ -2467,7 +2818,7 @@ function Sync.Start()
 end
 
 return Sync
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000023"><Properties><string name="Name">WorldService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000025"><Properties><string name="Name">WorldService</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- WorldService: construye el mapa (cinta central de cápsulas y 8 laboratorios) y gestiona los avisos
 -- (ProximityPrompt). Cada laboratorio tiene 18 pedestales, colector de créditos, terminal, cámara de fusión,
 -- botón del láser, puerta láser, zona de llegada y trampas de baba.
@@ -2820,7 +3171,7 @@ end
 function World.Start() end
 
 return World
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX000030"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX000025"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX000026"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX000027"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX000032"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX000027"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX000028"><Properties><string name="Name">Client</string></Properties><Item class="LocalScript" referent="RBX000029"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Arranque del cliente: interfaz, avisos del servidor y atajos de teclado.
 
 local UserInputService = game:GetService("UserInputService")
@@ -2893,7 +3244,7 @@ task.spawn(function()
 		UI.setState(r.data)
 	end
 end)
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000028"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000030"><Properties><string name="Name">Net</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- Net (cliente): llamadas al servidor y avisos que llegan del servidor.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2933,7 +3284,7 @@ push.OnClientEvent:Connect(function(kind, data)
 end)
 
 return Net
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000029"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--!nonstrict
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX000031"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--!nonstrict
 -- UI: interfaz del jugador (PC y móvil). HUD con créditos y producción, tarjeta del laboratorio,
 -- avisos, banner de evento, alerta de robo, guía para empezar y panel con pestañas:
 -- Mutantes, Fusión, Mejoras, Bestiario, Tienda y Ayuda. Todos los botones llaman al servidor.
@@ -2947,7 +3298,7 @@ local LabData = require(ReplicatedStorage.Shared.LabData)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(script.Parent.Net)
 
-local UI = { state = nil, tab = "mutants", open = false, selected = {}, hideGuide = false }
+local UI = { state = nil, tab = "mutants", open = false, selected = {}, hideGuide = false, sound = true }
 local player = Players.LocalPlayer
 local gui, hud, panel, body, tabsBar, notes, alertBar, carryBar, eventBar, guide
 local hudLabels = {}
@@ -3027,11 +3378,30 @@ local function row(parent, h)
 	return r
 end
 
+-------------------------------------------------------------------- sonidos (incluidos con Roblox)
+local SOUNDS = { success = "rbxasset://sounds/electronicpingshort.wav", gold = "rbxasset://sounds/electronicpingshort.wav", error = "rbxasset://sounds/clickfast.wav", warn = "rbxasset://sounds/swoosh.wav" }
+local soundObjs = {}
+function UI.play(style)
+	local id = SOUNDS[style or ""]
+	if not UI.sound or not id or not gui then
+		return
+	end
+	local snd = soundObjs[id]
+	if not snd then
+		snd = new("Sound", { SoundId = id, Volume = 0.5 }, gui)
+		soundObjs[id] = snd
+	end
+	pcall(function()
+		snd:Play()
+	end)
+end
+
 -------------------------------------------------------------------- avisos
 function UI.notify(text, style)
 	if not notes or not text or text == "" then
 		return
 	end
+	UI.play(style)
 	local color = ({ success = C.neon, error = C.red, warn = C.gold, gold = C.gold, info = C.blue })[style or "info"] or C.blue
 	local n = frame(notes, { Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = C.bg, BackgroundTransparency = 0.1 })
 	new("UIStroke", { Color = color, Thickness = 2 }, n)
@@ -3058,7 +3428,7 @@ end
 
 -------------------------------------------------------------------- pestañas
 local TABS = {
-	{ "mutants", "🧪 Mutantes" }, { "fusion", "🧬 Fusión" }, { "upgrades", "🏗 Mejoras" },
+	{ "mutants", "🧪 Mutantes" }, { "fusion", "🧬 Fusión" }, { "upgrades", "🏗 Mejoras" }, { "daily", "📅 Diario" },
 	{ "index", "📖 Bestiario" }, { "shop", "🛒 Tienda" }, { "help", "❓ Ayuda" },
 }
 
@@ -3073,6 +3443,17 @@ local function signature()
 	end
 	for _, r in ipairs(st.Research or {}) do
 		parts[#parts + 1] = r.Level
+	end
+	if st.Daily then
+		parts[#parts + 1] = tostring(st.Daily.LoginClaimed)
+		for _, m in ipairs(st.Daily.Missions) do
+			parts[#parts + 1] = m.Progress .. (m.Claimed and "c" or "")
+		end
+	end
+	if UI.tab == "daily" and st.Top then
+		for _, e in ipairs(st.Top) do
+			parts[#parts + 1] = e.name .. e.value
+		end
 	end
 	if st.Fusion then
 		parts[#parts + 1] = st.Fusion.Name .. (st.Fusion.Ready and "R" or math.floor(st.Fusion.Left / 5))
@@ -3236,6 +3617,43 @@ renderers.upgrades = function(s, st)
 	end
 end
 
+renderers.daily = function(s, st)
+	local dly = st.Daily
+	if dly then
+		local r = row(s, 64)
+		label(r, "🎁 Premio por entrar · día " .. dly.DayInCycle .. " de 7 · racha de " .. dly.Streak .. " días", { TextColor3 = C.gold, Size = UDim2.new(1, -170, 0, 22) })
+		label(r, "Hoy: +" .. Util.short(dly.LoginReward) .. " créditos (vuelve cada día para premios mayores)", { Position = UDim2.new(0, 0, 0, 24), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 30) })
+		if dly.LoginClaimed then
+			label(r, "✓ Cobrado", { Position = UDim2.new(1, -150, 0, 14), Size = UDim2.new(0, 150, 0, 24), TextColor3 = C.neon })
+		else
+			button(r, "Cobrar", function()
+				Net.call("Daily.Login")
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -150, 0, 8), Size = UDim2.new(0, 150, 0, 40), BackgroundColor3 = C.gold, TextColor3 = C.bg })
+		end
+		label(s, "📅 Misiones de hoy", { TextColor3 = C.blue })
+		for i, m in ipairs(dly.Missions) do
+			local mr = row(s, 72)
+			label(mr, m.Text, { Size = UDim2.new(1, -170, 0, 34), TextSize = 14 })
+			local bar = frame(mr, { Size = UDim2.new(1, -170, 0, 10), Position = UDim2.new(0, 0, 0, 40), BackgroundColor3 = C.card })
+			frame(bar, { Size = UDim2.new(math.min(1, m.Progress / math.max(1, m.Target)), 0, 1, 0), BackgroundColor3 = C.neon })
+			label(mr, Util.short(m.Progress) .. "/" .. Util.short(m.Target) .. " · premio " .. Util.short(m.Reward), { Position = UDim2.new(0, 0, 0, 50), Size = UDim2.new(1, -170, 0, 16), TextSize = 12, TextColor3 = C.sub })
+			if m.Claimed then
+				label(mr, "✓ Cobrada", { Position = UDim2.new(1, -150, 0, 20), Size = UDim2.new(0, 150, 0, 24), TextColor3 = C.neon })
+			elseif m.Progress >= m.Target then
+				button(mr, "Cobrar", function()
+					Net.call("Daily.Claim", { i = i })
+					UI.refresh(true)
+				end, { Position = UDim2.new(1, -150, 0, 14), Size = UDim2.new(0, 150, 0, 40), BackgroundColor3 = C.neon, TextColor3 = C.bg })
+			end
+		end
+	end
+	label(s, "🏆 Mejores laboratorios (créditos ganados)", { TextColor3 = C.gold })
+	for i, e in ipairs(st.Top or {}) do
+		label(s, i .. ". " .. e.name .. "  —  " .. Util.short(e.value), { TextSize = 14, TextColor3 = i <= 3 and C.gold or C.text })
+	end
+end
+
 renderers.index = function(s, st)
 	local found = 0
 	for _, e in ipairs(st.Index) do
@@ -3297,6 +3715,10 @@ renderers.help = function(s, st)
 	button(s, "🏠 Volver a mi laboratorio", function()
 		Net.call("Lab.Home")
 	end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.neon, TextColor3 = C.bg })
+	button(s, UI.sound and "🔊 Sonido: activado" or "🔇 Sonido: desactivado", function()
+		UI.sound = not UI.sound
+		UI.refresh(true)
+	end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.card2 })
 	button(s, UI.hideGuide and "Mostrar guía de inicio" or "Ocultar guía de inicio", function()
 		UI.hideGuide = not UI.hideGuide
 		UI.refresh(true)
@@ -3482,7 +3904,7 @@ function UI.build()
 	for _, t in ipairs(TABS) do
 		local b = button(tabsBar, t[2], function()
 			UI.openPanel(t[1])
-		end, { Size = UDim2.new(0, 94, 0, 40), TextSize = 12, BackgroundColor3 = C.card2 })
+		end, { Size = UDim2.new(0, 78, 0, 40), TextSize = 11, BackgroundColor3 = C.card2 })
 		b:SetAttribute("Tab", t[1])
 	end
 	button(panel, "✕", function()
@@ -3494,4 +3916,4 @@ end
 UI.renderers = renderers
 UI.TABS = TABS
 return UI
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="SoundService" referent="RBX000031"><Properties><string name="Name">SoundService</string></Properties></Item></roblox>
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="SoundService" referent="RBX000033"><Properties><string name="Name">SoundService</string></Properties></Item></roblox>

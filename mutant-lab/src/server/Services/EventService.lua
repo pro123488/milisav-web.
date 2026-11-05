@@ -27,6 +27,9 @@ end
 function Event.spawnMult()
 	return Event.current and Event.current.SpawnMult or 1
 end
+function Event.priceMult()
+	return Event.current and Event.current.PriceMult or 1
+end
 function Event.incomeMult()
 	return Event.current and Event.current.IncomeMult or 1
 end

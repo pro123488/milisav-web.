@@ -311,6 +311,46 @@ Event.begin(LabData.Events[4])
 assert(Event.incomeMult() == 2 and math.abs(Lab.incomePerSecond(ana) - baseInc * 2) < 1e-6, "doble producción")
 Event.finish()
 assert(Event.incomeMult() == 1)
+-- Rebajas del generador
+Event.begin(LabData.Events[6])
+assert(Conveyor.priceFor(ana, cheap) == math.floor(90 * 0.96 * 0.7), "rebajas del generador")
+Event.finish()
+
+-- Tubería de créditos
+da.Research.pipe = 2
+da.Lab.Tank = 1000
+Lab.state(ana).PipeAt = 0
+local crPipe = da.Credits
+Lab.tick(0)
+assert(da.Lab.Tank == 800 and da.Credits == crPipe + 200, "la tubería pasa el 20% del tanque a tus créditos")
+
+-- Misiones diarias y premio por entrar
+local Daily = req(Svc.DailyService)
+local dv = Daily.view(ana)
+assert(dv and #dv.Missions == 3 and dv.Streak == 1, "3 misiones diarias y racha de 1 día")
+must(ana, "Daily.Login")
+assert(not call(ana, "Daily.Login").ok, "el premio diario se cobra una vez")
+local m1 = da.Daily.Missions[1]
+m1.Progress = 0
+assert(not call(ana, "Daily.Claim", { i = 1 }).ok, "sin completar no se cobra")
+Daily.progress(ana, m1.Kind, m1.Target)
+local crD = da.Credits
+must(ana, "Daily.Claim", { i = 1 })
+assert(da.Credits == crD + m1.Reward and not call(ana, "Daily.Claim", { i = 1 }).ok, "misión cobrada una sola vez")
+da.Daily.Day = "otro"
+da.Daily.LastLogin = os.date("!%Y-%m-%d", M.time - 86400)
+Daily.refresh(ana)
+assert(da.Daily.Streak == 2 and da.Daily.LoginClaimed == false and da.Daily.Missions[1].Claimed == false, "al día siguiente: racha +1 y misiones nuevas")
+da.Daily.Day = "otro"
+da.Daily.LastLogin = "2000-01-01"
+Daily.refresh(ana)
+assert(da.Daily.Streak == 1, "si faltas un día la racha vuelve a empezar")
+
+-- Clasificación
+local Board = req(Svc.LeaderboardService)
+local top = Board.update()
+assert(map:FindFirstChild("Leaderboard") and top[1] and top[1].name == "Ana", "panel de clasificación con los mejores")
+assert(Sync.build(ana).Daily and Sync.build(ana).Top, "el cliente recibe diario y clasificación")
 
 -- Vista para el cliente
 local view = Sync.build(ana)

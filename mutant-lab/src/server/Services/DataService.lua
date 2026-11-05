@@ -25,6 +25,7 @@ Data.Template = {
 	Index = {},
 	Stats = { Bought = 0, Stolen = 0, Lost = 0, Recovered = 0, Fusions = 0, Earned = 0, Sold = 0 },
 	Receipts = {},
+	Daily = {},
 	NextUid = 1,
 }
 

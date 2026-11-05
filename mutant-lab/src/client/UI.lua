@@ -12,7 +12,7 @@ local LabData = require(ReplicatedStorage.Shared.LabData)
 local Config = require(ReplicatedStorage.Shared.Config)
 local Net = require(script.Parent.Net)
 
-local UI = { state = nil, tab = "mutants", open = false, selected = {}, hideGuide = false }
+local UI = { state = nil, tab = "mutants", open = false, selected = {}, hideGuide = false, sound = true }
 local player = Players.LocalPlayer
 local gui, hud, panel, body, tabsBar, notes, alertBar, carryBar, eventBar, guide
 local hudLabels = {}
@@ -92,11 +92,30 @@ local function row(parent, h)
 	return r
 end
 
+-------------------------------------------------------------------- sonidos (incluidos con Roblox)
+local SOUNDS = { success = "rbxasset://sounds/electronicpingshort.wav", gold = "rbxasset://sounds/electronicpingshort.wav", error = "rbxasset://sounds/clickfast.wav", warn = "rbxasset://sounds/swoosh.wav" }
+local soundObjs = {}
+function UI.play(style)
+	local id = SOUNDS[style or ""]
+	if not UI.sound or not id or not gui then
+		return
+	end
+	local snd = soundObjs[id]
+	if not snd then
+		snd = new("Sound", { SoundId = id, Volume = 0.5 }, gui)
+		soundObjs[id] = snd
+	end
+	pcall(function()
+		snd:Play()
+	end)
+end
+
 -------------------------------------------------------------------- avisos
 function UI.notify(text, style)
 	if not notes or not text or text == "" then
 		return
 	end
+	UI.play(style)
 	local color = ({ success = C.neon, error = C.red, warn = C.gold, gold = C.gold, info = C.blue })[style or "info"] or C.blue
 	local n = frame(notes, { Size = UDim2.new(1, 0, 0, 44), BackgroundColor3 = C.bg, BackgroundTransparency = 0.1 })
 	new("UIStroke", { Color = color, Thickness = 2 }, n)
@@ -123,7 +142,7 @@ end
 
 -------------------------------------------------------------------- pestañas
 local TABS = {
-	{ "mutants", "🧪 Mutantes" }, { "fusion", "🧬 Fusión" }, { "upgrades", "🏗 Mejoras" },
+	{ "mutants", "🧪 Mutantes" }, { "fusion", "🧬 Fusión" }, { "upgrades", "🏗 Mejoras" }, { "daily", "📅 Diario" },
 	{ "index", "📖 Bestiario" }, { "shop", "🛒 Tienda" }, { "help", "❓ Ayuda" },
 }
 
@@ -138,6 +157,17 @@ local function signature()
 	end
 	for _, r in ipairs(st.Research or {}) do
 		parts[#parts + 1] = r.Level
+	end
+	if st.Daily then
+		parts[#parts + 1] = tostring(st.Daily.LoginClaimed)
+		for _, m in ipairs(st.Daily.Missions) do
+			parts[#parts + 1] = m.Progress .. (m.Claimed and "c" or "")
+		end
+	end
+	if UI.tab == "daily" and st.Top then
+		for _, e in ipairs(st.Top) do
+			parts[#parts + 1] = e.name .. e.value
+		end
 	end
 	if st.Fusion then
 		parts[#parts + 1] = st.Fusion.Name .. (st.Fusion.Ready and "R" or math.floor(st.Fusion.Left / 5))
@@ -301,6 +331,43 @@ renderers.upgrades = function(s, st)
 	end
 end
 
+renderers.daily = function(s, st)
+	local dly = st.Daily
+	if dly then
+		local r = row(s, 64)
+		label(r, "🎁 Premio por entrar · día " .. dly.DayInCycle .. " de 7 · racha de " .. dly.Streak .. " días", { TextColor3 = C.gold, Size = UDim2.new(1, -170, 0, 22) })
+		label(r, "Hoy: +" .. Util.short(dly.LoginReward) .. " créditos (vuelve cada día para premios mayores)", { Position = UDim2.new(0, 0, 0, 24), TextSize = 13, TextColor3 = C.sub, Size = UDim2.new(1, -170, 0, 30) })
+		if dly.LoginClaimed then
+			label(r, "✓ Cobrado", { Position = UDim2.new(1, -150, 0, 14), Size = UDim2.new(0, 150, 0, 24), TextColor3 = C.neon })
+		else
+			button(r, "Cobrar", function()
+				Net.call("Daily.Login")
+				UI.refresh(true)
+			end, { Position = UDim2.new(1, -150, 0, 8), Size = UDim2.new(0, 150, 0, 40), BackgroundColor3 = C.gold, TextColor3 = C.bg })
+		end
+		label(s, "📅 Misiones de hoy", { TextColor3 = C.blue })
+		for i, m in ipairs(dly.Missions) do
+			local mr = row(s, 72)
+			label(mr, m.Text, { Size = UDim2.new(1, -170, 0, 34), TextSize = 14 })
+			local bar = frame(mr, { Size = UDim2.new(1, -170, 0, 10), Position = UDim2.new(0, 0, 0, 40), BackgroundColor3 = C.card })
+			frame(bar, { Size = UDim2.new(math.min(1, m.Progress / math.max(1, m.Target)), 0, 1, 0), BackgroundColor3 = C.neon })
+			label(mr, Util.short(m.Progress) .. "/" .. Util.short(m.Target) .. " · premio " .. Util.short(m.Reward), { Position = UDim2.new(0, 0, 0, 50), Size = UDim2.new(1, -170, 0, 16), TextSize = 12, TextColor3 = C.sub })
+			if m.Claimed then
+				label(mr, "✓ Cobrada", { Position = UDim2.new(1, -150, 0, 20), Size = UDim2.new(0, 150, 0, 24), TextColor3 = C.neon })
+			elseif m.Progress >= m.Target then
+				button(mr, "Cobrar", function()
+					Net.call("Daily.Claim", { i = i })
+					UI.refresh(true)
+				end, { Position = UDim2.new(1, -150, 0, 14), Size = UDim2.new(0, 150, 0, 40), BackgroundColor3 = C.neon, TextColor3 = C.bg })
+			end
+		end
+	end
+	label(s, "🏆 Mejores laboratorios (créditos ganados)", { TextColor3 = C.gold })
+	for i, e in ipairs(st.Top or {}) do
+		label(s, i .. ". " .. e.name .. "  —  " .. Util.short(e.value), { TextSize = 14, TextColor3 = i <= 3 and C.gold or C.text })
+	end
+end
+
 renderers.index = function(s, st)
 	local found = 0
 	for _, e in ipairs(st.Index) do
@@ -362,6 +429,10 @@ renderers.help = function(s, st)
 	button(s, "🏠 Volver a mi laboratorio", function()
 		Net.call("Lab.Home")
 	end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.neon, TextColor3 = C.bg })
+	button(s, UI.sound and "🔊 Sonido: activado" or "🔇 Sonido: desactivado", function()
+		UI.sound = not UI.sound
+		UI.refresh(true)
+	end, { Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = C.card2 })
 	button(s, UI.hideGuide and "Mostrar guía de inicio" or "Ocultar guía de inicio", function()
 		UI.hideGuide = not UI.hideGuide
 		UI.refresh(true)
@@ -547,7 +618,7 @@ function UI.build()
 	for _, t in ipairs(TABS) do
 		local b = button(tabsBar, t[2], function()
 			UI.openPanel(t[1])
-		end, { Size = UDim2.new(0, 94, 0, 40), TextSize = 12, BackgroundColor3 = C.card2 })
+		end, { Size = UDim2.new(0, 78, 0, 40), TextSize = 11, BackgroundColor3 = C.card2 })
 		b:SetAttribute("Tab", t[1])
 	end
 	button(panel, "✕", function()

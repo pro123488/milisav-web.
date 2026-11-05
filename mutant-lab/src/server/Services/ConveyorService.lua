@@ -34,7 +34,8 @@ end
 function Conveyor.priceFor(player, cap)
 	local data = S.Data.get(player)
 	local disc = data and (data.Research.discount or 0) or 0
-	return math.max(1, math.floor(cap.Price * (1 - 0.04 * disc)))
+	local ev = S.Event and S.Event.priceMult() or 1
+	return math.max(1, math.floor(cap.Price * (1 - 0.04 * disc) * ev))
 end
 
 local function buildCapsule(cap)
@@ -134,6 +135,7 @@ function Conveyor.buy(player, capId)
 	end
 	S.Lab.addMutant(player, rec, slot)
 	data.Stats.Bought = data.Stats.Bought + 1
+	S.Daily.progress(player, "buy", 1)
 	removeCapsule(cap)
 	local extra = (rec.M and not cap.M) and (" ¡Ha mutado a " .. MutantData.MutationById[rec.M].Name .. "!") or ""
 	return true, "🧪 Has comprado " .. MutantData.label(rec) .. ". Ya está en tu laboratorio." .. extra, { slot = slot }

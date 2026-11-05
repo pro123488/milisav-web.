@@ -39,6 +39,8 @@ function Sync.build(player)
 		Event = S.Event and S.Event.view() or nil,
 		Carrying = carry and MutantData.label(carry.Rec) or nil,
 		Shop = S.Monetization and S.Monetization.view(player) or nil,
+		Daily = S.Daily and S.Daily.view(player) or nil,
+		Top = S.Board and S.Board.entries or nil,
 		NextTier = LabData.Tiers[data.Lab.Tier + 1],
 	}
 end

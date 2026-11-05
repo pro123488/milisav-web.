@@ -154,6 +154,9 @@ function Lab.addMutant(player, rec, slot)
 		local reward = math.floor(sp.Price * Config.DiscoverReward)
 		data.Credits = data.Credits + reward
 		S.Net.push(player, "discover", { name = sp.Name, rarity = sp.Rarity, reward = reward })
+		if S.Daily then
+			S.Daily.progress(player, "discover", 1)
+		end
 	else
 		data.Index[rec.S] = data.Index[rec.S] + 1
 	end
@@ -267,6 +270,17 @@ local function tick(dt)
 			local cap = Lab.tankCap(player, data)
 			local inc = Lab.incomePerSecond(player)
 			data.Lab.Tank = math.min(cap, data.Lab.Tank + inc * dt)
+			-- Tubería de créditos: cada 30 s pasa parte del tanque a tus créditos
+			local pipe = data.Research.pipe or 0
+			if pipe > 0 and os.clock() >= (st.PipeAt or 0) then
+				st.PipeAt = os.clock() + 30
+				local moved = math.floor(data.Lab.Tank * 0.1 * pipe)
+				if moved > 0 then
+					data.Lab.Tank = data.Lab.Tank - moved
+					data.Credits = data.Credits + moved
+					data.Stats.Earned = data.Stats.Earned + moved
+				end
+			end
 			S.World.setTank(st.Index, data.Lab.Tank, cap)
 			if S.World.labs[st.Index].LaserOn and st.LaserUntil <= os.clock() then
 				S.World.setLaser(st.Index, false)
@@ -301,6 +315,7 @@ function Lab.collect(player)
 	data.Credits = data.Credits + amount
 	data.Stats.Earned = data.Stats.Earned + amount
 	S.World.setTank(st.Index, data.Lab.Tank, Lab.tankCap(player, data))
+	S.Daily.progress(player, "collect", amount)
 	return true, "💰 +" .. Util.short(amount) .. " créditos", { amount = amount }
 end
 
@@ -413,6 +428,7 @@ function Lab.sell(player, slot)
 	Lab.removeMutant(player, slot)
 	data.Credits = data.Credits + value
 	data.Stats.Sold = data.Stats.Sold + 1
+	S.Daily.progress(player, "sell", 1)
 	return true, "Vendido " .. MutantData.label(rec) .. " por " .. Util.short(value) .. " créditos.", { value = value }
 end
 

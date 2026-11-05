@@ -199,6 +199,7 @@ function Raid.deliver(thief)
 	local od, td = S.Data.get(owner), S.Data.get(thief)
 	od.Stats.Lost = od.Stats.Lost + 1
 	td.Stats.Stolen = td.Stats.Stolen + 1
+	S.Daily.progress(thief, "steal", 1)
 	Raid.walkSpeed(thief)
 	local name = MutantData.label(newRec)
 	S.Net.notify(thief, "🎉 ¡Robo completado! " .. name .. " ya es tuyo.", "gold")
@@ -224,6 +225,7 @@ function Raid.recapture(owner, thief)
 	end
 	local od = S.Data.get(owner)
 	od.Stats.Recovered = od.Stats.Recovered + 1
+	S.Daily.progress(owner, "recover", 1)
 	Raid.returnCarried(thief, thief == owner and "" or (owner.DisplayName .. " te ha atrapado"))
 	return true, "💪 ¡Recuperado!"
 end
@@ -250,6 +252,8 @@ local function step()
 				local inside = S.World.labIndexAt(root.Position) == c.OwnerIndex
 				if od and ost and od.Lab.Drone and inside and ost.DroneReadyAt <= now and now - c.Since > 1.5 then
 					ost.DroneReadyAt = now + Config.DroneCooldown
+					od.Stats.Recovered = od.Stats.Recovered + 1
+					S.Daily.progress(c.Owner, "recover", 1)
 					Raid.returnCarried(thief, "El dron guardián te lo ha quitado")
 				end
 			end
@@ -275,6 +279,8 @@ local function step()
 						slowedUntil[player] = now + Config.TrapSlowSeconds
 						S.Net.notify(player, "🟢 ¡Has pisado una trampa de baba!", "warn")
 						if Raid.carrying[player] then
+							od.Stats.Recovered = od.Stats.Recovered + 1
+							S.Daily.progress(owner, "recover", 1)
 							Raid.returnCarried(player, "La trampa de baba te ha hecho soltarlo")
 						end
 						Raid.walkSpeed(player)

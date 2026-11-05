@@ -100,6 +100,7 @@ function Fusion.claim(player)
 	local rec = { S = f.S, M = f.M, L = f.L }
 	S.Lab.addMutant(player, rec, slot)
 	data.Stats.Fusions = data.Stats.Fusions + 1
+	S.Daily.progress(player, "fuse", 1)
 	showInChamber(player)
 	return true, "✨ ¡Fusión completada! " .. MutantData.label(rec) .. " produce +" .. Util.short(MutantData.income(rec)) .. "/s."
 end

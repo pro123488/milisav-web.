@@ -21,6 +21,7 @@ LabData.Research = {
 	{ Id = "fusion", Name = "Fusión acelerada", Desc = "-10% de tiempo de fusión por nivel", Max = 5, Base = 1200, Growth = 2.4 },
 	{ Id = "sprint", Name = "Botas antigravedad", Desc = "+1 de velocidad al cargar un mutante", Max = 4, Base = 2000, Growth = 2.6 },
 	{ Id = "tank", Name = "Tanque ampliado", Desc = "+25% de capacidad del tanque por nivel", Max = 6, Base = 1000, Growth = 2.4 },
+	{ Id = "pipe", Name = "Tubería de créditos", Desc = "Cada 30 s pasa un 10% del tanque por nivel a tus créditos, aunque no estés en el colector", Max = 5, Base = 2500, Growth = 2.6 },
 }
 LabData.ResearchById = {}
 for _, r in ipairs(LabData.Research) do
@@ -50,6 +51,8 @@ LabData.Events = {
 	{ Id = "rush", Name = "Fiebre de cápsulas", Desc = "Las cápsulas salen el doble de rápido", SpawnMult = 0.5, Sky = { 255, 200, 60 } },
 	{ Id = "legend", Name = "Hora legendaria", Desc = "Mucha más suerte de rareza", Luck = 2.5, Sky = { 255, 150, 40 } },
 	{ Id = "double", Name = "Doble producción", Desc = "Todos los laboratorios producen el doble", IncomeMult = 2, Sky = { 60, 200, 255 } },
+	{ Id = "meteor", Name = "Lluvia de meteoritos mutantes", Desc = "Más rareza y el doble de mutaciones", Luck = 1.6, MutMult = 2, Sky = { 255, 90, 60 } },
+	{ Id = "sale", Name = "Rebajas del generador", Desc = "Todas las cápsulas un 30% más baratas", PriceMult = 0.7, Sky = { 255, 230, 120 } },
 }
 
 return LabData

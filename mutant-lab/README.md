@@ -30,14 +30,20 @@ Desarrollo con Rojo: `rojo serve` con `default.project.json`. Regenerar el archi
 
 ## Contenido
 
-- **26 especies** propias en 7 rarezas (Común → Secreto), cada una con su forma 3D: Blobito, Saltarrana, Ojotón,
-  Calamarciano, Gatoplasma, Dragoácido, Fantasmón Glotón, Hidra Neón, Kraken de Bolsillo, Experimento X...
+- **34 especies** propias en 7 rarezas (Común → Secreto), cada una con su forma 3D: Blobito, Pompón Eléctrico, Ojotón,
+  Calamarciano, Gatoplasma, Erizotrón, Dragoácido, Gólem de Plasma, Hidra Neón, Serpiente Cometa, Leviatancillo, Experimento X...
 - **4 mutaciones** (Radiactivo x2, Cristalino x3, Sombrío x4, Galáctico x6) con aura y destellos.
-- **5 niveles de laboratorio**, **6 investigaciones** (producción, descuento, reactor de mutación, fusión acelerada,
-  botas antigravedad, tanque ampliado) y **3 defensas**.
+- **5 niveles de laboratorio**, **7 investigaciones** (producción, descuento, reactor de mutación, fusión acelerada,
+  botas antigravedad, tanque ampliado y **tubería de créditos**, que cobra parte del tanque sola) y **3 defensas**.
 - **Bestiario** con recompensa única por cada especie descubierta.
-- **Eventos de servidor**: tormenta radiactiva, fiebre de cápsulas, hora legendaria y doble producción.
-- Tabla de clasificación (créditos y mutantes), avisos, guía de inicio y la interfaz funciona en PC y móvil.
+- **6 eventos de servidor**: tormenta radiactiva, fiebre de cápsulas, hora legendaria, doble producción, lluvia de
+  meteoritos mutantes y rebajas del generador.
+- **Diario**: premio por entrar cada día (racha de 7 días) y **3 misiones diarias** (comprar, recoger, fusionar, robar,
+  recuperar, descubrir, vender) con recompensas que crecen con tu laboratorio.
+- **Panel de clasificación** en la plaza con los 10 laboratorios que más han ganado (de todos los servidores, con
+  OrderedDataStore; si no está disponible, los del servidor).
+- Tabla de jugadores (créditos y mutantes), avisos con sonido (sonidos incluidos en Roblox, se pueden desactivar),
+  guía de inicio y la interfaz funciona en PC y móvil.
 
 ## Seguridad y datos
 
