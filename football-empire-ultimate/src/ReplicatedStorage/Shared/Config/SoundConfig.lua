@@ -10,5 +10,6 @@ SoundConfig.WHISTLE = 9118113825 -- «Referee Whistle 2»: un pitido, 1,9 s
 SoundConfig.KICK = 9119322058 -- «Soccer Ball Kicks Bounces 5»: golpeo sobre césped, 0,9 s
 SoundConfig.CROWD_CHEER = 9120973900 -- «Wrestling Crowd 2»: vítores cortos (se usan los primeros segundos)
 SoundConfig.CROWD_SECONDS = 4
+SoundConfig.REVEAL = 9126073001 -- «Synth Sparkle Tone High Pitch Bell Tone Ding»: campanilla de 1,2 s al abrir un huevo o una caja
 
 return SoundConfig

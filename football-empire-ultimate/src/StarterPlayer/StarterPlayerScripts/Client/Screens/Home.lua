@@ -11,6 +11,7 @@ local WeeklyConfig = require(Shared.Config.WeeklyConfig)
 local ArenaConfig = require(Shared.Config.ArenaConfig)
 local SeasonConfig = require(Shared.Config.SeasonConfig)
 local RewardConfig = require(Shared.Config.RewardConfig)
+local TutorialConfig = require(Shared.Config.TutorialConfig)
 
 local Home = {}
 
@@ -141,6 +142,23 @@ function Home.Render(container, ctx)
 			C.Row(chips, 6),
 			C.Row({ claimButton }, 8),
 		}))
+	end
+
+	-- Primeros pasos: guía con premios para empezar
+	local tutorial = state.tutorial
+	if tutorial and not tutorial.finished then
+		local card = C.Card({ BackgroundColor3 = Color3.fromRGB(24, 44, 78) }, {
+			C.Title(string.format("📌 Primeros pasos · %d / %d", tutorial.step - 1, #TutorialConfig.Steps), 20),
+			C.Label("Completa la guía para conseguir dinero y, al final, un Huevo dorado de regalo.", { TextSize = 12, TextColor3 = Theme.TextDim }),
+		})
+		for index, step in ipairs(TutorialConfig.Steps) do
+			local done = index < tutorial.step
+			local isCurrent = index == tutorial.step
+			C.Label(string.format("%s %s%s  <font color='#FFD23C'>+%d $</font>", done and "✅" or (isCurrent and "👉" or "⬜"),
+				isCurrent and ("<b>" .. step.text .. "</b>") or step.text, "", step.money),
+				{ TextSize = 14, TextColor3 = done and Theme.TextDim or Theme.Text }).Parent = card
+		end
+		add(card)
 	end
 
 	-- Esta semana: el bonus y el estadio destacado cambian solos cada lunes

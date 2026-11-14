@@ -18,6 +18,7 @@ local CollectionConfig = require(Shared.Config.CollectionConfig)
 local OutfitConfig = require(Shared.Config.OutfitConfig)
 local SeasonConfig = require(Shared.Config.SeasonConfig)
 local RewardConfig = require(Shared.Config.RewardConfig)
+local TutorialConfig = require(Shared.Config.TutorialConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -77,6 +78,10 @@ function DefaultData.Create(player)
 			arenaMatches = 0, -- partidos en grupo jugados
 			arenaGoals = 0,
 			arenaWins = 0,
+		},
+		tutorial = { -- primeros pasos
+			step = 1, -- índice del paso actual de TutorialConfig.Steps
+			finished = false,
 		},
 		rewards = { -- recompensa diaria y códigos de regalo
 			lastClaimDay = 0, -- día (UTC) de la última recompensa diaria reclamada
@@ -693,6 +698,13 @@ function DefaultData.Reconcile(data, player)
 		collection.dorsal = math.floor(rawCollection.dorsal)
 	end
 	data.collection = collection
+
+	-- Primeros pasos
+	local rawTutorial = type(data.tutorial) == "table" and data.tutorial or {}
+	data.tutorial = {
+		step = math.clamp(math.floor(tonumber(rawTutorial.step) or 1), 1, #TutorialConfig.Steps + 1),
+		finished = rawTutorial.finished == true,
+	}
 
 	-- Recompensa diaria y códigos
 	local rawRewards = type(data.rewards) == "table" and data.rewards or {}

@@ -44,6 +44,9 @@ local PetService = require(Services.PetService)
 local OutfitService = require(Services.OutfitService)
 local SeasonService = require(Services.SeasonService)
 local RewardService = require(Services.RewardService)
+local TutorialService = require(Services.TutorialService)
+local LeaderboardService = require(Services.LeaderboardService)
+local HubService = require(Services.HubService)
 local ArenaService = require(Services.ArenaService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -116,6 +119,7 @@ local function buildState(player)
 		season = SeasonService.BuildState(data), -- pase de temporada
 		weekly = WeeklyConfig.Current(), -- bonus y estadio destacado de la semana
 		rewards = RewardService.BuildState(data), -- recompensa diaria con racha
+		tutorial = TutorialService.BuildState(data), -- primeros pasos guiados
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
@@ -163,6 +167,7 @@ local function pushState(player)
 	if not player.Parent then
 		return
 	end
+	TutorialService.Check(player) -- premia los pasos de la guía que se acaben de completar
 	local state = buildState(player)
 	if not state then
 		return
@@ -690,6 +695,7 @@ local function onPlayerRemoving(player)
 	HalloweenService.PlayerRemoving(player)
 	NetworkService.PlayerRemoving(player)
 	ArenaService.PlayerRemoving(player)
+	LeaderboardService.PlayerRemoving(player) -- guarda sus goles antes de liberar los datos
 	AdminService.PlayerRemoving(player)
 	PetService.PlayerRemoving(player)
 	DataService.Release(player)
@@ -797,9 +803,13 @@ ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals)
 	end
 	SeasonService.AddXP(player, SeasonConfig.XP.match + (teamGoals > otherGoals and SeasonConfig.XP.win or 0)
 		+ math.min(goals, SeasonConfig.MAX_GOALS_XP) * SeasonConfig.XP.goal)
+	LeaderboardService.Submit(player) -- clasificación mundial de goleadores
 	pushState(player) -- dinero, misiones, pase y tabla de líderes al momento
 end)
 AdminService.Start()
+HubService.Start()
+LeaderboardService.OnUpdate(HubService.SetLeaderboard)
+LeaderboardService.Start()
 SeasonService.Start()
 SeasonService.OnChanged(function(player)
 	if DataService.Get(player) then

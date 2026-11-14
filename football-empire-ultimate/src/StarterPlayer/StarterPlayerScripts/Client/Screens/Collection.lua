@@ -92,6 +92,7 @@ local function openRow(ctx, item, action, key, luck, discount)
 		local result = ctx.act(action, { [key] = item.id })
 		if result.ok and result.data then
 			ctx.drafts.lastReveal = result.data
+			ctx.reveal(result.data, item.icon)
 			ctx.navigate("collection", { tab = ctx.params.tab })
 		end
 	end, { Size = UDim2.new(0, 170, 0, 38), AutomaticSize = Enum.AutomaticSize.None })

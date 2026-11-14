@@ -17,6 +17,7 @@ local MenuConfig = require(Shared.Config.MenuConfig)
 local Format = require(Shared.Modules.Format)
 local Remotes = require(Shared.Modules.Remotes)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local CollectionConfig = require(Shared.Config.CollectionConfig)
 
 local UI = script.Parent:WaitForChild("UI")
 local Theme = require(UI.Theme)
@@ -52,6 +53,8 @@ local MovementController = require(script.Parent.Controllers:WaitForChild("Movem
 local MusicController = require(script.Parent.Controllers:WaitForChild("MusicController"))
 local ArenaHud = require(UI:WaitForChild("ArenaHud"))
 local AdminPanel = require(UI:WaitForChild("AdminPanel"))
+local RevealOverlay = require(UI:WaitForChild("RevealOverlay"))
+local TutorialTracker = require(UI:WaitForChild("TutorialTracker"))
 
 local actionRemote = Remotes.Get("Action")
 local stateRemote = Remotes.Get("State")
@@ -423,10 +426,34 @@ gui = C.New("ScreenGui", {
 uiScale = C.New("UIScale", {}, gui)
 Notifier.Init(gui)
 -- Jugabilidad: sprint, partidos en grupo y eventos admin (sus HUD van fuera del menú)
-local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, player:WaitForChild("PlayerGui"))
+-- El HUD va por debajo del menú (DisplayOrder -1); las animaciones de premio, por encima de todo.
+local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = -1 }, player:WaitForChild("PlayerGui"))
+local overlayGui = C.New("ScreenGui", { Name = "FEU_Overlay", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 20 }, player:WaitForChild("PlayerGui"))
+
+-- Animación al abrir un huevo o una caja (el resultado ya viene decidido por el servidor)
+function ctx.reveal(result, opener)
+	local item = result.kind == "pet" and CollectionConfig.PetById[result.id] or CollectionConfig.BallById[result.id]
+	if not item then
+		return
+	end
+	local rarity = CollectionConfig.RarityById[item.rarity]
+	local detail
+	if result.kind == "pet" then
+		detail = result.isNew and "¡mascota nueva!" or "mascota repetida"
+	else
+		detail = result.isNew and "¡balón nuevo!" or "balón repetido"
+	end
+	RevealOverlay.Play(overlayGui, { C = C, Theme = Theme }, {
+		opener = opener, icon = item.icon, name = item.name, rarityName = rarity.name, color = rarity.color, detail = detail,
+	})
+end
+
 MovementController.Init(hud, C, Theme)
 ArenaHud.Init(hud, { C = C, Theme = Theme, act = ctx.act, Format = Format })
 AdminPanel.Init(hud, { C = C, Theme = Theme, act = ctx.act })
+TutorialTracker.Init(hud, { C = C, Theme = Theme, navigate = function(screen, params)
+	ctx.navigate(screen, params)
+end, notify = notify })
 MusicController.Init(hud, { C = C, Theme = Theme, onToggle = function(enabled)
 	pcall(function()
 		actionRemote:InvokeServer("SaveSettings", { music = enabled }) -- sin aviso en pantalla
@@ -465,6 +492,7 @@ stateRemote.OnClientEvent:Connect(function(state)
 	ctx.state = state
 	ctx.stateReceivedAt = os.clock()
 	AdminPanel.Update(state)
+	TutorialTracker.Update(state)
 	-- La música solo sigue al servidor cuando la preferencia guardada cambia (no pisa el botón 🎵)
 	local wantsMusic = state.settings.music ~= false
 	if ctx.serverMusic ~= wantsMusic then

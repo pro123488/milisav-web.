@@ -175,6 +175,10 @@ def check_file(path, classes, enums, problems):
     for match in re.finditer(r"Instance\.new\(\s*\"(\w+)\"", text):
         if match.group(1) not in classes:
             report(text.count("\n", 0, match.start()) + 1, "Instance.new(\"%s\"): la clase no existe" % match.group(1))
+    # 2b. Nombres de clase pasados como texto a IsA / FindFirst…OfClass / FindFirst…WhichIsA
+    for match in re.finditer(r":(IsA|FindFirstChildOfClass|FindFirstAncestorOfClass|FindFirstChildWhichIsA|FindFirstAncestorWhichIsA)\(\s*\"(\w+)\"", text):
+        if match.group(2) not in classes:
+            report(text.count("\n", 0, match.start()) + 1, "%s(\"%s\"): la clase no existe" % (match.group(1), match.group(2)))
     services = {}
     for match in re.finditer(r"local (\w+) = game:GetService\(\"(\w+)\"\)", text):
         if match.group(2) not in classes:
