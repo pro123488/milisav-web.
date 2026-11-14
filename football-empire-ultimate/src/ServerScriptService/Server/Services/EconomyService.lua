@@ -40,6 +40,7 @@ EconomyService.Category = {
 	ACADEMY = "Academia",
 	ARENA = "Partidos en grupo",
 	ADMIN_EVENT = "Evento admin",
+	COLLECTION = "Mascotas y balones",
 	TRANSFER = "Fichajes",
 	PRIZE = "Premios",
 }

@@ -70,6 +70,12 @@ local function nextSteps(state, Format)
 	if state.economy.forecast.attendance >= state.economy.forecast.capacity then
 		table.insert(steps, { text = "¡Estadio lleno! Amplía las gradas o sube el precio de las entradas.", screen = "build" })
 	end
+	if state.collection and state.collection.hatched == 0 and state.economy.money >= 5000 then
+		table.insert(steps, { text = "🐾 Abre tu primer huevo: las mascotas te siguen y dan bonus en los partidos.", screen = "collection" })
+	end
+	if state.stadium.pieces and #state.stadium.pieces == 0 then
+		table.insert(steps, { text = "🧱 Construye tu estadio pieza a pieza: sillas, gradas, campo…", screen = "build", params = { tab = "free" } })
+	end
 	table.insert(steps, { text = "Personaliza escudo, colores y equipación.", screen = "club" })
 	return steps
 end

@@ -89,7 +89,7 @@ end
 local function validate()
 	local s = session
 	if s.kind == "piece" then
-		return PlacementRules.ValidatePiece({ pieceId = s.itemId, x = s.x, z = s.z, rotation = s.rotation, isPro = s.isPro })
+		return PlacementRules.ValidatePiece({ pieceId = s.itemId, x = s.x, z = s.z, rotation = s.rotation, y = s.y, isPro = s.isPro })
 	end
 	return PlacementRules.Validate({
 		decorations = s.ctx.state.stadium.decorations,
@@ -107,13 +107,13 @@ local function refreshGhost()
 	if not s then
 		return
 	end
-	s.ghost.CFrame = s.origin * CFrame.new(s.x, s.ghost.Size.Y / 2, s.z) * CFrame.Angles(0, math.rad(s.rotation), 0)
+	s.ghost.CFrame = s.origin * CFrame.new(s.x, s.ghost.Size.Y / 2 + s.y, s.z) * CFrame.Angles(0, math.rad(s.rotation), 0)
 	local ok, reason = validate()
 	s.valid = ok
 	s.ghost.Color = ok and Theme.Accent or Theme.Danger
-	s.statusLabel.Text = string.format("%s  ·  %s  ·  x %d, z %d, %d°",
+	s.statusLabel.Text = string.format("%s  ·  %s  ·  x %d, z %d, %d°%s",
 		s.item.name, ok and "✅ Colocación válida" or ("⛔ " .. (reason or "No válida")),
-		s.x, s.z, s.rotation)
+		s.x, s.z, s.rotation, s.kind == "piece" and string.format(", altura %d", s.y) or "")
 	s.statusLabel.TextColor3 = ok and Theme.Text or Theme.Warning
 end
 
@@ -160,6 +160,16 @@ local function rotate()
 	refreshGhost()
 end
 
+-- Sube o baja la pieza (solo en la construcción libre)
+local function lift(delta)
+	local s = session
+	if not s or s.kind ~= "piece" then
+		return
+	end
+	s.y = math.clamp(s.y + delta, 0, StadiumPieces.MAX_HEIGHT)
+	refreshGhost()
+end
+
 local function confirm()
 	local s = session
 	if not s or s.busy then
@@ -174,7 +184,7 @@ local function confirm()
 	local action, payload
 	if s.kind == "piece" then
 		action = s.moveIndex and "MovePiece" or "PlacePiece"
-		payload = { piece = s.itemId, index = s.moveIndex, x = s.x, z = s.z, rotation = s.rotation }
+		payload = { piece = s.itemId, index = s.moveIndex, x = s.x, z = s.z, rotation = s.rotation, y = s.y }
 	else
 		action = s.moveIndex and "MoveDecoration" or "PlaceDecoration"
 		payload = { decoration = s.decoId, index = s.moveIndex, x = s.x, z = s.z, rotation = s.rotation }
@@ -232,8 +242,8 @@ local function buildHud(s)
 	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	local hint
 	if s.kind == "piece" then
-		hint = touchOnly and "Toca tu terreno para mover la vista previa y pulsa Confirmar. Puedes colocar varias seguidas."
-			or "Mueve el ratón · Clic: colocar (puedes colocar varias seguidas) · R: rotar · Q/Esc: terminar."
+		hint = touchOnly and "Toca tu terreno para mover la vista previa y pulsa Confirmar. ▲ ▼ suben y bajan la pieza. Puedes colocar varias seguidas."
+			or "Mueve el ratón · Clic: colocar (varias seguidas) · R: rotar · T/G: subir/bajar · Q/Esc: terminar."
 	else
 		hint = touchOnly and "Toca tu plaza para mover la vista previa. Zona azul = permitida, zonas rojas = reservadas."
 			or "Mueve el ratón · Clic: colocar · R: rotar · Q/Esc: cancelar. Zona azul = permitida, zonas rojas = reservadas."
@@ -241,14 +251,21 @@ local function buildHud(s)
 	C.Label(string.format("%s  Rejilla %d stud(s), rotación %d°%s.", hint, s.tools.grid, s.tools.rotationStep,
 		s.isPro and " (Constructor Pro)" or ""), { TextSize = 12, TextColor3 = Theme.TextDim, LayoutOrder = 3 }).Parent = top
 
+	local piece = s.kind == "piece"
 	local bar = C.Row({
+		C.Button("▲", "secondary", function()
+			lift(1)
+		end, { Size = UDim2.new(0, 50, 0, 50), AutomaticSize = Enum.AutomaticSize.None, Visible = piece }),
+		C.Button("▼", "secondary", function()
+			lift(-1)
+		end, { Size = UDim2.new(0, 50, 0, 50), AutomaticSize = Enum.AutomaticSize.None, Visible = piece }),
 		C.Button("⟳ Rotar", "secondary", rotate, { Size = UDim2.new(0, 120, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
 		C.Button("✔ Confirmar", "primary", confirm, { Size = UDim2.new(0, 150, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
 		C.Button(s.kind == "piece" and not s.moveIndex and "✔ Terminar" or "✕ Cancelar", "danger", PlacementController.Cancel, { Size = UDim2.new(0, 130, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
 	}, 10, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -24),
-		Size = UDim2.new(0, 430, 0, 50),
+		Size = UDim2.new(0, piece and 550 or 430, 0, 50),
 		AutomaticSize = Enum.AutomaticSize.None,
 	})
 	bar.Parent = hud
@@ -300,6 +317,7 @@ function PlacementController.Start(ctx, opts)
 		tools = tools,
 		isPro = ctx.state.premium.owned.CONSTRUCTOR_PRO == true,
 		rotation = existing and existing.r or 0,
+		y = kind == "piece" and existing and existing.y or 0,
 		x = existing and existing.x or (kind == "piece" and 0 or 40),
 		z = existing and existing.z or (kind == "piece" and 60 or 88),
 		connections = {},
@@ -354,6 +372,10 @@ function PlacementController.Start(ctx, opts)
 		end
 		if input.KeyCode == Enum.KeyCode.R then
 			rotate()
+		elseif input.KeyCode == Enum.KeyCode.T then
+			lift(1)
+		elseif input.KeyCode == Enum.KeyCode.G then
+			lift(-1)
 		elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.Escape then
 			PlacementController.Cancel()
 		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then

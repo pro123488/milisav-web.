@@ -24,7 +24,7 @@ Fútbol jugable de verdad, en tiempo real, en un estadio nuevo al sur de la aven
   | Esprintar | Shift (mantener) | L3 | Botón ⚡ SPRINT |
   | Conducir el balón | Corre contra él | | |
 
-  Con poca carga sale un pase raso. Con la carga al máximo sale un chut fuerte y alto. El balón sale hacia donde mira tu personaje.
+  Con poca carga sale un pase raso. Con la carga al máximo sale un chut fuerte y alto. Desde la Actualización 3, el balón sale hacia donde mira la cámara y hay un botón de pase (tecla E).
 - **Partido:**
   - Dura 3 minutos, con saque desde el centro (3 s quietos) al empezar y después de cada gol.
   - Marcador arriba a la izquierda y en la pantalla gigante del estadio.

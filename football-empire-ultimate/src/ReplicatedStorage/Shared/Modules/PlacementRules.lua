@@ -108,11 +108,15 @@ end
 -- CONSTRUCCIÓN LIBRE: piezas del estadio en cualquier punto del terreno.
 -- Pueden solaparse (una silla sobre una grada, una valla junto al campo…): solo se exige
 -- que la pieza exista, esté en la rejilla, con un giro permitido y dentro del terreno.
--- params = { pieceId, x, z, rotation, isPro }
+-- params = { pieceId, x, z, rotation, isPro, y? }  (y = altura sobre el suelo, en studs enteros)
 function PlacementRules.ValidatePiece(params)
 	local x, z, rotation = params.x, params.z, params.rotation
 	if not finite(x) or not finite(z) or not finite(rotation) then
 		return false, "Posición no válida."
+	end
+	local y = params.y or 0
+	if not finite(y) or y < 0 or y > StadiumPieces.MAX_HEIGHT or y ~= math.floor(y) then
+		return false, string.format("La altura debe estar entre 0 y %d.", StadiumPieces.MAX_HEIGHT)
 	end
 	local piece = StadiumPieces.ById[params.pieceId]
 	if not piece then

@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Remotes = require(Shared.Modules.Remotes)
+local BallSkin = require(script.Parent.Parent.Util.BallSkin)
 local Layout = require(Shared.Modules.StadiumLayout)
 
 local InteractionService = {}
@@ -122,6 +123,14 @@ function InteractionService.EnsureBall(plot, owner)
 		end
 		ball.AssemblyLinearVelocity = direction.Unit * KICK_SPEED + Vector3.new(0, KICK_LIFT, 0)
 	end)
+end
+
+-- Aspecto del balón del estadio (balón coleccionable equipado por su dueño).
+function InteractionService.SetBallSkin(plot, skinId)
+	local entry = plot and balls[plot]
+	if entry and entry.ball.Parent then
+		BallSkin.Apply(entry.ball, skinId)
+	end
 end
 
 function InteractionService.RemoveBall(plot)

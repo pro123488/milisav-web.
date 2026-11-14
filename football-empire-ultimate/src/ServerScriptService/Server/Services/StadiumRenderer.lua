@@ -1311,7 +1311,7 @@ local function buildPieces(folder, origin, pieces, info)
 			model:SetAttribute("PieceIndex", index)
 			model:SetAttribute("PieceId", entry.id)
 			model.Parent = folder
-			local frame = origin * CFrame.new(entry.x, 0, entry.z) * CFrame.Angles(0, math.rad(entry.r or 0), 0)
+			local frame = origin * CFrame.new(entry.x, entry.y or 0, entry.z) * CFrame.Angles(0, math.rad(entry.r or 0), 0)
 			builder(model, frame, info)
 		end
 	end

@@ -168,6 +168,7 @@ function AdminPanel.Init(gui, deps)
 	task.spawn(function()
 		local names = {
 			double = "💰 Recompensas x2", speed = "⚡ Supervelocidad", coinrain = "🪙 Lluvia de monedas", goldball = "🏆 Balón de oro",
+			luck = "🍀 Suerte x2",
 		}
 		while true do
 			local parts = {}

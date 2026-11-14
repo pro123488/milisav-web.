@@ -24,6 +24,8 @@ AdminConfig.Events = {
 		text = "¡ADMIN ABUSE! Lluvia de monedas en todos los estadios: ¡corre a recogerlas!", coinValue = 300, coinsPerPlot = 25 },
 	{ id = "goldball", icon = "🏆", name = "Balón de oro", minutes = 10, cooldown = 60,
 		text = "¡ADMIN ABUSE! Balón dorado en los partidos en grupo: cada gol vale x3", goalMultiplier = 3 },
+	{ id = "luck", icon = "🍀", name = "Suerte x2", minutes = 10, cooldown = 60,
+		text = "¡ADMIN ABUSE! Suerte x2 en huevos y cajas de balones durante 10 minutos", luckMultiplier = 2 },
 }
 
 AdminConfig.ANNOUNCE_MAX_LENGTH = 120

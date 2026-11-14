@@ -8,6 +8,7 @@
 --   * Supervelocidad     -> atributo global que el cliente aplica a su velocidad.
 --   * Lluvia de monedas  -> monedas por los estadios; cada una da dinero al club (validado aquí).
 --   * Balón de oro       -> los goles de los partidos en grupo dan x3 de recompensa.
+--   * Suerte x2          -> más probabilidad de rarezas altas en huevos y cajas de balones.
 --   * Anuncio            -> mensaje (filtrado por Roblox) en pantalla para todos.
 
 local MessagingService = game:GetService("MessagingService")
@@ -75,6 +76,12 @@ end
 function AdminService.GoalMultiplier()
 	local event = AdminConfig.Event("goldball")
 	return AdminService.IsActive("goldball") and event.goalMultiplier or 1
+end
+
+-- Multiplica las probabilidades de rareza épica o superior en huevos y cajas de balones.
+function AdminService.LuckMultiplier()
+	local event = AdminConfig.Event("luck")
+	return AdminService.IsActive("luck") and event.luckMultiplier or 1
 end
 
 local function spawnCoin(origin, value)

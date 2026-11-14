@@ -41,6 +41,7 @@ local Screens = {
 	history = require(ScreensFolder.History),
 	network = require(ScreensFolder.Network),
 	missions = require(ScreensFolder.Missions),
+	collection = require(ScreensFolder.Collection),
 	achievements = require(ScreensFolder.Achievements),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)

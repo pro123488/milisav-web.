@@ -10,6 +10,7 @@ local StadiumPieces = {}
 
 StadiumPieces.MAX_PIECES = 200 -- límite por terreno (rendimiento)
 StadiumPieces.REFUND = 0.5
+StadiumPieces.MAX_HEIGHT = 40 -- altura máxima (studs) a la que se puede subir una pieza
 
 StadiumPieces.Categories = {
 	{ id = "field", name = "Campo", icon = "🟩" },

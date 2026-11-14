@@ -16,12 +16,15 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
 local Cfg = require(Shared.Config.ArenaConfig)
+local SoundConfig = require(Shared.Config.SoundConfig)
 local Remotes = require(Shared.Modules.Remotes)
 
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local PlotService = require(script.Parent.PlotService)
 local AdminService = require(script.Parent.AdminService)
+local PetService = require(script.Parent.PetService)
+local BallSkin = require(script.Parent.Parent.Util.BallSkin)
 
 local ArenaService = {}
 
@@ -31,12 +34,12 @@ local notifyRemote = Remotes.Get("Notify")
 local HALF_L = Cfg.FIELD_LENGTH / 2
 local HALF_W = Cfg.FIELD_WIDTH / 2
 local WHITE = Color3.fromRGB(245, 245, 245)
-local GOLD = Color3.fromRGB(255, 200, 40)
 
 local folder -- Folder del estadio de partidos
 local scoreboardLabel
 local teamObjects = {} -- [teamId] = Team
 local ball
+local kickSound
 local rng = Random.new()
 
 -- Estado del partido
@@ -395,8 +398,14 @@ end
 
 -- ===== Balón =====
 
-local function ballColor()
-	return AdminService.GoalMultiplier() > 1 and GOLD or WHITE
+-- El balón toma el aspecto del balón coleccionable del último jugador que lo toca.
+-- Con el evento admin «Balón de oro» siempre es dorado.
+local function applySkin(player)
+	if AdminService.GoalMultiplier() > 1 then
+		BallSkin.Apply(ball, "gold")
+	elseif player then
+		BallSkin.Apply(ball, PetService.BallOf(player))
+	end
 end
 
 local function resetBall()
@@ -404,7 +413,7 @@ local function resetBall()
 	ball.AssemblyLinearVelocity = Vector3.zero
 	ball.AssemblyAngularVelocity = Vector3.zero
 	ball.CFrame = Cfg.ORIGIN * CFrame.new(0, Cfg.BALL_SIZE / 2 + 0.2, 0)
-	ball.Color = ballColor()
+	applySkin(nil)
 end
 
 local function releaseBall()
@@ -419,6 +428,7 @@ local function kickBall(direction, power)
 	local speed = Cfg.KICK_MIN_SPEED + (Cfg.KICK_MAX_SPEED - Cfg.KICK_MIN_SPEED) * power
 	local lift = Cfg.KICK_MIN_LIFT + (Cfg.KICK_MAX_LIFT - Cfg.KICK_MIN_LIFT) * power * power
 	ball.AssemblyLinearVelocity = direction.Unit * speed + Vector3.new(0, lift, 0)
+	kickSound:Play()
 end
 
 local function createBall()
@@ -428,7 +438,14 @@ local function createBall()
 	ball.Size = Vector3.new(Cfg.BALL_SIZE, Cfg.BALL_SIZE, Cfg.BALL_SIZE)
 	ball.Material = Enum.Material.SmoothPlastic
 	ball.CustomPhysicalProperties = PhysicalProperties.new(0.3, 0.35, Cfg.BALL_ELASTICITY, 1, 1)
+	kickSound = Instance.new("Sound")
+	kickSound.Name = "Kick"
+	kickSound.SoundId = "rbxassetid://" .. SoundConfig.KICK
+	kickSound.Volume = 0.9
+	kickSound.RollOffMaxDistance = 160
+	kickSound.Parent = ball
 	ball.Parent = folder
+	BallSkin.Apply(ball, "classic")
 	resetBall()
 	-- Conducción: al tocarlo corriendo, el balón sale en la dirección de la carrera
 	ball.Touched:Connect(function(hit)
@@ -438,8 +455,11 @@ local function createBall()
 		local character = hit:FindFirstAncestorOfClass("Model")
 		local player = character and Players:GetPlayerFromCharacter(character)
 		local info = player and participants[player]
-		local _, root = player and characterOf(player)
-		if not info or not root then
+		if not info then
+			return
+		end
+		local _, root = characterOf(player)
+		if not root then
 			return
 		end
 		local now = os.clock()
@@ -448,6 +468,7 @@ local function createBall()
 		end
 		dribbleCooldown[player] = now
 		lastTouch = { name = player.DisplayName, team = info.team, player = player }
+		applySkin(player)
 		local velocity = root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
 		local direction = velocity.Magnitude > 4 and velocity.Unit or ((ball.Position - root.Position) * Vector3.new(1, 0, 1))
 		if direction.Magnitude < 0.01 then
@@ -457,33 +478,106 @@ local function createBall()
 	end)
 end
 
--- Chut pedido por un cliente: todo se valida aquí.
-local function onKick(player, power)
+-- Comprobaciones comunes de chut y pase: en partido, cerca del balón y sin abusar del botón.
+-- Devuelve la ficha del jugador y su HumanoidRootPart, o nil si la acción no vale.
+local function validTouch(player)
 	if phase ~= "playing" or not ball then
-		return
+		return nil
 	end
 	local info = participants[player]
-	local _, root = characterOf(player)
-	if not info or not root then
-		return
+	if not info then
+		return nil
 	end
-	if type(power) ~= "number" or power ~= power then
-		return
+	local _, root = characterOf(player)
+	if not root then
+		return nil
 	end
 	local now = os.clock()
 	if kickCooldown[player] and now - kickCooldown[player] < Cfg.KICK_COOLDOWN then
-		return
+		return nil
 	end
 	if (ball.Position - root.Position).Magnitude > Cfg.KICK_RANGE then
-		return
+		return nil
 	end
 	kickCooldown[player] = now
 	lastTouch = { name = player.DisplayName, team = info.team, player = player }
+	applySkin(player)
+	return info, root
+end
+
+-- Dirección horizontal del chut: hacia donde apunta la cámara del jugador (lo envía el cliente).
+-- Si no es un vector válido, se usa hacia donde mira el personaje.
+local function aimDirection(root, aim)
+	if typeof(aim) == "Vector3" then
+		local flat = aim * Vector3.new(1, 0, 1)
+		if flat.Magnitude > 0.1 and flat.Magnitude < 10 then
+			return flat.Unit
+		end
+	end
 	local look = root.CFrame.LookVector * Vector3.new(1, 0, 1)
-	if look.Magnitude < 0.01 then
+	return look.Magnitude > 0.01 and look.Unit or nil
+end
+
+-- Chut pedido por un cliente: todo se valida aquí.
+local function onKick(player, power, aim)
+	if type(power) ~= "number" or power ~= power then
 		return
 	end
-	kickBall(look, power)
+	local info, root = validTouch(player)
+	if not info then
+		return
+	end
+	local direction = aimDirection(root, aim)
+	if direction then
+		kickBall(direction, power)
+	end
+end
+
+-- Pase: el servidor busca al compañero mejor colocado en la dirección a la que apuntas
+-- y le envía el balón con la fuerza justa para que le llegue.
+local function onPass(player, aim)
+	local info, root = validTouch(player)
+	if not info then
+		return
+	end
+	local direction = aimDirection(root, aim)
+	if not direction then
+		return
+	end
+	local best, bestScore = nil, 0.3 -- solo compañeros dentro de un cono de unos 70° a cada lado
+	local function consider(position, velocity)
+		local offset = (position - ball.Position) * Vector3.new(1, 0, 1)
+		local distance = offset.Magnitude
+		if distance < 6 or distance > 110 then
+			return
+		end
+		local score = offset.Unit:Dot(direction)
+		if score > bestScore then
+			best, bestScore = { offset = offset, distance = distance, velocity = velocity }, score
+		end
+	end
+	for other, otherInfo in pairs(participants) do
+		if other ~= player and otherInfo.team == info.team then
+			local _, otherRoot = characterOf(other)
+			if otherRoot then
+				consider(otherRoot.Position, otherRoot.AssemblyLinearVelocity * Vector3.new(1, 0, 1))
+			end
+		end
+	end
+	for _, bot in ipairs(bots) do
+		if bot.team == info.team then
+			consider(toWorld(bot.x, 0, bot.z), Vector3.zero)
+		end
+	end
+	if not best then
+		kickBall(direction, 0.3) -- nadie a quien pasar: toque corto hacia delante
+		return
+	end
+	local speed = math.clamp(best.distance * 1.5 + 28, Cfg.PASS_MIN_SPEED, Cfg.PASS_MAX_SPEED)
+	-- Se adelanta el pase a la carrera del compañero
+	local target = best.offset + best.velocity * math.min(best.distance / speed, 1.2)
+	ball.AssemblyLinearVelocity = target.Unit * speed + Vector3.new(0, 3 + best.distance * 0.06, 0)
+	kickSound:Play()
 end
 
 -- ===== Retransmisión al cliente =====
@@ -599,7 +693,10 @@ local function updateBots(dt)
 			local distanceToGoal = math.abs(attackX - b.X)
 			local power = bot.keeper and 0.9 or (distanceToGoal > 60 and rng:NextNumber(0.45, 0.65) or rng:NextNumber(0.7, 0.95))
 			lastTouch = { name = bot.name, team = bot.team }
-			kickBall(aim * Vector3.new(1, 0, 1), power)
+			local flatAim = aim * Vector3.new(1, 0, 1)
+			if flatAim.Magnitude > 0.01 then
+				kickBall(flatAim, power)
+			end
 		end
 	end
 end
@@ -657,7 +754,9 @@ end
 
 local function rewardFor(player, result, goals)
 	local base = result == "win" and Cfg.REWARD_WIN or (result == "draw" and Cfg.REWARD_DRAW or Cfg.REWARD_LOSS)
-	local amount = (base + goals * Cfg.REWARD_GOAL * AdminService.GoalMultiplier()) * AdminService.RewardMultiplier()
+	-- Las mascotas equipadas suman su bonus (se consiguen jugando, no pagando)
+	local amount = math.floor((base + goals * Cfg.REWARD_GOAL * AdminService.GoalMultiplier())
+		* AdminService.RewardMultiplier() * (1 + PetService.Bonus(player)))
 	local now = os.time()
 	local log = rewardLog[player.UserId] or {}
 	local recent = {}
@@ -688,7 +787,7 @@ local function finish(aborted)
 			end
 			arenaRemote:FireClient(player, "result", {
 				result = result, winner = winner, score = lastResult.score, goals = info.goals, reward = reward,
-				capped = reward == 0,
+				capped = reward == 0, petBonus = PetService.Bonus(player),
 			})
 			local own = info.team == "red" and score.red or score.blue
 			local other = info.team == "red" and score.blue or score.red
@@ -835,9 +934,11 @@ function ArenaService.Start()
 		team.Parent = Teams
 		teamObjects[info.id] = team
 	end
-	arenaRemote.OnServerEvent:Connect(function(player, kind, power)
+	arenaRemote.OnServerEvent:Connect(function(player, kind, a, b)
 		if kind == "kick" then
-			onKick(player, power)
+			onKick(player, a, b) -- potencia (0..1) y dirección de la cámara
+		elseif kind == "pass" then
+			onPass(player, a) -- dirección de la cámara
 		end
 	end)
 	RunService.Heartbeat:Connect(function(dt)

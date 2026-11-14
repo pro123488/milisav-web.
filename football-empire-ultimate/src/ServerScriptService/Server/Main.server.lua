@@ -38,6 +38,7 @@ local CommunityService = require(Services.CommunityService)
 local MissionService = require(Services.MissionService)
 local PlotService = require(Services.PlotService)
 local AdminService = require(Services.AdminService)
+local PetService = require(Services.PetService)
 local ArenaService = require(Services.ArenaService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -105,6 +106,7 @@ local function buildState(player)
 		end),
 		economy = EconomyService.Summary(player, data),
 		admin = AdminService.BuildState(player), -- solo para admins (eventos «admin abuse»)
+		collection = PetService.BuildState(data), -- mascotas y balones coleccionables
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
@@ -451,6 +453,27 @@ Actions.SetFreeBuild = function(player, payload)
 	return BuildService.SetFreeBuild(player, payload)
 end
 
+-- ===== Mascotas y balones coleccionables =====
+Actions.HatchEgg = function(player, payload)
+	return PetService.Hatch(player, payload)
+end
+
+Actions.OpenBallCrate = function(player, payload)
+	return PetService.OpenCrate(player, payload)
+end
+
+Actions.EquipPet = function(player, payload)
+	return PetService.EquipPet(player, payload)
+end
+
+Actions.SellPet = function(player, payload)
+	return PetService.SellPet(player, payload)
+end
+
+Actions.EquipBall = function(player, payload)
+	return PetService.EquipBall(player, payload)
+end
+
 -- ===== Partidos en grupo =====
 Actions.JoinArena = function(player)
 	return ArenaService.Join(player)
@@ -523,6 +546,7 @@ local function onPlayerAdded(player)
 		if not ArenaService.HandleRespawn(player) then
 			PlotService.CharacterAdded(player)
 		end
+		PetService.CharacterAdded(player) -- las mascotas equipadas vuelven a seguir al personaje nuevo
 	end)
 
 	local data = DataService.Load(player)
@@ -548,8 +572,10 @@ local function onPlayerAdded(player)
 	EconomyService.PlayerReady(player)
 	SponsorService.PlayerReady(player)
 	PlotService.Render(player)
+	InteractionService.SetBallSkin(PlotService.GetPlot(player), data.collection.ball)
 	if player.Character then
 		PlotService.TeleportHome(player)
+		task.spawn(PetService.CharacterAdded, player)
 	end
 	pushState(player)
 	if not DataService.IsSaveEnabled(player) then
@@ -571,6 +597,7 @@ local function onPlayerRemoving(player)
 	NetworkService.PlayerRemoving(player)
 	ArenaService.PlayerRemoving(player)
 	AdminService.PlayerRemoving(player)
+	PetService.PlayerRemoving(player)
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -667,6 +694,10 @@ ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals)
 	MissionService.EvaluateAchievements(player)
 end)
 AdminService.Start()
+PetService.Start()
+PetService.OnBallChanged(function(player, ballId)
+	InteractionService.SetBallSkin(PlotService.GetPlot(player), ballId)
+end)
 ArenaService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)

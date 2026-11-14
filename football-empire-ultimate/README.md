@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: las 12 fases están implementadas** (versión `0.14.0-estadio-libre`, con las Actualizaciones 1 y 2). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
+**Estado actual: las 12 fases están implementadas** (versión `0.15.0-mascotas`, con las Actualizaciones 1, 2 y 3). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -24,6 +24,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | FASE 12 · Optimización, seguridad y pruebas integrales | [`docs/FASE_12.md`](docs/FASE_12.md) |
 | ACTUALIZACIÓN 1 · Partidos en grupo, sprint y eventos «admin abuse» | [`docs/ACTUALIZACION_1_PARTIDOS.md`](docs/ACTUALIZACION_1_PARTIDOS.md) |
 | ACTUALIZACIÓN 2 · Estadio libre (construcción pieza a pieza) y música | [`docs/ACTUALIZACION_2_ESTADIO_LIBRE.md`](docs/ACTUALIZACION_2_ESTADIO_LIBRE.md) |
+| ACTUALIZACIÓN 3 · Mascotas, balones coleccionables y partidos mejorados | [`docs/ACTUALIZACION_3_MASCOTAS_Y_BALONES.md`](docs/ACTUALIZACION_3_MASCOTAS_Y_BALONES.md) |
 
 > 💎 Los seis Game Passes están creados en Roblox y sus IDs reales están en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Las ventajas solo se activan cuando Roblox confirma la compra (en el servidor).
 

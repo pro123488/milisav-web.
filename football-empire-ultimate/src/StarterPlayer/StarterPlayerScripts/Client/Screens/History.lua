@@ -113,7 +113,11 @@ local function renderPlayers(add, ctx)
 		C.Title(gold and "🏛️ Paseo de las Leyendas" or "🏛️ Jugadores legendarios", 18),
 	})
 	if gold then
-		C.Stroke(Theme.Gold, 2).Parent = legends
+		local stroke = legends:FindFirstChildOfClass("UIStroke")
+		if stroke then
+			stroke.Color = Theme.Gold
+			stroke.Thickness = 2
+		end
 		C.Label("Las 6 últimas leyendas tienen estatua dorada en la plaza de tu estadio.", { TextColor3 = Theme.Gold, TextSize = 12 }).Parent = legends
 	end
 	if #h.legends == 0 then

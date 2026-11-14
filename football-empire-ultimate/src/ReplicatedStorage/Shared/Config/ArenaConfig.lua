@@ -44,6 +44,8 @@ ArenaConfig.KICK_MAX_SPEED = 115
 ArenaConfig.KICK_MIN_LIFT = 6
 ArenaConfig.KICK_MAX_LIFT = 32
 ArenaConfig.DRIBBLE_SPEED = 20 -- empujón al tocar el balón corriendo
+ArenaConfig.PASS_MIN_SPEED = 40 -- pase al compañero (la fuerza depende de la distancia)
+ArenaConfig.PASS_MAX_SPEED = 100
 
 -- Bots
 ArenaConfig.BOT_SPEED = 17

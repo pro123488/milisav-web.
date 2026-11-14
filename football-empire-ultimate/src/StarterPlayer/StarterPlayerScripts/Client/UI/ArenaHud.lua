@@ -5,14 +5,21 @@
 --   * Botón «⚽ JUGAR PARTIDO» / salir de la cola / abandonar.
 --   * Cola con cuenta atrás, marcador, tiempo y equipos.
 --   * CHUT: mantener clic izquierdo (PC), gatillo R2 (mando) o el botón «CHUTAR» (móvil) para cargar
---     la potencia y soltar para chutar. El servidor decide si el chut vale.
+--     la potencia y soltar para chutar. El balón sale hacia donde apunta la cámara.
+--   * PASE: tecla E (PC), botón X (mando) o el botón «PASE» (móvil): el servidor busca al compañero
+--     mejor colocado en esa dirección. El servidor decide si el chut o el pase valen.
+--   * Sonidos: silbato en cada saque y al final, y público en los goles.
 --   * Carteles de gol y de resultado.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
-local Remotes = require(ReplicatedStorage:WaitForChild("Shared").Modules.Remotes)
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Remotes = require(Shared.Modules.Remotes)
+local SoundConfig = require(Shared.Config.SoundConfig)
 
 local ArenaHud = {}
 
@@ -24,8 +31,36 @@ local arenaRemote
 local C, Theme, act, Format
 local state = { phase = "idle", role = "none" }
 local joinButton, queueLabel, scoreFrame, scoreLabel, timeLabel, teamsLabel, banner, bannerText
-local powerFrame, powerFill, kickButton
+local powerFrame, powerFill, kickButton, passButton
 local chargingSince = nil
+local whistleSound, cheerSound
+
+local function makeSound(id, volume)
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://" .. id
+	sound.Volume = volume
+	sound.Parent = SoundService
+	return sound
+end
+
+local function playCheer()
+	cheerSound.TimePosition = 0
+	cheerSound.Volume = 0.7
+	cheerSound:Play()
+	local startedAt = os.clock()
+	cheerSound:SetAttribute("StartedAt", startedAt)
+	task.delay(SoundConfig.CROWD_SECONDS, function()
+		if cheerSound:GetAttribute("StartedAt") == startedAt then
+			cheerSound:Stop()
+		end
+	end)
+end
+
+-- Dirección horizontal de la cámara: hacia ahí salen el chut y el pase.
+local function aim()
+	local camera = Workspace.CurrentCamera
+	return camera and camera.CFrame.LookVector or Vector3.new(0, 0, -1)
+end
 
 local function formatTime(seconds)
 	return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
@@ -61,7 +96,14 @@ local function releaseCharge()
 	local power = math.clamp((os.clock() - chargingSince) / CHARGE_SECONDS, 0, 1)
 	chargingSince = nil
 	if canKick() then
-		arenaRemote:FireServer("kick", power)
+		arenaRemote:FireServer("kick", power, aim())
+	end
+end
+
+local function pass()
+	if canKick() then
+		chargingSince = nil
+		arenaRemote:FireServer("pass", aim())
 	end
 end
 
@@ -108,6 +150,7 @@ local function refresh()
 	end
 	if kickButton then
 		kickButton.Visible = playing
+		passButton.Visible = playing
 	end
 end
 
@@ -226,7 +269,24 @@ function ArenaHud.Init(gui, deps)
 				releaseCharge()
 			end
 		end)
+		passButton = C.New("TextButton", {
+			Name = "PassButton",
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -150, 1, -250),
+			Size = UDim2.fromOffset(78, 78),
+			BackgroundColor3 = Color3.fromRGB(40, 170, 100),
+			BackgroundTransparency = 0.1,
+			Text = "🤝\nPASE",
+			Font = Theme.FontBold,
+			TextSize = 14,
+			TextColor3 = Color3.new(1, 1, 1),
+			Visible = false,
+			Children = { C.Corner(UDim.new(1, 0)), C.Stroke(Color3.new(1, 1, 1), 2, 0.3) },
+		}, gui)
+		passButton.Activated:Connect(pass)
 	end
+	whistleSound = makeSound(SoundConfig.WHISTLE, 0.6)
+	cheerSound = makeSound(SoundConfig.CROWD_CHEER, 0.7)
 
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if processed then
@@ -234,6 +294,8 @@ function ArenaHud.Init(gui, deps)
 		end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.ButtonR2 then
 			startCharge()
+		elseif input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.ButtonX then
+			pass()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
@@ -258,18 +320,27 @@ function ArenaHud.Init(gui, deps)
 			return
 		end
 		if kind == "state" then
+			-- Silbato cuando el balón se pone en juego
+			if data.role == "playing" and state.phase == "kickoff" and data.phase == "playing" then
+				whistleSound:Play()
+			end
 			state = data
 			refresh()
 		elseif kind == "joined" then
-			showBanner(string.format("⚽ ¡A jugar! Eres del equipo <font color='%s'>%s</font>\nClic (o CHUTAR) para chutar · Shift para esprintar",
+			showBanner(string.format("⚽ ¡A jugar! Eres del equipo <font color='%s'>%s</font>\nClic: chutar · E: pase · Shift: esprintar",
 				data.team == "red" and "#FF9B9B" or "#9BC4FF", TEAM_NAMES[data.team] or "?"), Color3.fromRGB(20, 60, 40), 4)
 		elseif kind == "goal" then
 			local who = data.scorer and (data.ownGoal and ("en propia de " .. data.scorer) or data.scorer) or ""
 			showBanner(string.format("⚽ ¡GOOOOL DEL %s!\n%s", TEAM_NAMES[data.team] or "?", who), TEAM_COLORS[data.team], 3)
+			playCheer()
 		elseif kind == "result" then
 			local title = data.result == "win" and "🏆 ¡VICTORIA!" or (data.result == "draw" and "🤝 EMPATE" or "😓 DERROTA")
 			local reward = data.capped and "Límite de recompensas por hora alcanzado"
 				or ("+" .. Format.Money(data.reward) .. (data.goals > 0 and string.format(" · %d gol%s tuyo%s", data.goals, data.goals == 1 and "" or "es", data.goals == 1 and "" or "s") or ""))
+			if (data.petBonus or 0) > 0 and not data.capped then
+				reward ..= string.format(" · 🐾 +%d%%", math.floor(data.petBonus * 100 + 0.5))
+			end
+			whistleSound:Play()
 			showBanner(string.format("%s  %d - %d\n%s", title, data.score.red, data.score.blue, reward),
 				data.result == "win" and Color3.fromRGB(150, 110, 10) or Color3.fromRGB(40, 50, 70), 6)
 		end

@@ -180,6 +180,18 @@ end
 
 -- ===== CONSTRUCCIÓN LIBRE DEL ESTADIO (piezas sueltas) =====
 
+-- Altura de una pieza enviada por el cliente: entero entre 0 y MAX_HEIGHT (nil si no vale).
+local function readHeight(payload)
+	if type(payload) ~= "table" then
+		return nil
+	end
+	local height = tonumber(payload.y) or 0
+	if height ~= height or height ~= math.floor(height) or height < 0 or height > StadiumPieces.MAX_HEIGHT then
+		return nil
+	end
+	return height
+end
+
 function BuildService.PlacePiece(player, payload)
 	local data = DataService.Get(player)
 	local pieceId = type(payload) == "table" and payload.piece
@@ -195,7 +207,11 @@ function BuildService.PlacePiece(player, payload)
 	if #list >= StadiumPieces.MAX_PIECES then
 		return false, string.format("Has llegado al máximo de %d piezas. Quita alguna para poner otra.", StadiumPieces.MAX_PIECES)
 	end
-	local ok, reason = PlacementRules.ValidatePiece({ pieceId = pieceId, x = x, z = z, rotation = rotation, isPro = BuildService.IsPro(player) })
+	local y = readHeight(payload)
+	if not y then
+		return false, "Altura no válida."
+	end
+	local ok, reason = PlacementRules.ValidatePiece({ pieceId = pieceId, x = x, z = z, rotation = rotation, y = y, isPro = BuildService.IsPro(player) })
 	if not ok then
 		return false, reason
 	end
@@ -206,7 +222,7 @@ function BuildService.PlacePiece(player, payload)
 	if not paid then
 		return false, payError
 	end
-	table.insert(list, { id = pieceId, x = x, z = z, r = rotation })
+	table.insert(list, { id = pieceId, x = x, z = z, r = rotation, y = y })
 	return true, string.format("%s %s colocada.", piece.icon, piece.name), true
 end
 
@@ -236,11 +252,15 @@ function BuildService.MovePiece(player, payload)
 	if not x then
 		return false, "Posición no válida."
 	end
-	local ok, reason = PlacementRules.ValidatePiece({ pieceId = entry.id, x = x, z = z, rotation = rotation, isPro = BuildService.IsPro(player) })
+	local y = readHeight(payload)
+	if not y then
+		return false, "Altura no válida."
+	end
+	local ok, reason = PlacementRules.ValidatePiece({ pieceId = entry.id, x = x, z = z, rotation = rotation, y = y, isPro = BuildService.IsPro(player) })
 	if not ok then
 		return false, reason
 	end
-	entry.x, entry.z, entry.r = x, z, rotation
+	entry.x, entry.z, entry.r, entry.y = x, z, rotation, y
 	return true, "Pieza movida.", true
 end
 

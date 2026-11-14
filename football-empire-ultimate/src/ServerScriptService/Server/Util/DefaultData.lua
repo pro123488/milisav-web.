@@ -14,6 +14,7 @@ local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumPieces = require(Shared.Config.StadiumPieces)
+local CollectionConfig = require(Shared.Config.CollectionConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -76,6 +77,14 @@ function DefaultData.Create(player)
 			compactMenu = false,
 			uiScale = 1,
 			music = true,
+		},
+		collection = { -- mascotas y balones coleccionables
+			pets = {}, -- [id de mascota] = cantidad
+			equippedPets = {}, -- lista de ids (máx. 3, sin repetir)
+			balls = {}, -- [id de balón] = true (el clásico siempre está disponible)
+			ball = "classic",
+			hatched = 0,
+			crates = 0,
 		},
 		premium = {
 			purchaseLog = {}, -- solo informativo
@@ -378,7 +387,8 @@ function DefaultData.Reconcile(data, player)
 			if type(entry) == "table" and StadiumPieces.ById[entry.id]
 				and finiteNumber(entry.x) and finiteNumber(entry.z) and finiteNumber(entry.r)
 				and math.abs(entry.x) <= 150 and math.abs(entry.z) <= 105 then
-				table.insert(pieces, { id = entry.id, x = entry.x, z = entry.z, r = entry.r % 360 })
+				local height = finiteNumber(entry.y) and math.clamp(math.floor(entry.y), 0, StadiumPieces.MAX_HEIGHT) or 0
+				table.insert(pieces, { id = entry.id, x = entry.x, z = entry.z, r = entry.r % 360, y = height })
 			end
 			if #pieces >= StadiumPieces.MAX_PIECES then
 				break
@@ -612,6 +622,39 @@ function DefaultData.Reconcile(data, player)
 	}
 
 	-- Evento de Halloween y desbloqueos
+	-- Mascotas y balones coleccionables
+	local rawCollection = type(data.collection) == "table" and data.collection or {}
+	local collection = { pets = {}, equippedPets = {}, balls = {}, ball = CollectionConfig.DEFAULT_BALL }
+	if type(rawCollection.pets) == "table" then
+		for petId, count in pairs(rawCollection.pets) do
+			if CollectionConfig.PetById[petId] and finiteNumber(count) and count >= 1 then
+				collection.pets[petId] = math.min(999, math.floor(count))
+			end
+		end
+	end
+	if type(rawCollection.equippedPets) == "table" then
+		for _, petId in ipairs(rawCollection.equippedPets) do
+			if collection.pets[petId] and not table.find(collection.equippedPets, petId)
+				and #collection.equippedPets < CollectionConfig.MAX_EQUIPPED_PETS then
+				table.insert(collection.equippedPets, petId)
+			end
+		end
+	end
+	if type(rawCollection.balls) == "table" then
+		for ballId, owned in pairs(rawCollection.balls) do
+			if CollectionConfig.BallById[ballId] and owned == true then
+				collection.balls[ballId] = true
+			end
+		end
+	end
+	if type(rawCollection.ball) == "string" and CollectionConfig.BallById[rawCollection.ball]
+		and (rawCollection.ball == CollectionConfig.DEFAULT_BALL or collection.balls[rawCollection.ball]) then
+		collection.ball = rawCollection.ball
+	end
+	collection.hatched = math.max(0, math.floor(tonumber(rawCollection.hatched) or 0))
+	collection.crates = math.max(0, math.floor(tonumber(rawCollection.crates) or 0))
+	data.collection = collection
+
 	if type(data.halloween) ~= "table" then
 		data.halloween = {}
 	end
