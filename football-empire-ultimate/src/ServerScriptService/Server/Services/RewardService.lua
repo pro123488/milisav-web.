@@ -1,0 +1,94 @@
+-- RewardService (ModuleScript)
+-- Ubicación: ServerScriptService/Server/Services/RewardService
+--
+-- RECOMPENSA DIARIA con racha y CÓDIGOS DE REGALO. Todo se decide en el servidor:
+--   * La diaria se puede reclamar una vez por día (UTC). Si entras días seguidos la racha sube;
+--     si te saltas un día, vuelve al día 1.
+--   * Cada código se canjea una sola vez por jugador y solo si existe en RewardConfig.Codes.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RewardConfig = require(ReplicatedStorage.Shared.Config.RewardConfig)
+
+local DataService = require(script.Parent.DataService)
+local EconomyService = require(script.Parent.EconomyService)
+local PetService = require(script.Parent.PetService)
+local SeasonService = require(script.Parent.SeasonService)
+
+local RewardService = {}
+
+local function today()
+	return math.floor(os.time() / 86400)
+end
+
+-- Racha que tendría el jugador si reclamara hoy
+local function nextStreak(rewards)
+	if rewards.lastClaimDay == today() - 1 then
+		return rewards.streak + 1
+	end
+	return 1
+end
+
+local function grant(player, reward, note)
+	local got = {}
+	if reward.money then
+		EconomyService.Earn(player, reward.money, EconomyService.Category.PRIZE, note)
+		table.insert(got, string.format("💰 +%d $", reward.money))
+	end
+	if reward.egg then
+		table.insert(got, PetService.GrantEgg(player, reward.egg) or "🥚 Huevo")
+	end
+	if reward.xp then
+		SeasonService.AddXP(player, reward.xp)
+		table.insert(got, string.format("🎟️ +%d puntos del pase", reward.xp))
+	end
+	return table.concat(got, " · ")
+end
+
+function RewardService.ClaimDaily(player)
+	local data = DataService.Get(player)
+	local rewards = data.rewards
+	if rewards.lastClaimDay >= today() then
+		return false, "Ya has reclamado la recompensa de hoy. ¡Vuelve mañana!"
+	end
+	local streak = nextStreak(rewards)
+	local day = RewardConfig.DayOf(streak)
+	rewards.streak = streak
+	rewards.lastClaimDay = today()
+	local text = grant(player, RewardConfig.Daily[day], "Recompensa diaria")
+	return true, string.format("🎁 Día %d de racha: %s", day, text)
+end
+
+function RewardService.RedeemCode(player, payload)
+	local data = DataService.Get(player)
+	local code = type(payload) == "table" and payload.code
+	if type(code) ~= "string" or #code > RewardConfig.MAX_CODE_LENGTH then
+		return false, "Código no válido."
+	end
+	code = string.upper((code:gsub("%s", "")))
+	local reward = RewardConfig.Codes[code]
+	if not reward then
+		return false, "Ese código no existe."
+	end
+	if reward.expires and os.time() > reward.expires then
+		return false, "Ese código ha caducado."
+	end
+	if data.rewards.codes[code] then
+		return false, "Ya has canjeado ese código."
+	end
+	data.rewards.codes[code] = true
+	return true, string.format("🎁 Código %s canjeado: %s", code, grant(player, reward, "Código " .. code))
+end
+
+function RewardService.BuildState(data)
+	local rewards = data.rewards
+	local canClaim = rewards.lastClaimDay < today()
+	local streak = canClaim and nextStreak(rewards) or rewards.streak
+	return {
+		canClaim = canClaim,
+		streak = streak,
+		day = RewardConfig.DayOf(streak), -- día (1-7) de la recompensa de hoy
+	}
+end
+
+return RewardService

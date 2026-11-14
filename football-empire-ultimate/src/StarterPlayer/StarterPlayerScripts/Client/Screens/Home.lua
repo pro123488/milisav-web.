@@ -10,6 +10,7 @@ local SponsorConfig = require(Shared.Config.SponsorConfig)
 local WeeklyConfig = require(Shared.Config.WeeklyConfig)
 local ArenaConfig = require(Shared.Config.ArenaConfig)
 local SeasonConfig = require(Shared.Config.SeasonConfig)
+local RewardConfig = require(Shared.Config.RewardConfig)
 
 local Home = {}
 
@@ -118,6 +119,27 @@ function Home.Render(container, ctx)
 			C.Label("⚠️ <b>Guardado desactivado en esta sesión.</b> DataStore no está disponible "
 				.. "(en Studio: Game Settings › Security › Enable Studio Access to API Services). "
 				.. "Puedes jugar, pero el progreso no se guardará.", { TextSize = 14 }),
+		}))
+	end
+
+	-- Recompensa diaria con racha de 7 días
+	local daily = state.rewards
+	if daily then
+		local chips = {}
+		for day, reward in ipairs(RewardConfig.Daily) do
+			local isToday = day == daily.day
+			table.insert(chips, C.Badge(string.format("Día %d · %s", day, RewardConfig.Describe(reward)),
+				isToday and Theme.Gold or Theme.CardAlt, isToday and Color3.fromRGB(35, 25, 0) or Theme.TextDim))
+		end
+		local claimButton = C.Button(daily.canClaim and "🎁 Reclamar la de hoy" or "✔ Reclamada · vuelve mañana", daily.canClaim and "gold" or "secondary", function()
+			ctx.act("ClaimDaily")
+		end)
+		C.SetEnabled(claimButton, daily.canClaim)
+		add(C.Card({ BackgroundColor3 = daily.canClaim and Color3.fromRGB(60, 45, 10) or Theme.Card }, {
+			C.Title(string.format("🎁 Recompensa diaria · racha de %d día%s", daily.streak, daily.streak == 1 and "" or "s"), 20),
+			C.Label("Entra cada día para avanzar en la racha. Si te saltas un día, vuelve al día 1.", { TextSize = 12, TextColor3 = Theme.TextDim }),
+			C.Row(chips, 6),
+			C.Row({ claimButton }, 8),
 		}))
 	end
 

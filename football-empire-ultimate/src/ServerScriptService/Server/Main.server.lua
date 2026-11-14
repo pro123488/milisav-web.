@@ -43,6 +43,7 @@ local AdminService = require(Services.AdminService)
 local PetService = require(Services.PetService)
 local OutfitService = require(Services.OutfitService)
 local SeasonService = require(Services.SeasonService)
+local RewardService = require(Services.RewardService)
 local ArenaService = require(Services.ArenaService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -114,12 +115,44 @@ local function buildState(player)
 		outfits = OutfitService.BuildState(data), -- trajes de futbolista
 		season = SeasonService.BuildState(data), -- pase de temporada
 		weekly = WeeklyConfig.Current(), -- bonus y estadio destacado de la semana
+		rewards = RewardService.BuildState(data), -- recompensa diaria con racha
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
 		stats = data.stats,
 		settings = data.settings,
 	}
+end
+
+-- Tabla de líderes de Roblox (arriba a la derecha): goles y victorias en partidos en grupo, y dinero.
+local LEADERSTATS = {
+	{ name = "⚽ Goles", value = function(data) return data.stats.arenaGoals end },
+	{ name = "🏆 Victorias", value = function(data) return data.stats.arenaWins end },
+	{ name = "💰 Dinero", value = function(data) return math.floor(data.economy.money) end },
+}
+
+local function updateLeaderstats(player)
+	local data = DataService.Get(player)
+	if not data then
+		return
+	end
+	local folder = player:FindFirstChild("leaderstats")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "leaderstats"
+		for _, stat in ipairs(LEADERSTATS) do
+			local value = Instance.new("IntValue")
+			value.Name = stat.name
+			value.Parent = folder
+		end
+		folder.Parent = player
+	end
+	for _, stat in ipairs(LEADERSTATS) do
+		local value = folder:FindFirstChild(stat.name)
+		if value then
+			value.Value = stat.value(data)
+		end
+	end
 end
 
 -- FASE 12 · Envío incremental: solo viajan las secciones de primer nivel que han cambiado
@@ -134,6 +167,7 @@ local function pushState(player)
 	if not state then
 		return
 	end
+	updateLeaderstats(player)
 	local previous = lastSent[player]
 	local signatures, delta, changed = {}, { _partial = true }, false
 	for section, value in pairs(state) do
@@ -520,6 +554,19 @@ Actions.JoinArena = function(player)
 	return ArenaService.Join(player)
 end
 
+Actions.WatchArena = function(player)
+	return ArenaService.Watch(player)
+end
+
+-- ===== Recompensa diaria y códigos de regalo =====
+Actions.ClaimDaily = function(player)
+	return RewardService.ClaimDaily(player)
+end
+
+Actions.RedeemCode = function(player, payload)
+	return RewardService.RedeemCode(player, payload)
+end
+
 Actions.LeaveArena = function(player)
 	return ArenaService.Leave(player)
 end
@@ -740,8 +787,17 @@ ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals)
 		MissionService.Track(player, "wins", 1)
 	end
 	MissionService.EvaluateAchievements(player)
+	local data = DataService.Get(player)
+	if data then
+		data.stats.arenaMatches += 1
+		data.stats.arenaGoals += goals
+		if teamGoals > otherGoals then
+			data.stats.arenaWins += 1
+		end
+	end
 	SeasonService.AddXP(player, SeasonConfig.XP.match + (teamGoals > otherGoals and SeasonConfig.XP.win or 0)
 		+ math.min(goals, SeasonConfig.MAX_GOALS_XP) * SeasonConfig.XP.goal)
+	pushState(player) -- dinero, misiones, pase y tabla de líderes al momento
 end)
 AdminService.Start()
 SeasonService.Start()

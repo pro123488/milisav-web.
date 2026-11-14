@@ -47,6 +47,38 @@ function Settings.Render(container, ctx)
 		}, 8),
 	}))
 
+	-- Códigos de regalo
+	ctx.drafts.code = ctx.drafts.code or ""
+	local codeBox = C.New("TextBox", {
+		PlaceholderText = "Escribe el código",
+		Text = ctx.drafts.code,
+		ClearTextOnFocus = false,
+		Font = Theme.FontBold,
+		TextSize = 16,
+		TextColor3 = Theme.Text,
+		PlaceholderColor3 = Theme.TextMuted,
+		BackgroundColor3 = Theme.Panel,
+		Size = UDim2.new(0, 220, 0, 38),
+		Children = { C.Corner(Theme.RadiusSmall), C.Stroke() },
+	})
+	codeBox:GetPropertyChangedSignal("Text"):Connect(function()
+		ctx.drafts.code = codeBox.Text
+	end)
+	add(C.Card({}, {
+		C.Title("🎁 Códigos de regalo", 18),
+		C.Label("Escribe un código y pulsa Canjear. Cada código vale una sola vez por jugador.", { TextColor3 = Theme.TextDim, TextSize = 13 }),
+		C.Row({
+			codeBox,
+			C.Button("Canjear", "gold", function()
+				local result = ctx.act("RedeemCode", { code = ctx.drafts.code })
+				if result.ok then
+					ctx.drafts.code = ""
+					codeBox.Text = ""
+				end
+			end, { Size = UDim2.new(0, 110, 0, 38), AutomaticSize = Enum.AutomaticSize.None }),
+		}, 8),
+	}))
+
 	add(C.Card({}, {
 		C.Title("💾 Guardado", 18),
 		C.Label(state.saveEnabled

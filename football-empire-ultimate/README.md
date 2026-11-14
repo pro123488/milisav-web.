@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: las 12 fases están implementadas** (versión `0.16.0-temporada`, con las Actualizaciones 1 a 4). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
+**Estado actual: las 12 fases están implementadas** (versión `0.17.0-calidad`, con las Actualizaciones 1 a 5). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -26,6 +26,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | ACTUALIZACIÓN 2 · Estadio libre (construcción pieza a pieza) y música | [`docs/ACTUALIZACION_2_ESTADIO_LIBRE.md`](docs/ACTUALIZACION_2_ESTADIO_LIBRE.md) |
 | ACTUALIZACIÓN 3 · Mascotas, balones coleccionables y partidos mejorados | [`docs/ACTUALIZACION_3_MASCOTAS_Y_BALONES.md`](docs/ACTUALIZACION_3_MASCOTAS_Y_BALONES.md) |
 | ACTUALIZACIÓN 4 · Pase de temporada, trajes, estadios y contenido semanal | [`docs/ACTUALIZACION_4_PASE_TRAJES_ESTADIOS.md`](docs/ACTUALIZACION_4_PASE_TRAJES_ESTADIOS.md) |
+| ACTUALIZACIÓN 5 · Revisión de calidad, recompensa diaria, códigos y extras de partido | [`docs/ACTUALIZACION_5_CALIDAD_Y_EXTRAS.md`](docs/ACTUALIZACION_5_CALIDAD_Y_EXTRAS.md) |
 
 > 💎 Los seis Game Passes están creados en Roblox y sus IDs reales están en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Las ventajas solo se activan cuando Roblox confirma la compra (en el servidor).
 
@@ -35,7 +36,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 football-empire-ultimate/
 ├── FootballEmpireUltimate.rbxlx      Lugar listo para abrir en Studio (generado)
 ├── default.project.json              Proyecto Rojo (opcional)
-├── tools/                            check_all.sh, build_place.py, luau_check.py, field_check.py, security_check.py
+├── tools/                            check_all.sh, build_place.py, luau_check.py, field_check.py, security_check.py, api_check.py
 ├── docs/                             COMO_PROBAR.md y FASE_N.md de cada fase
 └── src/
     ├── ReplicatedStorage/Shared/     Compartido (cliente + servidor)

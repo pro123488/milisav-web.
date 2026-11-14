@@ -951,6 +951,20 @@ function ArenaService.Leave(player)
 	return false, "No estás en ningún partido."
 end
 
+-- Espectador: te lleva a la grada del estadio de partidos (para volver: «Volver a mi estadio»).
+function ArenaService.Watch(player)
+	if participants[player] then
+		return false, "Ya estás jugando el partido."
+	end
+	local character = characterOf(player)
+	if not character then
+		return false, "No se pudo teletransportar ahora."
+	end
+	local side = rng:NextNumber() < 0.5 and -1 or 1
+	character:PivotTo(CFrame.lookAt(toWorld(rng:NextInteger(-40, 40), 15, side * (HALF_W + 26)), toWorld(0, 2, 0)))
+	return true, "👀 Estás en la grada. Para volver, pulsa «Volver a mi estadio»."
+end
+
 -- Al reaparecer durante un partido, vuelve al campo en vez de a su estadio.
 function ArenaService.HandleRespawn(player)
 	if not participants[player] then

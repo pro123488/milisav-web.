@@ -14,6 +14,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -34,6 +35,59 @@ local joinButton, queueLabel, scoreFrame, scoreLabel, timeLabel, teamsLabel, ban
 local powerFrame, powerFill, kickButton, passButton
 local chargingSince = nil
 local whistleSound, cheerSound
+local watchButton, countLabel, confettiLayer
+local watching = false
+local countToken = 0
+local CONFETTI_COLORS = {
+	Color3.fromRGB(255, 80, 80), Color3.fromRGB(255, 210, 60), Color3.fromRGB(80, 220, 120),
+	Color3.fromRGB(80, 160, 255), Color3.fromRGB(220, 120, 255), Color3.fromRGB(255, 255, 255),
+}
+
+-- Cuenta atrás 3, 2, 1 antes de cada saque
+local function countdown()
+	countToken += 1
+	local token = countToken
+	task.spawn(function()
+		for number = 3, 1, -1 do
+			if token ~= countToken then
+				return
+			end
+			countLabel.Text = tostring(number)
+			countLabel.Visible = true
+			task.wait(1)
+		end
+		if token == countToken then
+			countLabel.Text = "¡YA!"
+			task.wait(0.6)
+			if token == countToken then
+				countLabel.Visible = false
+			end
+		end
+	end)
+end
+
+-- Confeti en pantalla al marcar un gol
+local function confetti()
+	for _ = 1, 40 do
+		local size = math.random(8, 15)
+		local piece = Instance.new("Frame")
+		piece.Size = UDim2.fromOffset(size, size)
+		piece.Position = UDim2.new(math.random(), 0, 0, -20)
+		piece.BackgroundColor3 = CONFETTI_COLORS[math.random(1, #CONFETTI_COLORS)]
+		piece.BorderSizePixel = 0
+		piece.Rotation = math.random(0, 360)
+		piece.Parent = confettiLayer
+		local seconds = 1.5 + math.random() * 1.3
+		local tween = TweenService:Create(piece, TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(piece.Position.X.Scale + (math.random() - 0.5) * 0.2, 0, 1, 40),
+			Rotation = piece.Rotation + math.random(-360, 360),
+		})
+		tween:Play()
+		task.delay(seconds + 0.1, function()
+			piece:Destroy()
+		end)
+	end
+end
 
 local function makeSound(id, volume)
 	local sound = Instance.new("Sound")
@@ -152,6 +206,13 @@ local function refresh()
 		kickButton.Visible = playing
 		passButton.Visible = playing
 	end
+	-- Espectador: ver el partido desde la grada (y volver)
+	local matchOn = state.phase == "kickoff" or state.phase == "playing" or state.phase == "goal"
+	if playing then
+		watching = false
+	end
+	watchButton.Visible = not playing and (watching or matchOn)
+	watchButton.Text = watching and "🏠 Volver a mi estadio" or "👀 Ver el partido"
 end
 
 function ArenaHud.Init(gui, deps)
@@ -179,6 +240,49 @@ function ArenaHud.Init(gui, deps)
 			task.spawn(act, "LeaveArena")
 		end
 	end)
+
+	watchButton = C.New("TextButton", {
+		Name = "WatchButton",
+		AnchorPoint = touch and Vector2.new(1, 0) or Vector2.new(1, 1),
+		Position = touch and UDim2.new(1, -16, 0.42, 70) or UDim2.new(1, -16, 1, -112),
+		Size = UDim2.fromOffset(190, 34),
+		BackgroundColor3 = Color3.fromRGB(40, 60, 110),
+		Text = "👀 Ver el partido",
+		Font = Theme.FontBold,
+		TextSize = 14,
+		TextColor3 = Color3.new(1, 1, 1),
+		Visible = false,
+		Children = { C.Corner(), C.Stroke(Color3.new(1, 1, 1), 1, 0.6) },
+	}, gui)
+	watchButton.Activated:Connect(function()
+		task.spawn(function()
+			local result = act(watching and "TeleportHome" or "WatchArena")
+			if result and result.ok then
+				watching = not watching
+				refresh()
+			end
+		end)
+	end)
+	countLabel = C.New("TextLabel", {
+		Name = "Countdown",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.42),
+		Size = UDim2.fromOffset(260, 120),
+		BackgroundTransparency = 1,
+		Text = "",
+		Font = Theme.FontBlack,
+		TextSize = 96,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextStrokeTransparency = 0.2,
+		Visible = false,
+	}, gui)
+	confettiLayer = C.New("Frame", {
+		Name = "Confetti",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ClipsDescendants = true,
+		ZIndex = 30,
+	}, gui)
 
 	queueLabel = C.New("TextLabel", {
 		AnchorPoint = touch and Vector2.new(1, 0) or Vector2.new(1, 1),
@@ -324,6 +428,12 @@ function ArenaHud.Init(gui, deps)
 			if data.role == "playing" and state.phase == "kickoff" and data.phase == "playing" then
 				whistleSound:Play()
 			end
+			if data.role == "playing" and data.phase == "kickoff" and state.phase ~= "kickoff" then
+				countdown()
+			elseif data.phase ~= "kickoff" and data.phase ~= "playing" and countLabel.Visible then
+				countToken += 1 -- el partido se ha parado: se quita la cuenta atrás
+				countLabel.Visible = false
+			end
 			state = data
 			refresh()
 		elseif kind == "joined" then
@@ -334,6 +444,7 @@ function ArenaHud.Init(gui, deps)
 			local who = data.scorer and (data.ownGoal and ("en propia de " .. data.scorer) or data.scorer) or ""
 			showBanner(string.format("⚽ ¡GOOOOL DEL %s!\n%s", TEAM_NAMES[data.team] or "?", who), TEAM_COLORS[data.team], 3)
 			playCheer()
+			confetti()
 		elseif kind == "result" then
 			local title = data.result == "win" and "🏆 ¡VICTORIA!" or (data.result == "draw" and "🤝 EMPATE" or "😓 DERROTA")
 			local reward = data.capped and "Límite de recompensas por hora alcanzado"

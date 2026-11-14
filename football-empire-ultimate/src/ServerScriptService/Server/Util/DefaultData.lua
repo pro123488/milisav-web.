@@ -17,6 +17,7 @@ local StadiumPieces = require(Shared.Config.StadiumPieces)
 local CollectionConfig = require(Shared.Config.CollectionConfig)
 local OutfitConfig = require(Shared.Config.OutfitConfig)
 local SeasonConfig = require(Shared.Config.SeasonConfig)
+local RewardConfig = require(Shared.Config.RewardConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -73,6 +74,14 @@ function DefaultData.Create(player)
 			cycles = 0,
 			playSeconds = 0,
 			buildings = 0,
+			arenaMatches = 0, -- partidos en grupo jugados
+			arenaGoals = 0,
+			arenaWins = 0,
+		},
+		rewards = { -- recompensa diaria y códigos de regalo
+			lastClaimDay = 0, -- día (UTC) de la última recompensa diaria reclamada
+			streak = 0,
+			codes = {}, -- [CÓDIGO] = true
 		},
 		settings = {
 			notifications = true,
@@ -684,6 +693,25 @@ function DefaultData.Reconcile(data, player)
 		collection.dorsal = math.floor(rawCollection.dorsal)
 	end
 	data.collection = collection
+
+	-- Recompensa diaria y códigos
+	local rawRewards = type(data.rewards) == "table" and data.rewards or {}
+	local rewards = {
+		lastClaimDay = math.max(0, math.floor(tonumber(rawRewards.lastClaimDay) or 0)),
+		streak = math.max(0, math.floor(tonumber(rawRewards.streak) or 0)),
+		codes = {},
+	}
+	if type(rawRewards.codes) == "table" then
+		for code, redeemed in pairs(rawRewards.codes) do
+			if type(code) == "string" and #code <= RewardConfig.MAX_CODE_LENGTH and redeemed == true then
+				rewards.codes[code] = true -- se conservan aunque el código ya no exista: no se puede volver a canjear
+			end
+		end
+	end
+	data.rewards = rewards
+	for _, key in ipairs({ "arenaMatches", "arenaGoals", "arenaWins" }) do
+		data.stats[key] = math.max(0, math.floor(tonumber(data.stats[key]) or 0))
+	end
 
 	-- Pase de temporada
 	local rawPass = type(data.pass) == "table" and data.pass or {}
