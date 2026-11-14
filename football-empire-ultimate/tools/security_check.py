@@ -2,7 +2,7 @@
 """FASE 12 · Auditoría estática de seguridad de Football Empire Ultimate.
 
 Comprueba reglas que deben cumplirse siempre:
-  1. El único punto de entrada cliente→servidor es Action.OnServerInvoke.
+  1. Solo hay dos puntos de entrada cliente→servidor: Action.OnServerInvoke y Arena (chut validado).
   2. Todo manejador que lee payload.<campo> valida antes type(payload) (él o la función a la que delega).
   3. Los números de UserId/índices enviados por el cliente pasan por tonumber + comprobación de entero o finitud.
   4. Ningún pase se concede leyendo datos guardados: las ventajas solo usan GamePassService.Owns.
@@ -24,9 +24,12 @@ def read(path):
         return f.read()
 
 # 1. Puntos de entrada
-entries = [(p, m.group(0)) for p in server for m in re.finditer(r"\w+\.(OnServerEvent|OnServerInvoke)", read(p))]
-if len(entries) != 1:
-    problems.append(f"Se esperaba 1 punto de entrada del cliente y hay {len(entries)}: {entries}")
+# Puntos de entrada permitidos: Action (todas las acciones) y Arena (solo «kick», validado en ArenaService).
+ALLOWED_ENTRIES = {("Main.server.lua", "actionRemote.OnServerInvoke"), ("ArenaService.lua", "arenaRemote.OnServerEvent")}
+entries = [(p.split("/")[-1], m.group(0)) for p in server for m in re.finditer(r"\w+\.(OnServerEvent|OnServerInvoke)", read(p))]
+for entry in entries:
+    if entry not in ALLOWED_ENTRIES:
+        problems.append(f"Punto de entrada del cliente no revisado: {entry}")
 
 # 2. Validación de payload
 for path in server:

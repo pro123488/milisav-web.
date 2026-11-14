@@ -36,6 +36,8 @@ local TournamentService = require(Services.TournamentService)
 local CommunityService = require(Services.CommunityService)
 local MissionService = require(Services.MissionService)
 local PlotService = require(Services.PlotService)
+local AdminService = require(Services.AdminService)
+local ArenaService = require(Services.ArenaService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
 local actionRemote = Remotes.Get("Action")
@@ -98,6 +100,7 @@ local function buildState(player)
 			return SquadService.PublicPlayer(p, data.academy.scouts)
 		end),
 		economy = EconomyService.Summary(player, data),
+		admin = AdminService.BuildState(player), -- solo para admins (eventos «admin abuse»)
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
@@ -423,6 +426,24 @@ Actions.RefreshShop = function(player)
 	return true
 end
 
+-- ===== Partidos en grupo =====
+Actions.JoinArena = function(player)
+	return ArenaService.Join(player)
+end
+
+Actions.LeaveArena = function(player)
+	return ArenaService.Leave(player)
+end
+
+-- ===== Eventos «admin abuse» (el servicio comprueba que el jugador es admin) =====
+Actions.AdminEvent = function(player, payload)
+	return AdminService.Launch(player, payload)
+end
+
+Actions.AdminAnnounce = function(player, payload)
+	return AdminService.Announce(player, payload)
+end
+
 Actions.RecheckPasses = function(player)
 	return GamePassService.Recheck(player)
 end
@@ -471,8 +492,12 @@ end
 local function onPlayerAdded(player)
 	PlotService.Assign(player)
 	GamePassService.PlayerAdded(player)
+	task.spawn(AdminService.PlayerAdded, player)
 	player.CharacterAdded:Connect(function()
-		PlotService.CharacterAdded(player)
+		-- En pleno partido en grupo se reaparece en el campo, no en el estadio propio
+		if not ArenaService.HandleRespawn(player) then
+			PlotService.CharacterAdded(player)
+		end
 	end)
 
 	local data = DataService.Load(player)
@@ -519,6 +544,8 @@ local function onPlayerRemoving(player)
 	UniverseService.PlayerRemoving(player) -- último perfil público antes de liberar los datos
 	HalloweenService.PlayerRemoving(player)
 	NetworkService.PlayerRemoving(player)
+	ArenaService.PlayerRemoving(player)
+	AdminService.PlayerRemoving(player)
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -606,6 +633,16 @@ HalloweenService.OnCandy(function(player, amount)
 	MissionService.Track(player, "candy", amount)
 end)
 HalloweenService.Start()
+ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals)
+	MissionService.Track(player, "matches", 1)
+	MissionService.Track(player, "goals", goals)
+	if teamGoals > otherGoals then
+		MissionService.Track(player, "wins", 1)
+	end
+	MissionService.EvaluateAchievements(player)
+end)
+AdminService.Start()
+ArenaService.Start()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)

@@ -8,6 +8,7 @@
 --   State  (RemoteEvent)     servidor -> cliente: estado completo y saneado del propio club
 --   Notify (RemoteEvent)     servidor -> cliente: (tipo, mensaje)
 --   Shop   (RemoteEvent)     servidor -> cliente: estado de la Tienda Premium
+--   Arena  (RemoteEvent)     partidos en grupo (chut validado en el servidor, marcador, goles)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -18,6 +19,7 @@ local DEFINITIONS = {
 	State = "RemoteEvent",
 	Notify = "RemoteEvent",
 	Shop = "RemoteEvent",
+	Arena = "RemoteEvent", -- partidos en grupo: chut (cliente -> servidor) y marcador/eventos (servidor -> cliente)
 }
 
 local Remotes = {}

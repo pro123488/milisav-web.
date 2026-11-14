@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: las 12 fases están implementadas** (versión `0.12.0-fase12`). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
+**Estado actual: las 12 fases están implementadas** (versión `0.13.0-partidos`, con la Actualización 1). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -22,6 +22,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | FASE 10 · Misiones y logros | [`docs/FASE_10.md`](docs/FASE_10.md) |
 | FASE 11 · Pases avanzados (Estadio de Élite, Academia de Élite, Leyendas) | [`docs/FASE_11.md`](docs/FASE_11.md) |
 | FASE 12 · Optimización, seguridad y pruebas integrales | [`docs/FASE_12.md`](docs/FASE_12.md) |
+| ACTUALIZACIÓN 1 · Partidos en grupo, sprint y eventos «admin abuse» | [`docs/ACTUALIZACION_1_PARTIDOS.md`](docs/ACTUALIZACION_1_PARTIDOS.md) |
 
 > 💎 Los seis Game Passes están creados en Roblox y sus IDs reales están en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Las ventajas solo se activan cuando Roblox confirma la compra (en el servidor).
 

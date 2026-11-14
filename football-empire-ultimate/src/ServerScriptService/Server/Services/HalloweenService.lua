@@ -167,11 +167,11 @@ local function applyTrick(player, trick)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid and trick.walkSpeed then
-		local previous = humanoid.WalkSpeed
-		humanoid.WalkSpeed = trick.walkSpeed
+		-- El controlador de movimiento del cliente lee este atributo (también controla el sprint)
+		humanoid:SetAttribute("TrickSpeed", trick.walkSpeed)
 		task.delay(trick.seconds, function()
-			if humanoid.Parent then
-				humanoid.WalkSpeed = previous
+			if humanoid.Parent and humanoid:GetAttribute("TrickSpeed") == trick.walkSpeed then
+				humanoid:SetAttribute("TrickSpeed", nil)
 			end
 		end)
 	elseif humanoid and trick.jumpPower then

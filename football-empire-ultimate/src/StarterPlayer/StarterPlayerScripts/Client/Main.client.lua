@@ -46,6 +46,9 @@ local Screens = {
 local ComingSoon = require(ScreensFolder.ComingSoon)
 local InvitePrompt = require(UI:WaitForChild("InvitePrompt"))
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
+local MovementController = require(script.Parent.Controllers:WaitForChild("MovementController"))
+local ArenaHud = require(UI:WaitForChild("ArenaHud"))
+local AdminPanel = require(UI:WaitForChild("AdminPanel"))
 
 local actionRemote = Remotes.Get("Action")
 local stateRemote = Remotes.Get("State")
@@ -385,6 +388,11 @@ gui = C.New("ScreenGui", {
 }, player:WaitForChild("PlayerGui"))
 uiScale = C.New("UIScale", {}, gui)
 Notifier.Init(gui)
+-- Jugabilidad: sprint, partidos en grupo y eventos admin (sus HUD van fuera del menú)
+local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, player:WaitForChild("PlayerGui"))
+MovementController.Init(hud, C, Theme)
+ArenaHud.Init(hud, { C = C, Theme = Theme, act = ctx.act, Format = Format })
+AdminPanel.Init(hud, { C = C, Theme = Theme, act = ctx.act })
 buildShell()
 buildTopBar()
 renderCurrent(false)
@@ -417,6 +425,7 @@ stateRemote.OnClientEvent:Connect(function(state)
 		or ctx.state.settings.uiScale ~= state.settings.uiScale
 	ctx.state = state
 	ctx.stateReceivedAt = os.clock()
+	AdminPanel.Update(state)
 	if layoutChanged then
 		buildShell()
 	end
@@ -476,6 +485,12 @@ notifyRemote.OnClientEvent:Connect(function(kind, message)
 			buildTopBar()
 		end
 		Notifier.Show("success", string.format("%s +%d 🍬 (tienes %d)", message.treat and "🎃 ¡Trato!" or "🍬", message.gained, message.candy), 2)
+		return
+	elseif kind == "admin" and type(message) == "table" then
+		AdminPanel.ShowEvent(message)
+		return
+	elseif kind == "coin" and type(message) == "table" then
+		Notifier.Show("success", "🪙 +" .. Format.Money(message.gained or 0), 1.5)
 		return
 	elseif kind == "trick" and type(message) == "table" then
 		Notifier.Show("warning", message.text or "¡Truco!")

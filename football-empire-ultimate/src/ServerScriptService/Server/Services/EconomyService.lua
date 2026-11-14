@@ -38,6 +38,8 @@ EconomyService.Category = {
 	REFUND = "Reembolso",
 	SPONSOR = "Patrocinio",
 	ACADEMY = "Academia",
+	ARENA = "Partidos en grupo",
+	ADMIN_EVENT = "Evento admin",
 	TRANSFER = "Fichajes",
 	PRIZE = "Premios",
 }
