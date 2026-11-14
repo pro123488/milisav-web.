@@ -1,11 +1,12 @@
 # Actualización 1 — Partidos en grupo, sprint y «admin abuse»
 
-Versión: `0.13.0-partidos`. Es la primera de 4 partes:
+Versión: `0.13.0-partidos`. Es la primera de 5 partes:
 
 1. **Partidos en grupo, sprint y eventos admin** ← esta
-2. Mascotas y balones con rarezas
-3. Pase de temporada (estilo Brawl Pass), estadios y trajes de futbolista
-4. Contenido que rota cada semana
+2. Estadio libre (construcción pieza a pieza) y música
+3. Mascotas y balones con rarezas
+4. Pase de temporada (estilo Brawl Pass), estadios y trajes de futbolista
+5. Contenido que rota cada semana
 
 ## ⚽ Partidos en grupo
 Fútbol jugable de verdad, en tiempo real, en un estadio nuevo al sur de la avenida.

@@ -19,6 +19,7 @@ local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local GamePassConfig = require(Shared.Config.GamePassConfig)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
 local PlacementRules = require(Shared.Modules.PlacementRules)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -175,6 +176,95 @@ function BuildService.RemoveDecoration(player, payload)
 	local refund = math.floor((item and item.cost or 0) * CosmeticConfig.DECORATION_REFUND)
 	EconomyService.Earn(player, refund, EconomyService.Category.REFUND, "Retirada: " .. (item and item.name or entry.id))
 	return true, string.format("Decoración retirada (+%d %s).", refund, GameConfig.CURRENCY)
+end
+
+-- ===== CONSTRUCCIÓN LIBRE DEL ESTADIO (piezas sueltas) =====
+
+function BuildService.PlacePiece(player, payload)
+	local data = DataService.Get(player)
+	local pieceId = type(payload) == "table" and payload.piece
+	local piece = type(pieceId) == "string" and StadiumPieces.ById[pieceId]
+	if not piece then
+		return false, "Esa pieza no existe."
+	end
+	local x, z, rotation = readPlacement(payload)
+	if not x then
+		return false, "Posición no válida."
+	end
+	local list = data.stadium.pieces
+	if #list >= StadiumPieces.MAX_PIECES then
+		return false, string.format("Has llegado al máximo de %d piezas. Quita alguna para poner otra.", StadiumPieces.MAX_PIECES)
+	end
+	local ok, reason = PlacementRules.ValidatePiece({ pieceId = pieceId, x = x, z = z, rotation = rotation, isPro = BuildService.IsPro(player) })
+	if not ok then
+		return false, reason
+	end
+	if data.economy.debt > GameConfig.DEBT_BUILD_LIMIT then
+		return false, "Tu deuda es demasiado alta para construir. Págala primero."
+	end
+	local paid, payError = EconomyService.Spend(player, piece.cost, EconomyService.Category.CONSTRUCTION, piece.name)
+	if not paid then
+		return false, payError
+	end
+	table.insert(list, { id = pieceId, x = x, z = z, r = rotation })
+	return true, string.format("%s %s colocada.", piece.icon, piece.name), true
+end
+
+-- Comprueba que el índice enviado corresponde a la pieza esperada (evita estados obsoletos).
+local function findPiece(data, payload)
+	if type(payload) ~= "table" then
+		return nil
+	end
+	local index = tonumber(payload.index)
+	if not index or index ~= math.floor(index) then
+		return nil
+	end
+	local entry = data.stadium.pieces[index]
+	if not entry or entry.id ~= payload.piece then
+		return nil
+	end
+	return index, entry
+end
+
+function BuildService.MovePiece(player, payload)
+	local data = DataService.Get(player)
+	local index, entry = findPiece(data, payload)
+	if not index then
+		return false, "Esa pieza ya no está ahí. Vuelve a intentarlo."
+	end
+	local x, z, rotation = readPlacement(payload)
+	if not x then
+		return false, "Posición no válida."
+	end
+	local ok, reason = PlacementRules.ValidatePiece({ pieceId = entry.id, x = x, z = z, rotation = rotation, isPro = BuildService.IsPro(player) })
+	if not ok then
+		return false, reason
+	end
+	entry.x, entry.z, entry.r = x, z, rotation
+	return true, "Pieza movida.", true
+end
+
+function BuildService.RemovePiece(player, payload)
+	local data = DataService.Get(player)
+	local index, entry = findPiece(data, payload)
+	if not index then
+		return false, "Esa pieza ya no está ahí. Vuelve a intentarlo."
+	end
+	local piece = StadiumPieces.ById[entry.id]
+	table.remove(data.stadium.pieces, index)
+	local refund = math.floor((piece and piece.cost or 0) * StadiumPieces.REFUND)
+	EconomyService.Earn(player, refund, EconomyService.Category.REFUND, "Retirada: " .. (piece and piece.name or entry.id))
+	return true, string.format("Pieza retirada (+%d %s).", refund, GameConfig.CURRENCY), true
+end
+
+-- Modo libre: oculta el estadio automático para construirlo entero a mano.
+-- La economía (instalaciones, aforo…) no cambia: solo lo que se ve.
+function BuildService.SetFreeBuild(player, payload)
+	local data = DataService.Get(player)
+	local enabled = type(payload) == "table" and payload.enabled == true
+	data.stadium.freeBuild = enabled
+	return true, enabled and "🧱 Modo libre: tu estadio automático se oculta. ¡Constrúyelo pieza a pieza!"
+		or "🏟️ Vuelve el estadio automático (tus piezas se mantienen).", true
 end
 
 -- Qué decoraciones se muestran: dentro del límite actual y con su pase confirmado.

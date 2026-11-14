@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -50,6 +51,8 @@ function DefaultData.Create(player)
 			stage = 1,
 			facilities = facilities,
 			decorations = {}, -- lista de { id = "flags", x = 40, z = 88, r = 0 } (coordenadas locales)
+			pieces = {}, -- construcción libre: lista de { id = "seat", x, z, r } (v11)
+			freeBuild = false, -- true = se oculta el estadio automático
 		},
 		economy = {
 			money = GameConfig.STARTING_MONEY,
@@ -72,6 +75,7 @@ function DefaultData.Create(player)
 			notifications = true,
 			compactMenu = false,
 			uiScale = 1,
+			music = true,
 		},
 		premium = {
 			purchaseLog = {}, -- solo informativo
@@ -368,6 +372,21 @@ function DefaultData.Reconcile(data, player)
 	end
 	stadium.facilities = cleanFacilities
 	stadium.decorations = cleanDecorations(stadium.decorations)
+	local pieces = {}
+	if type(stadium.pieces) == "table" then
+		for _, entry in ipairs(stadium.pieces) do
+			if type(entry) == "table" and StadiumPieces.ById[entry.id]
+				and finiteNumber(entry.x) and finiteNumber(entry.z) and finiteNumber(entry.r)
+				and math.abs(entry.x) <= 150 and math.abs(entry.z) <= 105 then
+				table.insert(pieces, { id = entry.id, x = entry.x, z = entry.z, r = entry.r % 360 })
+			end
+			if #pieces >= StadiumPieces.MAX_PIECES then
+				break
+			end
+		end
+	end
+	stadium.pieces = pieces
+	stadium.freeBuild = stadium.freeBuild == true
 
 	-- Historial de eventos
 	if type(data.history) ~= "table" then
@@ -654,6 +673,7 @@ function DefaultData.Reconcile(data, player)
 	data.settings.uiScale = clampNumber(data.settings.uiScale, 0.8, 1.3, 1)
 	data.settings.notifications = data.settings.notifications ~= false
 	data.settings.compactMenu = data.settings.compactMenu == true
+	data.settings.music = data.settings.music ~= false
 
 	data.version = GameConfig.DATA_VERSION
 	return data

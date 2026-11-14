@@ -10,6 +10,7 @@ local Shared = script.Parent.Parent
 local GameConfig = require(Shared.Config.GameConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumLayout = require(script.Parent.StadiumLayout)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 
 local PlacementRules = {}
 
@@ -100,6 +101,35 @@ function PlacementRules.Validate(params)
 				return false, "Choca con otra decoración."
 			end
 		end
+	end
+	return true
+end
+
+-- CONSTRUCCIÓN LIBRE: piezas del estadio en cualquier punto del terreno.
+-- Pueden solaparse (una silla sobre una grada, una valla junto al campo…): solo se exige
+-- que la pieza exista, esté en la rejilla, con un giro permitido y dentro del terreno.
+-- params = { pieceId, x, z, rotation, isPro }
+function PlacementRules.ValidatePiece(params)
+	local x, z, rotation = params.x, params.z, params.rotation
+	if not finite(x) or not finite(z) or not finite(rotation) then
+		return false, "Posición no válida."
+	end
+	local piece = StadiumPieces.ById[params.pieceId]
+	if not piece then
+		return false, "Esa pieza no existe."
+	end
+	local tools = PlacementRules.Tools(params.isPro)
+	if rotation < 0 or rotation >= 360 or not isMultiple(rotation, tools.rotationStep) then
+		return false, params.isPro and "Rotación no válida." or "La rotación libre a 45° es una herramienta de Constructor Pro."
+	end
+	if not isMultiple(x, tools.grid) or not isMultiple(z, tools.grid) then
+		return false, params.isPro and "Posición fuera de la rejilla." or "La rejilla fina es una herramienta de Constructor Pro."
+	end
+	local r = math.rad(rotation)
+	local c, s = math.abs(math.cos(r)), math.abs(math.sin(r))
+	local hx, hz = (piece.w * c + piece.d * s) / 2, (piece.w * s + piece.d * c) / 2
+	if x - hx < -StadiumLayout.HALF_X or x + hx > StadiumLayout.HALF_X or z - hz < -StadiumLayout.HALF_Z or z + hz > StadiumLayout.HALF_Z then
+		return false, "La pieza se sale de tu terreno."
 	end
 	return true
 end

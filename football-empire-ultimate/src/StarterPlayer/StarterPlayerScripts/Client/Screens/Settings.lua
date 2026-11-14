@@ -30,6 +30,7 @@ function Settings.Render(container, ctx)
 	end
 	add(toggle("Notificaciones de jornada", "Muestra el resultado económico de cada jornada.", "notifications"))
 	add(toggle("Menú compacto", "En PC, muestra solo los iconos del menú lateral.", "compactMenu"))
+	add(toggle("Música", "Música de fondo del juego. También puedes usar el botón 🎵 de arriba a la derecha.", "music"))
 
 	add(C.Card({}, {
 		C.Label(string.format("<b>Tamaño de la interfaz</b> · %d%%", math.floor(settings.uiScale * 100 + 0.5))),

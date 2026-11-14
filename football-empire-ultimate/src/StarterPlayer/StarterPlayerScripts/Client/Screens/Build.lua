@@ -1,6 +1,6 @@
 -- Build (ModuleScript) · Pantalla "Construcción"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Build
--- Pestañas: Instalaciones · Decoración (comprar y colocar) · Diseños (Constructor Pro).
+-- Pestañas: Instalaciones · Estadio libre (piezas sueltas) · Decoración · Diseños (Constructor Pro).
 -- La interfaz calcula requisitos solo para informar; el servidor valida cada compra.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
@@ -219,6 +220,75 @@ local function renderDesigns(add, ctx)
 	end
 end
 
+-- CONSTRUCCIÓN LIBRE: piezas sueltas que se colocan en cualquier punto del terreno.
+local function renderFreeBuild(add, ctx)
+	local C, Theme, Format, state = ctx.C, ctx.Theme, ctx.Format, ctx.state
+	local stadium = state.stadium
+	local pieces = stadium.pieces or {}
+	local max = stadium.maxPieces or StadiumPieces.MAX_PIECES
+	local full = #pieces >= max
+	local isPro = state.premium.owned.CONSTRUCTOR_PRO == true
+
+	local moveButton = C.Button("✋ Mover una pieza", "secondary", function()
+		ctx.startPiecePick("move")
+	end)
+	local removeButton = C.Button("🗑️ Quitar piezas", "danger", function()
+		ctx.startPiecePick("remove")
+	end)
+	C.SetEnabled(moveButton, #pieces > 0)
+	C.SetEnabled(removeButton, #pieces > 0)
+	add(C.Card({ BackgroundColor3 = Theme.Panel }, {
+		C.Row({
+			C.Title(string.format("🧱 Estadio libre · %d / %d piezas", #pieces, max), 18),
+			C.Badge(string.format("Rejilla %d · Rotación %d°", stadium.tools.grid, stadium.tools.rotationStep), isPro and Theme.Info or Theme.CardAlt),
+		}, 10),
+		C.Label("Construye tu estadio a tu manera: una silla aquí, el campo allí, una grada allá… Las piezas se colocan en cualquier punto de tu "
+			.. "terreno y se pueden montar unas sobre otras. Te puedes sentar en las sillas y en los banquillos. "
+			.. string.format("Quitar una pieza devuelve el %d%% de su precio.", math.floor(StadiumPieces.REFUND * 100)),
+			{ TextColor3 = Theme.TextDim, TextSize = 13 }),
+		C.Row({ moveButton, removeButton }, 8),
+	}))
+
+	-- Modo libre: oculta el estadio automático
+	local modeButton = C.Button(stadium.freeBuild and "🏟️ Volver al estadio automático" or "🧱 Activar el modo libre", stadium.freeBuild and "secondary" or "gold", function()
+		ctx.act("SetFreeBuild", { enabled = not stadium.freeBuild })
+	end)
+	add(C.Card({}, {
+		C.Title(stadium.freeBuild and "Modo libre: ACTIVADO" or "Modo libre: desactivado", 16),
+		C.Label(stadium.freeBuild
+			and "Tu estadio automático está oculto: en tu terreno solo se ve lo que tú colocas. Tus instalaciones, tu aforo y tus ingresos no cambian."
+			or "Ahora ves el estadio automático más tus piezas. Si activas el modo libre, el estadio automático se oculta y empiezas con el terreno "
+				.. "vacío para construirlo entero pieza a pieza. Tus instalaciones, tu aforo y tus ingresos no cambian, y puedes volver cuando quieras.",
+			{ TextColor3 = Theme.TextDim, TextSize = 13 }),
+		C.Row({ modeButton }, 8),
+	}))
+
+	if full then
+		add(C.Label(string.format("Has llegado al máximo de %d piezas. Quita alguna para colocar otra.", max), { TextColor3 = Theme.Warning, TextSize = 13 }))
+	end
+	for _, category in ipairs(StadiumPieces.Categories) do
+		local card = C.Card({}, { C.Title(category.icon .. " " .. category.name, 18) })
+		for _, piece in ipairs(StadiumPieces.List) do
+			if piece.category == category.id then
+				local button = C.Button("Colocar · " .. Format.Money(piece.cost), "primary", function()
+					ctx.startPiecePlacement({ pieceId = piece.id })
+				end, { Size = UDim2.new(0, 170, 0, 34), AutomaticSize = Enum.AutomaticSize.None })
+				if state.economy.money < piece.cost then
+					C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(piece.cost))
+				elseif full then
+					C.SetEnabled(button, false, "Límite alcanzado")
+				end
+				C.Row({
+					C.Label(string.format("%s %s  <font color='#8C9BB4'>(%d×%d)</font>", piece.icon, piece.name, piece.w, piece.d),
+						{ Size = UDim2.new(1, -190, 0, 0) }),
+					button,
+				}).Parent = card
+			end
+		end
+		add(card)
+	end
+end
+
 function Build.Render(container, ctx)
 	local C, Theme, Format = ctx.C, ctx.Theme, ctx.Format
 	local tab = ctx.params.tab or "facilities"
@@ -232,6 +302,7 @@ function Build.Render(container, ctx)
 	}, 14))
 	local tabs = {
 		{ id = "facilities", label = "Instalaciones" },
+		{ id = "free", label = "🧱 Estadio libre" },
 		{ id = "decor", label = "Decoración" },
 		{ id = "designs", label = "Diseños" },
 	}
@@ -243,7 +314,9 @@ function Build.Render(container, ctx)
 	end
 	add(C.Row(tabButtons, 8))
 
-	if tab == "decor" then
+	if tab == "free" then
+		renderFreeBuild(add, ctx)
+	elseif tab == "decor" then
 		renderDecorations(add, ctx)
 	elseif tab == "designs" then
 		renderDesigns(add, ctx)

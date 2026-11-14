@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local MenuConfig = require(Shared.Config.MenuConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local Remotes = require(Shared.Modules.Remotes)
 
 local Services = script.Parent.Services
@@ -78,6 +79,9 @@ local function buildState(player)
 			maxStageThisPhase = StadiumStages.MAX_STAGE_THIS_PHASE,
 			facilities = data.stadium.facilities,
 			decorations = data.stadium.decorations, -- lista { id, x, z, r }
+			pieces = data.stadium.pieces, -- construcción libre
+			freeBuild = data.stadium.freeBuild,
+			maxPieces = StadiumPieces.MAX_PIECES,
 			decorationVisible = BuildService.DecorationVisibility(player, data), -- lista de booleanos
 			maxDecorations = BuildService.MaxDecorations(player, data),
 			tools = BuildService.Tools(player), -- rejilla y paso de rotación permitidos
@@ -304,6 +308,7 @@ end
 local ACTION_METRICS = {
 	UpgradeFacility = "build",
 	PlaceDecoration = "decorate",
+	PlacePiece = "decorate",
 	AcceptSponsor = "sponsor",
 	PromoteYouth = "promote",
 	BuyPlayer = "sign",
@@ -400,6 +405,9 @@ Actions.SaveSettings = function(player, payload)
 	if type(payload.compactMenu) == "boolean" then
 		settings.compactMenu = payload.compactMenu
 	end
+	if type(payload.music) == "boolean" then
+		settings.music = payload.music
+	end
 	if type(payload.uiScale) == "number" and payload.uiScale == payload.uiScale then
 		settings.uiScale = math.clamp(payload.uiScale, 0.8, 1.3)
 	end
@@ -424,6 +432,23 @@ end
 Actions.RefreshShop = function(player)
 	task.spawn(GamePassService.PushShop, player)
 	return true
+end
+
+-- ===== Construcción libre del estadio =====
+Actions.PlacePiece = function(player, payload)
+	return BuildService.PlacePiece(player, payload)
+end
+
+Actions.MovePiece = function(player, payload)
+	return BuildService.MovePiece(player, payload)
+end
+
+Actions.RemovePiece = function(player, payload)
+	return BuildService.RemovePiece(player, payload)
+end
+
+Actions.SetFreeBuild = function(player, payload)
+	return BuildService.SetFreeBuild(player, payload)
 end
 
 -- ===== Partidos en grupo =====

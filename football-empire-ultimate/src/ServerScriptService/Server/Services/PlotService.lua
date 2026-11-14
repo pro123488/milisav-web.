@@ -209,6 +209,8 @@ function PlotService.BuildRenderInfo(player, data)
 		lastMatch = data.matches[#data.matches],
 		vip = ClubService.IsVip(player),
 		decorations = data.stadium.decorations,
+		pieces = data.stadium.pieces, -- construcción libre
+		freeBuild = data.stadium.freeBuild,
 		sponsors = {
 			shirt = data.sponsors.contracts.shirt and data.sponsors.contracts.shirt.brand or nil,
 			boards = data.sponsors.contracts.boards and data.sponsors.contracts.boards.brand or nil,
@@ -275,7 +277,8 @@ function PlotService.UpdateCrowd(player, occupancy)
 	end
 	occupancy = math.clamp(tonumber(occupancy) or 0, 0, 1)
 	local info = PlotService.BuildRenderInfo(player, data)
-	local standsLevel = data.stadium.facilities.stands or 1
+	-- En modo libre no hay gradas automáticas, así que tampoco su afición
+	local standsLevel = data.stadium.freeBuild and 0 or (data.stadium.facilities.stands or 1)
 	local key = string.format("%d|%d|%s|%s", math.floor(occupancy * 10 + 0.5), standsLevel, info.appearance.palette, tostring(info.stageVisual and info.stageVisual.corners))
 	if plot.crowdKey == key then
 		return

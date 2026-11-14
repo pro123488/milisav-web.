@@ -47,6 +47,7 @@ local ComingSoon = require(ScreensFolder.ComingSoon)
 local InvitePrompt = require(UI:WaitForChild("InvitePrompt"))
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
 local MovementController = require(script.Parent.Controllers:WaitForChild("MovementController"))
+local MusicController = require(script.Parent.Controllers:WaitForChild("MusicController"))
 local ArenaHud = require(UI:WaitForChild("ArenaHud"))
 local AdminPanel = require(UI:WaitForChild("AdminPanel"))
 
@@ -127,6 +128,37 @@ function ctx.startPlacement(opts)
 	if not started then
 		ctx.navigate("build", { tab = "decor" })
 	end
+end
+
+-- Construcción libre: colocar piezas del estadio (se pueden poner varias seguidas).
+function ctx.startPiecePlacement(opts)
+	ctx.close()
+	buildTopBar()
+	local started = PlacementController.Start(ctx, {
+		kind = "piece",
+		pieceId = opts.pieceId,
+		moveIndex = opts.moveIndex,
+		onFinish = function()
+			ctx.navigate("build", { tab = "free" })
+			buildTopBar()
+		end,
+	})
+	if not started then
+		ctx.navigate("build", { tab = "free" })
+	end
+end
+
+-- Construcción libre: elegir con un clic la pieza que se mueve o se quita.
+function ctx.startPiecePick(mode)
+	ctx.close()
+	buildTopBar()
+	PlacementController.StartPick(ctx, {
+		mode = mode,
+		onFinish = function()
+			ctx.navigate("build", { tab = "free" })
+			buildTopBar()
+		end,
+	})
 end
 
 function ctx.secondsToNextCycle()
@@ -393,6 +425,11 @@ local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexB
 MovementController.Init(hud, C, Theme)
 ArenaHud.Init(hud, { C = C, Theme = Theme, act = ctx.act, Format = Format })
 AdminPanel.Init(hud, { C = C, Theme = Theme, act = ctx.act })
+MusicController.Init(hud, { C = C, Theme = Theme, onToggle = function(enabled)
+	pcall(function()
+		actionRemote:InvokeServer("SaveSettings", { music = enabled }) -- sin aviso en pantalla
+	end)
+end })
 buildShell()
 buildTopBar()
 renderCurrent(false)
@@ -426,6 +463,12 @@ stateRemote.OnClientEvent:Connect(function(state)
 	ctx.state = state
 	ctx.stateReceivedAt = os.clock()
 	AdminPanel.Update(state)
+	-- La música solo sigue al servidor cuando la preferencia guardada cambia (no pisa el botón 🎵)
+	local wantsMusic = state.settings.music ~= false
+	if ctx.serverMusic ~= wantsMusic then
+		ctx.serverMusic = wantsMusic
+		MusicController.SetEnabled(wantsMusic)
+	end
 	if layoutChanged then
 		buildShell()
 	end

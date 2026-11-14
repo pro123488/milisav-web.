@@ -1044,12 +1044,294 @@ end
 -- ===== API =====
 
 -- info: ver PlotService.BuildRenderInfo
+-- ===== CONSTRUCCIÓN LIBRE: piezas sueltas del estadio =====
+-- Cada constructor recibe (modelo, marco, info). El marco es el centro de la pieza a ras de
+-- suelo, ya girado: X = ancho, Z = fondo. Las gradas suben hacia -Z y miran hacia +Z.
+
+local GREY = Color3.fromRGB(120, 124, 135)
+local DARK = Color3.fromRGB(40, 44, 56)
+local GRASS = Color3.fromRGB(58, 160, 66)
+
+local function simpleText(target, face, text, textColor, background)
+	surfaceText(target, face, function(gui)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundColor3 = background or Color3.fromRGB(8, 10, 16)
+		label.BackgroundTransparency = background and 0 or 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = textColor or WHITE
+		label.Text = text
+		label.Parent = gui
+	end)
+end
+
+-- Silla en la que los jugadores se pueden sentar (mira hacia +Z).
+local function pieceSeat(model, frame, x, y, z, color)
+	local seat = Instance.new("Seat")
+	seat.Name = "Seat"
+	seat.Anchored = true
+	seat.Size = Vector3.new(1.8, 0.4, 1.8)
+	seat.Color = color
+	seat.Material = Enum.Material.SmoothPlastic
+	seat.TopSurface = Enum.SurfaceType.Smooth
+	seat.BottomSurface = Enum.SurfaceType.Smooth
+	-- El frente de un Seat es -Z: se gira 180° para que mire hacia +Z de la pieza
+	seat.CFrame = frame * CFrame.new(x, y + 1.4, z) * CFrame.Angles(0, math.pi, 0)
+	seat.Parent = model
+	part(model, frame, CFrame.new(x, y + 2.3, z - 0.8), Vector3.new(1.8, 1.6, 0.3), color)
+	part(model, frame, CFrame.new(x, y + 0.6, z), Vector3.new(0.4, 1.2, 0.4), DARK, Enum.Material.Metal)
+end
+
+local function piecePitch(model, frame, w, d, goalWidth)
+	part(model, frame, CFrame.new(0, 0.1, 0), Vector3.new(w, 0.2, d), GRASS, Enum.Material.Grass, { Name = "Pitch" })
+	local stripe = GRASS:Lerp(Color3.new(0, 0, 0), 0.12)
+	local fieldW, fieldD = w - 4, d - 4
+	local stripes = 6
+	for i = 0, stripes - 1, 2 do
+		part(model, frame, CFrame.new(-fieldW / 2 + (i + 0.5) * fieldW / stripes, 0.21, 0), Vector3.new(fieldW / stripes, 0.02, fieldD),
+			stripe, Enum.Material.Grass, { CanCollide = false })
+	end
+	local y, t = 0.23, 0.5
+	local props = { CanCollide = false, Name = "Line" }
+	part(model, frame, CFrame.new(0, y, -fieldD / 2), Vector3.new(fieldW, 0.02, t), WHITE, nil, props)
+	part(model, frame, CFrame.new(0, y, fieldD / 2), Vector3.new(fieldW, 0.02, t), WHITE, nil, props)
+	part(model, frame, CFrame.new(-fieldW / 2, y, 0), Vector3.new(t, 0.02, fieldD), WHITE, nil, props)
+	part(model, frame, CFrame.new(fieldW / 2, y, 0), Vector3.new(t, 0.02, fieldD), WHITE, nil, props)
+	part(model, frame, CFrame.new(0, y, 0), Vector3.new(t, 0.02, fieldD), WHITE, nil, props)
+	local radius = math.min(fieldD * 0.14, 9)
+	local circle = part(model, frame, CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.02, radius * 2, radius * 2), WHITE, nil, props)
+	circle.Shape = Enum.PartType.Cylinder
+	part(model, frame, CFrame.new(0, y + 0.01, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.02, radius * 2 - 1, radius * 2 - 1),
+		GRASS, Enum.Material.Grass, props).Shape = Enum.PartType.Cylinder
+	for _, side in ipairs({ -1, 1 }) do
+		local x = side * fieldW / 2
+		for _, dz in ipairs({ -goalWidth / 2, goalWidth / 2 }) do
+			part(model, frame, CFrame.new(x, 3, dz), Vector3.new(0.5, 6, 0.5), WHITE)
+		end
+		part(model, frame, CFrame.new(x, 6, 0), Vector3.new(0.5, 0.5, goalWidth + 0.5), WHITE)
+		part(model, frame, CFrame.new(x + side * 1.6, 3, 0), Vector3.new(3, 6, goalWidth), WHITE, Enum.Material.ForceField,
+			{ CanCollide = false, Transparency = 0.6 })
+	end
+end
+
+local function pieceStand(model, frame, w, d, info)
+	local rows = math.floor(d / 2)
+	for k = 1, rows do
+		local h = k * 1.5
+		local z = d / 2 - (k - 0.5) * 2
+		part(model, frame, CFrame.new(0, h / 2, z), Vector3.new(w, h, 2), k % 2 == 0 and GREY or Color3.fromRGB(150, 154, 165), Enum.Material.Concrete)
+		part(model, frame, CFrame.new(0, h + 0.3, z - 0.2), Vector3.new(w - 1, 0.6, 1.2), k % 2 == 0 and info.primary or info.secondary,
+			Enum.Material.SmoothPlastic, { CanCollide = false, Name = "Seats" })
+	end
+	part(model, frame, CFrame.new(0, (rows * 1.5 + 3) / 2, -d / 2 + 0.25), Vector3.new(w, rows * 1.5 + 3, 0.5), DARK, Enum.Material.Metal)
+end
+
+local PieceBuilders = {}
+
+PieceBuilders.pitch_full = function(model, frame)
+	piecePitch(model, frame, 104, 68, 12)
+end
+
+PieceBuilders.pitch_mini = function(model, frame)
+	piecePitch(model, frame, 52, 34, 8)
+end
+
+PieceBuilders.goal = function(model, frame)
+	for _, dz in ipairs({ -6, 6 }) do
+		part(model, frame, CFrame.new(-1.5, 3, dz), Vector3.new(0.5, 6, 0.5), WHITE)
+	end
+	part(model, frame, CFrame.new(-1.5, 6, 0), Vector3.new(0.5, 0.5, 12.5), WHITE)
+	part(model, frame, CFrame.new(0.5, 3, 0), Vector3.new(3.5, 6, 12), WHITE, Enum.Material.ForceField, { CanCollide = false, Transparency = 0.6 })
+end
+
+PieceBuilders.grass_tile = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.1, 0), Vector3.new(8, 0.2, 8), GRASS, Enum.Material.Grass)
+end
+
+PieceBuilders.path_tile = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.1, 0), Vector3.new(8, 0.2, 8), Color3.fromRGB(190, 190, 195), Enum.Material.Pavement)
+end
+
+PieceBuilders.bench = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 0.2, 0), Vector3.new(10, 0.4, 3), DARK, Enum.Material.Concrete)
+	for i = 0, 3 do
+		pieceSeat(model, frame, -3.3 + i * 2.2, 0.4, 0.3, info.primary)
+	end
+	part(model, frame, CFrame.new(0, 2.2, -1.35), Vector3.new(10, 4, 0.3), Color3.fromRGB(190, 220, 240), Enum.Material.Glass, { Transparency = 0.5 })
+	part(model, frame, CFrame.new(0, 4.3, -0.3), Vector3.new(10, 0.3, 2.4), Color3.fromRGB(190, 220, 240), Enum.Material.Glass, { Transparency = 0.5, CanCollide = false })
+end
+
+PieceBuilders.seat = function(model, frame, info)
+	pieceSeat(model, frame, 0, 0, 0, info.primary)
+end
+
+PieceBuilders.seat_row = function(model, frame, info)
+	for i = 0, 9 do
+		pieceSeat(model, frame, -9 + i * 2, 0, 0, i % 2 == 0 and info.primary or info.secondary)
+	end
+end
+
+PieceBuilders.stand_small = function(model, frame, info)
+	pieceStand(model, frame, 30, 10, info)
+end
+
+PieceBuilders.stand_big = function(model, frame, info)
+	pieceStand(model, frame, 60, 16, info)
+end
+
+-- Grada de esquina: escalones que suben hacia la esquina trasera (-X, -Z)
+PieceBuilders.stand_corner = function(model, frame, info)
+	for k = 1, 7 do
+		local size = 16 - (k - 1) * 2
+		local h = k * 1.4
+		part(model, frame, CFrame.new(-8 + size / 2, h / 2, -8 + size / 2), Vector3.new(size, h, size),
+			k % 2 == 0 and info.primary or GREY, Enum.Material.Concrete)
+	end
+end
+
+PieceBuilders.vip_box = function(model, frame, info)
+	for _, x in ipairs({ -9, 9 }) do
+		for _, z in ipairs({ -3, 3 }) do
+			part(model, frame, CFrame.new(x, 3, z), Vector3.new(1, 6, 1), DARK, Enum.Material.Metal)
+		end
+	end
+	part(model, frame, CFrame.new(0, 6.25, 0), Vector3.new(20, 0.5, 8), Color3.fromRGB(230, 228, 222), Enum.Material.Marble)
+	part(model, frame, CFrame.new(0, 8, 3.8), Vector3.new(20, 3, 0.3), Color3.fromRGB(180, 215, 240), Enum.Material.Glass, { Transparency = 0.55 })
+	part(model, frame, CFrame.new(0, 8.25, -3.8), Vector3.new(20, 3.5, 0.4), DARK)
+	part(model, frame, CFrame.new(0, 10.2, 0), Vector3.new(21, 0.4, 9), GOLD, Enum.Material.Metal)
+	for i = 0, 3 do
+		pieceSeat(model, frame, -6 + i * 4, 6.5, 0, GOLD)
+	end
+	-- Escalera trasera para subir
+	for step = 1, 6 do
+		part(model, frame, CFrame.new(0, step - 0.5, -4.5 - (6 - step) * 1.2), Vector3.new(4, 1, 1.2), GREY, Enum.Material.Concrete)
+	end
+end
+
+PieceBuilders.wall = function(model, frame)
+	part(model, frame, CFrame.new(0, 3, 0), Vector3.new(16, 6, 1), Color3.fromRGB(175, 175, 170), Enum.Material.Concrete)
+end
+
+PieceBuilders.fence = function(model, frame, info)
+	for i = 0, 4 do
+		part(model, frame, CFrame.new(-8 + i * 4, 1.5, 0), Vector3.new(0.4, 3, 0.4), DARK, Enum.Material.Metal)
+	end
+	part(model, frame, CFrame.new(0, 2.7, 0), Vector3.new(16, 0.3, 0.3), info.primary, Enum.Material.Metal)
+	part(model, frame, CFrame.new(0, 1.4, 0), Vector3.new(16, 0.3, 0.3), info.primary, Enum.Material.Metal)
+end
+
+PieceBuilders.roof = function(model, frame, info)
+	for _, x in ipairs({ -14, 0, 14 }) do
+		part(model, frame, CFrame.new(x, 7, -4.5), Vector3.new(1, 14, 1), DARK, Enum.Material.Metal)
+	end
+	part(model, frame, CFrame.new(0, 14.3, 0) * CFrame.Angles(math.rad(-6), 0, 0), Vector3.new(30, 0.6, 10.5), info.secondary, Enum.Material.Metal, { CanCollide = false })
+end
+
+PieceBuilders.gate = function(model, frame, info)
+	for _, x in ipairs({ -7, 7 }) do
+		part(model, frame, CFrame.new(x, 5, 0), Vector3.new(2, 10, 4), info.secondary, Enum.Material.Concrete)
+	end
+	local arch = part(model, frame, CFrame.new(0, 10.5, 0), Vector3.new(16, 3, 4), info.primary, Enum.Material.Concrete)
+	simpleText(arch, Enum.NormalId.Front, info.clubName, info.secondaryText)
+	simpleText(arch, Enum.NormalId.Back, info.clubName, info.secondaryText)
+end
+
+PieceBuilders.floodlight = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.5, 0), Vector3.new(4, 1, 4), DARK, Enum.Material.Concrete)
+	part(model, frame, CFrame.new(0, 15, 0), Vector3.new(1, 28, 1), DARK, Enum.Material.Metal)
+	-- Inclinado 35° hacia abajo: la cara trasera (+Z) apunta al suelo por delante de la torre
+	local lamp = part(model, frame, CFrame.new(0, 29.5, 0.5) * CFrame.Angles(math.rad(35), 0, 0), Vector3.new(6, 3, 0.8),
+		Color3.fromRGB(255, 250, 225), Enum.Material.Neon)
+	local light = Instance.new("SpotLight")
+	light.Face = Enum.NormalId.Back -- hacia +Z de la pieza
+	light.Range = 60
+	light.Angle = 80
+	light.Brightness = 2.5
+	light.Parent = lamp
+end
+
+PieceBuilders.scoreboard = function(model, frame, info)
+	for _, x in ipairs({ -6, 6 }) do
+		part(model, frame, CFrame.new(x, 3, 0), Vector3.new(1, 6, 1), DARK, Enum.Material.Metal)
+	end
+	local screen = part(model, frame, CFrame.new(0, 10, 0), Vector3.new(16, 8, 1), Color3.fromRGB(8, 10, 16))
+	local text = info.crestSymbol .. " " .. info.clubName .. "\n0 - 0"
+	simpleText(screen, Enum.NormalId.Back, text, WHITE) -- la cara de +Z
+	simpleText(screen, Enum.NormalId.Front, text, WHITE)
+end
+
+PieceBuilders.flag = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 5, 0), Vector3.new(0.4, 10, 0.4), Color3.fromRGB(210, 210, 215), Enum.Material.Metal)
+	part(model, frame, CFrame.new(1.7, 8.6, 0), Vector3.new(3, 2, 0.15), info.primary, Enum.Material.Fabric, { CanCollide = false })
+	part(model, frame, CFrame.new(1.7, 8.6, 0), Vector3.new(3, 0.6, 0.18), info.secondary, Enum.Material.Fabric, { CanCollide = false })
+end
+
+PieceBuilders.ad_board = function(model, frame, info)
+	local board = part(model, frame, CFrame.new(0, 1.5, 0), Vector3.new(16, 2.6, 0.6), info.primary)
+	local brand = info.sponsors and info.sponsors.boards or info.clubName
+	simpleText(board, Enum.NormalId.Back, brand, info.secondaryText)
+	simpleText(board, Enum.NormalId.Front, brand, info.secondaryText)
+end
+
+PieceBuilders.kiosk = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 2, 0), Vector3.new(7, 4, 7), Color3.fromRGB(240, 235, 220), Enum.Material.WoodPlanks)
+	part(model, frame, CFrame.new(0, 4.6, 0), Vector3.new(8, 0.8, 8), info.secondary, Enum.Material.Fabric)
+	local sign = part(model, frame, CFrame.new(0, 6, 0), Vector3.new(6, 2, 0.5), info.primary)
+	simpleText(sign, Enum.NormalId.Back, "🌭 COMIDA", info.secondaryText)
+	simpleText(sign, Enum.NormalId.Front, "🌭 COMIDA", info.secondaryText)
+end
+
+PieceBuilders.tree = function(model, frame)
+	part(model, frame, CFrame.new(0, 3, 0), Vector3.new(1.4, 6, 1.4), Color3.fromRGB(110, 80, 50), Enum.Material.Wood)
+	local leaves = part(model, frame, CFrame.new(0, 8, 0), Vector3.new(7, 7, 7), Color3.fromRGB(60, 140, 60), Enum.Material.Grass, { CanCollide = false })
+	leaves.Shape = Enum.PartType.Ball
+	local top = part(model, frame, CFrame.new(0.8, 10.5, 0.5), Vector3.new(4.5, 4.5, 4.5), Color3.fromRGB(70, 155, 70), Enum.Material.Grass, { CanCollide = false })
+	top.Shape = Enum.PartType.Ball
+end
+
+PieceBuilders.lamp = function(model, frame)
+	part(model, frame, CFrame.new(0, 4, 0), Vector3.new(0.5, 8, 0.5), DARK, Enum.Material.Metal)
+	local bulb = part(model, frame, CFrame.new(0, 8.6, 0), Vector3.new(1.6, 1.6, 1.6), Color3.fromRGB(255, 240, 200), Enum.Material.Neon, { CanCollide = false })
+	bulb.Shape = Enum.PartType.Ball
+	local light = Instance.new("PointLight")
+	light.Range = 24
+	light.Brightness = 1.5
+	light.Color = Color3.fromRGB(255, 235, 190)
+	light.Parent = bulb
+end
+
+-- Cada pieza va en su propio Model con atributos: el cliente los usa para «mover» y «quitar».
+local function buildPieces(folder, origin, pieces, info)
+	for index, entry in ipairs(pieces or {}) do
+		local builder = PieceBuilders[entry.id]
+		if builder then
+			local model = Instance.new("Model")
+			model.Name = "Piece_" .. index
+			model:SetAttribute("PieceIndex", index)
+			model:SetAttribute("PieceId", entry.id)
+			model.Parent = folder
+			local frame = origin * CFrame.new(entry.x, 0, entry.z) * CFrame.Angles(0, math.rad(entry.r or 0), 0)
+			builder(model, frame, info)
+		end
+	end
+end
+
 function StadiumRenderer.Render(folder, origin, info)
 	folder:ClearAllChildren()
 	local facilities = info.facilities
 	local standsDesign = CosmeticConfig.ById.design[info.appearance.standsDesign] or CosmeticConfig.ById.design.classic
 	local buildingDesign = CosmeticConfig.ById.design[info.appearance.buildingDesign] or CosmeticConfig.ById.design.brick
 	local standsLevel = facilities.stands or 1
+
+	-- MODO LIBRE: no se dibuja el estadio automático; solo el cartel, el efecto y lo que coloca el jugador.
+	if info.freeBuild then
+		buildSign(folder, origin, info)
+		buildEffect(folder, origin, info.appearance.effect, info.primary, info.secondary)
+		buildDecorations(folder, origin, info.decorations, info.decorationVisible, info)
+		buildPieces(folder, origin, info.pieces, info)
+		return
+	end
 
 	buildStageExtras(folder, origin, info, standsLevel, standsDesign)
 	buildPitch(folder, origin, facilities.pitch or 1, info.eliteStadium)
@@ -1063,6 +1345,7 @@ function StadiumRenderer.Render(folder, origin, info)
 	buildSign(folder, origin, info)
 	buildEffect(folder, origin, info.appearance.effect, info.primary, info.secondary)
 	buildDecorations(folder, origin, info.decorations, info.decorationVisible, info)
+	buildPieces(folder, origin, info.pieces, info)
 end
 
 return StadiumRenderer

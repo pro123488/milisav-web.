@@ -1,4 +1,4 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="ReplicatedStorage" referent="RBX0000001F"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX0000001E"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000014"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">AdminConfig</string><ProtectedString name="Source"><![CDATA[-- AdminConfig (ModuleScript)
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="ReplicatedStorage" referent="RBX00000021"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX00000020"><Properties><string name="Name">Shared</string></Properties><Item class="Folder" referent="RBX00000016"><Properties><string name="Name">Config</string></Properties><Item class="ModuleScript" referent="RBX00000001"><Properties><string name="Name">AdminConfig</string><ProtectedString name="Source"><![CDATA[-- AdminConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/AdminConfig
 --
 -- EVENTOS «ADMIN ABUSE»: el dueño del juego lanza eventos para todos los servidores.
@@ -758,12 +758,12 @@ return FootballConfig
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.13.0-partidos"
+GameConfig.VERSION = "0.14.0-estadio-libre"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
 GameConfig.DATASTORE_NAME = "FEU_Clubs_v1"
-GameConfig.DATA_VERSION = 10 -- v10: misiones y logros
+GameConfig.DATA_VERSION = 11 -- v11: construcción libre del estadio (piezas)
 GameConfig.AUTOSAVE_SECONDS = 120
 GameConfig.SESSION_LOCK_SECONDS = 600 -- un bloqueo más antiguo se considera abandonado
 GameConfig.MAX_TRANSACTIONS = 60
@@ -1333,7 +1333,24 @@ MovementConfig.STAMINA_MIN_TO_START = 15
 
 
 return MovementConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">NetworkConfig</string><ProtectedString name="Source"><![CDATA[-- NetworkConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">MusicConfig</string><ProtectedString name="Source"><![CDATA[-- MusicConfig (ModuleScript)
+-- Ubicación: ReplicatedStorage/Shared/Config/MusicConfig
+--
+-- Música de fondo. Todas las pistas son de APMOfficial, la biblioteca de música con licencia
+-- que Roblox ofrece a todas las experiencias (comprobadas en el catálogo público el 14/11/2026).
+-- Para cambiar la música: Creator Store › Audio › Música, copia el ID de la pista y ponlo aquí.
+
+local MusicConfig = {}
+
+MusicConfig.VOLUME = 0.3
+MusicConfig.Tracks = {
+	{ id = 1848354536, name = "Relaxed Scene" }, -- la clásica de fondo de muchísimos juegos de Roblox
+	{ id = 1845756489, name = "Town Talk" },
+	{ id = 1841647093, name = "Life in an Elevator" },
+}
+
+return MusicConfig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">NetworkConfig</string><ProtectedString name="Source"><![CDATA[-- NetworkConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/NetworkConfig
 -- RED DE CLUBES Y MULTIJUGADOR (FASE 9).
 
@@ -1377,7 +1394,7 @@ NetworkConfig.COMMUNITY_GOALS = {
 NetworkConfig.COMMUNITY_PERIOD = 3600 -- un objetivo nuevo cada hora
 
 return NetworkConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">SponsorConfig</string><ProtectedString name="Source"><![CDATA[-- SponsorConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">SponsorConfig</string><ProtectedString name="Source"><![CDATA[-- SponsorConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/SponsorConfig
 --
 -- Contratos de patrocinio (FASE 3). Todas las marcas son FICTICIAS: se generan
@@ -1461,7 +1478,63 @@ function SponsorConfig.ObjectiveMet(objective, occupancy, satisfaction, members)
 end
 
 return SponsorConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">StadiumStages</string><ProtectedString name="Source"><![CDATA[-- StadiumStages (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">StadiumPieces</string><ProtectedString name="Source"><![CDATA[-- StadiumPieces (ModuleScript)
+-- Ubicación: ReplicatedStorage/Shared/Config/StadiumPieces
+--
+-- CONSTRUCCIÓN LIBRE DEL ESTADIO: piezas sueltas que cada jugador coloca donde quiere
+-- en su terreno (una silla aquí, el campo allí, una grada allá…).
+--   w = ancho (eje X local sin rotar) · d = fondo (eje Z) · h = alto aproximado (vista previa)
+-- Se pagan con el dinero del club; al quitarlas se devuelve REFUND del precio.
+
+local StadiumPieces = {}
+
+StadiumPieces.MAX_PIECES = 200 -- límite por terreno (rendimiento)
+StadiumPieces.REFUND = 0.5
+
+StadiumPieces.Categories = {
+	{ id = "field", name = "Campo", icon = "🟩" },
+	{ id = "stands", name = "Gradas y asientos", icon = "💺" },
+	{ id = "structure", name = "Estructura", icon = "🧱" },
+	{ id = "extras", name = "Extras", icon = "✨" },
+}
+
+StadiumPieces.List = {
+	-- Campo
+	{ id = "pitch_full", category = "field", icon = "🏟️", name = "Campo grande", cost = 20000, w = 104, d = 68, h = 1 },
+	{ id = "pitch_mini", category = "field", icon = "⚽", name = "Campo pequeño", cost = 6000, w = 52, d = 34, h = 1 },
+	{ id = "goal", category = "field", icon = "🥅", name = "Portería", cost = 1500, w = 4, d = 14, h = 6 },
+	{ id = "grass_tile", category = "field", icon = "🌱", name = "Césped 8×8", cost = 200, w = 8, d = 8, h = 1 },
+	{ id = "path_tile", category = "field", icon = "⬜", name = "Suelo de plaza 8×8", cost = 150, w = 8, d = 8, h = 1 },
+	{ id = "bench", category = "field", icon = "🪑", name = "Banquillo", cost = 800, w = 10, d = 3, h = 4 },
+	-- Gradas y asientos
+	{ id = "seat", category = "stands", icon = "💺", name = "Silla", cost = 50, w = 2, d = 2, h = 3 },
+	{ id = "seat_row", category = "stands", icon = "💺", name = "Fila de 10 sillas", cost = 400, w = 20, d = 2, h = 3 },
+	{ id = "stand_small", category = "stands", icon = "🏟️", name = "Grada pequeña", cost = 5000, w = 30, d = 10, h = 8 },
+	{ id = "stand_big", category = "stands", icon = "🏟️", name = "Grada grande", cost = 15000, w = 60, d = 16, h = 13 },
+	{ id = "stand_corner", category = "stands", icon = "📐", name = "Grada de esquina", cost = 6000, w = 16, d = 16, h = 10 },
+	{ id = "vip_box", category = "stands", icon = "🥂", name = "Palco VIP", cost = 9000, w = 20, d = 8, h = 10 },
+	-- Estructura
+	{ id = "wall", category = "structure", icon = "🧱", name = "Muro", cost = 300, w = 16, d = 1, h = 6 },
+	{ id = "fence", category = "structure", icon = "🚧", name = "Valla", cost = 150, w = 16, d = 1, h = 3 },
+	{ id = "roof", category = "structure", icon = "🏠", name = "Techo de grada", cost = 3000, w = 30, d = 10, h = 14 },
+	{ id = "gate", category = "structure", icon = "🚪", name = "Puerta de entrada", cost = 2500, w = 16, d = 4, h = 12 },
+	{ id = "floodlight", category = "structure", icon = "💡", name = "Torre de focos", cost = 2500, w = 4, d = 4, h = 30 },
+	{ id = "scoreboard", category = "structure", icon = "📺", name = "Marcador", cost = 4000, w = 16, d = 2, h = 14 },
+	-- Extras
+	{ id = "flag", category = "extras", icon = "🚩", name = "Bandera del club", cost = 300, w = 2, d = 2, h = 10 },
+	{ id = "ad_board", category = "extras", icon = "📣", name = "Valla publicitaria", cost = 500, w = 16, d = 1, h = 3 },
+	{ id = "kiosk", category = "extras", icon = "🌭", name = "Puesto de comida", cost = 1500, w = 8, d = 8, h = 8 },
+	{ id = "tree", category = "extras", icon = "🌳", name = "Árbol", cost = 200, w = 6, d = 6, h = 12 },
+	{ id = "lamp", category = "extras", icon = "🏮", name = "Farola", cost = 250, w = 2, d = 2, h = 9 },
+}
+
+StadiumPieces.ById = {}
+for _, piece in ipairs(StadiumPieces.List) do
+	StadiumPieces.ById[piece.id] = piece
+end
+
+return StadiumPieces
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">StadiumStages</string><ProtectedString name="Source"><![CDATA[-- StadiumStages (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/StadiumStages
 --
 -- Las siete etapas del ESTADIO EVOLUTIVO (FASE 2).
@@ -1548,7 +1621,7 @@ function StadiumStages.Get(stage)
 end
 
 return StadiumStages
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">TacticsConfig</string><ProtectedString name="Source"><![CDATA[-- TacticsConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">TacticsConfig</string><ProtectedString name="Source"><![CDATA[-- TacticsConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/TacticsConfig
 --
 -- Formaciones, tácticas y constantes del MOTOR DE PARTIDOS SIMULADOS (FASE 5).
@@ -1654,7 +1727,7 @@ function TacticsConfig.Style(id)
 end
 
 return TacticsConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">TransferConfig</string><ProtectedString name="Source"><![CDATA[-- TransferConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">TransferConfig</string><ProtectedString name="Source"><![CDATA[-- TransferConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/TransferConfig
 -- MERCADO DE FICHAJES (FASE 6): compras, ventas, ofertas y cesiones.
 -- Todos los clubes y jugadores del mercado son ficticios y los genera el servidor.
@@ -1704,7 +1777,7 @@ TransferConfig.OFFER_EXPIRY = 3 -- jornadas
 TransferConfig.MAX_OFFERS = 6
 
 return TransferConfig
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">UniverseConfig</string><ProtectedString name="Source"><![CDATA[-- UniverseConfig (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">UniverseConfig</string><ProtectedString name="Source"><![CDATA[-- UniverseConfig (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Config/UniverseConfig
 --
 -- UNIVERSO FUTBOLÍSTICO (FASE 8): perfiles públicos de clubes, rankings globales,
@@ -1787,7 +1860,7 @@ function UniverseConfig.WeeklyReward(rank)
 end
 
 return UniverseConfig
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000001D"><Properties><string name="Name">Modules</string></Properties><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">EconomyFormulas</string><ProtectedString name="Source"><![CDATA[-- EconomyFormulas (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000001F"><Properties><string name="Name">Modules</string></Properties><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">EconomyFormulas</string><ProtectedString name="Source"><![CDATA[-- EconomyFormulas (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/EconomyFormulas
 --
 -- Fórmulas económicas PURAS (sin efectos secundarios).
@@ -2170,7 +2243,7 @@ function EconomyFormulas.CanUpgradeStage(data)
 end
 
 return EconomyFormulas
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">FootballFormulas</string><ProtectedString name="Source"><![CDATA[-- FootballFormulas (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">FootballFormulas</string><ProtectedString name="Source"><![CDATA[-- FootballFormulas (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/FootballFormulas
 -- Fórmulas puras de futbolistas: media, valor, salario, potencial estimado y evolución.
 -- Las usa el servidor (autoridad) y el cliente (solo para mostrar).
@@ -2278,7 +2351,7 @@ function FootballFormulas.ReleaseCost(player)
 end
 
 return FootballFormulas
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Format</string><ProtectedString name="Source"><![CDATA[-- Format (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Format</string><ProtectedString name="Source"><![CDATA[-- Format (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/Format
 -- Utilidades de formato compartidas por cliente y servidor.
 
@@ -2329,7 +2402,7 @@ function Format.Duration(seconds)
 end
 
 return Format
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">KitPattern</string><ProtectedString name="Source"><![CDATA[-- KitPattern (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">KitPattern</string><ProtectedString name="Source"><![CDATA[-- KitPattern (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/KitPattern
 -- Dibuja una plantilla de equipación con Frames. Lo usan la interfaz (vista previa)
 -- y el servidor (expositor de equipación del estadio, en un SurfaceGui).
@@ -2380,7 +2453,7 @@ function KitPattern.Build(parent, pattern, primary, secondary)
 end
 
 return KitPattern
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">MatchEngine</string><ProtectedString name="Source"><![CDATA[-- MatchEngine (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">MatchEngine</string><ProtectedString name="Source"><![CDATA[-- MatchEngine (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/MatchEngine
 --
 -- MOTOR DE PARTIDOS SIMULADOS (FASE 5). Función pura: recibe dos alineaciones y un
@@ -2594,7 +2667,7 @@ function MatchEngine.Simulate(home, away, rng, opts)
 end
 
 return MatchEngine
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">PlacementRules</string><ProtectedString name="Source"><![CDATA[-- PlacementRules (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">PlacementRules</string><ProtectedString name="Source"><![CDATA[-- PlacementRules (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/PlacementRules
 --
 -- Reglas de colocación libre de decoraciones (CONSTRUCCIÓN AVANZADA, FASE 2).
@@ -2606,6 +2679,7 @@ local Shared = script.Parent.Parent
 local GameConfig = require(Shared.Config.GameConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumLayout = require(script.Parent.StadiumLayout)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 
 local PlacementRules = {}
 
@@ -2700,8 +2774,37 @@ function PlacementRules.Validate(params)
 	return true
 end
 
+-- CONSTRUCCIÓN LIBRE: piezas del estadio en cualquier punto del terreno.
+-- Pueden solaparse (una silla sobre una grada, una valla junto al campo…): solo se exige
+-- que la pieza exista, esté en la rejilla, con un giro permitido y dentro del terreno.
+-- params = { pieceId, x, z, rotation, isPro }
+function PlacementRules.ValidatePiece(params)
+	local x, z, rotation = params.x, params.z, params.rotation
+	if not finite(x) or not finite(z) or not finite(rotation) then
+		return false, "Posición no válida."
+	end
+	local piece = StadiumPieces.ById[params.pieceId]
+	if not piece then
+		return false, "Esa pieza no existe."
+	end
+	local tools = PlacementRules.Tools(params.isPro)
+	if rotation < 0 or rotation >= 360 or not isMultiple(rotation, tools.rotationStep) then
+		return false, params.isPro and "Rotación no válida." or "La rotación libre a 45° es una herramienta de Constructor Pro."
+	end
+	if not isMultiple(x, tools.grid) or not isMultiple(z, tools.grid) then
+		return false, params.isPro and "Posición fuera de la rejilla." or "La rejilla fina es una herramienta de Constructor Pro."
+	end
+	local r = math.rad(rotation)
+	local c, s = math.abs(math.cos(r)), math.abs(math.sin(r))
+	local hx, hz = (piece.w * c + piece.d * s) / 2, (piece.w * s + piece.d * c) / 2
+	if x - hx < -StadiumLayout.HALF_X or x + hx > StadiumLayout.HALF_X or z - hz < -StadiumLayout.HALF_Z or z + hz > StadiumLayout.HALF_Z then
+		return false, "La pieza se sale de tu terreno."
+	end
+	return true
+end
+
 return PlacementRules
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[-- Remotes (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Remotes</string><ProtectedString name="Source"><![CDATA[-- Remotes (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/Remotes
 --
 -- Punto único de acceso a los RemoteEvents/RemoteFunctions.
@@ -2753,7 +2856,7 @@ function Remotes.Get(name)
 end
 
 return Remotes
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">StadiumLayout</string><ProtectedString name="Source"><![CDATA[-- StadiumLayout (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">StadiumLayout</string><ProtectedString name="Source"><![CDATA[-- StadiumLayout (ModuleScript)
 -- Ubicación: ReplicatedStorage/Shared/Modules/StadiumLayout
 --
 -- Plano del terreno en coordenadas LOCALES (iguales para todos los terrenos):
@@ -2815,7 +2918,7 @@ StadiumLayout.Reserved = {
 }
 
 return StadiumLayout
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000003F"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX0000003E"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX00000020"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (Script de servidor)
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000041"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Folder" referent="RBX00000040"><Properties><string name="Name">Server</string></Properties><Item class="Script" referent="RBX00000022"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (Script de servidor)
 -- Ubicación: ServerScriptService/Server/Main
 --
 -- Arranque del servidor y enrutado de acciones del cliente.
@@ -2830,6 +2933,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local MenuConfig = require(Shared.Config.MenuConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local Remotes = require(Shared.Modules.Remotes)
 
 local Services = script.Parent.Services
@@ -2895,6 +2999,9 @@ local function buildState(player)
 			maxStageThisPhase = StadiumStages.MAX_STAGE_THIS_PHASE,
 			facilities = data.stadium.facilities,
 			decorations = data.stadium.decorations, -- lista { id, x, z, r }
+			pieces = data.stadium.pieces, -- construcción libre
+			freeBuild = data.stadium.freeBuild,
+			maxPieces = StadiumPieces.MAX_PIECES,
 			decorationVisible = BuildService.DecorationVisibility(player, data), -- lista de booleanos
 			maxDecorations = BuildService.MaxDecorations(player, data),
 			tools = BuildService.Tools(player), -- rejilla y paso de rotación permitidos
@@ -3121,6 +3228,7 @@ end
 local ACTION_METRICS = {
 	UpgradeFacility = "build",
 	PlaceDecoration = "decorate",
+	PlacePiece = "decorate",
 	AcceptSponsor = "sponsor",
 	PromoteYouth = "promote",
 	BuyPlayer = "sign",
@@ -3217,6 +3325,9 @@ Actions.SaveSettings = function(player, payload)
 	if type(payload.compactMenu) == "boolean" then
 		settings.compactMenu = payload.compactMenu
 	end
+	if type(payload.music) == "boolean" then
+		settings.music = payload.music
+	end
 	if type(payload.uiScale) == "number" and payload.uiScale == payload.uiScale then
 		settings.uiScale = math.clamp(payload.uiScale, 0.8, 1.3)
 	end
@@ -3241,6 +3352,23 @@ end
 Actions.RefreshShop = function(player)
 	task.spawn(GamePassService.PushShop, player)
 	return true
+end
+
+-- ===== Construcción libre del estadio =====
+Actions.PlacePiece = function(player, payload)
+	return BuildService.PlacePiece(player, payload)
+end
+
+Actions.MovePiece = function(player, payload)
+	return BuildService.MovePiece(player, payload)
+end
+
+Actions.RemovePiece = function(player, payload)
+	return BuildService.RemovePiece(player, payload)
+end
+
+Actions.SetFreeBuild = function(player, payload)
+	return BuildService.SetFreeBuild(player, payload)
 end
 
 -- ===== Partidos en grupo =====
@@ -3478,7 +3606,7 @@ task.spawn(function()
 end)
 
 print(string.format("[%s] Servidor iniciado · versión %s", GameConfig.GAME_NAME, GameConfig.VERSION))
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000038"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">AdminService</string><ProtectedString name="Source"><![CDATA[-- AdminService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000003A"><Properties><string name="Name">Services</string></Properties><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">AdminService</string><ProtectedString name="Source"><![CDATA[-- AdminService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/AdminService
 --
 -- EVENTOS «ADMIN ABUSE». Solo los admins (decidido aquí, en el servidor) pueden lanzarlos.
@@ -3765,7 +3893,7 @@ function AdminService.Start()
 end
 
 return AdminService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">ArenaService</string><ProtectedString name="Source"><![CDATA[-- ArenaService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">ArenaService</string><ProtectedString name="Source"><![CDATA[-- ArenaService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/ArenaService
 --
 -- PARTIDOS EN GRUPO: fútbol jugable en tiempo real.
@@ -4658,7 +4786,7 @@ function ArenaService.Start()
 end
 
 return ArenaService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">BuildService</string><ProtectedString name="Source"><![CDATA[-- BuildService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">BuildService</string><ProtectedString name="Source"><![CDATA[-- BuildService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/BuildService
 --
 -- Construcción validada en el servidor:
@@ -4679,6 +4807,7 @@ local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local GamePassConfig = require(Shared.Config.GamePassConfig)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
 local PlacementRules = require(Shared.Modules.PlacementRules)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
@@ -4837,6 +4966,95 @@ function BuildService.RemoveDecoration(player, payload)
 	return true, string.format("Decoración retirada (+%d %s).", refund, GameConfig.CURRENCY)
 end
 
+-- ===== CONSTRUCCIÓN LIBRE DEL ESTADIO (piezas sueltas) =====
+
+function BuildService.PlacePiece(player, payload)
+	local data = DataService.Get(player)
+	local pieceId = type(payload) == "table" and payload.piece
+	local piece = type(pieceId) == "string" and StadiumPieces.ById[pieceId]
+	if not piece then
+		return false, "Esa pieza no existe."
+	end
+	local x, z, rotation = readPlacement(payload)
+	if not x then
+		return false, "Posición no válida."
+	end
+	local list = data.stadium.pieces
+	if #list >= StadiumPieces.MAX_PIECES then
+		return false, string.format("Has llegado al máximo de %d piezas. Quita alguna para poner otra.", StadiumPieces.MAX_PIECES)
+	end
+	local ok, reason = PlacementRules.ValidatePiece({ pieceId = pieceId, x = x, z = z, rotation = rotation, isPro = BuildService.IsPro(player) })
+	if not ok then
+		return false, reason
+	end
+	if data.economy.debt > GameConfig.DEBT_BUILD_LIMIT then
+		return false, "Tu deuda es demasiado alta para construir. Págala primero."
+	end
+	local paid, payError = EconomyService.Spend(player, piece.cost, EconomyService.Category.CONSTRUCTION, piece.name)
+	if not paid then
+		return false, payError
+	end
+	table.insert(list, { id = pieceId, x = x, z = z, r = rotation })
+	return true, string.format("%s %s colocada.", piece.icon, piece.name), true
+end
+
+-- Comprueba que el índice enviado corresponde a la pieza esperada (evita estados obsoletos).
+local function findPiece(data, payload)
+	if type(payload) ~= "table" then
+		return nil
+	end
+	local index = tonumber(payload.index)
+	if not index or index ~= math.floor(index) then
+		return nil
+	end
+	local entry = data.stadium.pieces[index]
+	if not entry or entry.id ~= payload.piece then
+		return nil
+	end
+	return index, entry
+end
+
+function BuildService.MovePiece(player, payload)
+	local data = DataService.Get(player)
+	local index, entry = findPiece(data, payload)
+	if not index then
+		return false, "Esa pieza ya no está ahí. Vuelve a intentarlo."
+	end
+	local x, z, rotation = readPlacement(payload)
+	if not x then
+		return false, "Posición no válida."
+	end
+	local ok, reason = PlacementRules.ValidatePiece({ pieceId = entry.id, x = x, z = z, rotation = rotation, isPro = BuildService.IsPro(player) })
+	if not ok then
+		return false, reason
+	end
+	entry.x, entry.z, entry.r = x, z, rotation
+	return true, "Pieza movida.", true
+end
+
+function BuildService.RemovePiece(player, payload)
+	local data = DataService.Get(player)
+	local index, entry = findPiece(data, payload)
+	if not index then
+		return false, "Esa pieza ya no está ahí. Vuelve a intentarlo."
+	end
+	local piece = StadiumPieces.ById[entry.id]
+	table.remove(data.stadium.pieces, index)
+	local refund = math.floor((piece and piece.cost or 0) * StadiumPieces.REFUND)
+	EconomyService.Earn(player, refund, EconomyService.Category.REFUND, "Retirada: " .. (piece and piece.name or entry.id))
+	return true, string.format("Pieza retirada (+%d %s).", refund, GameConfig.CURRENCY), true
+end
+
+-- Modo libre: oculta el estadio automático para construirlo entero a mano.
+-- La economía (instalaciones, aforo…) no cambia: solo lo que se ve.
+function BuildService.SetFreeBuild(player, payload)
+	local data = DataService.Get(player)
+	local enabled = type(payload) == "table" and payload.enabled == true
+	data.stadium.freeBuild = enabled
+	return true, enabled and "🧱 Modo libre: tu estadio automático se oculta. ¡Constrúyelo pieza a pieza!"
+		or "🏟️ Vuelve el estadio automático (tus piezas se mantienen).", true
+end
+
 -- Qué decoraciones se muestran: dentro del límite actual y con su pase confirmado.
 -- Devuelve una lista de booleanos alineada con data.stadium.decorations.
 -- Las que no se muestran se conservan y reaparecen al recuperar el límite o la propiedad.
@@ -4858,7 +5076,7 @@ function BuildService.DecorationVisibility(player, data)
 end
 
 return BuildService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">ClubService</string><ProtectedString name="Source"><![CDATA[-- ClubService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">ClubService</string><ProtectedString name="Source"><![CDATA[-- ClubService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/ClubService
 --
 -- Identidad del club: nombre (filtrado por Roblox), abreviatura y apariencia
@@ -5020,7 +5238,7 @@ function ClubService.ShortName(data)
 end
 
 return ClubService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">CommunityService</string><ProtectedString name="Source"><![CDATA[-- CommunityService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">CommunityService</string><ProtectedString name="Source"><![CDATA[-- CommunityService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/CommunityService
 --
 -- EVENTOS COMUNITARIOS (FASE 9): cada hora, un objetivo compartido por todos los clubes
@@ -5110,7 +5328,7 @@ function CommunityService.Start()
 end
 
 return CommunityService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[-- DataService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[-- DataService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/DataService
 --
 -- Guardado persistente con DataStoreService:
@@ -5338,7 +5556,7 @@ function DataService.Start()
 end
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">EconomyService</string><ProtectedString name="Source"><![CDATA[-- EconomyService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">EconomyService</string><ProtectedString name="Source"><![CDATA[-- EconomyService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/EconomyService
 --
 -- Economía AUTORITATIVA del servidor:
@@ -5632,7 +5850,7 @@ function EconomyService.Start()
 end
 
 return EconomyService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">GamePassService</string><ProtectedString name="Source"><![CDATA[-- GamePassService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">GamePassService</string><ProtectedString name="Source"><![CDATA[-- GamePassService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/GamePassService
 --
 -- Integración REAL con MarketplaceService:
@@ -5925,7 +6143,7 @@ function GamePassService.OnPurchaseConfirmed(callback)
 end
 
 return GamePassService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">HalloweenService</string><ProtectedString name="Source"><![CDATA[-- HalloweenService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">HalloweenService</string><ProtectedString name="Source"><![CDATA[-- HalloweenService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/HalloweenService
 --
 -- EVENTO «DOCES OU TRAVESSURAS» (truco o trato):
@@ -6216,7 +6434,7 @@ function HalloweenService.Start()
 end
 
 return HalloweenService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">HistoryService</string><ProtectedString name="Source"><![CDATA[-- HistoryService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">HistoryService</string><ProtectedString name="Source"><![CDATA[-- HistoryService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/HistoryService
 --
 -- HISTORIA DEL CLUB (FASE 8). Todo sale de acontecimientos reales ya registrados:
@@ -6353,7 +6571,7 @@ function HistoryService.BuildState(data)
 end
 
 return HistoryService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">InteractionService</string><ProtectedString name="Source"><![CDATA[-- InteractionService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">InteractionService</string><ProtectedString name="Source"><![CDATA[-- InteractionService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/InteractionService
 --
 -- ESTADIO INTERACTIVO: el estadio se juega caminando, como cualquier juego de Roblox.
@@ -6543,7 +6761,7 @@ function InteractionService.Start()
 end
 
 return InteractionService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">LeagueService</string><ProtectedString name="Source"><![CDATA[-- LeagueService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">LeagueService</string><ProtectedString name="Source"><![CDATA[-- LeagueService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/LeagueService
 --
 -- FASE 7: LIGAS (10 equipos, ida y vuelta), COPA (eliminatorias), CALENDARIO,
@@ -7187,7 +7405,7 @@ function LeagueService.PlayerReady(player)
 end
 
 return LeagueService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">MatchService</string><ProtectedString name="Source"><![CDATA[-- MatchService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">MatchService</string><ProtectedString name="Source"><![CDATA[-- MatchService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/MatchService
 --
 -- FASE 5: alineaciones, formaciones, tácticas y PARTIDOS SIMULADOS.
@@ -7796,7 +8014,7 @@ function MatchService.BuildState(data)
 end
 
 return MatchService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">MissionService</string><ProtectedString name="Source"><![CDATA[-- MissionService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">MissionService</string><ProtectedString name="Source"><![CDATA[-- MissionService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/MissionService
 --
 -- MISIONES Y LOGROS (FASE 10).
@@ -8007,7 +8225,7 @@ function MissionService.BuildState(data)
 end
 
 return MissionService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">NetworkService</string><ProtectedString name="Source"><![CDATA[-- NetworkService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">NetworkService</string><ProtectedString name="Source"><![CDATA[-- NetworkService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/NetworkService
 --
 -- RED DE CLUBES (FASE 9):
@@ -8411,7 +8629,7 @@ function NetworkService.PlayerRemoving(player)
 end
 
 return NetworkService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">PlotService</string><ProtectedString name="Source"><![CDATA[-- PlotService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">PlotService</string><ProtectedString name="Source"><![CDATA[-- PlotService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/PlotService
 --
 -- Terrenos del servidor:
@@ -8622,6 +8840,8 @@ function PlotService.BuildRenderInfo(player, data)
 		lastMatch = data.matches[#data.matches],
 		vip = ClubService.IsVip(player),
 		decorations = data.stadium.decorations,
+		pieces = data.stadium.pieces, -- construcción libre
+		freeBuild = data.stadium.freeBuild,
 		sponsors = {
 			shirt = data.sponsors.contracts.shirt and data.sponsors.contracts.shirt.brand or nil,
 			boards = data.sponsors.contracts.boards and data.sponsors.contracts.boards.brand or nil,
@@ -8688,7 +8908,8 @@ function PlotService.UpdateCrowd(player, occupancy)
 	end
 	occupancy = math.clamp(tonumber(occupancy) or 0, 0, 1)
 	local info = PlotService.BuildRenderInfo(player, data)
-	local standsLevel = data.stadium.facilities.stands or 1
+	-- En modo libre no hay gradas automáticas, así que tampoco su afición
+	local standsLevel = data.stadium.freeBuild and 0 or (data.stadium.facilities.stands or 1)
 	local key = string.format("%d|%d|%s|%s", math.floor(occupancy * 10 + 0.5), standsLevel, info.appearance.palette, tostring(info.stageVisual and info.stageVisual.corners))
 	if plot.crowdKey == key then
 		return
@@ -8755,7 +8976,7 @@ function PlotService.CharacterAdded(player)
 end
 
 return PlotService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">SponsorService</string><ProtectedString name="Source"><![CDATA[-- SponsorService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000033"><Properties><string name="Name">SponsorService</string><ProtectedString name="Source"><![CDATA[-- SponsorService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/SponsorService
 --
 -- Contratos de patrocinio (FASE 3):
@@ -8930,7 +9151,7 @@ function SponsorService.PlayerReady(player)
 end
 
 return SponsorService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">SquadService</string><ProtectedString name="Source"><![CDATA[-- SquadService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000034"><Properties><string name="Name">SquadService</string><ProtectedString name="Source"><![CDATA[-- SquadService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/SquadService
 --
 -- FASE 4: plantilla, contratos, entrenamiento y CANTERA GENERACIONAL.
@@ -9403,7 +9624,7 @@ function SquadService.BuildState(data)
 end
 
 return SquadService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000033"><Properties><string name="Name">StadiumRenderer</string><ProtectedString name="Source"><![CDATA[-- StadiumRenderer (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000035"><Properties><string name="Name">StadiumRenderer</string><ProtectedString name="Source"><![CDATA[-- StadiumRenderer (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/StadiumRenderer
 --
 -- Construye el estadio físico a partir de los datos del club.
@@ -10449,12 +10670,294 @@ end
 -- ===== API =====
 
 -- info: ver PlotService.BuildRenderInfo
+-- ===== CONSTRUCCIÓN LIBRE: piezas sueltas del estadio =====
+-- Cada constructor recibe (modelo, marco, info). El marco es el centro de la pieza a ras de
+-- suelo, ya girado: X = ancho, Z = fondo. Las gradas suben hacia -Z y miran hacia +Z.
+
+local GREY = Color3.fromRGB(120, 124, 135)
+local DARK = Color3.fromRGB(40, 44, 56)
+local GRASS = Color3.fromRGB(58, 160, 66)
+
+local function simpleText(target, face, text, textColor, background)
+	surfaceText(target, face, function(gui)
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundColor3 = background or Color3.fromRGB(8, 10, 16)
+		label.BackgroundTransparency = background and 0 or 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = textColor or WHITE
+		label.Text = text
+		label.Parent = gui
+	end)
+end
+
+-- Silla en la que los jugadores se pueden sentar (mira hacia +Z).
+local function pieceSeat(model, frame, x, y, z, color)
+	local seat = Instance.new("Seat")
+	seat.Name = "Seat"
+	seat.Anchored = true
+	seat.Size = Vector3.new(1.8, 0.4, 1.8)
+	seat.Color = color
+	seat.Material = Enum.Material.SmoothPlastic
+	seat.TopSurface = Enum.SurfaceType.Smooth
+	seat.BottomSurface = Enum.SurfaceType.Smooth
+	-- El frente de un Seat es -Z: se gira 180° para que mire hacia +Z de la pieza
+	seat.CFrame = frame * CFrame.new(x, y + 1.4, z) * CFrame.Angles(0, math.pi, 0)
+	seat.Parent = model
+	part(model, frame, CFrame.new(x, y + 2.3, z - 0.8), Vector3.new(1.8, 1.6, 0.3), color)
+	part(model, frame, CFrame.new(x, y + 0.6, z), Vector3.new(0.4, 1.2, 0.4), DARK, Enum.Material.Metal)
+end
+
+local function piecePitch(model, frame, w, d, goalWidth)
+	part(model, frame, CFrame.new(0, 0.1, 0), Vector3.new(w, 0.2, d), GRASS, Enum.Material.Grass, { Name = "Pitch" })
+	local stripe = GRASS:Lerp(Color3.new(0, 0, 0), 0.12)
+	local fieldW, fieldD = w - 4, d - 4
+	local stripes = 6
+	for i = 0, stripes - 1, 2 do
+		part(model, frame, CFrame.new(-fieldW / 2 + (i + 0.5) * fieldW / stripes, 0.21, 0), Vector3.new(fieldW / stripes, 0.02, fieldD),
+			stripe, Enum.Material.Grass, { CanCollide = false })
+	end
+	local y, t = 0.23, 0.5
+	local props = { CanCollide = false, Name = "Line" }
+	part(model, frame, CFrame.new(0, y, -fieldD / 2), Vector3.new(fieldW, 0.02, t), WHITE, nil, props)
+	part(model, frame, CFrame.new(0, y, fieldD / 2), Vector3.new(fieldW, 0.02, t), WHITE, nil, props)
+	part(model, frame, CFrame.new(-fieldW / 2, y, 0), Vector3.new(t, 0.02, fieldD), WHITE, nil, props)
+	part(model, frame, CFrame.new(fieldW / 2, y, 0), Vector3.new(t, 0.02, fieldD), WHITE, nil, props)
+	part(model, frame, CFrame.new(0, y, 0), Vector3.new(t, 0.02, fieldD), WHITE, nil, props)
+	local radius = math.min(fieldD * 0.14, 9)
+	local circle = part(model, frame, CFrame.new(0, y, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.02, radius * 2, radius * 2), WHITE, nil, props)
+	circle.Shape = Enum.PartType.Cylinder
+	part(model, frame, CFrame.new(0, y + 0.01, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.02, radius * 2 - 1, radius * 2 - 1),
+		GRASS, Enum.Material.Grass, props).Shape = Enum.PartType.Cylinder
+	for _, side in ipairs({ -1, 1 }) do
+		local x = side * fieldW / 2
+		for _, dz in ipairs({ -goalWidth / 2, goalWidth / 2 }) do
+			part(model, frame, CFrame.new(x, 3, dz), Vector3.new(0.5, 6, 0.5), WHITE)
+		end
+		part(model, frame, CFrame.new(x, 6, 0), Vector3.new(0.5, 0.5, goalWidth + 0.5), WHITE)
+		part(model, frame, CFrame.new(x + side * 1.6, 3, 0), Vector3.new(3, 6, goalWidth), WHITE, Enum.Material.ForceField,
+			{ CanCollide = false, Transparency = 0.6 })
+	end
+end
+
+local function pieceStand(model, frame, w, d, info)
+	local rows = math.floor(d / 2)
+	for k = 1, rows do
+		local h = k * 1.5
+		local z = d / 2 - (k - 0.5) * 2
+		part(model, frame, CFrame.new(0, h / 2, z), Vector3.new(w, h, 2), k % 2 == 0 and GREY or Color3.fromRGB(150, 154, 165), Enum.Material.Concrete)
+		part(model, frame, CFrame.new(0, h + 0.3, z - 0.2), Vector3.new(w - 1, 0.6, 1.2), k % 2 == 0 and info.primary or info.secondary,
+			Enum.Material.SmoothPlastic, { CanCollide = false, Name = "Seats" })
+	end
+	part(model, frame, CFrame.new(0, (rows * 1.5 + 3) / 2, -d / 2 + 0.25), Vector3.new(w, rows * 1.5 + 3, 0.5), DARK, Enum.Material.Metal)
+end
+
+local PieceBuilders = {}
+
+PieceBuilders.pitch_full = function(model, frame)
+	piecePitch(model, frame, 104, 68, 12)
+end
+
+PieceBuilders.pitch_mini = function(model, frame)
+	piecePitch(model, frame, 52, 34, 8)
+end
+
+PieceBuilders.goal = function(model, frame)
+	for _, dz in ipairs({ -6, 6 }) do
+		part(model, frame, CFrame.new(-1.5, 3, dz), Vector3.new(0.5, 6, 0.5), WHITE)
+	end
+	part(model, frame, CFrame.new(-1.5, 6, 0), Vector3.new(0.5, 0.5, 12.5), WHITE)
+	part(model, frame, CFrame.new(0.5, 3, 0), Vector3.new(3.5, 6, 12), WHITE, Enum.Material.ForceField, { CanCollide = false, Transparency = 0.6 })
+end
+
+PieceBuilders.grass_tile = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.1, 0), Vector3.new(8, 0.2, 8), GRASS, Enum.Material.Grass)
+end
+
+PieceBuilders.path_tile = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.1, 0), Vector3.new(8, 0.2, 8), Color3.fromRGB(190, 190, 195), Enum.Material.Pavement)
+end
+
+PieceBuilders.bench = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 0.2, 0), Vector3.new(10, 0.4, 3), DARK, Enum.Material.Concrete)
+	for i = 0, 3 do
+		pieceSeat(model, frame, -3.3 + i * 2.2, 0.4, 0.3, info.primary)
+	end
+	part(model, frame, CFrame.new(0, 2.2, -1.35), Vector3.new(10, 4, 0.3), Color3.fromRGB(190, 220, 240), Enum.Material.Glass, { Transparency = 0.5 })
+	part(model, frame, CFrame.new(0, 4.3, -0.3), Vector3.new(10, 0.3, 2.4), Color3.fromRGB(190, 220, 240), Enum.Material.Glass, { Transparency = 0.5, CanCollide = false })
+end
+
+PieceBuilders.seat = function(model, frame, info)
+	pieceSeat(model, frame, 0, 0, 0, info.primary)
+end
+
+PieceBuilders.seat_row = function(model, frame, info)
+	for i = 0, 9 do
+		pieceSeat(model, frame, -9 + i * 2, 0, 0, i % 2 == 0 and info.primary or info.secondary)
+	end
+end
+
+PieceBuilders.stand_small = function(model, frame, info)
+	pieceStand(model, frame, 30, 10, info)
+end
+
+PieceBuilders.stand_big = function(model, frame, info)
+	pieceStand(model, frame, 60, 16, info)
+end
+
+-- Grada de esquina: escalones que suben hacia la esquina trasera (-X, -Z)
+PieceBuilders.stand_corner = function(model, frame, info)
+	for k = 1, 7 do
+		local size = 16 - (k - 1) * 2
+		local h = k * 1.4
+		part(model, frame, CFrame.new(-8 + size / 2, h / 2, -8 + size / 2), Vector3.new(size, h, size),
+			k % 2 == 0 and info.primary or GREY, Enum.Material.Concrete)
+	end
+end
+
+PieceBuilders.vip_box = function(model, frame, info)
+	for _, x in ipairs({ -9, 9 }) do
+		for _, z in ipairs({ -3, 3 }) do
+			part(model, frame, CFrame.new(x, 3, z), Vector3.new(1, 6, 1), DARK, Enum.Material.Metal)
+		end
+	end
+	part(model, frame, CFrame.new(0, 6.25, 0), Vector3.new(20, 0.5, 8), Color3.fromRGB(230, 228, 222), Enum.Material.Marble)
+	part(model, frame, CFrame.new(0, 8, 3.8), Vector3.new(20, 3, 0.3), Color3.fromRGB(180, 215, 240), Enum.Material.Glass, { Transparency = 0.55 })
+	part(model, frame, CFrame.new(0, 8.25, -3.8), Vector3.new(20, 3.5, 0.4), DARK)
+	part(model, frame, CFrame.new(0, 10.2, 0), Vector3.new(21, 0.4, 9), GOLD, Enum.Material.Metal)
+	for i = 0, 3 do
+		pieceSeat(model, frame, -6 + i * 4, 6.5, 0, GOLD)
+	end
+	-- Escalera trasera para subir
+	for step = 1, 6 do
+		part(model, frame, CFrame.new(0, step - 0.5, -4.5 - (6 - step) * 1.2), Vector3.new(4, 1, 1.2), GREY, Enum.Material.Concrete)
+	end
+end
+
+PieceBuilders.wall = function(model, frame)
+	part(model, frame, CFrame.new(0, 3, 0), Vector3.new(16, 6, 1), Color3.fromRGB(175, 175, 170), Enum.Material.Concrete)
+end
+
+PieceBuilders.fence = function(model, frame, info)
+	for i = 0, 4 do
+		part(model, frame, CFrame.new(-8 + i * 4, 1.5, 0), Vector3.new(0.4, 3, 0.4), DARK, Enum.Material.Metal)
+	end
+	part(model, frame, CFrame.new(0, 2.7, 0), Vector3.new(16, 0.3, 0.3), info.primary, Enum.Material.Metal)
+	part(model, frame, CFrame.new(0, 1.4, 0), Vector3.new(16, 0.3, 0.3), info.primary, Enum.Material.Metal)
+end
+
+PieceBuilders.roof = function(model, frame, info)
+	for _, x in ipairs({ -14, 0, 14 }) do
+		part(model, frame, CFrame.new(x, 7, -4.5), Vector3.new(1, 14, 1), DARK, Enum.Material.Metal)
+	end
+	part(model, frame, CFrame.new(0, 14.3, 0) * CFrame.Angles(math.rad(-6), 0, 0), Vector3.new(30, 0.6, 10.5), info.secondary, Enum.Material.Metal, { CanCollide = false })
+end
+
+PieceBuilders.gate = function(model, frame, info)
+	for _, x in ipairs({ -7, 7 }) do
+		part(model, frame, CFrame.new(x, 5, 0), Vector3.new(2, 10, 4), info.secondary, Enum.Material.Concrete)
+	end
+	local arch = part(model, frame, CFrame.new(0, 10.5, 0), Vector3.new(16, 3, 4), info.primary, Enum.Material.Concrete)
+	simpleText(arch, Enum.NormalId.Front, info.clubName, info.secondaryText)
+	simpleText(arch, Enum.NormalId.Back, info.clubName, info.secondaryText)
+end
+
+PieceBuilders.floodlight = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.5, 0), Vector3.new(4, 1, 4), DARK, Enum.Material.Concrete)
+	part(model, frame, CFrame.new(0, 15, 0), Vector3.new(1, 28, 1), DARK, Enum.Material.Metal)
+	-- Inclinado 35° hacia abajo: la cara trasera (+Z) apunta al suelo por delante de la torre
+	local lamp = part(model, frame, CFrame.new(0, 29.5, 0.5) * CFrame.Angles(math.rad(35), 0, 0), Vector3.new(6, 3, 0.8),
+		Color3.fromRGB(255, 250, 225), Enum.Material.Neon)
+	local light = Instance.new("SpotLight")
+	light.Face = Enum.NormalId.Back -- hacia +Z de la pieza
+	light.Range = 60
+	light.Angle = 80
+	light.Brightness = 2.5
+	light.Parent = lamp
+end
+
+PieceBuilders.scoreboard = function(model, frame, info)
+	for _, x in ipairs({ -6, 6 }) do
+		part(model, frame, CFrame.new(x, 3, 0), Vector3.new(1, 6, 1), DARK, Enum.Material.Metal)
+	end
+	local screen = part(model, frame, CFrame.new(0, 10, 0), Vector3.new(16, 8, 1), Color3.fromRGB(8, 10, 16))
+	local text = info.crestSymbol .. " " .. info.clubName .. "\n0 - 0"
+	simpleText(screen, Enum.NormalId.Back, text, WHITE) -- la cara de +Z
+	simpleText(screen, Enum.NormalId.Front, text, WHITE)
+end
+
+PieceBuilders.flag = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 5, 0), Vector3.new(0.4, 10, 0.4), Color3.fromRGB(210, 210, 215), Enum.Material.Metal)
+	part(model, frame, CFrame.new(1.7, 8.6, 0), Vector3.new(3, 2, 0.15), info.primary, Enum.Material.Fabric, { CanCollide = false })
+	part(model, frame, CFrame.new(1.7, 8.6, 0), Vector3.new(3, 0.6, 0.18), info.secondary, Enum.Material.Fabric, { CanCollide = false })
+end
+
+PieceBuilders.ad_board = function(model, frame, info)
+	local board = part(model, frame, CFrame.new(0, 1.5, 0), Vector3.new(16, 2.6, 0.6), info.primary)
+	local brand = info.sponsors and info.sponsors.boards or info.clubName
+	simpleText(board, Enum.NormalId.Back, brand, info.secondaryText)
+	simpleText(board, Enum.NormalId.Front, brand, info.secondaryText)
+end
+
+PieceBuilders.kiosk = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 2, 0), Vector3.new(7, 4, 7), Color3.fromRGB(240, 235, 220), Enum.Material.WoodPlanks)
+	part(model, frame, CFrame.new(0, 4.6, 0), Vector3.new(8, 0.8, 8), info.secondary, Enum.Material.Fabric)
+	local sign = part(model, frame, CFrame.new(0, 6, 0), Vector3.new(6, 2, 0.5), info.primary)
+	simpleText(sign, Enum.NormalId.Back, "🌭 COMIDA", info.secondaryText)
+	simpleText(sign, Enum.NormalId.Front, "🌭 COMIDA", info.secondaryText)
+end
+
+PieceBuilders.tree = function(model, frame)
+	part(model, frame, CFrame.new(0, 3, 0), Vector3.new(1.4, 6, 1.4), Color3.fromRGB(110, 80, 50), Enum.Material.Wood)
+	local leaves = part(model, frame, CFrame.new(0, 8, 0), Vector3.new(7, 7, 7), Color3.fromRGB(60, 140, 60), Enum.Material.Grass, { CanCollide = false })
+	leaves.Shape = Enum.PartType.Ball
+	local top = part(model, frame, CFrame.new(0.8, 10.5, 0.5), Vector3.new(4.5, 4.5, 4.5), Color3.fromRGB(70, 155, 70), Enum.Material.Grass, { CanCollide = false })
+	top.Shape = Enum.PartType.Ball
+end
+
+PieceBuilders.lamp = function(model, frame)
+	part(model, frame, CFrame.new(0, 4, 0), Vector3.new(0.5, 8, 0.5), DARK, Enum.Material.Metal)
+	local bulb = part(model, frame, CFrame.new(0, 8.6, 0), Vector3.new(1.6, 1.6, 1.6), Color3.fromRGB(255, 240, 200), Enum.Material.Neon, { CanCollide = false })
+	bulb.Shape = Enum.PartType.Ball
+	local light = Instance.new("PointLight")
+	light.Range = 24
+	light.Brightness = 1.5
+	light.Color = Color3.fromRGB(255, 235, 190)
+	light.Parent = bulb
+end
+
+-- Cada pieza va en su propio Model con atributos: el cliente los usa para «mover» y «quitar».
+local function buildPieces(folder, origin, pieces, info)
+	for index, entry in ipairs(pieces or {}) do
+		local builder = PieceBuilders[entry.id]
+		if builder then
+			local model = Instance.new("Model")
+			model.Name = "Piece_" .. index
+			model:SetAttribute("PieceIndex", index)
+			model:SetAttribute("PieceId", entry.id)
+			model.Parent = folder
+			local frame = origin * CFrame.new(entry.x, 0, entry.z) * CFrame.Angles(0, math.rad(entry.r or 0), 0)
+			builder(model, frame, info)
+		end
+	end
+end
+
 function StadiumRenderer.Render(folder, origin, info)
 	folder:ClearAllChildren()
 	local facilities = info.facilities
 	local standsDesign = CosmeticConfig.ById.design[info.appearance.standsDesign] or CosmeticConfig.ById.design.classic
 	local buildingDesign = CosmeticConfig.ById.design[info.appearance.buildingDesign] or CosmeticConfig.ById.design.brick
 	local standsLevel = facilities.stands or 1
+
+	-- MODO LIBRE: no se dibuja el estadio automático; solo el cartel, el efecto y lo que coloca el jugador.
+	if info.freeBuild then
+		buildSign(folder, origin, info)
+		buildEffect(folder, origin, info.appearance.effect, info.primary, info.secondary)
+		buildDecorations(folder, origin, info.decorations, info.decorationVisible, info)
+		buildPieces(folder, origin, info.pieces, info)
+		return
+	end
 
 	buildStageExtras(folder, origin, info, standsLevel, standsDesign)
 	buildPitch(folder, origin, facilities.pitch or 1, info.eliteStadium)
@@ -10468,10 +10971,11 @@ function StadiumRenderer.Render(folder, origin, info)
 	buildSign(folder, origin, info)
 	buildEffect(folder, origin, info.appearance.effect, info.primary, info.secondary)
 	buildDecorations(folder, origin, info.decorations, info.decorationVisible, info)
+	buildPieces(folder, origin, info.pieces, info)
 end
 
 return StadiumRenderer
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000034"><Properties><string name="Name">StadiumService</string><ProtectedString name="Source"><![CDATA[-- StadiumService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000036"><Properties><string name="Name">StadiumService</string><ProtectedString name="Source"><![CDATA[-- StadiumService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/StadiumService
 --
 -- ESTADIO EVOLUTIVO (FASE 2): ascenso entre las 7 etapas.
@@ -10524,7 +11028,7 @@ function StadiumService.UpgradeStage(player)
 end
 
 return StadiumService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000035"><Properties><string name="Name">TournamentService</string><ProtectedString name="Source"><![CDATA[-- TournamentService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000037"><Properties><string name="Name">TournamentService</string><ProtectedString name="Source"><![CDATA[-- TournamentService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/TournamentService
 --
 -- TORNEOS DEL SERVIDOR (FASE 9): un jugador crea un torneo (4 u 8 clubes), los demás
@@ -10803,7 +11307,7 @@ function TournamentService.BuildState(player)
 end
 
 return TournamentService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000036"><Properties><string name="Name">TransferService</string><ProtectedString name="Source"><![CDATA[-- TransferService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000038"><Properties><string name="Name">TransferService</string><ProtectedString name="Source"><![CDATA[-- TransferService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/TransferService
 --
 -- MERCADO DE FICHAJES (FASE 6). Todo se valida en el servidor:
@@ -11216,7 +11720,7 @@ function TransferService.BuildState(data, publicPlayer)
 end
 
 return TransferService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000037"><Properties><string name="Name">UniverseService</string><ProtectedString name="Source"><![CDATA[-- UniverseService (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000039"><Properties><string name="Name">UniverseService</string><ProtectedString name="Source"><![CDATA[-- UniverseService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/UniverseService
 --
 -- UNIVERSO FUTBOLÍSTICO (FASE 8), compartido entre todos los servidores:
@@ -11575,7 +12079,7 @@ function UniverseService.Start()
 end
 
 return UniverseService
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000003D"><Properties><string name="Name">Util</string></Properties><Item class="ModuleScript" referent="RBX00000039"><Properties><string name="Name">DefaultData</string><ProtectedString name="Source"><![CDATA[-- DefaultData (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000003F"><Properties><string name="Name">Util</string></Properties><Item class="ModuleScript" referent="RBX0000003B"><Properties><string name="Name">DefaultData</string><ProtectedString name="Source"><![CDATA[-- DefaultData (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/DefaultData
 --
 -- Plantilla de datos de un club y validación/reparación de datos cargados.
@@ -11590,6 +12094,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -11627,6 +12132,8 @@ function DefaultData.Create(player)
 			stage = 1,
 			facilities = facilities,
 			decorations = {}, -- lista de { id = "flags", x = 40, z = 88, r = 0 } (coordenadas locales)
+			pieces = {}, -- construcción libre: lista de { id = "seat", x, z, r } (v11)
+			freeBuild = false, -- true = se oculta el estadio automático
 		},
 		economy = {
 			money = GameConfig.STARTING_MONEY,
@@ -11649,6 +12156,7 @@ function DefaultData.Create(player)
 			notifications = true,
 			compactMenu = false,
 			uiScale = 1,
+			music = true,
 		},
 		premium = {
 			purchaseLog = {}, -- solo informativo
@@ -11945,6 +12453,21 @@ function DefaultData.Reconcile(data, player)
 	end
 	stadium.facilities = cleanFacilities
 	stadium.decorations = cleanDecorations(stadium.decorations)
+	local pieces = {}
+	if type(stadium.pieces) == "table" then
+		for _, entry in ipairs(stadium.pieces) do
+			if type(entry) == "table" and StadiumPieces.ById[entry.id]
+				and finiteNumber(entry.x) and finiteNumber(entry.z) and finiteNumber(entry.r)
+				and math.abs(entry.x) <= 150 and math.abs(entry.z) <= 105 then
+				table.insert(pieces, { id = entry.id, x = entry.x, z = entry.z, r = entry.r % 360 })
+			end
+			if #pieces >= StadiumPieces.MAX_PIECES then
+				break
+			end
+		end
+	end
+	stadium.pieces = pieces
+	stadium.freeBuild = stadium.freeBuild == true
 
 	-- Historial de eventos
 	if type(data.history) ~= "table" then
@@ -12231,13 +12754,14 @@ function DefaultData.Reconcile(data, player)
 	data.settings.uiScale = clampNumber(data.settings.uiScale, 0.8, 1.3, 1)
 	data.settings.notifications = data.settings.notifications ~= false
 	data.settings.compactMenu = data.settings.compactMenu == true
+	data.settings.music = data.settings.music ~= false
 
 	data.version = GameConfig.DATA_VERSION
 	return data
 end
 
 return DefaultData
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000003A"><Properties><string name="Name">PlayerFactory</string><ProtectedString name="Source"><![CDATA[-- PlayerFactory (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000003C"><Properties><string name="Name">PlayerFactory</string><ProtectedString name="Source"><![CDATA[-- PlayerFactory (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/PlayerFactory
 -- Genera futbolistas ficticios en el SERVIDOR (el cliente nunca crea jugadores).
 
@@ -12354,7 +12878,7 @@ function PlayerFactory.Youth(data, academyLevel, scouts)
 end
 
 return PlayerFactory
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000003B"><Properties><string name="Name">RateLimiter</string><ProtectedString name="Source"><![CDATA[-- RateLimiter (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000003D"><Properties><string name="Name">RateLimiter</string><ProtectedString name="Source"><![CDATA[-- RateLimiter (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/RateLimiter
 -- Limita cuántas acciones puede enviar cada jugador por ventana de tiempo.
 
@@ -12385,7 +12909,7 @@ function RateLimiter:Remove(player)
 end
 
 return RateLimiter
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000003C"><Properties><string name="Name">Retry</string><ProtectedString name="Source"><![CDATA[-- Retry (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000003E"><Properties><string name="Name">Retry</string><ProtectedString name="Source"><![CDATA[-- Retry (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Util/Retry
 -- Ejecuta una función con pcall y reintentos controlados con espera exponencial.
 
@@ -12408,7 +12932,7 @@ function Retry.Call(attempts, baseDelay, fn, ...)
 end
 
 return Retry
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000062"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000061"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX00000060"><Properties><string name="Name">Client</string></Properties><Item class="Folder" referent="RBX00000042"><Properties><string name="Name">Controllers</string></Properties><Item class="ModuleScript" referent="RBX00000040"><Properties><string name="Name">MovementController</string><ProtectedString name="Source"><![CDATA[-- MovementController (ModuleScript)
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000065"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX00000064"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX00000063"><Properties><string name="Name">Client</string></Properties><Item class="Folder" referent="RBX00000045"><Properties><string name="Name">Controllers</string></Properties><Item class="ModuleScript" referent="RBX00000042"><Properties><string name="Name">MovementController</string><ProtectedString name="Source"><![CDATA[-- MovementController (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/MovementController
 --
 -- Velocidad del personaje y SPRINT con resistencia:
@@ -12565,10 +13089,120 @@ function MovementController.Init(gui, C, Theme)
 end
 
 return MovementController
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000041"><Properties><string name="Name">PlacementController</string><ProtectedString name="Source"><![CDATA[-- PlacementController (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000043"><Properties><string name="Name">MusicController</string><ProtectedString name="Source"><![CDATA[-- MusicController (ModuleScript)
+-- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/MusicController
+--
+-- Música de fondo (solo en el cliente de cada jugador): reproduce la lista de MusicConfig en bucle.
+-- El botón 🎵 la silencia o la activa; la preferencia se guarda en la configuración del club.
+-- Si una pista no carga (ID retirado, sin conexión…), se salta a la siguiente sin romper nada.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+
+local MusicConfig = require(ReplicatedStorage:WaitForChild("Shared").Config.MusicConfig)
+
+local MusicController = {}
+
+local sound
+local button
+local enabled = false -- empieza en silencio hasta saber la preferencia guardada del jugador
+local index = 0
+local token = 0 -- cambia en cada pista: invalida las esperas de la anterior
+
+local function refreshButton()
+	if button then
+		button.Text = enabled and "🎵" or "🔇"
+		button.BackgroundTransparency = enabled and 0.15 or 0.45
+	end
+end
+
+local function playNext()
+	if #MusicConfig.Tracks == 0 then
+		return
+	end
+	index = index % #MusicConfig.Tracks + 1
+	token += 1
+	local current = token
+	sound:Stop()
+	sound.SoundId = "rbxassetid://" .. MusicConfig.Tracks[index].id
+	sound.TimePosition = 0
+	if enabled then
+		sound:Play()
+	end
+	-- Si no llega a cargar, se prueba la siguiente (como mucho una vuelta completa)
+	task.delay(12, function()
+		if current == token and enabled and not sound.IsLoaded then
+			MusicController._failed = (MusicController._failed or 0) + 1
+			if MusicController._failed < #MusicConfig.Tracks then
+				playNext()
+			end
+		elseif current == token and sound.IsLoaded then
+			MusicController._failed = 0
+		end
+	end)
+end
+
+function MusicController.SetEnabled(value)
+	value = value ~= false
+	if value == enabled then
+		return
+	end
+	enabled = value
+	refreshButton()
+	if not sound then
+		return
+	end
+	if enabled then
+		if sound.SoundId == "" then
+			playNext()
+		else
+			sound:Resume()
+		end
+	else
+		sound:Pause()
+	end
+end
+
+-- deps = { C, Theme, onToggle(enabled) }
+function MusicController.Init(gui, deps)
+	local C, Theme = deps.C, deps.Theme
+	sound = Instance.new("Sound")
+	sound.Name = "FEU_Music"
+	sound.Volume = MusicConfig.VOLUME
+	sound.Looped = false
+	sound.Parent = SoundService
+	sound.Ended:Connect(playNext)
+
+	button = C.New("TextButton", {
+		Name = "MusicButton",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 64),
+		Size = UDim2.fromOffset(40, 40),
+		BackgroundColor3 = Theme.Panel,
+		BackgroundTransparency = 0.15,
+		Text = "🎵",
+		Font = Theme.FontBold,
+		TextSize = 20,
+		TextColor3 = Color3.new(1, 1, 1),
+		Children = { C.Corner(UDim.new(1, 0)), C.Stroke(Theme.Stroke) },
+	}, gui)
+	button.Activated:Connect(function()
+		MusicController.SetEnabled(not enabled)
+		if deps.onToggle then
+			task.spawn(deps.onToggle, enabled)
+		end
+	end)
+	refreshButton()
+end
+
+return MusicController
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000044"><Properties><string name="Name">PlacementController</string><ProtectedString name="Source"><![CDATA[-- PlacementController (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/PlacementController
 --
 -- CONSTRUCCIÓN AVANZADA (FASE 2): modo de colocación libre de decoraciones.
+-- CONSTRUCCIÓN LIBRE: el mismo modo sirve para las piezas del estadio (kind = "piece"),
+--   que se colocan en cualquier punto del terreno y se siguen colocando hasta cancelar.
+--   StartPick: herramienta para elegir con un clic la pieza que se quiere mover o quitar.
 --   * Vista previa (fantasma) que sigue al ratón o al dedo sobre tu terreno.
 --   * Verde = colocación válida, rojo = no válida (con el motivo).
 --   * PC: clic para colocar, R para rotar, Q o Esc para cancelar.
@@ -12584,6 +13218,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local PlacementRules = require(Shared.Modules.PlacementRules)
 local StadiumLayout = require(Shared.Modules.StadiumLayout)
 
@@ -12651,6 +13286,9 @@ end
 
 local function validate()
 	local s = session
+	if s.kind == "piece" then
+		return PlacementRules.ValidatePiece({ pieceId = s.itemId, x = s.x, z = s.z, rotation = s.rotation, isPro = s.isPro })
+	end
 	return PlacementRules.Validate({
 		decorations = s.ctx.state.stadium.decorations,
 		decoId = s.decoId,
@@ -12667,7 +13305,7 @@ local function refreshGhost()
 	if not s then
 		return
 	end
-	s.ghost.CFrame = s.origin * CFrame.new(s.x, 1.5, s.z) * CFrame.Angles(0, math.rad(s.rotation), 0)
+	s.ghost.CFrame = s.origin * CFrame.new(s.x, s.ghost.Size.Y / 2, s.z) * CFrame.Angles(0, math.rad(s.rotation), 0)
 	local ok, reason = validate()
 	s.valid = ok
 	s.ghost.Color = ok and Theme.Accent or Theme.Danger
@@ -12731,18 +13369,24 @@ local function confirm()
 		return
 	end
 	s.busy = true
-	local action = s.moveIndex and "MoveDecoration" or "PlaceDecoration"
-	local result = s.ctx.act(action, {
-		decoration = s.decoId,
-		index = s.moveIndex,
-		x = s.x,
-		z = s.z,
-		rotation = s.rotation,
-	})
-	if not session then
+	local action, payload
+	if s.kind == "piece" then
+		action = s.moveIndex and "MovePiece" or "PlacePiece"
+		payload = { piece = s.itemId, index = s.moveIndex, x = s.x, z = s.z, rotation = s.rotation }
+	else
+		action = s.moveIndex and "MoveDecoration" or "PlaceDecoration"
+		payload = { decoration = s.decoId, index = s.moveIndex, x = s.x, z = s.z, rotation = s.rotation }
+	end
+	local result = s.ctx.act(action, payload)
+	if session ~= s then
 		return
 	end
 	s.busy = false
+	-- Las piezas nuevas se siguen colocando una tras otra hasta cancelar
+	if result.ok and s.kind == "piece" and not s.moveIndex then
+		refreshGhost()
+		return
+	end
 	if result.ok then
 		local onFinish = s.onFinish
 		cleanup()
@@ -12783,16 +13427,22 @@ local function buildHud(s)
 	C.Label("🏗️ <b>MODO CONSTRUCCIÓN</b>", { TextSize = 16, LayoutOrder = 1 }).Parent = top
 	s.statusLabel = C.Label("", { TextSize = 14, LayoutOrder = 2 })
 	s.statusLabel.Parent = top
-	local hint = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-		and "Toca tu plaza para mover la vista previa. Zona azul = permitida, zonas rojas = reservadas."
-		or "Mueve el ratón · Clic: colocar · R: rotar · Q/Esc: cancelar. Zona azul = permitida, zonas rojas = reservadas."
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local hint
+	if s.kind == "piece" then
+		hint = touchOnly and "Toca tu terreno para mover la vista previa y pulsa Confirmar. Puedes colocar varias seguidas."
+			or "Mueve el ratón · Clic: colocar (puedes colocar varias seguidas) · R: rotar · Q/Esc: terminar."
+	else
+		hint = touchOnly and "Toca tu plaza para mover la vista previa. Zona azul = permitida, zonas rojas = reservadas."
+			or "Mueve el ratón · Clic: colocar · R: rotar · Q/Esc: cancelar. Zona azul = permitida, zonas rojas = reservadas."
+	end
 	C.Label(string.format("%s  Rejilla %d stud(s), rotación %d°%s.", hint, s.tools.grid, s.tools.rotationStep,
 		s.isPro and " (Constructor Pro)" or ""), { TextSize = 12, TextColor3 = Theme.TextDim, LayoutOrder = 3 }).Parent = top
 
 	local bar = C.Row({
 		C.Button("⟳ Rotar", "secondary", rotate, { Size = UDim2.new(0, 120, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
 		C.Button("✔ Confirmar", "primary", confirm, { Size = UDim2.new(0, 150, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
-		C.Button("✕ Cancelar", "danger", PlacementController.Cancel, { Size = UDim2.new(0, 130, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
+		C.Button(s.kind == "piece" and not s.moveIndex and "✔ Terminar" or "✕ Cancelar", "danger", PlacementController.Cancel, { Size = UDim2.new(0, 130, 0, 50), AutomaticSize = Enum.AutomaticSize.None }),
 	}, 10, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -24),
@@ -12803,22 +13453,44 @@ local function buildHud(s)
 	return hud
 end
 
+-- Herramienta «elegir pieza» (se define aquí porque Start la cierra si estaba abierta)
+local pick -- estado de la herramienta
+
+local function pickCleanup()
+	if not pick then
+		return
+	end
+	for _, connection in ipairs(pick.connections) do
+		connection:Disconnect()
+	end
+	pick.highlight:Destroy()
+	pick.hud:Destroy()
+	pick = nil
+	PlacementController.Active = false
+end
+
 -- opts = { decoId, moveIndex?, onFinish(placed:boolean)? }
+-- o bien { kind = "piece", pieceId, moveIndex?, onFinish? } para las piezas de la construcción libre
 function PlacementController.Start(ctx, opts)
 	if session then
 		PlacementController.Cancel()
 	end
-	local item = CosmeticConfig.ById.decoration[opts.decoId]
+	pickCleanup()
+	local kind = opts.kind == "piece" and "piece" or "decoration"
+	local item = kind == "piece" and StadiumPieces.ById[opts.pieceId] or CosmeticConfig.ById.decoration[opts.decoId]
 	local origin = findPlotOrigin()
 	if not item or not origin then
 		ctx.notify("error", "No se encontró tu terreno. Espera a que se cargue tu estadio.")
 		return false
 	end
-	local existing = opts.moveIndex and ctx.state.stadium.decorations[opts.moveIndex]
+	local placedList = kind == "piece" and ctx.state.stadium.pieces or ctx.state.stadium.decorations
+	local existing = opts.moveIndex and placedList[opts.moveIndex]
 	local tools = ctx.state.stadium.tools
 	session = {
 		ctx = ctx,
 		item = item,
+		kind = kind,
+		itemId = kind == "piece" and opts.pieceId or opts.decoId,
 		decoId = opts.decoId,
 		moveIndex = opts.moveIndex,
 		onFinish = opts.onFinish,
@@ -12826,8 +13498,8 @@ function PlacementController.Start(ctx, opts)
 		tools = tools,
 		isPro = ctx.state.premium.owned.CONSTRUCTOR_PRO == true,
 		rotation = existing and existing.r or 0,
-		x = existing and existing.x or 40,
-		z = existing and existing.z or 88,
+		x = existing and existing.x or (kind == "piece" and 0 or 40),
+		z = existing and existing.z or (kind == "piece" and 60 or 88),
 		connections = {},
 	}
 	local s = session
@@ -12836,11 +13508,17 @@ function PlacementController.Start(ctx, opts)
 	s.folder = Instance.new("Folder")
 	s.folder.Name = "FEU_PlacementPreview"
 	s.folder.Parent = Workspace.CurrentCamera
-	for _, zone in ipairs(StadiumLayout.DecorationZones) do
-		makeZoneMarker(s.folder, origin, zone, Theme.Info, 0.8)
-	end
-	for _, reserved in ipairs(StadiumLayout.Reserved) do
-		makeZoneMarker(s.folder, origin, reserved, Theme.Danger, 0.75)
+	if kind == "piece" then
+		-- Las piezas valen en todo el terreno
+		makeZoneMarker(s.folder, origin, { xMin = -StadiumLayout.HALF_X, xMax = StadiumLayout.HALF_X,
+			zMin = -StadiumLayout.HALF_Z, zMax = StadiumLayout.HALF_Z }, Theme.Info, 0.92)
+	else
+		for _, zone in ipairs(StadiumLayout.DecorationZones) do
+			makeZoneMarker(s.folder, origin, zone, Theme.Info, 0.8)
+		end
+		for _, reserved in ipairs(StadiumLayout.Reserved) do
+			makeZoneMarker(s.folder, origin, reserved, Theme.Danger, 0.75)
+		end
 	end
 	s.ghost = Instance.new("Part")
 	s.ghost.Anchored = true
@@ -12850,7 +13528,7 @@ function PlacementController.Start(ctx, opts)
 	s.ghost.CastShadow = false
 	s.ghost.Material = Enum.Material.ForceField
 	s.ghost.Transparency = 0.2
-	s.ghost.Size = Vector3.new(item.w, 3, item.d)
+	s.ghost.Size = Vector3.new(item.w, item.h or 3, item.d)
 	s.ghost.Parent = s.folder
 
 	s.hud = buildHud(s)
@@ -12890,8 +13568,125 @@ function PlacementController.Start(ctx, opts)
 	return true
 end
 
+-- ===== Herramienta para elegir una pieza ya colocada (mover o quitar) =====
+-- opts = { mode = "move" | "remove", onFinish()? }
+-- Devuelve el Model de una pieza PROPIA bajo ese punto de la pantalla.
+local function pieceAt(screenPos, fromTouch)
+	local camera = Workspace.CurrentCamera
+	local ray = fromTouch and camera:ScreenPointToRay(screenPos.X, screenPos.Y) or camera:ViewportPointToRay(screenPos.X, screenPos.Y)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { player.Character }
+	local hit = Workspace:Raycast(ray.Origin, ray.Direction * 1500, params)
+	local instance = hit and hit.Instance
+	local model
+	while instance and instance ~= Workspace do
+		if not model and instance:IsA("Model") and instance:GetAttribute("PieceIndex") then
+			model = instance
+		end
+		if instance:GetAttribute("OwnerUserId") ~= nil then
+			return instance:GetAttribute("OwnerUserId") == player.UserId and model or nil
+		end
+		instance = instance.Parent
+	end
+	return nil
+end
+
+function PlacementController.CancelPick()
+	if not pick then
+		return
+	end
+	local onFinish = pick.onFinish
+	pickCleanup()
+	if onFinish then
+		onFinish()
+	end
+end
+
+function PlacementController.StartPick(ctx, opts)
+	if session then
+		PlacementController.Cancel()
+	end
+	if pick then
+		pickCleanup()
+	end
+	local removing = opts.mode == "remove"
+	pick = { ctx = ctx, onFinish = opts.onFinish, connections = {}, busy = false }
+	local p = pick
+	PlacementController.Active = true
+	p.highlight = Instance.new("Highlight")
+	p.highlight.FillColor = removing and Theme.Danger or Theme.Accent
+	p.highlight.FillTransparency = 0.5
+	p.highlight.OutlineColor = Color3.new(1, 1, 1)
+	p.highlight.Parent = Workspace.CurrentCamera
+	p.hud = C.New("ScreenGui", { Name = "FEU_PiecePick", ResetOnSpawn = false, DisplayOrder = 5 }, player:WaitForChild("PlayerGui"))
+	local top = C.New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 70),
+		Size = UDim2.new(0.9, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Theme.Panel,
+		Children = {
+			C.Corner(), C.Stroke(removing and Theme.Danger or Theme.Accent, 2), C.Padding(10, 14), C.List(nil, 4),
+			C.New("UISizeConstraint", { MaxSize = Vector2.new(640, math.huge) }),
+		},
+	}, p.hud)
+	C.Label(removing and "🗑️ <b>QUITAR PIEZAS</b> · haz clic (o toca) en cada pieza que quieras quitar. Se devuelve la mitad del precio."
+		or "✋ <b>MOVER UNA PIEZA</b> · haz clic (o toca) en la pieza que quieras mover.", { TextSize = 15 }).Parent = top
+	C.Button("✔ Terminar", "danger", PlacementController.CancelPick, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.new(0, 160, 0, 50),
+		AutomaticSize = Enum.AutomaticSize.None,
+	}).Parent = p.hud
+
+	local function choose(model)
+		if not model or p.busy or pick ~= p then
+			return
+		end
+		local index, pieceId = model:GetAttribute("PieceIndex"), model:GetAttribute("PieceId")
+		if removing then
+			p.busy = true
+			ctx.act("RemovePiece", { index = index, piece = pieceId })
+			-- Los índices cambian al quitar: se espera a que el servidor redibuje el estadio
+			task.wait(0.6)
+			if pick == p then
+				p.busy = false
+			end
+		else
+			local onFinish = p.onFinish
+			pickCleanup()
+			PlacementController.Start(ctx, { kind = "piece", pieceId = pieceId, moveIndex = index, onFinish = onFinish })
+		end
+	end
+
+	table.insert(p.connections, RunService.RenderStepped:Connect(function()
+		if pick == p and UserInputService.MouseEnabled then
+			p.highlight.Adornee = pieceAt(UserInputService:GetMouseLocation())
+		end
+	end))
+	table.insert(p.connections, UserInputService.InputBegan:Connect(function(input, processed)
+		if pick ~= p or processed then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.Escape then
+			PlacementController.CancelPick()
+		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+			choose(pieceAt(UserInputService:GetMouseLocation()))
+		end
+	end))
+	table.insert(p.connections, UserInputService.TouchTap:Connect(function(positions, processed)
+		if pick == p and not processed and positions[1] then
+			local model = pieceAt(Vector2.new(positions[1].X, positions[1].Y), true)
+			p.highlight.Adornee = model
+			choose(model)
+		end
+	end))
+	return true
+end
+
 return PlacementController
-]]></ProtectedString></Properties></Item></Item><Item class="LocalScript" referent="RBX00000043"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (LocalScript)
+]]></ProtectedString></Properties></Item></Item><Item class="LocalScript" referent="RBX00000046"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (LocalScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Main
 --
 -- Interfaz principal: barra superior, menú principal adaptable (PC / móvil / tableta),
@@ -12940,6 +13735,7 @@ local ComingSoon = require(ScreensFolder.ComingSoon)
 local InvitePrompt = require(UI:WaitForChild("InvitePrompt"))
 local PlacementController = require(script.Parent:WaitForChild("Controllers"):WaitForChild("PlacementController"))
 local MovementController = require(script.Parent.Controllers:WaitForChild("MovementController"))
+local MusicController = require(script.Parent.Controllers:WaitForChild("MusicController"))
 local ArenaHud = require(UI:WaitForChild("ArenaHud"))
 local AdminPanel = require(UI:WaitForChild("AdminPanel"))
 
@@ -13020,6 +13816,37 @@ function ctx.startPlacement(opts)
 	if not started then
 		ctx.navigate("build", { tab = "decor" })
 	end
+end
+
+-- Construcción libre: colocar piezas del estadio (se pueden poner varias seguidas).
+function ctx.startPiecePlacement(opts)
+	ctx.close()
+	buildTopBar()
+	local started = PlacementController.Start(ctx, {
+		kind = "piece",
+		pieceId = opts.pieceId,
+		moveIndex = opts.moveIndex,
+		onFinish = function()
+			ctx.navigate("build", { tab = "free" })
+			buildTopBar()
+		end,
+	})
+	if not started then
+		ctx.navigate("build", { tab = "free" })
+	end
+end
+
+-- Construcción libre: elegir con un clic la pieza que se mueve o se quita.
+function ctx.startPiecePick(mode)
+	ctx.close()
+	buildTopBar()
+	PlacementController.StartPick(ctx, {
+		mode = mode,
+		onFinish = function()
+			ctx.navigate("build", { tab = "free" })
+			buildTopBar()
+		end,
+	})
 end
 
 function ctx.secondsToNextCycle()
@@ -13286,6 +14113,11 @@ local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexB
 MovementController.Init(hud, C, Theme)
 ArenaHud.Init(hud, { C = C, Theme = Theme, act = ctx.act, Format = Format })
 AdminPanel.Init(hud, { C = C, Theme = Theme, act = ctx.act })
+MusicController.Init(hud, { C = C, Theme = Theme, onToggle = function(enabled)
+	pcall(function()
+		actionRemote:InvokeServer("SaveSettings", { music = enabled }) -- sin aviso en pantalla
+	end)
+end })
 buildShell()
 buildTopBar()
 renderCurrent(false)
@@ -13319,6 +14151,12 @@ stateRemote.OnClientEvent:Connect(function(state)
 	ctx.state = state
 	ctx.stateReceivedAt = os.clock()
 	AdminPanel.Update(state)
+	-- La música solo sigue al servidor cuando la preferencia guardada cambia (no pisa el botón 🎵)
+	local wantsMusic = state.settings.music ~= false
+	if ctx.serverMusic ~= wantsMusic then
+		ctx.serverMusic = wantsMusic
+		MusicController.SetEnabled(wantsMusic)
+	end
 	if layoutChanged then
 		buildShell()
 	end
@@ -13451,7 +14289,7 @@ task.spawn(function()
 		actionRemote:InvokeServer("RefreshShop")
 	end)
 end)
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000056"><Properties><string name="Name">Screens</string></Properties><Item class="ModuleScript" referent="RBX00000044"><Properties><string name="Name">Academy</string><ProtectedString name="Source"><![CDATA[-- Academy (ModuleScript) · Pantalla "Academia" · CANTERA GENERACIONAL (FASE 4)
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000059"><Properties><string name="Name">Screens</string></Properties><Item class="ModuleScript" referent="RBX00000047"><Properties><string name="Name">Academy</string><ProtectedString name="Source"><![CDATA[-- Academy (ModuleScript) · Pantalla "Academia" · CANTERA GENERACIONAL (FASE 4)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Academy
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13574,7 +14412,7 @@ function Academy.Render(container, ctx)
 end
 
 return Academy
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000045"><Properties><string name="Name">Achievements</string><ProtectedString name="Source"><![CDATA[-- Achievements (ModuleScript) · Pantalla "Logros" (FASE 10)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000048"><Properties><string name="Name">Achievements</string><ProtectedString name="Source"><![CDATA[-- Achievements (ModuleScript) · Pantalla "Logros" (FASE 10)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Achievements
 
 local Achievements = {}
@@ -13616,9 +14454,9 @@ function Achievements.Render(container, ctx)
 end
 
 return Achievements
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000046"><Properties><string name="Name">Build</string><ProtectedString name="Source"><![CDATA[-- Build (ModuleScript) · Pantalla "Construcción"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000049"><Properties><string name="Name">Build</string><ProtectedString name="Source"><![CDATA[-- Build (ModuleScript) · Pantalla "Construcción"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Build
--- Pestañas: Instalaciones · Decoración (comprar y colocar) · Diseños (Constructor Pro).
+-- Pestañas: Instalaciones · Estadio libre (piezas sueltas) · Decoración · Diseños (Constructor Pro).
 -- La interfaz calcula requisitos solo para informar; el servidor valida cada compra.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13626,6 +14464,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local StadiumPieces = require(Shared.Config.StadiumPieces)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
 
 local UI = script.Parent.Parent:WaitForChild("UI")
@@ -13837,6 +14676,75 @@ local function renderDesigns(add, ctx)
 	end
 end
 
+-- CONSTRUCCIÓN LIBRE: piezas sueltas que se colocan en cualquier punto del terreno.
+local function renderFreeBuild(add, ctx)
+	local C, Theme, Format, state = ctx.C, ctx.Theme, ctx.Format, ctx.state
+	local stadium = state.stadium
+	local pieces = stadium.pieces or {}
+	local max = stadium.maxPieces or StadiumPieces.MAX_PIECES
+	local full = #pieces >= max
+	local isPro = state.premium.owned.CONSTRUCTOR_PRO == true
+
+	local moveButton = C.Button("✋ Mover una pieza", "secondary", function()
+		ctx.startPiecePick("move")
+	end)
+	local removeButton = C.Button("🗑️ Quitar piezas", "danger", function()
+		ctx.startPiecePick("remove")
+	end)
+	C.SetEnabled(moveButton, #pieces > 0)
+	C.SetEnabled(removeButton, #pieces > 0)
+	add(C.Card({ BackgroundColor3 = Theme.Panel }, {
+		C.Row({
+			C.Title(string.format("🧱 Estadio libre · %d / %d piezas", #pieces, max), 18),
+			C.Badge(string.format("Rejilla %d · Rotación %d°", stadium.tools.grid, stadium.tools.rotationStep), isPro and Theme.Info or Theme.CardAlt),
+		}, 10),
+		C.Label("Construye tu estadio a tu manera: una silla aquí, el campo allí, una grada allá… Las piezas se colocan en cualquier punto de tu "
+			.. "terreno y se pueden montar unas sobre otras. Te puedes sentar en las sillas y en los banquillos. "
+			.. string.format("Quitar una pieza devuelve el %d%% de su precio.", math.floor(StadiumPieces.REFUND * 100)),
+			{ TextColor3 = Theme.TextDim, TextSize = 13 }),
+		C.Row({ moveButton, removeButton }, 8),
+	}))
+
+	-- Modo libre: oculta el estadio automático
+	local modeButton = C.Button(stadium.freeBuild and "🏟️ Volver al estadio automático" or "🧱 Activar el modo libre", stadium.freeBuild and "secondary" or "gold", function()
+		ctx.act("SetFreeBuild", { enabled = not stadium.freeBuild })
+	end)
+	add(C.Card({}, {
+		C.Title(stadium.freeBuild and "Modo libre: ACTIVADO" or "Modo libre: desactivado", 16),
+		C.Label(stadium.freeBuild
+			and "Tu estadio automático está oculto: en tu terreno solo se ve lo que tú colocas. Tus instalaciones, tu aforo y tus ingresos no cambian."
+			or "Ahora ves el estadio automático más tus piezas. Si activas el modo libre, el estadio automático se oculta y empiezas con el terreno "
+				.. "vacío para construirlo entero pieza a pieza. Tus instalaciones, tu aforo y tus ingresos no cambian, y puedes volver cuando quieras.",
+			{ TextColor3 = Theme.TextDim, TextSize = 13 }),
+		C.Row({ modeButton }, 8),
+	}))
+
+	if full then
+		add(C.Label(string.format("Has llegado al máximo de %d piezas. Quita alguna para colocar otra.", max), { TextColor3 = Theme.Warning, TextSize = 13 }))
+	end
+	for _, category in ipairs(StadiumPieces.Categories) do
+		local card = C.Card({}, { C.Title(category.icon .. " " .. category.name, 18) })
+		for _, piece in ipairs(StadiumPieces.List) do
+			if piece.category == category.id then
+				local button = C.Button("Colocar · " .. Format.Money(piece.cost), "primary", function()
+					ctx.startPiecePlacement({ pieceId = piece.id })
+				end, { Size = UDim2.new(0, 170, 0, 34), AutomaticSize = Enum.AutomaticSize.None })
+				if state.economy.money < piece.cost then
+					C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(piece.cost))
+				elseif full then
+					C.SetEnabled(button, false, "Límite alcanzado")
+				end
+				C.Row({
+					C.Label(string.format("%s %s  <font color='#8C9BB4'>(%d×%d)</font>", piece.icon, piece.name, piece.w, piece.d),
+						{ Size = UDim2.new(1, -190, 0, 0) }),
+					button,
+				}).Parent = card
+			end
+		end
+		add(card)
+	end
+end
+
 function Build.Render(container, ctx)
 	local C, Theme, Format = ctx.C, ctx.Theme, ctx.Format
 	local tab = ctx.params.tab or "facilities"
@@ -13850,6 +14758,7 @@ function Build.Render(container, ctx)
 	}, 14))
 	local tabs = {
 		{ id = "facilities", label = "Instalaciones" },
+		{ id = "free", label = "🧱 Estadio libre" },
 		{ id = "decor", label = "Decoración" },
 		{ id = "designs", label = "Diseños" },
 	}
@@ -13861,7 +14770,9 @@ function Build.Render(container, ctx)
 	end
 	add(C.Row(tabButtons, 8))
 
-	if tab == "decor" then
+	if tab == "free" then
+		renderFreeBuild(add, ctx)
+	elseif tab == "decor" then
 		renderDecorations(add, ctx)
 	elseif tab == "designs" then
 		renderDesigns(add, ctx)
@@ -13871,7 +14782,7 @@ function Build.Render(container, ctx)
 end
 
 return Build
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000047"><Properties><string name="Name">Club</string><ProtectedString name="Source"><![CDATA[-- Club (ModuleScript) · Pantalla "Mi club"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004A"><Properties><string name="Name">Club</string><ProtectedString name="Source"><![CDATA[-- Club (ModuleScript) · Pantalla "Mi club"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Club
 -- Nombre, abreviatura y apariencia del club (escudo, colores, equipación, efectos).
 
@@ -14048,7 +14959,7 @@ function Club.Render(container, ctx)
 end
 
 return Club
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000048"><Properties><string name="Name">ComingSoon</string><ProtectedString name="Source"><![CDATA[-- ComingSoon (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004B"><Properties><string name="Name">ComingSoon</string><ProtectedString name="Source"><![CDATA[-- ComingSoon (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/ComingSoon
 -- Pantalla honesta para secciones de fases futuras: explica qué incluirán y cuándo.
 -- No contiene botones que finjan funcionar.
@@ -14092,7 +15003,7 @@ function ComingSoon.Render(container, ctx)
 end
 
 return ComingSoon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000049"><Properties><string name="Name">Economy</string><ProtectedString name="Source"><![CDATA[-- Economy (ModuleScript) · Pantalla "Economía"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004C"><Properties><string name="Name">Economy</string><ProtectedString name="Source"><![CDATA[-- Economy (ModuleScript) · Pantalla "Economía"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Economy
 -- Pestañas: Resumen (dinero, deuda, entradas, previsión, historial) · Aficionados (FASE 3)
 -- · Comercial (FASE 3) · Patrocinios (FASE 3).
@@ -14444,7 +15355,7 @@ function Economy.Render(container, ctx)
 end
 
 return Economy
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004A"><Properties><string name="Name">History</string><ProtectedString name="Source"><![CDATA[-- History (ModuleScript) · Pantalla "Historia del club" (FASE 8)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004D"><Properties><string name="Name">History</string><ProtectedString name="Source"><![CDATA[-- History (ModuleScript) · Pantalla "Historia del club" (FASE 8)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/History
 -- Pestañas: Resumen · Temporadas · Jugadores · Récords · Cronología.
 -- Todo procede de acontecimientos reales del juego registrados por el servidor.
@@ -14640,7 +15551,7 @@ function History.Render(container, ctx)
 end
 
 return History
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004B"><Properties><string name="Name">Home</string><ProtectedString name="Source"><![CDATA[-- Home (ModuleScript) · Pantalla "Inicio"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004E"><Properties><string name="Name">Home</string><ProtectedString name="Source"><![CDATA[-- Home (ModuleScript) · Pantalla "Inicio"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Home
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14819,7 +15730,7 @@ function Home.Render(container, ctx)
 end
 
 return Home
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004C"><Properties><string name="Name">Leagues</string><ProtectedString name="Source"><![CDATA[-- Leagues (ModuleScript) · Pantalla "Ligas" (FASE 7)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004F"><Properties><string name="Name">Leagues</string><ProtectedString name="Source"><![CDATA[-- Leagues (ModuleScript) · Pantalla "Ligas" (FASE 7)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Leagues
 -- Pestañas: Clasificación · Calendario · Copa · Carrera (objetivos, temporadas y palmarés).
 
@@ -14997,7 +15908,7 @@ function Leagues.Render(container, ctx)
 end
 
 return Leagues
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004D"><Properties><string name="Name">Matches</string><ProtectedString name="Source"><![CDATA[-- Matches (ModuleScript) · Pantalla "Partidos" (FASE 5)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000050"><Properties><string name="Name">Matches</string><ProtectedString name="Source"><![CDATA[-- Matches (ModuleScript) · Pantalla "Partidos" (FASE 5)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Matches
 -- Pestañas: Alineación · Tácticas · Amistosos · Historial.
 -- Todos los partidos son SIMULADOS por el servidor.
@@ -15291,7 +16202,7 @@ function Matches.Render(container, ctx)
 end
 
 return Matches
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004E"><Properties><string name="Name">Missions</string><ProtectedString name="Source"><![CDATA[-- Missions (ModuleScript) · Pantalla "Misiones" (FASE 10)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000051"><Properties><string name="Name">Missions</string><ProtectedString name="Source"><![CDATA[-- Missions (ModuleScript) · Pantalla "Misiones" (FASE 10)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Missions
 
 local Missions = {}
@@ -15349,7 +16260,7 @@ function Missions.Render(container, ctx)
 end
 
 return Missions
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000004F"><Properties><string name="Name">Network</string><ProtectedString name="Source"><![CDATA[-- Network (ModuleScript) · Pantalla "Red de clubes" (FASE 9)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000052"><Properties><string name="Name">Network</string><ProtectedString name="Source"><![CDATA[-- Network (ModuleScript) · Pantalla "Red de clubes" (FASE 9)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Network
 -- Pestañas: Amigos · Torneo · Comunidad · Enfrentamientos · Comparar.
 
@@ -15578,7 +16489,7 @@ function Network.Render(container, ctx)
 end
 
 return Network
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000050"><Properties><string name="Name">Settings</string><ProtectedString name="Source"><![CDATA[-- Settings (ModuleScript) · Pantalla "Configuración"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000053"><Properties><string name="Name">Settings</string><ProtectedString name="Source"><![CDATA[-- Settings (ModuleScript) · Pantalla "Configuración"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Settings
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15610,6 +16521,7 @@ function Settings.Render(container, ctx)
 	end
 	add(toggle("Notificaciones de jornada", "Muestra el resultado económico de cada jornada.", "notifications"))
 	add(toggle("Menú compacto", "En PC, muestra solo los iconos del menú lateral.", "compactMenu"))
+	add(toggle("Música", "Música de fondo del juego. También puedes usar el botón 🎵 de arriba a la derecha.", "music"))
 
 	add(C.Card({}, {
 		C.Label(string.format("<b>Tamaño de la interfaz</b> · %d%%", math.floor(settings.uiScale * 100 + 0.5))),
@@ -15645,7 +16557,7 @@ function Settings.Render(container, ctx)
 end
 
 return Settings
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000051"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[-- Shop (ModuleScript) · TIENDA PREMIUM
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000054"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[-- Shop (ModuleScript) · TIENDA PREMIUM
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Shop
 --
 -- Muestra los Game Passes con su estado REAL enviado por el servidor:
@@ -15868,7 +16780,7 @@ function Shop.Render(container, ctx)
 end
 
 return Shop
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000052"><Properties><string name="Name">Squad</string><ProtectedString name="Source"><![CDATA[-- Squad (ModuleScript) · Pantalla "Plantilla" (FASE 4)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000055"><Properties><string name="Name">Squad</string><ProtectedString name="Source"><![CDATA[-- Squad (ModuleScript) · Pantalla "Plantilla" (FASE 4)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Squad
 -- Jugadores con estadísticas, contratos, entrenamiento, renovaciones y rescisiones.
 
@@ -16111,7 +17023,7 @@ function Squad.Render(container, ctx)
 end
 
 return Squad
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000053"><Properties><string name="Name">Stadium</string><ProtectedString name="Source"><![CDATA[-- Stadium (ModuleScript) · Pantalla "Mi estadio"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000056"><Properties><string name="Name">Stadium</string><ProtectedString name="Source"><![CDATA[-- Stadium (ModuleScript) · Pantalla "Mi estadio"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Stadium
 -- Resumen del estadio: etapa evolutiva, aforo, atractivo e instalaciones.
 
@@ -16264,7 +17176,7 @@ function Stadium.Render(container, ctx)
 end
 
 return Stadium
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000054"><Properties><string name="Name">Transfers</string><ProtectedString name="Source"><![CDATA[-- Transfers (ModuleScript) · Pantalla "Fichajes" (FASE 6)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000057"><Properties><string name="Name">Transfers</string><ProtectedString name="Source"><![CDATA[-- Transfers (ModuleScript) · Pantalla "Fichajes" (FASE 6)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Transfers
 -- Pestañas: Mercado · Ofertas recibidas · Vender y ceder.
 
@@ -16460,7 +17372,7 @@ function Transfers.Render(container, ctx)
 end
 
 return Transfers
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000055"><Properties><string name="Name">Universe</string><ProtectedString name="Source"><![CDATA[-- Universe (ModuleScript) · Pantalla "Universo" (FASE 8)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000058"><Properties><string name="Name">Universe</string><ProtectedString name="Source"><![CDATA[-- Universe (ModuleScript) · Pantalla "Universo" (FASE 8)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Universe
 -- Pestañas: Evento · Rankings · Semanal · Directorio.
 
@@ -16615,7 +17527,7 @@ function Universe.Render(container, ctx)
 end
 
 return Universe
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000005F"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000057"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[-- AdminPanel (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX00000062"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX0000005A"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[-- AdminPanel (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/AdminPanel
 --
 -- * Panel «🛡️ ADMIN» (solo aparece si el SERVIDOR dice que eres admin): lanza eventos
@@ -16803,7 +17715,7 @@ function AdminPanel.Init(gui, deps)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000058"><Properties><string name="Name">ArenaHud</string><ProtectedString name="Source"><![CDATA[-- ArenaHud (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005B"><Properties><string name="Name">ArenaHud</string><ProtectedString name="Source"><![CDATA[-- ArenaHud (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/ArenaHud
 --
 -- Interfaz de los PARTIDOS EN GRUPO:
@@ -17083,7 +17995,7 @@ function ArenaHud.Init(gui, deps)
 end
 
 return ArenaHud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000059"><Properties><string name="Name">Components</string><ProtectedString name="Source"><![CDATA[-- Components (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005C"><Properties><string name="Name">Components</string><ProtectedString name="Source"><![CDATA[-- Components (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Components
 -- Fábrica de elementos de interfaz reutilizables (todo por código, sin assets externos).
 
@@ -17416,7 +18328,7 @@ function C.OptionTile(title, subtitle, opts, extra)
 end
 
 return C
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005A"><Properties><string name="Name">InvitePrompt</string><ProtectedString name="Source"><![CDATA[-- InvitePrompt (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005D"><Properties><string name="Name">InvitePrompt</string><ProtectedString name="Source"><![CDATA[-- InvitePrompt (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/InvitePrompt
 -- Ventana para aceptar o rechazar una invitación a partido de otro club del servidor (FASE 9).
 
@@ -17473,7 +18385,7 @@ function InvitePrompt.Show(ctx, info, onResult)
 end
 
 return InvitePrompt
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005B"><Properties><string name="Name">MatchViewer</string><ProtectedString name="Source"><![CDATA[-- MatchViewer (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005E"><Properties><string name="Name">MatchViewer</string><ProtectedString name="Source"><![CDATA[-- MatchViewer (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/MatchViewer
 --
 -- Reproduce el RESUMEN de un partido simulado que ya ha calculado el servidor.
@@ -17636,7 +18548,7 @@ function MatchViewer.Show(result)
 end
 
 return MatchViewer
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005C"><Properties><string name="Name">Notifier</string><ProtectedString name="Source"><![CDATA[-- Notifier (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005F"><Properties><string name="Name">Notifier</string><ProtectedString name="Source"><![CDATA[-- Notifier (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Notifier
 -- Notificaciones emergentes (toasts) apiladas en la esquina superior.
 
@@ -17713,7 +18625,7 @@ function Notifier.Show(kind, message, duration)
 end
 
 return Notifier
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005D"><Properties><string name="Name">Premium</string><ProtectedString name="Source"><![CDATA[-- Premium (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000060"><Properties><string name="Name">Premium</string><ProtectedString name="Source"><![CDATA[-- Premium (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Premium
 -- Ayudas de INTERFAZ para mostrar opciones bloqueadas por Game Pass.
 -- Solo deciden qué se muestra: el servidor vuelve a validar cada acción.
@@ -17754,7 +18666,7 @@ function Premium.OnLockedClick(ctx, item)
 end
 
 return Premium
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005E"><Properties><string name="Name">Theme</string><ProtectedString name="Source"><![CDATA[-- Theme (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000061"><Properties><string name="Name">Theme</string><ProtectedString name="Source"><![CDATA[-- Theme (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Theme
 -- Paleta y tipografía de la interfaz: estilo futbolístico moderno (noche de estadio).
 
