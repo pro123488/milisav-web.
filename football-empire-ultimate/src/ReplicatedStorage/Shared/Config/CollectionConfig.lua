@@ -62,6 +62,20 @@ CollectionConfig.Balls = {
 	{ id = "rainbow", name = "Arcoíris", icon = "🌈", rarity = "legendary", color = Color3.fromRGB(255, 90, 160), material = "Neon", trail = { Color3.fromRGB(255, 60, 60), Color3.fromRGB(255, 220, 60), Color3.fromRGB(60, 220, 120), Color3.fromRGB(70, 130, 255) }, sparkles = Color3.fromRGB(255, 255, 255) },
 	{ id = "champion", name = "Balón del campeón", icon = "👑", rarity = "mythic", color = Color3.fromRGB(255, 215, 70), material = "Neon", trail = { Color3.fromRGB(255, 255, 220), Color3.fromRGB(255, 190, 30) }, sparkles = Color3.fromRGB(255, 240, 150), fire = true, light = Color3.fromRGB(255, 210, 90) },
 }
+-- Balones exclusivos del pase de temporada (exclusive = no salen en las cajas)
+for _, ball in ipairs({
+	{ id = "season_fire", name = "Meteorito", icon = "☄️", rarity = "legendary", color = Color3.fromRGB(170, 40, 20), material = "CrackedLava", trail = { Color3.fromRGB(255, 220, 80), Color3.fromRGB(255, 70, 20) }, fire = true },
+	{ id = "season_fire_elite", name = "Sol ardiente", icon = "🌞", rarity = "mythic", color = Color3.fromRGB(255, 190, 40), material = "Neon", trail = { Color3.fromRGB(255, 255, 200), Color3.fromRGB(255, 120, 20) }, fire = true, light = Color3.fromRGB(255, 190, 80), sparkles = Color3.fromRGB(255, 230, 140) },
+	{ id = "season_ice", name = "Copo polar", icon = "❄️", rarity = "legendary", color = Color3.fromRGB(215, 240, 255), material = "Ice", trail = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 200, 255) }, sparkles = Color3.fromRGB(220, 245, 255) },
+	{ id = "season_ice_elite", name = "Aurora boreal", icon = "🌠", rarity = "mythic", color = Color3.fromRGB(90, 255, 200), material = "Neon", trail = { Color3.fromRGB(90, 255, 200), Color3.fromRGB(120, 140, 255), Color3.fromRGB(220, 120, 255) }, light = Color3.fromRGB(120, 255, 220), sparkles = Color3.fromRGB(200, 255, 240) },
+	{ id = "season_galaxy", name = "Nebulosa", icon = "🔮", rarity = "legendary", color = Color3.fromRGB(150, 70, 230), material = "Neon", trail = { Color3.fromRGB(255, 140, 255), Color3.fromRGB(90, 60, 220) }, sparkles = Color3.fromRGB(230, 180, 255) },
+	{ id = "season_galaxy_elite", name = "Agujero negro", icon = "🕳️", rarity = "mythic", color = Color3.fromRGB(15, 10, 25), material = "Glass", trail = { Color3.fromRGB(200, 120, 255), Color3.fromRGB(20, 10, 40) }, light = Color3.fromRGB(170, 90, 255), sparkles = Color3.fromRGB(190, 130, 255) },
+	{ id = "season_gold", name = "Corona real", icon = "👑", rarity = "legendary", color = Color3.fromRGB(255, 205, 60), material = "Metal", trail = { Color3.fromRGB(255, 245, 190), Color3.fromRGB(255, 190, 40) }, sparkles = Color3.fromRGB(255, 235, 150) },
+	{ id = "season_gold_elite", name = "Balón de platino", icon = "💠", rarity = "mythic", color = Color3.fromRGB(225, 232, 245), material = "Metal", trail = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(170, 200, 255) }, light = Color3.fromRGB(220, 230, 255), sparkles = Color3.fromRGB(255, 255, 255) },
+}) do
+	ball.exclusive = true
+	table.insert(CollectionConfig.Balls, ball)
+end
 CollectionConfig.DEFAULT_BALL = "classic"
 
 CollectionConfig.Crates = {

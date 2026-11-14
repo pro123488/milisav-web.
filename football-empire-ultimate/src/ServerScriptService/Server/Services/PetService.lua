@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage.Shared
 local CollectionConfig = require(Shared.Config.CollectionConfig)
+local WeeklyConfig = require(Shared.Config.WeeklyConfig)
 local Remotes = require(Shared.Modules.Remotes)
 
 local DataService = require(script.Parent.DataService)
@@ -38,8 +39,19 @@ for _, pet in ipairs(CollectionConfig.Pets) do
 	table.insert(petsByRarity[pet.rarity], pet)
 end
 for _, ball in ipairs(CollectionConfig.Balls) do
-	ballsByRarity[ball.rarity] = ballsByRarity[ball.rarity] or {}
-	table.insert(ballsByRarity[ball.rarity], ball)
+	if not ball.exclusive then -- los exclusivos del pase de temporada no salen en las cajas
+		ballsByRarity[ball.rarity] = ballsByRarity[ball.rarity] or {}
+		table.insert(ballsByRarity[ball.rarity], ball)
+	end
+end
+
+-- Precios con el descuento de la semana (si esta semana toca huevos o cajas)
+function PetService.EggCost(egg)
+	return WeeklyConfig.Price(egg.cost, WeeklyConfig.ActiveBonus().eggDiscount)
+end
+
+function PetService.CrateCost(crate)
+	return WeeklyConfig.Price(crate.cost, WeeklyConfig.ActiveBonus().crateDiscount)
 end
 
 -- ===== Sorteo =====
@@ -65,16 +77,8 @@ local function announce(player, text)
 	notifyRemote:FireAllClients("info", string.format("🎉 %s %s", player.DisplayName, text))
 end
 
-function PetService.Hatch(player, payload)
-	local data = DataService.Get(player)
-	local egg = type(payload) == "table" and type(payload.egg) == "string" and CollectionConfig.EggById[payload.egg]
-	if not egg then
-		return false, "Ese huevo no existe."
-	end
-	local paid, payError = EconomyService.Spend(player, egg.cost, EconomyService.Category.COLLECTION, egg.name)
-	if not paid then
-		return false, payError
-	end
+-- Sortea una mascota de ese huevo y la guarda. Devuelve la mascota, su rareza y si es nueva.
+local function hatchInto(player, data, egg)
 	local rarityId = rollRarity(egg.weights)
 	local pool = petsByRarity[rarityId]
 	local pet = pool[rng:NextInteger(1, #pool)]
@@ -86,8 +90,67 @@ function PetService.Hatch(player, payload)
 	if rarityId == "legendary" or rarityId == "mythic" then
 		announce(player, string.format("ha conseguido la mascota %s %s (%s)", pet.icon, pet.name, rarity.name))
 	end
+	return pet, rarity, isNew
+end
+
+function PetService.Hatch(player, payload)
+	local data = DataService.Get(player)
+	local egg = type(payload) == "table" and type(payload.egg) == "string" and CollectionConfig.EggById[payload.egg]
+	if not egg then
+		return false, "Ese huevo no existe."
+	end
+	local paid, payError = EconomyService.Spend(player, PetService.EggCost(egg), EconomyService.Category.COLLECTION, egg.name)
+	if not paid then
+		return false, payError
+	end
+	local pet, rarity, isNew = hatchInto(player, data, egg)
 	return true, string.format("%s ¡%s! Mascota %s%s.", pet.icon, pet.name, rarity.name, isNew and " · ¡NUEVA!" or ""), false,
 		{ kind = "pet", id = pet.id, isNew = isNew }
+end
+
+-- Huevo regalado (recompensa del pase de temporada): se abre al momento, sin cobrar.
+function PetService.GrantEgg(player, eggId)
+	local data = DataService.Get(player)
+	local egg = CollectionConfig.EggById[eggId]
+	if not data or not egg then
+		return nil
+	end
+	local pet, rarity, isNew = hatchInto(player, data, egg)
+	return string.format("%s %s (%s)%s", pet.icon, pet.name, rarity.name, isNew and " · ¡nueva!" or "")
+end
+
+-- Balón regalado (recompensa del pase): sortea la rareza de esa caja y da un balón que NO tengas.
+-- Si ya tienes todos los de esa rareza, busca en las demás; devuelve nil si ya los tienes todos.
+function PetService.GrantBall(player, crateId)
+	local data = DataService.Get(player)
+	local crate = CollectionConfig.CrateById[crateId]
+	if not data or not crate then
+		return nil
+	end
+	local collection = data.collection
+	local function missing(rarityId)
+		local list = {}
+		for _, ball in ipairs(ballsByRarity[rarityId] or {}) do
+			if ball.id ~= CollectionConfig.DEFAULT_BALL and not collection.balls[ball.id] then
+				table.insert(list, ball)
+			end
+		end
+		return list
+	end
+	local candidates = missing(rollRarity(crate.weights))
+	if #candidates == 0 then
+		for _, rarity in ipairs(CollectionConfig.Rarities) do
+			for _, ball in ipairs(missing(rarity.id)) do
+				table.insert(candidates, ball)
+			end
+		end
+	end
+	if #candidates == 0 then
+		return nil
+	end
+	local ball = candidates[rng:NextInteger(1, #candidates)]
+	collection.balls[ball.id] = true
+	return string.format("%s Balón %s (%s)", ball.icon, ball.name, CollectionConfig.RarityById[ball.rarity].name)
 end
 
 function PetService.OpenCrate(player, payload)
@@ -96,7 +159,8 @@ function PetService.OpenCrate(player, payload)
 	if not crate then
 		return false, "Esa caja no existe."
 	end
-	local paid, payError = EconomyService.Spend(player, crate.cost, EconomyService.Category.COLLECTION, crate.name)
+	local cost = PetService.CrateCost(crate)
+	local paid, payError = EconomyService.Spend(player, cost, EconomyService.Category.COLLECTION, crate.name)
 	if not paid then
 		return false, payError
 	end
@@ -108,7 +172,7 @@ function PetService.OpenCrate(player, payload)
 	local owned = ball.id == CollectionConfig.DEFAULT_BALL or collection.balls[ball.id] == true
 	collection.crates += 1
 	if owned then
-		local refund = math.floor(crate.cost * CollectionConfig.DUPLICATE_BALL_REFUND)
+		local refund = math.floor(cost * CollectionConfig.DUPLICATE_BALL_REFUND)
 		EconomyService.Earn(player, refund, EconomyService.Category.REFUND, "Balón repetido: " .. ball.name)
 		return true, string.format("%s %s (%s) repetido: te devolvemos %d $.", ball.icon, ball.name, rarity.name, refund), false,
 			{ kind = "ball", id = ball.id, isNew = false, refund = refund }

@@ -62,6 +62,11 @@ ids = re.findall(r"\bid = (\d+)", config)
 configured = [i for i in ids if i != "0"]
 print(f"Game Passes: {len(ids)} definidos, {len(configured)} con ID configurado")
 
+# 5b. Producto del pase de temporada premium (0 = pendiente; nunca debe inventarse)
+season = read(f"{root}/ReplicatedStorage/Shared/Config/SeasonConfig.lua")
+product = re.search(r"PREMIUM_PRODUCT_ID = (\d+)", season)
+print("Pase de temporada premium:", "producto configurado" if product and product.group(1) != "0" else "pendiente de configuración (ID 0)")
+
 # 6. Funciones peligrosas
 for path in server + shared:
     if re.search(r"\b(loadstring|getfenv|setfenv)\s*\(", read(path)):

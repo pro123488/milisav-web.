@@ -13,6 +13,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared.Config.GameConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local MenuConfig = require(Shared.Config.MenuConfig)
+local SeasonConfig = require(Shared.Config.SeasonConfig)
+local WeeklyConfig = require(Shared.Config.WeeklyConfig)
 local StadiumPieces = require(Shared.Config.StadiumPieces)
 local Remotes = require(Shared.Modules.Remotes)
 
@@ -39,6 +41,8 @@ local MissionService = require(Services.MissionService)
 local PlotService = require(Services.PlotService)
 local AdminService = require(Services.AdminService)
 local PetService = require(Services.PetService)
+local OutfitService = require(Services.OutfitService)
+local SeasonService = require(Services.SeasonService)
 local ArenaService = require(Services.ArenaService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
@@ -107,6 +111,9 @@ local function buildState(player)
 		economy = EconomyService.Summary(player, data),
 		admin = AdminService.BuildState(player), -- solo para admins (eventos «admin abuse»)
 		collection = PetService.BuildState(data), -- mascotas y balones coleccionables
+		outfits = OutfitService.BuildState(data), -- trajes de futbolista
+		season = SeasonService.BuildState(data), -- pase de temporada
+		weekly = WeeklyConfig.Current(), -- bonus y estadio destacado de la semana
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
@@ -319,6 +326,14 @@ local ACTION_METRICS = {
 	ChallengeClub = "challenge",
 }
 
+-- Acciones que dan puntos del pase de temporada cuando terminan bien (clave de SeasonConfig.XP)
+local ACTION_XP = {
+	ClaimDailyMission = "dailyMission",
+	ClaimChainMission = "chainMission",
+	HatchEgg = "hatch",
+	OpenBallCrate = "crate",
+}
+
 -- ===== Red de clubes (FASE 9) =====
 Actions.InviteMatch = function(player, payload)
 	return NetworkService.Invite(player, payload)
@@ -474,6 +489,32 @@ Actions.EquipBall = function(player, payload)
 	return PetService.EquipBall(player, payload)
 end
 
+-- ===== Trajes de futbolista =====
+Actions.BuyOutfit = function(player, payload)
+	return OutfitService.Buy(player, payload)
+end
+
+Actions.EquipOutfit = function(player, payload)
+	return OutfitService.Equip(player, payload)
+end
+
+Actions.SetDorsal = function(player, payload)
+	return OutfitService.SetDorsal(player, payload)
+end
+
+-- ===== Pase de temporada =====
+Actions.ClaimPassReward = function(player, payload)
+	return SeasonService.Claim(player, payload)
+end
+
+Actions.ClaimPassAll = function(player)
+	return SeasonService.ClaimAll(player)
+end
+
+Actions.BuySeasonPass = function(player)
+	return SeasonService.RequestPremium(player)
+end
+
 -- ===== Partidos en grupo =====
 Actions.JoinArena = function(player)
 	return ArenaService.Join(player)
@@ -528,6 +569,9 @@ actionRemote.OnServerInvoke = function(player, actionName, payload)
 	if ok == true and ACTION_METRICS[actionName] then
 		MissionService.Track(player, ACTION_METRICS[actionName], 1)
 	end
+	if ok == true and ACTION_XP[actionName] then
+		SeasonService.AddXP(player, SeasonConfig.XP[ACTION_XP[actionName]])
+	end
 	if ok == true then
 		MissionService.EvaluateAchievements(player)
 	end
@@ -546,6 +590,7 @@ local function onPlayerAdded(player)
 		if not ArenaService.HandleRespawn(player) then
 			PlotService.CharacterAdded(player)
 		end
+		task.spawn(OutfitService.CharacterAdded, player) -- vuelve a ponerse su traje de futbolista
 		PetService.CharacterAdded(player) -- las mascotas equipadas vuelven a seguir al personaje nuevo
 	end)
 
@@ -576,7 +621,9 @@ local function onPlayerAdded(player)
 	if player.Character then
 		PlotService.TeleportHome(player)
 		task.spawn(PetService.CharacterAdded, player)
+		task.spawn(OutfitService.CharacterAdded, player)
 	end
+	SeasonService.DailyLogin(player)
 	pushState(player)
 	if not DataService.IsSaveEnabled(player) then
 		notifyRemote:FireClient(player, "warning", "Guardado desactivado en esta sesión (DataStore no disponible). Tu progreso no se guardará.")
@@ -653,6 +700,7 @@ EconomyService.OnCycle(function(player, cycle)
 	end
 	HistoryService.AfterCycle(player)
 	MissionService.Track(player, "cycles", 1)
+	SeasonService.AddXP(player, SeasonConfig.XP.cycle)
 	MissionService.EvaluateAchievements(player)
 	PlotService.UpdateCrowd(player, cycle.occupancy)
 	pushState(player)
@@ -692,8 +740,16 @@ ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals)
 		MissionService.Track(player, "wins", 1)
 	end
 	MissionService.EvaluateAchievements(player)
+	SeasonService.AddXP(player, SeasonConfig.XP.match + (teamGoals > otherGoals and SeasonConfig.XP.win or 0)
+		+ math.min(goals, SeasonConfig.MAX_GOALS_XP) * SeasonConfig.XP.goal)
 end)
 AdminService.Start()
+SeasonService.Start()
+SeasonService.OnChanged(function(player)
+	if DataService.Get(player) then
+		pushState(player)
+	end
+end)
 PetService.Start()
 PetService.OnBallChanged(function(player, ballId)
 	InteractionService.SetBallSkin(PlotService.GetPlot(player), ballId)

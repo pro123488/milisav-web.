@@ -15,6 +15,8 @@ local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local StadiumPieces = require(Shared.Config.StadiumPieces)
 local CollectionConfig = require(Shared.Config.CollectionConfig)
+local OutfitConfig = require(Shared.Config.OutfitConfig)
+local SeasonConfig = require(Shared.Config.SeasonConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -85,6 +87,18 @@ function DefaultData.Create(player)
 			ball = "classic",
 			hatched = 0,
 			crates = 0,
+			outfits = {}, -- [id de traje] = true («Tu avatar» y el del club siempre están)
+			outfit = "none",
+			dorsal = nil, -- 1-99; nil = el número propio de cada traje
+		},
+		pass = { -- pase de temporada
+			season = 0, -- número de la temporada a la que pertenece este progreso
+			xp = 0,
+			claimedFree = {}, -- ["nivel"] = true
+			claimedPremium = {},
+			premiumSeason = 0, -- temporada cuyo premium se compró (confirmado por recibo de Roblox)
+			receipts = {}, -- [PurchaseId] = fecha: evita entregar dos veces la misma compra
+			lastLoginDay = 0,
 		},
 		premium = {
 			purchaseLog = {}, -- solo informativo
@@ -653,7 +667,61 @@ function DefaultData.Reconcile(data, player)
 	end
 	collection.hatched = math.max(0, math.floor(tonumber(rawCollection.hatched) or 0))
 	collection.crates = math.max(0, math.floor(tonumber(rawCollection.crates) or 0))
+	collection.outfits = {}
+	if type(rawCollection.outfits) == "table" then
+		for outfitId, owned in pairs(rawCollection.outfits) do
+			if OutfitConfig.ById[outfitId] and owned == true then
+				collection.outfits[outfitId] = true
+			end
+		end
+	end
+	collection.outfit = OutfitConfig.DEFAULT
+	local rawOutfit = type(rawCollection.outfit) == "string" and OutfitConfig.ById[rawCollection.outfit]
+	if rawOutfit and (rawOutfit.id == OutfitConfig.DEFAULT or rawOutfit.club or collection.outfits[rawOutfit.id]) then
+		collection.outfit = rawOutfit.id
+	end
+	if finiteNumber(rawCollection.dorsal) and rawCollection.dorsal >= OutfitConfig.MIN_NUMBER and rawCollection.dorsal <= OutfitConfig.MAX_NUMBER then
+		collection.dorsal = math.floor(rawCollection.dorsal)
+	end
 	data.collection = collection
+
+	-- Pase de temporada
+	local rawPass = type(data.pass) == "table" and data.pass or {}
+	local pass = {
+		season = math.max(0, math.floor(tonumber(rawPass.season) or 0)),
+		xp = math.clamp(math.floor(tonumber(rawPass.xp) or 0), 0, SeasonConfig.TIERS * SeasonConfig.XP_PER_TIER),
+		claimedFree = {},
+		claimedPremium = {},
+		premiumSeason = math.max(0, math.floor(tonumber(rawPass.premiumSeason) or 0)),
+		receipts = {},
+		lastLoginDay = math.max(0, math.floor(tonumber(rawPass.lastLoginDay) or 0)),
+	}
+	for _, track in ipairs({ "claimedFree", "claimedPremium" }) do
+		if type(rawPass[track]) == "table" then
+			for key, claimed in pairs(rawPass[track]) do
+				local tier = tonumber(key)
+				if claimed == true and tier and tier >= 1 and tier <= SeasonConfig.TIERS and tier == math.floor(tier) then
+					pass[track][tostring(tier)] = true
+				end
+			end
+		end
+	end
+	if type(rawPass.receipts) == "table" then
+		-- Se conservan los 30 recibos más recientes
+		local list = {}
+		for receiptId, when in pairs(rawPass.receipts) do
+			if type(receiptId) == "string" and finiteNumber(when) then
+				table.insert(list, { id = receiptId, when = when })
+			end
+		end
+		table.sort(list, function(a, b)
+			return a.when > b.when
+		end)
+		for i = 1, math.min(30, #list) do
+			pass.receipts[list[i].id] = list[i].when
+		end
+	end
+	data.pass = pass
 
 	if type(data.halloween) ~= "table" then
 		data.halloween = {}

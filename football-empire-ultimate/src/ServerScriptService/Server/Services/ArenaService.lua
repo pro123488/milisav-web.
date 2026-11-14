@@ -17,6 +17,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage.Shared
 local Cfg = require(Shared.Config.ArenaConfig)
 local SoundConfig = require(Shared.Config.SoundConfig)
+local WeeklyConfig = require(Shared.Config.WeeklyConfig)
 local Remotes = require(Shared.Modules.Remotes)
 
 local DataService = require(script.Parent.DataService)
@@ -38,6 +39,10 @@ local WHITE = Color3.fromRGB(245, 245, 245)
 local folder -- Folder del estadio de partidos
 local scoreboardLabel
 local teamObjects = {} -- [teamId] = Team
+local floorPart
+local pitchParts = {} -- franjas del césped (para cambiar de estadio)
+local lineParts = {}
+local currentTheme = Cfg.Themes[1]
 local ball
 local kickSound
 local rng = Random.new()
@@ -92,8 +97,42 @@ local function part(props)
 end
 
 local function line(x, z, sx, sz)
-	part({ Name = "Line", Size = Vector3.new(sx, 0.06, sz), CFrame = Cfg.ORIGIN * CFrame.new(x, 0.03, z),
-		Color = WHITE, Material = Enum.Material.SmoothPlastic, CanCollide = false, CanQuery = false })
+	table.insert(lineParts, part({ Name = "Line", Size = Vector3.new(sx, 0.06, sz), CFrame = Cfg.ORIGIN * CFrame.new(x, 0.03, z),
+		Color = WHITE, Material = Enum.Material.SmoothPlastic, CanCollide = false, CanQuery = false }))
+end
+
+local function materialOf(name, fallback)
+	local ok, value = pcall(function()
+		return Enum.Material[name]
+	end)
+	return ok and value or fallback
+end
+
+-- Cambia el aspecto del estadio (césped, suelo y líneas). No toca medidas ni física.
+local function applyTheme(theme)
+	currentTheme = theme
+	local pitchMaterial = materialOf(theme.pitchMaterial, Enum.Material.Grass)
+	for i, stripe in ipairs(pitchParts) do
+		stripe.Color = i % 2 == 1 and theme.pitchA or theme.pitchB
+		stripe.Material = pitchMaterial
+	end
+	if floorPart then
+		floorPart.Color = theme.floor
+		floorPart.Material = materialOf(theme.floorMaterial, Enum.Material.Grass)
+	end
+	local lineMaterial = materialOf(theme.lineMaterial or "SmoothPlastic", Enum.Material.SmoothPlastic)
+	for _, linePart in ipairs(lineParts) do
+		linePart.Color = theme.line
+		linePart.Material = lineMaterial
+	end
+end
+
+-- El estadio destacado de la semana sale la mitad de las veces; el resto, uno al azar.
+local function pickTheme()
+	if rng:NextNumber() < Cfg.FEATURED_THEME_CHANCE then
+		return Cfg.Theme(WeeklyConfig.Current().themeId)
+	end
+	return Cfg.Themes[rng:NextInteger(1, #Cfg.Themes)]
 end
 
 local function buildGoal(sign)
@@ -191,13 +230,13 @@ local function buildArena()
 	folder.Name = "PartidosEnGrupo"
 	folder.Parent = Workspace
 	-- Suelo y franjas
-	part({ Name = "Floor", Size = Vector3.new(Cfg.FIELD_LENGTH + 120, 1, Cfg.FIELD_WIDTH + 120), CFrame = Cfg.ORIGIN * CFrame.new(0, -0.6, 0),
+	floorPart = part({ Name = "Floor", Size = Vector3.new(Cfg.FIELD_LENGTH + 120, 1, Cfg.FIELD_WIDTH + 120), CFrame = Cfg.ORIGIN * CFrame.new(0, -0.6, 0),
 		Color = Color3.fromRGB(70, 110, 60), Material = Enum.Material.Grass })
 	local stripes = 10
 	for i = 0, stripes - 1 do
-		part({ Name = "Pitch", Size = Vector3.new(Cfg.FIELD_LENGTH / stripes, 1, Cfg.FIELD_WIDTH),
+		table.insert(pitchParts, part({ Name = "Pitch", Size = Vector3.new(Cfg.FIELD_LENGTH / stripes, 1, Cfg.FIELD_WIDTH),
 			CFrame = Cfg.ORIGIN * CFrame.new(-HALF_L + (i + 0.5) * Cfg.FIELD_LENGTH / stripes, -0.5, 0),
-			Color = i % 2 == 0 and Color3.fromRGB(52, 150, 64) or Color3.fromRGB(62, 168, 74), Material = Enum.Material.Grass })
+			Color = i % 2 == 0 and Color3.fromRGB(52, 150, 64) or Color3.fromRGB(62, 168, 74), Material = Enum.Material.Grass }))
 	end
 	-- Líneas
 	line(0, -HALF_W + 0.5, Cfg.FIELD_LENGTH, 0.6)
@@ -210,6 +249,7 @@ local function buildArena()
 		local p = part({ Name = "Line", Size = Vector3.new(0.6, 0.06, 4.2), Color = WHITE, CanCollide = false, CanQuery = false,
 			CFrame = Cfg.ORIGIN * CFrame.new(math.cos(a) * 15, 0.03, math.sin(a) * 15) * CFrame.Angles(0, -a, 0) })
 		p.Material = Enum.Material.SmoothPlastic
+		table.insert(lineParts, p)
 	end
 	for _, sign in ipairs({ -1, 1 }) do
 		line(sign * (HALF_L - 18), 0, 0.6, 50)
@@ -300,6 +340,16 @@ local function placeParticipant(player)
 	local lookX = -defendSign(info.team) * 100
 	character:PivotTo(CFrame.lookAt(toWorld(x, 4, z), toWorld(lookX, 4, z)))
 	humanoid:SetAttribute("Arena", true)
+	-- Contorno del color del equipo: se distingue a los compañeros aunque lleven trajes distintos
+	if not character:FindFirstChild("FEU_TeamHighlight") then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "FEU_TeamHighlight"
+		highlight.FillTransparency = 1
+		highlight.OutlineColor = teamInfo(info.team).color
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+		highlight.Parent = character
+	end
 end
 
 local function releaseParticipant(player, teleport)
@@ -309,10 +359,14 @@ local function releaseParticipant(player, teleport)
 	if player.Parent then
 		player.Team = nil
 		player.Neutral = true
-		local _, _, humanoid = characterOf(player)
+		local character, _, humanoid = characterOf(player)
 		if humanoid then
 			humanoid:SetAttribute("Arena", nil)
 			humanoid:SetAttribute("Frozen", nil)
+		end
+		local highlight = character and character:FindFirstChild("FEU_TeamHighlight")
+		if highlight then
+			highlight:Destroy()
 		end
 		if teleport then
 			PlotService.TeleportHome(player)
@@ -603,6 +657,7 @@ local function broadcast()
 		score = { red = score.red, blue = score.blue },
 		teams = lists,
 		goldBall = AdminService.GoalMultiplier() > 1,
+		theme = currentTheme.icon .. " " .. currentTheme.name,
 	}
 	for _, player in ipairs(Players:GetPlayers()) do
 		local info = participants[player]
@@ -755,8 +810,10 @@ end
 local function rewardFor(player, result, goals)
 	local base = result == "win" and Cfg.REWARD_WIN or (result == "draw" and Cfg.REWARD_DRAW or Cfg.REWARD_LOSS)
 	-- Las mascotas equipadas suman su bonus (se consiguen jugando, no pagando)
-	local amount = math.floor((base + goals * Cfg.REWARD_GOAL * AdminService.GoalMultiplier())
-		* AdminService.RewardMultiplier() * (1 + PetService.Bonus(player)))
+	-- El bonus de la semana (partidos x1,5 o goles x2) también cuenta
+	local weekly = WeeklyConfig.ActiveBonus()
+	local amount = math.floor((base + goals * Cfg.REWARD_GOAL * AdminService.GoalMultiplier() * (weekly.goalMultiplier or 1))
+		* AdminService.RewardMultiplier() * (weekly.matchMultiplier or 1) * (1 + PetService.Bonus(player)))
 	local now = os.time()
 	local log = rewardLog[player.UserId] or {}
 	local recent = {}
@@ -814,6 +871,7 @@ local function runMatch(players)
 	score = { red = 0, blue = 0 }
 	lastTouch = nil
 	pendingGoal = nil
+	applyTheme(pickTheme())
 	-- Reparto al azar y equilibrado
 	for i = #players, 2, -1 do
 		local j = rng:NextInteger(1, i)
@@ -827,7 +885,7 @@ local function runMatch(players)
 		participants[player] = { team = team, goals = 0, slot = counts[team] + 1, teamSize = teamSize }
 		player.Neutral = false
 		player.Team = teamObjects[team]
-		arenaRemote:FireClient(player, "joined", { team = team })
+		arenaRemote:FireClient(player, "joined", { team = team, theme = currentTheme.icon .. " " .. currentTheme.name })
 	end
 	-- Los humanos ocupan los puestos de campo; el primer bot de un equipo es el portero.
 	local names = table.clone(Cfg.BOT_NAMES)

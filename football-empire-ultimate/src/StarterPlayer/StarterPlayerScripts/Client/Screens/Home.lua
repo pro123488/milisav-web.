@@ -7,8 +7,21 @@ local FacilityConfig = require(Shared.Config.FacilityConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
+local WeeklyConfig = require(Shared.Config.WeeklyConfig)
+local ArenaConfig = require(Shared.Config.ArenaConfig)
+local SeasonConfig = require(Shared.Config.SeasonConfig)
 
 local Home = {}
+
+local function timeLeft(seconds)
+	seconds = math.max(0, seconds)
+	local days = math.floor(seconds / 86400)
+	local hours = math.floor((seconds % 86400) / 3600)
+	if days > 0 then
+		return string.format("%d d %d h", days, hours)
+	end
+	return string.format("%d h %d min", hours, math.floor((seconds % 3600) / 60))
+end
 
 -- Sugiere los siguientes pasos a partir del estado real del club.
 local function nextSteps(state, Format)
@@ -105,6 +118,28 @@ function Home.Render(container, ctx)
 			C.Label("⚠️ <b>Guardado desactivado en esta sesión.</b> DataStore no está disponible "
 				.. "(en Studio: Game Settings › Security › Enable Studio Access to API Services). "
 				.. "Puedes jugar, pero el progreso no se guardará.", { TextSize = 14 }),
+		}))
+	end
+
+	-- Esta semana: el bonus y el estadio destacado cambian solos cada lunes
+	local weekly, season = state.weekly, state.season
+	local weeklyBonus = weekly and WeeklyConfig.Bonus(weekly.bonusId)
+	if weeklyBonus and season then
+		local theme = ArenaConfig.Theme(weekly.themeId)
+		add(C.Card({ BackgroundColor3 = Color3.fromRGB(20, 40, 70) }, {
+			C.Title(string.format("📅 Esta semana (semana %d)", weekly.number), 20),
+			C.Label(string.format("%s <b>%s</b> · %s", weeklyBonus.icon, weeklyBonus.name, weeklyBonus.text), { TextSize = 14 }),
+			C.Label(string.format("%s Estadio destacado en los partidos en grupo: <b>%s</b>.", theme.icon, theme.name), { TextSize = 14 }),
+			C.Label(string.format("Cambia en %s · %s %s: termina en %s.", timeLeft(weekly.endsAt - os.time()), season.icon, season.name,
+				timeLeft(season.endsAt - os.time())), { TextSize = 12, TextColor3 = Theme.TextDim }),
+			C.Row({
+				C.Button(string.format("🎟️ Pase · nivel %d/%d", season.level, SeasonConfig.TIERS), "gold", function()
+					ctx.navigate("season")
+				end),
+				C.Button("🐾 Mascotas, balones y trajes", "secondary", function()
+					ctx.navigate("collection")
+				end),
+			}, 8),
 		}))
 	end
 

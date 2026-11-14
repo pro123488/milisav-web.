@@ -60,6 +60,33 @@ ArenaConfig.REWARD_LOSS = 800
 ArenaConfig.REWARD_GOAL = 400
 ArenaConfig.MAX_REWARDED_PER_HOUR = 12 -- evita granjear dinero sin límite
 
+-- ESTADIOS: en cada partido se elige uno (el destacado de la semana sale la mitad de las veces).
+-- Solo cambia el aspecto: el balón y las medidas son iguales en todos.
+ArenaConfig.FEATURED_THEME_CHANCE = 0.5
+ArenaConfig.Themes = {
+	{ id = "classic", name = "Estadio clásico", icon = "🏟️", pitchMaterial = "Grass", floorMaterial = "Grass",
+		pitchA = Color3.fromRGB(52, 150, 64), pitchB = Color3.fromRGB(62, 168, 74), floor = Color3.fromRGB(70, 110, 60), line = Color3.fromRGB(245, 245, 245) },
+	{ id = "beach", name = "Playa", icon = "🏖️", pitchMaterial = "Sand", floorMaterial = "Sand",
+		pitchA = Color3.fromRGB(236, 214, 160), pitchB = Color3.fromRGB(226, 200, 140), floor = Color3.fromRGB(245, 228, 185), line = Color3.fromRGB(255, 255, 255) },
+	{ id = "street", name = "Cancha urbana", icon = "🏙️", pitchMaterial = "Asphalt", floorMaterial = "Concrete",
+		pitchA = Color3.fromRGB(70, 74, 84), pitchB = Color3.fromRGB(80, 84, 96), floor = Color3.fromRGB(52, 54, 62), line = Color3.fromRGB(255, 220, 60) },
+	{ id = "snow", name = "Nieve", icon = "🏔️", pitchMaterial = "Snow", floorMaterial = "Ice",
+		pitchA = Color3.fromRGB(235, 242, 250), pitchB = Color3.fromRGB(215, 228, 245), floor = Color3.fromRGB(190, 215, 240), line = Color3.fromRGB(60, 120, 220) },
+	{ id = "volcano", name = "Volcán", icon = "🌋", pitchMaterial = "Basalt", floorMaterial = "CrackedLava",
+		pitchA = Color3.fromRGB(62, 46, 46), pitchB = Color3.fromRGB(76, 54, 50), floor = Color3.fromRGB(170, 50, 20), line = Color3.fromRGB(255, 170, 60) },
+	{ id = "neon", name = "Arena neón", icon = "🌃", pitchMaterial = "SmoothPlastic", floorMaterial = "SmoothPlastic", lineMaterial = "Neon",
+		pitchA = Color3.fromRGB(20, 22, 34), pitchB = Color3.fromRGB(28, 30, 46), floor = Color3.fromRGB(10, 10, 18), line = Color3.fromRGB(0, 255, 220) },
+}
+
+function ArenaConfig.Theme(id)
+	for _, theme in ipairs(ArenaConfig.Themes) do
+		if theme.id == id then
+			return theme
+		end
+	end
+	return ArenaConfig.Themes[1]
+end
+
 -- Plataforma de entrada en la avenida (junto al punto de aparición)
 ArenaConfig.LOBBY_PAD = CFrame.new(40, 0, 0)
 

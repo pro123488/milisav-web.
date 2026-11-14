@@ -327,8 +327,9 @@ function ArenaHud.Init(gui, deps)
 			state = data
 			refresh()
 		elseif kind == "joined" then
-			showBanner(string.format("⚽ ¡A jugar! Eres del equipo <font color='%s'>%s</font>\nClic: chutar · E: pase · Shift: esprintar",
-				data.team == "red" and "#FF9B9B" or "#9BC4FF", TEAM_NAMES[data.team] or "?"), Color3.fromRGB(20, 60, 40), 4)
+			showBanner(string.format("%s · equipo <font color='%s'>%s</font>\nClic: chutar · E: pase · Shift: esprintar",
+				type(data.theme) == "string" and data.theme or "⚽ ¡A jugar!", data.team == "red" and "#FF9B9B" or "#9BC4FF",
+				TEAM_NAMES[data.team] or "?"), Color3.fromRGB(20, 60, 40), 4)
 		elseif kind == "goal" then
 			local who = data.scorer and (data.ownGoal and ("en propia de " .. data.scorer) or data.scorer) or ""
 			showBanner(string.format("⚽ ¡GOOOOL DEL %s!\n%s", TEAM_NAMES[data.team] or "?", who), TEAM_COLORS[data.team], 3)
