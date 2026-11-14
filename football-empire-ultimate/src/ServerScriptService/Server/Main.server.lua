@@ -45,6 +45,7 @@ local OutfitService = require(Services.OutfitService)
 local SeasonService = require(Services.SeasonService)
 local RewardService = require(Services.RewardService)
 local TutorialService = require(Services.TutorialService)
+local RebirthService = require(Services.RebirthService)
 local LeaderboardService = require(Services.LeaderboardService)
 local HubService = require(Services.HubService)
 local ArenaService = require(Services.ArenaService)
@@ -120,6 +121,7 @@ local function buildState(player)
 		weekly = WeeklyConfig.Current(), -- bonus y estadio destacado de la semana
 		rewards = RewardService.BuildState(data), -- recompensa diaria con racha
 		tutorial = TutorialService.BuildState(data), -- primeros pasos guiados
+		rebirth = RebirthService.BuildState(data), -- renacimientos
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
@@ -130,6 +132,7 @@ end
 
 -- Tabla de líderes de Roblox (arriba a la derecha): goles y victorias en partidos en grupo, y dinero.
 local LEADERSTATS = {
+	{ name = "🔄 Renac.", value = function(data) return data.rebirth.count end },
 	{ name = "⚽ Goles", value = function(data) return data.stats.arenaGoals end },
 	{ name = "🏆 Victorias", value = function(data) return data.stats.arenaWins end },
 	{ name = "💰 Dinero", value = function(data) return math.floor(data.economy.money) end },
@@ -561,6 +564,11 @@ end
 
 Actions.WatchArena = function(player)
 	return ArenaService.Watch(player)
+end
+
+-- ===== Renacimientos =====
+Actions.Rebirth = function(player, payload)
+	return RebirthService.Rebirth(player, payload)
 end
 
 -- ===== Recompensa diaria y códigos de regalo =====

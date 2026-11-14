@@ -195,6 +195,9 @@ local function refresh()
 		scoreLabel.Text = string.format("<font color='#FF7B7B'>ROJO %d</font>  -  <font color='#7BB0FF'>%d AZUL</font>%s",
 			state.score.red, state.score.blue, state.goldBall and "  🏆" or "")
 		local phaseText = state.phase == "kickoff" and " · ¡prepárate!" or (state.phase == "goal" and " · ¡GOL!" or "")
+		if state.goldenGoal then
+			phaseText = " · ⚡ GOL DE ORO" .. phaseText
+		end
 		timeLabel.Text = "⏱ " .. formatTime(state.timeLeft or 0) .. phaseText
 		local team = state.team
 		if team and state.teams then
@@ -445,12 +448,19 @@ function ArenaHud.Init(gui, deps)
 			showBanner(string.format("⚽ ¡GOOOOL DEL %s!\n%s", TEAM_NAMES[data.team] or "?", who), TEAM_COLORS[data.team], 3)
 			playCheer()
 			confetti()
+		elseif kind == "goldengoal" then
+			showBanner("⚡ ¡GOL DE ORO!\nEmpate: el primer gol gana", Color3.fromRGB(150, 110, 10), 3)
 		elseif kind == "result" then
 			local title = data.result == "win" and "🏆 ¡VICTORIA!" or (data.result == "draw" and "🤝 EMPATE" or "😓 DERROTA")
 			local reward = data.capped and "Límite de recompensas por hora alcanzado"
 				or ("+" .. Format.Money(data.reward) .. (data.goals > 0 and string.format(" · %d gol%s tuyo%s", data.goals, data.goals == 1 and "" or "es", data.goals == 1 and "" or "s") or ""))
 			if (data.petBonus or 0) > 0 and not data.capped then
 				reward ..= string.format(" · 🐾 +%d%%", math.floor(data.petBonus * 100 + 0.5))
+			end
+			if data.isMvp then
+				reward ..= " · ⭐ ¡ERES EL MVP!"
+			elseif data.mvp then
+				reward ..= " · ⭐ MVP: " .. data.mvp
 			end
 			whistleSound:Play()
 			showBanner(string.format("%s  %d - %d\n%s", title, data.score.red, data.score.blue, reward),

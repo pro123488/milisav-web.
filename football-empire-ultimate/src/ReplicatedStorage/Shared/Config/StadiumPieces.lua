@@ -17,6 +17,7 @@ StadiumPieces.Categories = {
 	{ id = "stands", name = "Gradas y asientos", icon = "💺" },
 	{ id = "structure", name = "Estructura", icon = "🧱" },
 	{ id = "extras", name = "Extras", icon = "✨" },
+	{ id = "rebirth", name = "Renacimiento (exclusivas)", icon = "👑" },
 }
 
 StadiumPieces.List = {
@@ -47,6 +48,25 @@ StadiumPieces.List = {
 	{ id = "kiosk", category = "extras", icon = "🌭", name = "Puesto de comida", cost = 1500, w = 8, d = 8, h = 8 },
 	{ id = "tree", category = "extras", icon = "🌳", name = "Árbol", cost = 200, w = 6, d = 6, h = 12 },
 	{ id = "lamp", category = "extras", icon = "🏮", name = "Farola", cost = 250, w = 2, d = 2, h = 9 },
+	-- Nuevas: estructura para construir en altura
+	{ id = "platform", category = "structure", icon = "⬛", name = "Plataforma 16×16", cost = 1200, w = 16, d = 16, h = 1 },
+	{ id = "stairs", category = "structure", icon = "🪜", name = "Escalera", cost = 800, w = 6, d = 12, h = 8 },
+	{ id = "column", category = "structure", icon = "🏛️", name = "Columna", cost = 400, w = 3, d = 3, h = 12 },
+	{ id = "jumbotron", category = "structure", icon = "📺", name = "Pantalla gigante", cost = 12000, w = 28, d = 3, h = 22 },
+	{ id = "ticket_booth", category = "structure", icon = "🎫", name = "Taquilla", cost = 2000, w = 8, d = 6, h = 7 },
+	-- Nuevas: extras
+	{ id = "fountain", category = "extras", icon = "⛲", name = "Fuente", cost = 3500, w = 12, d = 12, h = 6 },
+	{ id = "statue", category = "extras", icon = "🗿", name = "Estatua de jugador", cost = 6000, w = 6, d = 6, h = 14 },
+	{ id = "trophy_case", category = "extras", icon = "🏆", name = "Vitrina de trofeos", cost = 5000, w = 10, d = 4, h = 8 },
+	{ id = "team_bus", category = "extras", icon = "🚌", name = "Autobús del equipo", cost = 7000, w = 24, d = 8, h = 9 },
+	{ id = "palm", category = "extras", icon = "🌴", name = "Palmera", cost = 300, w = 6, d = 6, h = 16 },
+	{ id = "flowers", category = "extras", icon = "🌷", name = "Jardinera de flores", cost = 250, w = 8, d = 4, h = 2 },
+	{ id = "balloon_arch", category = "extras", icon = "🎈", name = "Arco de globos", cost = 1800, w = 18, d = 2, h = 14 },
+	-- Exclusivas de renacimiento (requiresRebirth = renacimientos necesarios)
+	{ id = "gold_statue", category = "rebirth", icon = "👑", name = "Estatua dorada", cost = 50000, requiresRebirth = 3, w = 8, d = 8, h = 18 },
+	{ id = "gold_gate", category = "rebirth", icon = "🚪", name = "Puerta dorada", cost = 40000, requiresRebirth = 3, w = 20, d = 5, h = 16 },
+	{ id = "gold_fountain", category = "rebirth", icon = "⛲", name = "Fuente de oro", cost = 60000, requiresRebirth = 3, w = 14, d = 14, h = 9 },
+	{ id = "rebirth_monument", category = "rebirth", icon = "🔄", name = "Monumento al renacido", cost = 100000, requiresRebirth = 5, w = 10, d = 10, h = 24 },
 }
 
 StadiumPieces.ById = {}

@@ -22,6 +22,7 @@ local MenuConfig = {
 	{ id = "universe", label = "Universo", icon = "🌎", phase = 8 },
 	{ id = "network", label = "Red de clubes", icon = "🤝", phase = 9 },
 	{ id = "season", label = "Pase de temporada", icon = "🎟️", phase = 12, highlight = true },
+	{ id = "rebirth", label = "Renacer", icon = "🔄", phase = 12, highlight = true },
 	{ id = "collection", label = "Mascotas, balones y trajes", icon = "🐾", phase = 12, highlight = true },
 	{ id = "missions", label = "Misiones", icon = "🎯", phase = 10 },
 	{ id = "achievements", label = "Logros", icon = "🎖️", phase = 10 },

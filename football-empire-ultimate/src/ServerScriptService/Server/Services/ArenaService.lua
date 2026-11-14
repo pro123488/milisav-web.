@@ -18,6 +18,7 @@ local Shared = ReplicatedStorage.Shared
 local Cfg = require(Shared.Config.ArenaConfig)
 local SoundConfig = require(Shared.Config.SoundConfig)
 local WeeklyConfig = require(Shared.Config.WeeklyConfig)
+local RebirthConfig = require(Shared.Config.RebirthConfig)
 local Remotes = require(Shared.Modules.Remotes)
 
 local DataService = require(script.Parent.DataService)
@@ -52,6 +53,7 @@ local queue = {} -- lista de jugadores
 local phase = "idle" -- idle | countdown | kickoff | playing | goal | result
 local countdownEnds = 0
 local remaining = 0
+local goldenGoal = false -- prórroga a gol de oro tras un empate
 local score = { red = 0, blue = 0 }
 local participants = {} -- [player] = { team, goals }
 local bots = {} -- lista { model, team, name, keeper, lastKick, slot }
@@ -62,6 +64,8 @@ local kickCooldown = {} -- [player] = os.clock()
 local dribbleCooldown = {} -- [player] = os.clock()
 local rewardLog = {} -- [userId] = { os.time() de partidos premiados }
 local endCallbacks = {}
+
+local passBall, findMate -- definidas más abajo
 
 local function teamInfo(id)
 	return id == "red" and Cfg.TEAMS[1] or Cfg.TEAMS[2]
@@ -523,6 +527,15 @@ local function createBall()
 		dribbleCooldown[player] = now
 		lastTouch = { name = player.DisplayName, team = info.team, player = player }
 		applySkin(player)
+		-- Cabezazo: el balón llega alto y toca la cabeza -> sale hacia donde mira el jugador
+		if hit.Name == "Head" and ball.Position.Y > root.Position.Y + 1.2 then
+			local look = root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			if look.Magnitude > 0.01 then
+				ball.AssemblyLinearVelocity = look.Unit * Cfg.HEADER_SPEED + Vector3.new(0, Cfg.HEADER_LIFT, 0)
+				kickSound:Play()
+				return
+			end
+		end
 		local velocity = root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
 		local direction = velocity.Magnitude > 4 and velocity.Unit or ((ball.Position - root.Position) * Vector3.new(1, 0, 1))
 		if direction.Magnitude < 0.01 then
@@ -530,6 +543,15 @@ local function createBall()
 		end
 		ball.AssemblyLinearVelocity = direction.Unit * math.max(Cfg.DRIBBLE_SPEED, velocity.Magnitude * 1.15) + Vector3.new(0, 2, 0)
 	end)
+end
+
+-- Envía el balón a un compañero con la fuerza justa, adelantado a su carrera.
+-- offset = vector horizontal del balón al compañero
+passBall = function(offset, distance, velocity)
+	local speed = math.clamp(distance * 1.5 + 28, Cfg.PASS_MIN_SPEED, Cfg.PASS_MAX_SPEED)
+	local target = offset + velocity * math.min(distance / speed, 1.2)
+	ball.AssemblyLinearVelocity = target.Unit * speed + Vector3.new(0, 3 + distance * 0.06, 0)
+	kickSound:Play()
 end
 
 -- Comprobaciones comunes de chut y pase: en partido, cerca del balón y sin abusar del botón.
@@ -627,11 +649,7 @@ local function onPass(player, aim)
 		kickBall(direction, 0.3) -- nadie a quien pasar: toque corto hacia delante
 		return
 	end
-	local speed = math.clamp(best.distance * 1.5 + 28, Cfg.PASS_MIN_SPEED, Cfg.PASS_MAX_SPEED)
-	-- Se adelanta el pase a la carrera del compañero
-	local target = best.offset + best.velocity * math.min(best.distance / speed, 1.2)
-	ball.AssemblyLinearVelocity = target.Unit * speed + Vector3.new(0, 3 + best.distance * 0.06, 0)
-	kickSound:Play()
+	passBall(best.offset, best.distance, best.velocity)
 end
 
 -- ===== Retransmisión al cliente =====
@@ -654,6 +672,7 @@ local function broadcast()
 		queue = #queue,
 		countdown = phase == "countdown" and math.max(0, math.ceil(countdownEnds - os.clock())) or nil,
 		timeLeft = math.max(0, math.ceil(remaining)),
+		goldenGoal = goldenGoal,
 		score = { red = score.red, blue = score.blue },
 		teams = lists,
 		goldBall = AdminService.GoalMultiplier() > 1,
@@ -683,6 +702,34 @@ local function event(kind, data)
 end
 
 -- ===== Lógica de los bots (cada frame) =====
+
+-- Compañero (humano o bot) más adelantado hacia la portería rival, a distancia de pase.
+findMate = function(bot, ballLocal, attackX, distanceToGoal)
+	local best, bestGain = nil, Cfg.BOT_PASS_MIN_GAIN
+	local function consider(position, velocity)
+		local localPos = toLocal(position)
+		local gain = distanceToGoal - math.abs(attackX - localPos.X)
+		local offset = (position - ball.Position) * Vector3.new(1, 0, 1)
+		local distance = offset.Magnitude
+		if gain > bestGain and distance > 12 and distance < 60 then
+			best, bestGain = { offset = offset, distance = distance, velocity = velocity }, gain
+		end
+	end
+	for player, info in pairs(participants) do
+		if info.team == bot.team then
+			local _, root = characterOf(player)
+			if root then
+				consider(root.Position, root.AssemblyLinearVelocity * Vector3.new(1, 0, 1))
+			end
+		end
+	end
+	for _, other in ipairs(bots) do
+		if other ~= bot and other.team == bot.team and not other.keeper then
+			consider(toWorld(other.x, 0, other.z), Vector3.zero)
+		end
+	end
+	return best
+end
 
 local function updateBots(dt)
 	if phase ~= "playing" or not ball then
@@ -748,8 +795,15 @@ local function updateBots(dt)
 			local distanceToGoal = math.abs(attackX - b.X)
 			local power = bot.keeper and 0.9 or (distanceToGoal > 60 and rng:NextNumber(0.45, 0.65) or rng:NextNumber(0.7, 0.95))
 			lastTouch = { name = bot.name, team = bot.team }
+			-- Lejos de la portería, a veces pasa a un compañero mejor colocado (más cerca del área rival)
+			local mate = nil
+			if not bot.keeper and distanceToGoal > Cfg.BOT_PASS_MIN_DISTANCE and rng:NextNumber() < Cfg.BOT_PASS_CHANCE then
+				mate = findMate(bot, b, attackX, distanceToGoal)
+			end
 			local flatAim = aim * Vector3.new(1, 0, 1)
-			if flatAim.Magnitude > 0.01 then
+			if mate then
+				passBall(mate.offset, mate.distance, mate.velocity)
+			elseif flatAim.Magnitude > 0.01 then
 				kickBall(flatAim, power)
 			end
 		end
@@ -812,8 +866,11 @@ local function rewardFor(player, result, goals)
 	-- Las mascotas equipadas suman su bonus (se consiguen jugando, no pagando)
 	-- El bonus de la semana (partidos x1,5 o goles x2) también cuenta
 	local weekly = WeeklyConfig.ActiveBonus()
+	-- Y los renacimientos (+10 % por cada uno)
+	local data = DataService.Get(player)
+	local rebirthBonus = RebirthConfig.ArenaBonus(data and data.rebirth.count or 0)
 	local amount = math.floor((base + goals * Cfg.REWARD_GOAL * AdminService.GoalMultiplier() * (weekly.goalMultiplier or 1))
-		* AdminService.RewardMultiplier() * (weekly.matchMultiplier or 1) * (1 + PetService.Bonus(player)))
+		* AdminService.RewardMultiplier() * (weekly.matchMultiplier or 1) * (1 + PetService.Bonus(player) + rebirthBonus))
 	local now = os.time()
 	local log = rewardLog[player.UserId] or {}
 	local recent = {}
@@ -831,20 +888,39 @@ local function rewardFor(player, result, goals)
 	return amount
 end
 
+-- Mejor jugador: el humano con más goles (si empatan, uno del equipo ganador)
+local function pickMvp(winner)
+	local mvp, best = nil, 0
+	for player, info in pairs(participants) do
+		if player.Parent then
+			local points = info.goals * 2 + (info.team == winner and 1 or 0)
+			if info.goals > 0 and points > best then
+				mvp, best = player, points
+			end
+		end
+	end
+	return mvp
+end
+
 local function finish(aborted)
 	phase = "result"
 	local winner = score.red > score.blue and "red" or (score.blue > score.red and "blue" or nil)
 	lastResult = { winner = winner, score = { red = score.red, blue = score.blue } }
+	local mvp = not aborted and pickMvp(winner) or nil
 	for player, info in pairs(participants) do
 		if player.Parent and not aborted and DataService.Get(player) then
 			local result = winner == nil and "draw" or (winner == info.team and "win" or "loss")
 			local reward = rewardFor(player, result, info.goals)
+			if reward > 0 and player == mvp then
+				reward += Cfg.REWARD_MVP
+			end
 			if reward > 0 then
 				EconomyService.Earn(player, reward, EconomyService.Category.ARENA, "Partido en grupo")
 			end
 			arenaRemote:FireClient(player, "result", {
 				result = result, winner = winner, score = lastResult.score, goals = info.goals, reward = reward,
 				capped = reward == 0, petBonus = PetService.Bonus(player),
+				mvp = mvp and mvp.DisplayName or nil, isMvp = player == mvp,
 			})
 			local own = info.team == "red" and score.red or score.blue
 			local other = info.team == "red" and score.blue or score.red
@@ -899,21 +975,36 @@ local function runMatch(players)
 		end
 	end
 	createBall()
+	goldenGoal = false
 	remaining = Cfg.MATCH_SECONDS
-	kickoff()
-	while remaining > 0 and humansInMatch() > 0 do
-		local dt = task.wait(0.1)
-		if phase == "playing" then
-			remaining -= dt
-		elseif phase == "goal" then
-			task.wait(Cfg.GOAL_CELEBRATION)
-			pendingGoal = nil
-			if humansInMatch() > 0 then
-				kickoff()
+	local function play()
+		while remaining > 0 and humansInMatch() > 0 do
+			local dt = task.wait(0.1)
+			if phase == "playing" then
+				remaining -= dt
+			elseif phase == "goal" then
+				task.wait(Cfg.GOAL_CELEBRATION)
+				pendingGoal = nil
+				if goldenGoal then
+					remaining = 0 -- en el gol de oro, el primer gol gana
+				elseif humansInMatch() > 0 then
+					kickoff()
+				end
 			end
 		end
 	end
+	kickoff()
+	play()
+	-- Empate al final: prórroga a gol de oro (una sola vez)
+	if score.red == score.blue and humansInMatch() > 0 then
+		goldenGoal = true
+		remaining = Cfg.GOLDEN_GOAL_SECONDS
+		event("goldengoal", { seconds = Cfg.GOLDEN_GOAL_SECONDS })
+		kickoff()
+		play()
+	end
 	finish(humansInMatch() == 0)
+	goldenGoal = false
 end
 
 -- ===== API pública =====

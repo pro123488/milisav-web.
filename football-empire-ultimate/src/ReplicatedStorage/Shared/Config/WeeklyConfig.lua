@@ -19,7 +19,7 @@ WeeklyConfig.Bonuses = {
 }
 
 -- Estadio destacado de cada semana (ids de ArenaConfig.Themes)
-WeeklyConfig.Themes = { "classic", "beach", "street", "snow", "volcano", "neon" }
+WeeklyConfig.Themes = { "classic", "beach", "street", "snow", "volcano", "neon", "desert", "jungle", "moon", "candy", "castle", "glacier" }
 
 function WeeklyConfig.Bonus(id)
 	for _, bonus in ipairs(WeeklyConfig.Bonuses) do

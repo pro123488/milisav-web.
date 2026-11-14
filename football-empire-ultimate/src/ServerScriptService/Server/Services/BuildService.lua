@@ -203,6 +203,9 @@ function BuildService.PlacePiece(player, payload)
 	if not x then
 		return false, "Posición no válida."
 	end
+	if piece.requiresRebirth and data.rebirth.count < piece.requiresRebirth then
+		return false, string.format("%s se desbloquea con %d renacimientos.", piece.name, piece.requiresRebirth)
+	end
 	local list = data.stadium.pieces
 	if #list >= StadiumPieces.MAX_PIECES then
 		return false, string.format("Has llegado al máximo de %d piezas. Quita alguna para poner otra.", StadiumPieces.MAX_PIECES)

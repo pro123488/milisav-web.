@@ -3,6 +3,7 @@
 --
 -- Velocidad del personaje y SPRINT con resistencia:
 --   * PC: mantener Shift · Mando: L3 · Móvil: botón «⚡ SPRINT».
+--   * REGATE: tecla Q · mando B · móvil botón «💨»: impulso corto hacia donde corres (gasta resistencia).
 --   * Es el único sitio que cambia WalkSpeed. Tiene en cuenta los atributos que pone el servidor:
 --       Humanoid «Arena» (partido en grupo), «Frozen» (saque), «TrickSpeed» (truco de Halloween)
 --       y Workspace «FEU_SpeedMultiplier» (evento admin de supervelocidad).
@@ -23,6 +24,35 @@ local sprintHeld = false
 local sprinting = false
 local lastSprint = 0
 local barFrame, barFill
+local lastDash = 0
+local DASH_COOLDOWN = 2.5
+local DASH_SPEED = 62
+local DASH_COST = 25
+local DASH_KEYS = { [Enum.KeyCode.Q] = true, [Enum.KeyCode.ButtonB] = true }
+
+-- Impulso corto hacia donde se mueve el jugador (el personaje es del cliente: su física es local)
+local function dash()
+	local character = player.Character
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not hum or not root or hum:GetAttribute("Frozen") or hum.Health <= 0 then
+		return
+	end
+	if os.clock() - lastDash < DASH_COOLDOWN or stamina < DASH_COST then
+		return
+	end
+	local direction = hum.MoveDirection.Magnitude > 0.1 and hum.MoveDirection or root.CFrame.LookVector
+	direction = direction * Vector3.new(1, 0, 1)
+	if direction.Magnitude < 0.01 then
+		return
+	end
+	lastDash = os.clock()
+	stamina -= DASH_COST
+	lastSprint = os.clock()
+	local multiplier = Workspace:GetAttribute("FEU_SpeedMultiplier")
+	multiplier = type(multiplier) == "number" and math.clamp(multiplier, 0.5, 2) or 1
+	root.AssemblyLinearVelocity = direction.Unit * DASH_SPEED * multiplier + Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+end
 
 local SPRINT_KEYS = {
 	[Enum.KeyCode.LeftShift] = true,
@@ -139,11 +169,27 @@ function MovementController.Init(gui, C, Theme)
 				sprintHeld = false
 			end
 		end)
+		local dashButton = C.New("TextButton", {
+			Name = "DashButton",
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -150, 1, -66),
+			Size = UDim2.fromOffset(70, 70),
+			BackgroundColor3 = Color3.fromRGB(120, 80, 220),
+			BackgroundTransparency = 0.15,
+			Text = "💨\nREGATE",
+			Font = Theme.FontBold,
+			TextSize = 12,
+			TextColor3 = Color3.new(1, 1, 1),
+			Children = { C.Corner(UDim.new(1, 0)), C.Stroke(Color3.new(1, 1, 1), 2, 0.4) },
+		}, gui)
+		dashButton.Activated:Connect(dash)
 	end
 
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if SPRINT_KEYS[input.KeyCode] and not (processed and UserInputService:GetFocusedTextBox()) then
 			sprintHeld = true
+		elseif DASH_KEYS[input.KeyCode] and not processed then
+			dash()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)

@@ -1301,6 +1301,208 @@ PieceBuilders.lamp = function(model, frame)
 	light.Parent = bulb
 end
 
+-- ===== Piezas nuevas (actualización 6) =====
+
+local function water(model, frame, cframe, size)
+	return part(model, frame, cframe, size, Color3.fromRGB(70, 160, 230), Enum.Material.Glass, { Transparency = 0.35, CanCollide = false, Name = "Water" })
+end
+
+local function playerFigure(model, frame, y, color, material)
+	-- Figura sencilla de jugador chutando (bloques)
+	part(model, frame, CFrame.new(-0.6, y + 2, 0), Vector3.new(1, 4, 1), color, material)
+	part(model, frame, CFrame.new(0.9, y + 2.3, -0.6) * CFrame.Angles(math.rad(-35), 0, 0), Vector3.new(1, 4, 1), color, material)
+	part(model, frame, CFrame.new(0, y + 5.5, 0), Vector3.new(3, 3.4, 1.6), color, material)
+	part(model, frame, CFrame.new(-2, y + 5.6, 0) * CFrame.Angles(0, 0, math.rad(25)), Vector3.new(1, 3, 1), color, material)
+	part(model, frame, CFrame.new(2, y + 5.6, 0) * CFrame.Angles(0, 0, math.rad(-25)), Vector3.new(1, 3, 1), color, material)
+	local head = part(model, frame, CFrame.new(0, y + 8, 0), Vector3.new(2, 2, 2), color, material)
+	head.Shape = Enum.PartType.Ball
+	local ballPart = part(model, frame, CFrame.new(1.6, y + 0.8, -2.4), Vector3.new(1.6, 1.6, 1.6), WHITE)
+	ballPart.Shape = Enum.PartType.Ball
+end
+
+PieceBuilders.platform = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.5, 0), Vector3.new(16, 1, 16), Color3.fromRGB(150, 154, 165), Enum.Material.Concrete)
+end
+
+PieceBuilders.stairs = function(model, frame)
+	-- Sube 8 studs hacia -Z: combínala con plataformas a la misma altura
+	for step = 1, 8 do
+		part(model, frame, CFrame.new(0, step / 2, 6 - (step - 0.5) * 1.5), Vector3.new(6, step, 1.5), GREY, Enum.Material.Concrete)
+	end
+end
+
+PieceBuilders.column = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 0.5, 0), Vector3.new(3, 1, 3), Color3.fromRGB(230, 228, 222), Enum.Material.Marble)
+	local shaft = part(model, frame, CFrame.new(0, 6, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(10, 2.2, 2.2), Color3.fromRGB(240, 238, 232), Enum.Material.Marble)
+	shaft.Shape = Enum.PartType.Cylinder
+	part(model, frame, CFrame.new(0, 11.5, 0), Vector3.new(3, 1, 3), info.primary, Enum.Material.Marble)
+end
+
+PieceBuilders.jumbotron = function(model, frame, info)
+	for _, x in ipairs({ -10, 10 }) do
+		part(model, frame, CFrame.new(x, 6, 0), Vector3.new(1.5, 12, 1.5), DARK, Enum.Material.Metal)
+	end
+	part(model, frame, CFrame.new(0, 16.5, 0), Vector3.new(28, 12, 1.4), DARK, Enum.Material.Metal)
+	local screen = part(model, frame, CFrame.new(0, 16.5, 0.8), Vector3.new(26, 10, 0.2), Color3.fromRGB(10, 14, 24), Enum.Material.Neon, { CanCollide = false })
+	local text = info.crestSymbol .. "  " .. string.upper(info.clubName) .. "\n⚽ ¡VAMOS!"
+	simpleText(screen, Enum.NormalId.Back, text, WHITE, Color3.fromRGB(10, 14, 24))
+	simpleText(screen, Enum.NormalId.Front, text, WHITE, Color3.fromRGB(10, 14, 24))
+end
+
+PieceBuilders.ticket_booth = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 3, 0), Vector3.new(8, 6, 6), info.primary, Enum.Material.SmoothPlastic)
+	part(model, frame, CFrame.new(0, 3.6, 3.05), Vector3.new(5, 2.4, 0.1), Color3.fromRGB(180, 220, 245), Enum.Material.Glass, { Transparency = 0.4 })
+	part(model, frame, CFrame.new(0, 6.4, 0.5), Vector3.new(9, 0.8, 7.5), info.secondary, Enum.Material.SmoothPlastic)
+	local sign = part(model, frame, CFrame.new(0, 7.6, 3), Vector3.new(6, 1.6, 0.4), info.secondary)
+	simpleText(sign, Enum.NormalId.Back, "🎫 TAQUILLA", info.secondaryText)
+	simpleText(sign, Enum.NormalId.Front, "🎫 TAQUILLA", info.secondaryText)
+end
+
+local function fountainBuilder(gold)
+	return function(model, frame)
+		local size = gold and 14 or 12
+		local stone = gold and GOLD or Color3.fromRGB(215, 212, 205)
+		local mat = gold and Enum.Material.Metal or Enum.Material.Marble
+		local basin = part(model, frame, CFrame.new(0, 0.8, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(1.6, size, size), stone, mat)
+		basin.Shape = Enum.PartType.Cylinder
+		local pool = water(model, frame, CFrame.new(0, 1.65, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.2, size - 1.5, size - 1.5))
+		pool.Shape = Enum.PartType.Cylinder
+		local pillar = part(model, frame, CFrame.new(0, 3.5, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(4, 1.6, 1.6), stone, mat)
+		pillar.Shape = Enum.PartType.Cylinder
+		local top = part(model, frame, CFrame.new(0, 5.6, 0) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.8, 5, 5), stone, mat)
+		top.Shape = Enum.PartType.Cylinder
+		local spray = part(model, frame, CFrame.new(0, 6.6, 0), Vector3.new(0.5, 0.5, 0.5), WHITE, Enum.Material.Glass, { Transparency = 1, CanCollide = false })
+		local emitter = Instance.new("ParticleEmitter")
+		emitter.Color = ColorSequence.new(gold and Color3.fromRGB(255, 230, 140) or Color3.fromRGB(180, 220, 255))
+		emitter.LightEmission = gold and 0.6 or 0.2
+		emitter.Size = NumberSequence.new(0.5, 0.1)
+		emitter.Transparency = NumberSequence.new(0.2, 1)
+		emitter.Lifetime = NumberRange.new(0.8, 1.2)
+		emitter.Rate = 40
+		emitter.Speed = NumberRange.new(10, 14)
+		emitter.SpreadAngle = Vector2.new(18, 18)
+		emitter.Acceleration = Vector3.new(0, -30, 0)
+		emitter.Parent = spray
+		if gold then
+			local sparkles = Instance.new("Sparkles")
+			sparkles.SparkleColor = Color3.fromRGB(255, 230, 140)
+			sparkles.Parent = top
+		end
+	end
+end
+PieceBuilders.fountain = fountainBuilder(false)
+PieceBuilders.gold_fountain = fountainBuilder(true)
+
+PieceBuilders.statue = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 1.5, 0), Vector3.new(6, 3, 6), Color3.fromRGB(200, 198, 190), Enum.Material.Marble)
+	playerFigure(model, frame, 3, Color3.fromRGB(150, 150, 155), Enum.Material.Concrete)
+	local plaque = part(model, frame, CFrame.new(0, 1.5, 3.05), Vector3.new(4, 1.4, 0.1), GOLD, Enum.Material.Metal)
+	simpleText(plaque, Enum.NormalId.Back, info.clubName, Color3.fromRGB(40, 30, 0))
+end
+
+PieceBuilders.gold_statue = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 2, 0), Vector3.new(8, 4, 8), Color3.fromRGB(30, 30, 40), Enum.Material.Marble)
+	part(model, frame, CFrame.new(0, 4.2, 0), Vector3.new(6.4, 0.4, 6.4), GOLD, Enum.Material.Metal)
+	playerFigure(model, frame, 4.4, GOLD, Enum.Material.Metal)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 220, 140)
+	light.Range = 18
+	light.Brightness = 1.2
+	light.Parent = model:FindFirstChildWhichIsA("BasePart")
+	local plaque = part(model, frame, CFrame.new(0, 2, 4.05), Vector3.new(6, 1.6, 0.1), GOLD, Enum.Material.Metal)
+	simpleText(plaque, Enum.NormalId.Back, "👑 " .. info.clubName, Color3.fromRGB(40, 30, 0))
+end
+
+PieceBuilders.trophy_case = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 0.5, 0), Vector3.new(10, 1, 4), Color3.fromRGB(110, 70, 40), Enum.Material.WoodPlanks)
+	part(model, frame, CFrame.new(0, 4.5, 0), Vector3.new(10, 7, 4), Color3.fromRGB(190, 225, 245), Enum.Material.Glass, { Transparency = 0.6 })
+	part(model, frame, CFrame.new(0, 8.25, 0), Vector3.new(10.4, 0.5, 4.4), Color3.fromRGB(110, 70, 40), Enum.Material.WoodPlanks)
+	for i, x in ipairs({ -3, 0, 3 }) do
+		local height = i == 2 and 3 or 2.2
+		part(model, frame, CFrame.new(x, 1 + height / 2, 0), Vector3.new(1, height, 1), GOLD, Enum.Material.Metal)
+		local cup = part(model, frame, CFrame.new(x, 1.6 + height, 0), Vector3.new(1.6, 1.6, 1.6), GOLD, Enum.Material.Metal)
+		cup.Shape = Enum.PartType.Ball
+	end
+end
+
+PieceBuilders.team_bus = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 5, 0), Vector3.new(24, 7, 8), info.primary, Enum.Material.SmoothPlastic)
+	part(model, frame, CFrame.new(0, 6.2, 4.05), Vector3.new(20, 2.4, 0.1), Color3.fromRGB(40, 50, 70), Enum.Material.Glass, { Transparency = 0.2 })
+	part(model, frame, CFrame.new(0, 6.2, -4.05), Vector3.new(20, 2.4, 0.1), Color3.fromRGB(40, 50, 70), Enum.Material.Glass, { Transparency = 0.2 })
+	local side = part(model, frame, CFrame.new(0, 3.4, 4.1), Vector3.new(16, 1.6, 0.1), info.secondary)
+	simpleText(side, Enum.NormalId.Back, info.clubName, info.secondaryText)
+	for _, x in ipairs({ -8, 8 }) do
+		for _, z in ipairs({ -3.6, 3.6 }) do
+			local wheel = part(model, frame, CFrame.new(x, 1.5, z) * CFrame.Angles(0, math.rad(90), 0), Vector3.new(1, 3, 3), Color3.fromRGB(25, 25, 30), Enum.Material.Rubber)
+			wheel.Shape = Enum.PartType.Cylinder
+		end
+	end
+end
+
+PieceBuilders.palm = function(model, frame)
+	for i = 0, 5 do
+		part(model, frame, CFrame.new(i * 0.25, 1.3 + i * 2.4, 0) * CFrame.Angles(0, 0, math.rad(-4)), Vector3.new(1.4, 2.6, 1.4), Color3.fromRGB(140, 105, 65), Enum.Material.Wood)
+	end
+	for k = 0, 5 do
+		local angle = k * math.pi / 3
+		part(model, frame, CFrame.new(1.5, 15, 0) * CFrame.Angles(0, angle, 0) * CFrame.new(0, 0, -3) * CFrame.Angles(math.rad(-25), 0, 0),
+			Vector3.new(1.6, 0.3, 6), Color3.fromRGB(60, 150, 60), Enum.Material.LeafyGrass, { CanCollide = false })
+	end
+end
+
+PieceBuilders.flowers = function(model, frame)
+	part(model, frame, CFrame.new(0, 0.6, 0), Vector3.new(8, 1.2, 4), Color3.fromRGB(150, 100, 70), Enum.Material.Brick)
+	part(model, frame, CFrame.new(0, 1.25, 0), Vector3.new(7.4, 0.2, 3.4), Color3.fromRGB(90, 65, 45), Enum.Material.Ground)
+	local colors = { Color3.fromRGB(255, 80, 120), Color3.fromRGB(255, 220, 60), Color3.fromRGB(180, 100, 255), Color3.fromRGB(255, 140, 40) }
+	for i = 0, 7 do
+		local flower = part(model, frame, CFrame.new(-3 + (i % 4) * 2, 1.8, i < 4 and -0.8 or 0.8), Vector3.new(0.9, 0.9, 0.9), colors[i % 4 + 1], Enum.Material.SmoothPlastic, { CanCollide = false })
+		flower.Shape = Enum.PartType.Ball
+	end
+end
+
+PieceBuilders.balloon_arch = function(model, frame, info)
+	for i = 0, 14 do
+		local angle = math.pi * i / 14
+		local balloon = part(model, frame, CFrame.new(math.cos(angle) * -8, 1 + math.sin(angle) * 12, 0), Vector3.new(2.2, 2.2, 2.2),
+			i % 2 == 0 and info.primary or info.secondary, Enum.Material.SmoothPlastic, { CanCollide = false })
+		balloon.Shape = Enum.PartType.Ball
+	end
+end
+
+PieceBuilders.gold_gate = function(model, frame, info)
+	for _, x in ipairs({ -8.5, 8.5 }) do
+		part(model, frame, CFrame.new(x, 6.5, 0), Vector3.new(3, 13, 5), GOLD, Enum.Material.Metal)
+		local orb = part(model, frame, CFrame.new(x, 14, 0), Vector3.new(2.4, 2.4, 2.4), GOLD, Enum.Material.Neon)
+		orb.Shape = Enum.PartType.Ball
+	end
+	local arch = part(model, frame, CFrame.new(0, 14, 0), Vector3.new(20, 3, 5), GOLD, Enum.Material.Metal)
+	simpleText(arch, Enum.NormalId.Front, "👑 " .. info.clubName, Color3.fromRGB(40, 30, 0))
+	simpleText(arch, Enum.NormalId.Back, "👑 " .. info.clubName, Color3.fromRGB(40, 30, 0))
+	local sparkles = Instance.new("Sparkles")
+	sparkles.SparkleColor = Color3.fromRGB(255, 230, 140)
+	sparkles.Parent = arch
+end
+
+PieceBuilders.rebirth_monument = function(model, frame, info)
+	part(model, frame, CFrame.new(0, 1, 0), Vector3.new(10, 2, 10), Color3.fromRGB(30, 30, 40), Enum.Material.Marble)
+	part(model, frame, CFrame.new(0, 2.25, 0), Vector3.new(8, 0.5, 8), GOLD, Enum.Material.Metal)
+	local obelisk = part(model, frame, CFrame.new(0, 11, 0), Vector3.new(3, 17, 3), Color3.fromRGB(40, 30, 70), Enum.Material.Marble)
+	local orb = part(model, frame, CFrame.new(0, 21, 0), Vector3.new(3.6, 3.6, 3.6), Color3.fromRGB(255, 150, 40), Enum.Material.Neon, { CanCollide = false })
+	orb.Shape = Enum.PartType.Ball
+	local fire = Instance.new("Fire")
+	fire.Size = 6
+	fire.Color = Color3.fromRGB(255, 160, 40)
+	fire.SecondaryColor = Color3.fromRGB(255, 230, 120)
+	fire.Parent = orb
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 170, 60)
+	light.Range = 30
+	light.Brightness = 2
+	light.Parent = orb
+	simpleText(obelisk, Enum.NormalId.Back, "🔄", WHITE)
+	simpleText(obelisk, Enum.NormalId.Front, "🔄", WHITE)
+end
+
 -- Cada pieza va en su propio Model con atributos: el cliente los usa para «mover» y «quitar».
 local function buildPieces(folder, origin, pieces, info)
 	for index, entry in ipairs(pieces or {}) do

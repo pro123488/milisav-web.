@@ -112,7 +112,7 @@ end
 
 local function buildEggStand()
 	local center = CFrame.new(-44, 0, 0)
-	local base = part({ Name = "EggStand", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 22, 22),
+	local base = part({ Name = "EggStand", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 40, 40),
 		CFrame = center * CFrame.new(0, 0.5, 0) * CFrame.Angles(0, 0, math.pi / 2), Color = Color3.fromRGB(70, 50, 110), Material = Enum.Material.Marble })
 	billboard(base, "🥚 HUEVOS DE MASCOTAS", 13, 300)
 	openPrompt(base, "Abrir huevos", "Mascotas", "collection", { tab = "pets" })
@@ -120,9 +120,12 @@ local function buildEggStand()
 		basic = { color = Color3.fromRGB(250, 245, 230), material = Enum.Material.SmoothPlastic },
 		golden = { color = GOLD, material = Enum.Material.Neon },
 		champion = { color = Color3.fromRGB(170, 90, 255), material = Enum.Material.Neon },
+		jungle = { color = Color3.fromRGB(70, 170, 70), material = Enum.Material.LeafyGrass },
+		ocean = { color = Color3.fromRGB(60, 150, 230), material = Enum.Material.Glass },
+		rebirth = { color = Color3.fromRGB(255, 120, 40), material = Enum.Material.Neon },
 	}
 	for i, egg in ipairs(CollectionConfig.Eggs) do
-		local x = (i - 2) * 6
+		local x = (i - (#CollectionConfig.Eggs + 1) / 2) * 6
 		part({ Name = "Pedestal", Size = Vector3.new(3, 3, 3), CFrame = center * CFrame.new(x, 2.5, 0), Color = Color3.fromRGB(235, 235, 240), Material = Enum.Material.Marble })
 		local look = looks[egg.id] or looks.basic
 		local shell = part({ Name = "Egg", Size = Vector3.new(3, 4, 3), CFrame = center * CFrame.new(x, 6, 0), Color = look.color, Material = look.material, CanCollide = false })
@@ -134,7 +137,7 @@ local function buildEggStand()
 end
 
 local function buildCrateStand()
-	local center = CFrame.new(-74, 0, 0)
+	local center = CFrame.new(-84, 0, 0)
 	local base = part({ Name = "CrateStand", Size = Vector3.new(12, 1, 12), CFrame = center * CFrame.new(0, 0.5, 0), Color = Color3.fromRGB(40, 70, 120), Material = Enum.Material.Marble })
 	billboard(base, "📦 CAJAS DE BALONES", 11, 300)
 	openPrompt(base, "Abrir cajas", "Balones", "collection", { tab = "balls" })

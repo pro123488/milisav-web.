@@ -46,11 +46,17 @@ ArenaConfig.KICK_MAX_LIFT = 32
 ArenaConfig.DRIBBLE_SPEED = 20 -- empujón al tocar el balón corriendo
 ArenaConfig.PASS_MIN_SPEED = 40 -- pase al compañero (la fuerza depende de la distancia)
 ArenaConfig.PASS_MAX_SPEED = 100
+ArenaConfig.HEADER_SPEED = 52 -- cabezazo
+ArenaConfig.HEADER_LIFT = 9
+ArenaConfig.GOLDEN_GOAL_SECONDS = 60 -- prórroga si hay empate: el primer gol gana
 
 -- Bots
 ArenaConfig.BOT_SPEED = 17
 ArenaConfig.BOT_KEEPER_SPEED = 15
 ArenaConfig.BOT_KICK_COOLDOWN = 0.9
+ArenaConfig.BOT_PASS_CHANCE = 0.55 -- probabilidad de pasar en vez de chutar cuando está lejos
+ArenaConfig.BOT_PASS_MIN_DISTANCE = 45 -- distancia a la portería a partir de la que piensa en pasar
+ArenaConfig.BOT_PASS_MIN_GAIN = 12 -- el compañero debe estar al menos así de más cerca de la portería
 ArenaConfig.BOT_NAMES = { "Bot Rayo", "Bot Muralla", "Bot Crack", "Bot Tornado", "Bot Pibe", "Bot Toro", "Bot Mago", "Bot Flecha" }
 
 -- Recompensas (dinero del club; no hay ventajas de pago)
@@ -58,6 +64,7 @@ ArenaConfig.REWARD_WIN = 3000
 ArenaConfig.REWARD_DRAW = 1500
 ArenaConfig.REWARD_LOSS = 800
 ArenaConfig.REWARD_GOAL = 400
+ArenaConfig.REWARD_MVP = 1500 -- extra para el mejor jugador del partido
 ArenaConfig.MAX_REWARDED_PER_HOUR = 12 -- evita granjear dinero sin límite
 
 -- ESTADIOS: en cada partido se elige uno (el destacado de la semana sale la mitad de las veces).
@@ -76,6 +83,18 @@ ArenaConfig.Themes = {
 		pitchA = Color3.fromRGB(62, 46, 46), pitchB = Color3.fromRGB(76, 54, 50), floor = Color3.fromRGB(170, 50, 20), line = Color3.fromRGB(255, 170, 60) },
 	{ id = "neon", name = "Arena neón", icon = "🌃", pitchMaterial = "SmoothPlastic", floorMaterial = "SmoothPlastic", lineMaterial = "Neon",
 		pitchA = Color3.fromRGB(20, 22, 34), pitchB = Color3.fromRGB(28, 30, 46), floor = Color3.fromRGB(10, 10, 18), line = Color3.fromRGB(0, 255, 220) },
+	{ id = "desert", name = "Desierto", icon = "🏜️", pitchMaterial = "Sandstone", floorMaterial = "Sand",
+		pitchA = Color3.fromRGB(214, 170, 110), pitchB = Color3.fromRGB(200, 155, 95), floor = Color3.fromRGB(230, 190, 130), line = Color3.fromRGB(120, 60, 30) },
+	{ id = "jungle", name = "Selva", icon = "🌴", pitchMaterial = "LeafyGrass", floorMaterial = "Mud",
+		pitchA = Color3.fromRGB(60, 120, 50), pitchB = Color3.fromRGB(72, 136, 58), floor = Color3.fromRGB(80, 60, 40), line = Color3.fromRGB(255, 240, 180) },
+	{ id = "moon", name = "Luna", icon = "🌙", pitchMaterial = "Slate", floorMaterial = "Rock",
+		pitchA = Color3.fromRGB(150, 152, 160), pitchB = Color3.fromRGB(135, 137, 146), floor = Color3.fromRGB(90, 92, 100), line = Color3.fromRGB(120, 200, 255), lineMaterial = "Neon" },
+	{ id = "candy", name = "Mundo dulce", icon = "🍭", pitchMaterial = "Plastic", floorMaterial = "SmoothPlastic",
+		pitchA = Color3.fromRGB(255, 170, 210), pitchB = Color3.fromRGB(255, 195, 225), floor = Color3.fromRGB(170, 230, 255), line = Color3.fromRGB(255, 255, 255) },
+	{ id = "castle", name = "Castillo", icon = "🏰", pitchMaterial = "Cobblestone", floorMaterial = "Granite",
+		pitchA = Color3.fromRGB(120, 115, 105), pitchB = Color3.fromRGB(132, 126, 115), floor = Color3.fromRGB(80, 78, 74), line = Color3.fromRGB(255, 215, 80) },
+	{ id = "glacier", name = "Glaciar", icon = "🧊", pitchMaterial = "Glacier", floorMaterial = "Ice",
+		pitchA = Color3.fromRGB(170, 220, 245), pitchB = Color3.fromRGB(150, 205, 235), floor = Color3.fromRGB(210, 235, 250), line = Color3.fromRGB(30, 80, 160) },
 }
 
 function ArenaConfig.Theme(id)

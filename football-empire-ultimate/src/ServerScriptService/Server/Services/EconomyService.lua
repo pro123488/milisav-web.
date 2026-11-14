@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local EconomyFormulas = require(Shared.Modules.EconomyFormulas)
+local RebirthConfig = require(Shared.Config.RebirthConfig)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 
 local DataService = require(script.Parent.DataService)
@@ -41,6 +42,8 @@ EconomyService.Category = {
 	ARENA = "Partidos en grupo",
 	ADMIN_EVENT = "Evento admin",
 	COLLECTION = "Mascotas y balones",
+	REBIRTH = "Renacimiento",
+	REBIRTH_BONUS = "Bonus de renacimiento",
 	TRANSFER = "Fichajes",
 	PRIZE = "Premios",
 }
@@ -96,6 +99,12 @@ function EconomyService.RunCycle(player)
 
 	economy.money += result.totalIncome
 	economy.totalEarned += result.totalIncome
+	-- Bonus permanente de los renacimientos (+20 % de los ingresos por cada uno)
+	local rebirthBonus = math.floor(result.totalIncome * RebirthConfig.IncomeBonus(data.rebirth and data.rebirth.count))
+	if rebirthBonus > 0 then
+		economy.money += rebirthBonus
+		economy.totalEarned += rebirthBonus
+	end
 	economy.money -= result.totalExpenses
 	economy.totalSpent += result.totalExpenses
 
@@ -141,6 +150,10 @@ function EconomyService.RunCycle(player)
 	local summary = string.format("%d espectadores", result.attendance)
 	EconomyService.AddTransaction(data, result.totalIncome, "Jornada", "Ingresos · " .. summary)
 	EconomyService.AddTransaction(data, -result.totalExpenses, "Jornada", "Gastos (mantenimiento, personal, estadio, intereses)")
+	if rebirthBonus > 0 then
+		EconomyService.AddTransaction(data, rebirthBonus, C.REBIRTH_BONUS, string.format("+%d %% por %d renacimiento(s)",
+			math.floor(RebirthConfig.IncomeBonus(data.rebirth.count) * 100 + 0.5), data.rebirth.count))
+	end
 	if newDebt > 0 then
 		EconomyService.AddTransaction(data, 0, C.DEBT, string.format("Déficit de %d convertido en deuda", newDebt))
 	end

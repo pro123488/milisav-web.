@@ -7,7 +7,7 @@
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.17.0-calidad"
+GameConfig.VERSION = "0.18.0-renacimientos"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====

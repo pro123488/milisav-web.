@@ -44,6 +44,7 @@ local Screens = {
 	missions = require(ScreensFolder.Missions),
 	collection = require(ScreensFolder.Collection),
 	season = require(ScreensFolder.Season),
+	rebirth = require(ScreensFolder.Rebirth),
 	achievements = require(ScreensFolder.Achievements),
 }
 local ComingSoon = require(ScreensFolder.ComingSoon)

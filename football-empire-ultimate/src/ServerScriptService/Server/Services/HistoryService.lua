@@ -59,6 +59,8 @@ local function describe(e)
 		return "🎖️", string.format("Logro desbloqueado: %s", tostring(e.name))
 	elseif k == "halloween_reward" then
 		return "🎃", string.format("Premio del evento de Halloween: %s", tostring(e.name))
+	elseif k == "rebirth" then
+		return "🔄", string.format("¡Renacimiento número %s!", tostring(e.count))
 	elseif k == "weekly_reward" then
 		return "🌎", string.format("Puesto %s en la competición semanal del universo", tostring(e.rank))
 	end

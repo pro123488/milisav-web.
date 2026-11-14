@@ -19,6 +19,7 @@ local OutfitConfig = require(Shared.Config.OutfitConfig)
 local SeasonConfig = require(Shared.Config.SeasonConfig)
 local RewardConfig = require(Shared.Config.RewardConfig)
 local TutorialConfig = require(Shared.Config.TutorialConfig)
+local RebirthConfig = require(Shared.Config.RebirthConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -78,6 +79,10 @@ function DefaultData.Create(player)
 			arenaMatches = 0, -- partidos en grupo jugados
 			arenaGoals = 0,
 			arenaWins = 0,
+		},
+		rebirth = { -- renacimientos
+			count = 0,
+			lastAt = 0,
 		},
 		tutorial = { -- primeros pasos
 			step = 1, -- índice del paso actual de TutorialConfig.Steps
@@ -663,7 +668,7 @@ function DefaultData.Reconcile(data, player)
 	if type(rawCollection.equippedPets) == "table" then
 		for _, petId in ipairs(rawCollection.equippedPets) do
 			if collection.pets[petId] and not table.find(collection.equippedPets, petId)
-				and #collection.equippedPets < CollectionConfig.MAX_EQUIPPED_PETS then
+				and #collection.equippedPets < CollectionConfig.ABSOLUTE_MAX_PETS then
 				table.insert(collection.equippedPets, petId)
 			end
 		end
@@ -698,6 +703,13 @@ function DefaultData.Reconcile(data, player)
 		collection.dorsal = math.floor(rawCollection.dorsal)
 	end
 	data.collection = collection
+
+	-- Renacimientos
+	local rawRebirth = type(data.rebirth) == "table" and data.rebirth or {}
+	data.rebirth = {
+		count = math.clamp(math.floor(tonumber(rawRebirth.count) or 0), 0, RebirthConfig.MAX),
+		lastAt = math.max(0, math.floor(tonumber(rawRebirth.lastAt) or 0)),
+	}
 
 	-- Primeros pasos
 	local rawTutorial = type(data.tutorial) == "table" and data.tutorial or {}

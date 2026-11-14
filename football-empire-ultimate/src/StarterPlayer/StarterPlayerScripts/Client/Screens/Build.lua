@@ -273,7 +273,10 @@ local function renderFreeBuild(add, ctx)
 				local button = C.Button("Colocar · " .. Format.Money(piece.cost), "primary", function()
 					ctx.startPiecePlacement({ pieceId = piece.id })
 				end, { Size = UDim2.new(0, 170, 0, 34), AutomaticSize = Enum.AutomaticSize.None })
-				if state.economy.money < piece.cost then
+				local rebirths = state.rebirth and state.rebirth.count or 0
+				if piece.requiresRebirth and rebirths < piece.requiresRebirth then
+					C.SetEnabled(button, false, string.format("🔒 %d renacimientos", piece.requiresRebirth))
+				elseif state.economy.money < piece.cost then
 					C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(piece.cost))
 				elseif full then
 					C.SetEnabled(button, false, "Límite alcanzado")

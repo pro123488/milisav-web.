@@ -10,7 +10,7 @@ Un recorrido de unos 30 minutos para comprobar el juego completo en Roblox Studi
 ## A. Arranque
 - [ ] Al pulsar Play, *Output* muestra `[FOOTBALL EMPIRE ULTIMATE] Servidor iniciado · versión 0.12.0-fase12` sin errores rojos.
 - [ ] Apareces en tu estadio. Llega el aviso de bienvenida y el menú empieza cerrado.
-- [ ] La tecla **M** o el botón **MENÚ** abre el menú con 19 secciones, ninguna marcada como «Próximamente».
+- [ ] La tecla **M** o el botón **MENÚ** abre el menú con 20 secciones, ninguna marcada como «Próximamente».
 
 ## B. Estadio interactivo y Halloween
 - [ ] Puedes chutar el balón tocándolo y, al marcar en una portería, salta la celebración.

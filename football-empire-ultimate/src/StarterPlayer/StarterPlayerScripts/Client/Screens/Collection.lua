@@ -96,7 +96,10 @@ local function openRow(ctx, item, action, key, luck, discount)
 			ctx.navigate("collection", { tab = ctx.params.tab })
 		end
 	end, { Size = UDim2.new(0, 170, 0, 38), AutomaticSize = Enum.AutomaticSize.None })
-	if ctx.state.economy.money < cost then
+	local rebirths = ctx.state.rebirth and ctx.state.rebirth.count or 0
+	if item.requiresRebirth and rebirths < item.requiresRebirth then
+		C.SetEnabled(button, false, string.format("🔒 Renace %d vez", item.requiresRebirth))
+	elseif ctx.state.economy.money < cost then
 		C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(cost))
 	end
 	local offer = discount > 0 and string.format("  <font color='#FFC400'>−%d %% esta semana</font>", math.floor(discount * 100 + 0.5)) or ""
@@ -118,7 +121,7 @@ local function renderPets(add, ctx)
 
 	add(C.Card({ BackgroundColor3 = Theme.Panel }, {
 		C.Row({
-			C.Title(string.format("🐾 Equipadas %d / %d", #equipped, CollectionConfig.MAX_EQUIPPED_PETS), 18),
+			C.Title(string.format("🐾 Equipadas %d / %d", #equipped, (collection.maxPets or CollectionConfig.MAX_EQUIPPED_PETS)), 18),
 			C.Badge(string.format("Bonus en partidos: +%d%%", math.floor(collection.bonus * 100 + 0.5)), Theme.AccentDark),
 			C.Badge(string.format("Descubiertas %d / %d", discovered, #CollectionConfig.Pets), Theme.CardAlt, Theme.TextDim),
 		}, 10),
@@ -154,8 +157,8 @@ local function renderPets(add, ctx)
 			local equipButton = C.Button(isEquipped and "Quitar" or "Equipar", isEquipped and "secondary" or "primary", function()
 				ctx.act("EquipPet", { pet = pet.id, equip = not isEquipped })
 			end, { Size = UDim2.new(0, 88, 0, 30), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14 })
-			if not isEquipped and #equipped >= CollectionConfig.MAX_EQUIPPED_PETS then
-				C.SetEnabled(equipButton, false, "Máx. 3")
+			if not isEquipped and #equipped >= (collection.maxPets or CollectionConfig.MAX_EQUIPPED_PETS) then
+				C.SetEnabled(equipButton, false, "Máx. " .. (collection.maxPets or CollectionConfig.MAX_EQUIPPED_PETS))
 			end
 			addTile(C.Row({
 				equipButton,

@@ -15,6 +15,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage.Shared
 local CollectionConfig = require(Shared.Config.CollectionConfig)
 local WeeklyConfig = require(Shared.Config.WeeklyConfig)
+local RebirthConfig = require(Shared.Config.RebirthConfig)
 local Remotes = require(Shared.Modules.Remotes)
 
 local DataService = require(script.Parent.DataService)
@@ -30,13 +31,29 @@ local models = {} -- [player] = { Model, ... }
 local ballCallbacks = {}
 
 -- Posición de cada mascota respecto al jugador (detrás y a los lados; el frente es -Z)
-local OFFSETS = { Vector3.new(-3.4, -0.8, 3.6), Vector3.new(3.4, -0.8, 3.6), Vector3.new(0, -0.8, 5.8) }
+local OFFSETS = {
+	Vector3.new(-3.4, -0.8, 3.6), Vector3.new(3.4, -0.8, 3.6), Vector3.new(0, -0.8, 5.8),
+	Vector3.new(-5.6, -0.8, 6.4), Vector3.new(5.6, -0.8, 6.4),
+}
 local SCALE = { common = 1, rare = 1.06, epic = 1.14, legendary = 1.24, mythic = 1.34 }
 
-local petsByRarity, ballsByRarity = {}, {}
+-- Mascotas por grupo (pool) y rareza: cada huevo solo da mascotas de su grupo
+local DEFAULT_POOL = "classic"
+local petsByPool, ballsByRarity = {}, {}
 for _, pet in ipairs(CollectionConfig.Pets) do
-	petsByRarity[pet.rarity] = petsByRarity[pet.rarity] or {}
-	table.insert(petsByRarity[pet.rarity], pet)
+	local pool = pet.pool or DEFAULT_POOL
+	petsByPool[pool] = petsByPool[pool] or {}
+	petsByPool[pool][pet.rarity] = petsByPool[pool][pet.rarity] or {}
+	table.insert(petsByPool[pool][pet.rarity], pet)
+end
+-- Aviso en Output si un huevo puede sacar una rareza sin mascotas en su grupo
+for _, egg in ipairs(CollectionConfig.Eggs) do
+	local pool = petsByPool[egg.pool or DEFAULT_POOL] or {}
+	for rarityId, weight in pairs(egg.weights) do
+		if weight > 0 and not pool[rarityId] then
+			warn(string.format("[PetService] El huevo %s puede dar %s pero su grupo no tiene mascotas de esa rareza", egg.id, rarityId))
+		end
+	end
 end
 for _, ball in ipairs(CollectionConfig.Balls) do
 	if not ball.exclusive then -- los exclusivos del pase de temporada no salen en las cajas
@@ -77,11 +94,40 @@ local function announce(player, text)
 	notifyRemote:FireAllClients("info", string.format("🎉 %s %s", player.DisplayName, text))
 end
 
+-- Mascotas posibles para esa rareza en el grupo del huevo. Si no hubiera ninguna (error de
+-- configuración), se usa la rareza más cercana hacia abajo y, si no, hacia arriba.
+local function poolFor(egg, rarityId)
+	local groups = petsByPool[egg.pool or DEFAULT_POOL] or petsByPool[DEFAULT_POOL]
+	if groups[rarityId] then
+		return groups[rarityId]
+	end
+	local order = {}
+	for i, rarity in ipairs(CollectionConfig.Rarities) do
+		order[rarity.id] = i
+	end
+	local start = order[rarityId] or 1
+	for distance = 1, #CollectionConfig.Rarities do
+		for _, index in ipairs({ start - distance, start + distance }) do
+			local rarity = CollectionConfig.Rarities[index]
+			if rarity and groups[rarity.id] then
+				return groups[rarity.id]
+			end
+		end
+	end
+	return petsByPool[DEFAULT_POOL].common
+end
+
+-- Huecos de mascota equipada de este jugador (3, más los que dan los renacimientos)
+function PetService.MaxPets(data)
+	return math.min(CollectionConfig.ABSOLUTE_MAX_PETS,
+		RebirthConfig.PetSlots(data.rebirth and data.rebirth.count, CollectionConfig.MAX_EQUIPPED_PETS))
+end
+
 -- Sortea una mascota de ese huevo y la guarda. Devuelve la mascota, su rareza y si es nueva.
 local function hatchInto(player, data, egg)
-	local rarityId = rollRarity(egg.weights)
-	local pool = petsByRarity[rarityId]
+	local pool = poolFor(egg, rollRarity(egg.weights))
 	local pet = pool[rng:NextInteger(1, #pool)]
+	local rarityId = pet.rarity
 	local collection = data.collection
 	collection.pets[pet.id] = math.min(999, (collection.pets[pet.id] or 0) + 1)
 	collection.hatched += 1
@@ -98,6 +144,9 @@ function PetService.Hatch(player, payload)
 	local egg = type(payload) == "table" and type(payload.egg) == "string" and CollectionConfig.EggById[payload.egg]
 	if not egg then
 		return false, "Ese huevo no existe."
+	end
+	if egg.requiresRebirth and data.rebirth.count < egg.requiresRebirth then
+		return false, string.format("El %s se desbloquea al renacer %d vez.", egg.name, egg.requiresRebirth)
 	end
 	local paid, payError = EconomyService.Spend(player, PetService.EggCost(egg), EconomyService.Category.COLLECTION, egg.name)
 	if not paid then
@@ -202,8 +251,9 @@ function PetService.EquipPet(player, payload)
 		if index then
 			return false, "Ya la llevas equipada."
 		end
-		if #collection.equippedPets >= CollectionConfig.MAX_EQUIPPED_PETS then
-			return false, string.format("Solo puedes llevar %d mascotas a la vez. Quita una primero.", CollectionConfig.MAX_EQUIPPED_PETS)
+		local maxPets = PetService.MaxPets(data)
+		if #collection.equippedPets >= maxPets then
+			return false, string.format("Solo puedes llevar %d mascotas a la vez. Quita una primero (renacer da más huecos).", maxPets)
 		end
 		table.insert(collection.equippedPets, pet.id)
 		PetService.Refresh(player)
@@ -295,6 +345,8 @@ function PetService.BuildState(data)
 		balls = collection.balls,
 		ball = collection.ball,
 		bonus = bonusOf(data),
+		maxPets = PetService.MaxPets(data),
+		rebirths = data.rebirth.count,
 		hatched = collection.hatched,
 		luck = AdminService.LuckMultiplier(),
 	}

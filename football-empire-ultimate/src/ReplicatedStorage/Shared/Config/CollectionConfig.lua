@@ -9,7 +9,8 @@
 
 local CollectionConfig = {}
 
-CollectionConfig.MAX_EQUIPPED_PETS = 3
+CollectionConfig.MAX_EQUIPPED_PETS = 3 -- base; los renacimientos suman huecos (RebirthConfig.PET_SLOT_AT)
+CollectionConfig.ABSOLUTE_MAX_PETS = 5
 CollectionConfig.DUPLICATE_BALL_REFUND = 0.5 -- balón repetido: se devuelve la mitad de la caja
 
 CollectionConfig.Rarities = {
@@ -37,6 +38,31 @@ CollectionConfig.Pets = {
 	{ id = "unicorn", name = "Unicornio", icon = "🦄", rarity = "legendary", bonus = 0.15, body = Color3.fromRGB(250, 245, 255), accent = Color3.fromRGB(255, 130, 220), ears = "pointy", horn = true, sparkles = Color3.fromRGB(255, 170, 240) },
 	{ id = "phoenix", name = "Fénix dorado", icon = "🔥", rarity = "mythic", bonus = 0.25, body = Color3.fromRGB(255, 150, 30), accent = Color3.fromRGB(255, 225, 80), ears = "none", beak = true, wings = true, fire = true, neon = true },
 	{ id = "goldenball", name = "Balonín de oro", icon = "🏆", rarity = "mythic", bonus = 0.25, body = Color3.fromRGB(255, 205, 50), accent = Color3.fromRGB(255, 245, 190), ears = "none", neon = true, sparkles = Color3.fromRGB(255, 230, 120) },
+
+	-- pool = "jungle": solo salen del Huevo de la selva
+	{ id = "frog", pool = "jungle", name = "Rana", icon = "🐸", rarity = "common", bonus = 0.02, body = Color3.fromRGB(90, 200, 80), accent = Color3.fromRGB(230, 250, 200), ears = "round" },
+	{ id = "chameleon", pool = "jungle", name = "Camaleón", icon = "🦎", rarity = "common", bonus = 0.02, body = Color3.fromRGB(60, 190, 160), accent = Color3.fromRGB(255, 210, 80), ears = "none", fin = true },
+	{ id = "parrot", pool = "jungle", name = "Loro", icon = "🦜", rarity = "rare", bonus = 0.05, body = Color3.fromRGB(230, 50, 50), accent = Color3.fromRGB(60, 140, 255), ears = "none", beak = true, wings = true },
+	{ id = "monkey", pool = "jungle", name = "Mono", icon = "🐵", rarity = "rare", bonus = 0.05, body = Color3.fromRGB(140, 95, 60), accent = Color3.fromRGB(240, 200, 160), ears = "round" },
+	{ id = "tiger", pool = "jungle", name = "Tigre", icon = "🐯", rarity = "epic", bonus = 0.09, body = Color3.fromRGB(245, 140, 30), accent = Color3.fromRGB(30, 25, 25), ears = "round" },
+	{ id = "gorilla", pool = "jungle", name = "Gorila rey", icon = "🦍", rarity = "legendary", bonus = 0.15, body = Color3.fromRGB(55, 55, 65), accent = Color3.fromRGB(150, 140, 135), ears = "round", mane = true, sparkles = Color3.fromRGB(255, 220, 120) },
+	{ id = "jaguar", pool = "jungle", name = "Jaguar dorado", icon = "🐆", rarity = "mythic", bonus = 0.25, body = Color3.fromRGB(255, 200, 60), accent = Color3.fromRGB(120, 70, 20), ears = "round", neon = true, sparkles = Color3.fromRGB(255, 240, 150) },
+
+	-- pool = "ocean": solo salen del Huevo oceánico
+	{ id = "clownfish", pool = "ocean", name = "Pez payaso", icon = "🐠", rarity = "common", bonus = 0.02, body = Color3.fromRGB(255, 130, 30), accent = Color3.fromRGB(255, 255, 255), ears = "none", fin = true },
+	{ id = "crab", pool = "ocean", name = "Cangrejo", icon = "🦀", rarity = "common", bonus = 0.02, body = Color3.fromRGB(220, 60, 50), accent = Color3.fromRGB(255, 200, 180), ears = "round" },
+	{ id = "turtle", pool = "ocean", name = "Tortuga", icon = "🐢", rarity = "rare", bonus = 0.05, body = Color3.fromRGB(90, 160, 80), accent = Color3.fromRGB(150, 110, 60), ears = "none", fin = true },
+	{ id = "jellyfish", pool = "ocean", name = "Medusa", icon = "🪼", rarity = "rare", bonus = 0.05, body = Color3.fromRGB(220, 150, 255), accent = Color3.fromRGB(255, 220, 255), ears = "long", neon = true },
+	{ id = "octopus", pool = "ocean", name = "Pulpo", icon = "🐙", rarity = "epic", bonus = 0.09, body = Color3.fromRGB(200, 70, 160), accent = Color3.fromRGB(255, 180, 230), ears = "floppy" },
+	{ id = "dolphin", pool = "ocean", name = "Delfín", icon = "🐬", rarity = "epic", bonus = 0.09, body = Color3.fromRGB(110, 170, 230), accent = Color3.fromRGB(235, 245, 255), ears = "none", fin = true, beak = true },
+	{ id = "kraken", pool = "ocean", name = "Kraken", icon = "🦑", rarity = "legendary", bonus = 0.15, body = Color3.fromRGB(110, 40, 140), accent = Color3.fromRGB(80, 230, 200), ears = "floppy", sparkles = Color3.fromRGB(120, 255, 220) },
+	{ id = "leviathan", pool = "ocean", name = "Leviatán de cristal", icon = "🐋", rarity = "mythic", bonus = 0.25, body = Color3.fromRGB(150, 230, 255), accent = Color3.fromRGB(255, 255, 255), ears = "none", fin = true, neon = true, sparkles = Color3.fromRGB(220, 250, 255) },
+
+	-- pool = "rebirth": solo salen del Huevo renacido (hace falta haber renacido)
+	{ id = "moonwolf", pool = "rebirth", name = "Lobo lunar", icon = "🐺", rarity = "epic", bonus = 0.12, body = Color3.fromRGB(170, 180, 220), accent = Color3.fromRGB(60, 70, 120), ears = "pointy", sparkles = Color3.fromRGB(200, 210, 255) },
+	{ id = "griffin", pool = "rebirth", name = "Grifo", icon = "🦅", rarity = "legendary", bonus = 0.20, body = Color3.fromRGB(230, 190, 110), accent = Color3.fromRGB(255, 255, 255), ears = "pointy", beak = true, wings = true, sparkles = Color3.fromRGB(255, 230, 160) },
+	{ id = "shadowdragon", pool = "rebirth", name = "Dragón de sombra", icon = "🐲", rarity = "legendary", bonus = 0.20, body = Color3.fromRGB(40, 30, 60), accent = Color3.fromRGB(170, 80, 255), ears = "pointy", wings = true, horn = true, sparkles = Color3.fromRGB(190, 120, 255) },
+	{ id = "goalangel", pool = "rebirth", name = "Ángel del gol", icon = "😇", rarity = "mythic", bonus = 0.35, body = Color3.fromRGB(255, 255, 245), accent = Color3.fromRGB(255, 215, 80), ears = "none", wings = true, horn = true, neon = true, sparkles = Color3.fromRGB(255, 245, 190) },
 }
 
 -- weights = probabilidad (%) de cada rareza. Dentro de una rareza, todas las mascotas valen igual.
@@ -44,6 +70,10 @@ CollectionConfig.Eggs = {
 	{ id = "basic", name = "Huevo básico", icon = "🥚", cost = 5000, weights = { common = 70, rare = 24, epic = 5, legendary = 0.9, mythic = 0.1 } },
 	{ id = "golden", name = "Huevo dorado", icon = "🌟", cost = 40000, weights = { common = 35, rare = 40, epic = 19, legendary = 5, mythic = 1 } },
 	{ id = "champion", name = "Huevo de campeón", icon = "🏆", cost = 250000, weights = { common = 0, rare = 45, epic = 38, legendary = 14, mythic = 3 } },
+	-- Huevos temáticos: cada uno tiene sus propias mascotas (pool)
+	{ id = "jungle", pool = "jungle", name = "Huevo de la selva", icon = "🌴", cost = 80000, weights = { common = 55, rare = 30, epic = 11, legendary = 3.5, mythic = 0.5 } },
+	{ id = "ocean", pool = "ocean", name = "Huevo oceánico", icon = "🌊", cost = 150000, weights = { common = 40, rare = 36, epic = 18, legendary = 5, mythic = 1 } },
+	{ id = "rebirth", pool = "rebirth", name = "Huevo renacido", icon = "🔄", cost = 500000, requiresRebirth = 1, weights = { common = 0, rare = 0, epic = 70, legendary = 26, mythic = 4 } },
 }
 
 -- Aspecto: color + material · trail = colores de la estela · sparkles/fire/light opcionales.
@@ -61,9 +91,20 @@ CollectionConfig.Balls = {
 	{ id = "diamond", name = "Diamante", icon = "💎", rarity = "legendary", color = Color3.fromRGB(170, 240, 255), material = "Glass", trail = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 230, 255) }, sparkles = Color3.fromRGB(200, 250, 255), light = Color3.fromRGB(170, 240, 255) },
 	{ id = "rainbow", name = "Arcoíris", icon = "🌈", rarity = "legendary", color = Color3.fromRGB(255, 90, 160), material = "Neon", trail = { Color3.fromRGB(255, 60, 60), Color3.fromRGB(255, 220, 60), Color3.fromRGB(60, 220, 120), Color3.fromRGB(70, 130, 255) }, sparkles = Color3.fromRGB(255, 255, 255) },
 	{ id = "champion", name = "Balón del campeón", icon = "👑", rarity = "mythic", color = Color3.fromRGB(255, 215, 70), material = "Neon", trail = { Color3.fromRGB(255, 255, 220), Color3.fromRGB(255, 190, 30) }, sparkles = Color3.fromRGB(255, 240, 150), fire = true, light = Color3.fromRGB(255, 210, 90) },
+	{ id = "leather", name = "Cuero retro", icon = "🟤", rarity = "common", color = Color3.fromRGB(140, 85, 45), material = "Leather" },
+	{ id = "pink", name = "Chicle", icon = "🩷", rarity = "common", color = Color3.fromRGB(255, 130, 200), material = "SmoothPlastic" },
+	{ id = "camo", name = "Camuflaje", icon = "🪖", rarity = "common", color = Color3.fromRGB(95, 115, 60), material = "Fabric" },
+	{ id = "stone", name = "Piedra", icon = "🪨", rarity = "rare", color = Color3.fromRGB(130, 130, 135), material = "Rock", trail = { Color3.fromRGB(200, 200, 200), Color3.fromRGB(90, 90, 95) } },
+	{ id = "ruby", name = "Rubí", icon = "♦️", rarity = "rare", color = Color3.fromRGB(220, 20, 60), material = "Glass", trail = { Color3.fromRGB(255, 120, 150), Color3.fromRGB(180, 0, 40) }, sparkles = Color3.fromRGB(255, 120, 150) },
+	{ id = "emerald", name = "Esmeralda", icon = "💚", rarity = "rare", color = Color3.fromRGB(30, 200, 110), material = "Glass", trail = { Color3.fromRGB(150, 255, 190), Color3.fromRGB(10, 140, 70) }, sparkles = Color3.fromRGB(150, 255, 190) },
+	{ id = "storm", name = "Tormenta", icon = "⚡", rarity = "epic", color = Color3.fromRGB(80, 90, 140), material = "Neon", trail = { Color3.fromRGB(255, 255, 140), Color3.fromRGB(120, 160, 255) }, light = Color3.fromRGB(180, 200, 255), sparkles = Color3.fromRGB(255, 255, 160) },
+	{ id = "plasma", name = "Plasma", icon = "🟣", rarity = "epic", color = Color3.fromRGB(255, 60, 255), material = "ForceField", trail = { Color3.fromRGB(255, 160, 255), Color3.fromRGB(120, 40, 255) }, light = Color3.fromRGB(255, 120, 255) },
+	{ id = "solar", name = "Sol", icon = "☀️", rarity = "legendary", color = Color3.fromRGB(255, 170, 30), material = "Neon", trail = { Color3.fromRGB(255, 255, 180), Color3.fromRGB(255, 120, 0) }, fire = true, light = Color3.fromRGB(255, 190, 80) },
+	{ id = "void", name = "Vacío", icon = "⚫", rarity = "mythic", color = Color3.fromRGB(10, 10, 15), material = "Neon", trail = { Color3.fromRGB(120, 255, 255), Color3.fromRGB(255, 80, 255), Color3.fromRGB(0, 0, 0) }, light = Color3.fromRGB(120, 255, 255), sparkles = Color3.fromRGB(150, 255, 255) },
 }
--- Balones exclusivos del pase de temporada (exclusive = no salen en las cajas)
+-- Balones exclusivos del pase de temporada y de los renacimientos (exclusive = no salen en las cajas)
 for _, ball in ipairs({
+	{ id = "rebirth_phoenix", name = "Fénix renacido", icon = "🔥", rarity = "mythic", color = Color3.fromRGB(255, 110, 30), material = "Neon", trail = { Color3.fromRGB(255, 240, 120), Color3.fromRGB(255, 60, 20), Color3.fromRGB(150, 0, 60) }, fire = true, light = Color3.fromRGB(255, 140, 60), sparkles = Color3.fromRGB(255, 210, 120) },
 	{ id = "season_fire", name = "Meteorito", icon = "☄️", rarity = "legendary", color = Color3.fromRGB(170, 40, 20), material = "CrackedLava", trail = { Color3.fromRGB(255, 220, 80), Color3.fromRGB(255, 70, 20) }, fire = true },
 	{ id = "season_fire_elite", name = "Sol ardiente", icon = "🌞", rarity = "mythic", color = Color3.fromRGB(255, 190, 40), material = "Neon", trail = { Color3.fromRGB(255, 255, 200), Color3.fromRGB(255, 120, 20) }, fire = true, light = Color3.fromRGB(255, 190, 80), sparkles = Color3.fromRGB(255, 230, 140) },
 	{ id = "season_ice", name = "Copo polar", icon = "❄️", rarity = "legendary", color = Color3.fromRGB(215, 240, 255), material = "Ice", trail = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 200, 255) }, sparkles = Color3.fromRGB(220, 245, 255) },
