@@ -1,8 +1,9 @@
 -- LeaderboardService (ModuleScript)
 -- Ubicación: ServerScriptService/Server/Services/LeaderboardService
 --
--- CLASIFICACIÓN MUNDIAL DE GOLEADORES (entre todos los servidores) con OrderedDataStore.
---   * Se guarda el total de goles en partidos en grupo de cada jugador (dato del servidor).
+-- CLASIFICACIONES MUNDIALES (entre todos los servidores) con OrderedDataStore:
+--   * «goals»: total de goles en partidos en grupo · «trophies»: trofeos actuales.
+--   * Se guardan datos del servidor (nunca valores enviados por el cliente).
 --   * Se escribe como mucho una vez por minuto por jugador y al salir, para no gastar el cupo.
 --   * Cada 2 minutos se lee el top 10 y se avisa a quien lo muestre (el tablón de la plaza).
 -- Si DataStore no está disponible (Studio sin acceso a la API), el juego sigue y el tablón lo indica.
@@ -14,25 +15,29 @@ local DataService = require(script.Parent.DataService)
 
 local LeaderboardService = {}
 
-local STORE_NAME = "FEU_TopGoals_v1"
 local WRITE_SECONDS = 60
 local READ_SECONDS = 120
 local TOP = 10
 
-local store
-local lastWritten = {} -- [player] = { value, time }
+-- Clasificaciones: id -> almacén y valor que se guarda
+local BOARDS = {
+	{ id = "goals", store = "FEU_TopGoals_v1", value = function(data) return data.stats.arenaGoals end },
+	{ id = "trophies", store = "FEU_TopTrophies_v1", value = function(data) return data.arena.trophies end },
+}
+
+local stores = {} -- [id] = OrderedDataStore | false
+local lastWritten = {} -- [player] = { [id] = { value, time } }
 local names = {} -- [userId] = nombre (caché)
 local listeners = {}
-local top, available = {}, false
 
-local function getStore()
-	if store == nil then
+local function getStore(board)
+	if stores[board.id] == nil then
 		local ok, result = pcall(function()
-			return DataStoreService:GetOrderedDataStore(STORE_NAME)
+			return DataStoreService:GetOrderedDataStore(board.store)
 		end)
-		store = ok and result or false
+		stores[board.id] = ok and result or false
 	end
-	return store or nil
+	return stores[board.id] or nil
 end
 
 local function nameOf(userId)
@@ -51,58 +56,58 @@ local function nameOf(userId)
 	return names[userId]
 end
 
--- Guarda los goles del jugador si han cambiado (force = sin esperar al minuto, p. ej. al salir).
+-- Guarda los valores del jugador que han cambiado (force = sin esperar al minuto, p. ej. al salir).
 function LeaderboardService.Submit(player, force)
 	local data = DataService.Get(player)
-	local ordered = getStore()
-	if not data or not ordered or not DataService.IsSaveEnabled(player) then
+	if not data or not DataService.IsSaveEnabled(player) then
 		return
 	end
-	local value = data.stats.arenaGoals
-	local last = lastWritten[player]
-	if value <= 0 or (last and last.value == value) then
-		return
-	end
-	if not force and last and os.clock() - last.time < WRITE_SECONDS then
-		return
-	end
-	lastWritten[player] = { value = value, time = os.clock() }
-	local userId = player.UserId
-	task.spawn(function()
-		local ok, err = pcall(function()
-			ordered:SetAsync(tostring(userId), value)
-		end)
-		if not ok then
-			warn("[LeaderboardService] No se pudo guardar la clasificación: ", err)
+	lastWritten[player] = lastWritten[player] or {}
+	for _, board in ipairs(BOARDS) do
+		local ordered = getStore(board)
+		local value = board.value(data)
+		local last = lastWritten[player][board.id]
+		local changed = not last or last.value ~= value
+		local due = force or not last or os.clock() - last.time >= WRITE_SECONDS
+		if ordered and changed and due and (value > 0 or last) then
+			lastWritten[player][board.id] = { value = value, time = os.clock() }
+			local userId = player.UserId
+			task.spawn(function()
+				local ok, err = pcall(function()
+					ordered:SetAsync(tostring(userId), value)
+				end)
+				if not ok then
+					warn("[LeaderboardService] No se pudo guardar la clasificación ", board.id, ": ", err)
+				end
+			end)
 		end
-	end)
+	end
 end
 
-local function refresh()
-	local ordered = getStore()
+-- Devuelve el top de una clasificación, o nil si no está disponible
+local function read(board)
+	local ordered = getStore(board)
 	if not ordered then
-		available = false
-		return
+		return nil
 	end
 	local ok, result = pcall(function()
 		local pages = ordered:GetSortedAsync(false, TOP)
 		return pages:GetCurrentPage()
 	end)
 	if not ok then
-		available = false
-		return
+		return nil
 	end
 	local list = {}
 	for _, entry in ipairs(result) do
 		local userId = tonumber(entry.key)
-		if userId then
+		if userId and entry.value > 0 then
 			table.insert(list, { name = nameOf(userId), value = entry.value })
 		end
 	end
-	top, available = list, true
+	return list
 end
 
--- callback(lista { name, value }, disponible)
+-- callback(idClasificación, lista { name, value }, disponible)
 function LeaderboardService.OnUpdate(callback)
 	table.insert(listeners, callback)
 end
@@ -115,9 +120,11 @@ end
 function LeaderboardService.Start()
 	task.spawn(function()
 		while true do
-			refresh()
-			for _, callback in ipairs(listeners) do
-				task.spawn(callback, top, available)
+			for _, board in ipairs(BOARDS) do
+				local list = read(board)
+				for _, callback in ipairs(listeners) do
+					task.spawn(callback, board.id, list or {}, list ~= nil)
+				end
 			end
 			task.wait(READ_SECONDS)
 		end

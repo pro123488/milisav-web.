@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: las 12 fases están implementadas** (versión `0.18.0-renacimientos`, con las Actualizaciones 1 a 6). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
+**Estado actual: las 12 fases están implementadas** (versión `0.19.0-trofeos`, con las Actualizaciones 1 a 7). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -28,6 +28,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | ACTUALIZACIÓN 4 · Pase de temporada, trajes, estadios y contenido semanal | [`docs/ACTUALIZACION_4_PASE_TRAJES_ESTADIOS.md`](docs/ACTUALIZACION_4_PASE_TRAJES_ESTADIOS.md) |
 | ACTUALIZACIÓN 5 · Revisión de calidad, recompensa diaria, códigos y extras de partido | [`docs/ACTUALIZACION_5_CALIDAD_Y_EXTRAS.md`](docs/ACTUALIZACION_5_CALIDAD_Y_EXTRAS.md) |
 | ACTUALIZACIÓN 6 · Renacimientos, más mascotas, balones, estadios y piezas, y mejor jugabilidad | [`docs/ACTUALIZACION_6_RENACIMIENTOS.md`](docs/ACTUALIZACION_6_RENACIMIENTOS.md) |
+| ACTUALIZACIÓN 7 · Camino de trofeos y mascotas doradas | [`docs/ACTUALIZACION_7_TROFEOS_Y_MASCOTAS_DORADAS.md`](docs/ACTUALIZACION_7_TROFEOS_Y_MASCOTAS_DORADAS.md) |
 
 > 💎 Los seis Game Passes están creados en Roblox y sus IDs reales están en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Las ventajas solo se activan cuando Roblox confirma la compra (en el servidor).
 

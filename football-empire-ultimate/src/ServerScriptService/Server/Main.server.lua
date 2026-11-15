@@ -46,6 +46,7 @@ local SeasonService = require(Services.SeasonService)
 local RewardService = require(Services.RewardService)
 local TutorialService = require(Services.TutorialService)
 local RebirthService = require(Services.RebirthService)
+local TrophyService = require(Services.TrophyService)
 local LeaderboardService = require(Services.LeaderboardService)
 local HubService = require(Services.HubService)
 local ArenaService = require(Services.ArenaService)
@@ -122,6 +123,7 @@ local function buildState(player)
 		rewards = RewardService.BuildState(data), -- recompensa diaria con racha
 		tutorial = TutorialService.BuildState(data), -- primeros pasos guiados
 		rebirth = RebirthService.BuildState(data), -- renacimientos
+		trophies = TrophyService.BuildState(data), -- camino de trofeos
 		premium = {
 			owned = GamePassService.OwnedList(player),
 		},
@@ -132,9 +134,9 @@ end
 
 -- Tabla de líderes de Roblox (arriba a la derecha): goles y victorias en partidos en grupo, y dinero.
 local LEADERSTATS = {
-	{ name = "🔄 Renac.", value = function(data) return data.rebirth.count end },
+	{ name = "🏆 Trofeos", value = function(data) return data.arena.trophies end },
 	{ name = "⚽ Goles", value = function(data) return data.stats.arenaGoals end },
-	{ name = "🏆 Victorias", value = function(data) return data.stats.arenaWins end },
+	{ name = "🔄 Renac.", value = function(data) return data.rebirth.count end },
 	{ name = "💰 Dinero", value = function(data) return math.floor(data.economy.money) end },
 }
 
@@ -527,6 +529,18 @@ Actions.SellPet = function(player, payload)
 	return PetService.SellPet(player, payload)
 end
 
+Actions.FusePet = function(player, payload)
+	return PetService.Fuse(player, payload)
+end
+
+Actions.SellDuplicatePets = function(player)
+	return PetService.SellDuplicates(player)
+end
+
+Actions.ClaimPetIndex = function(player, payload)
+	return PetService.ClaimIndex(player, payload)
+end
+
 Actions.EquipBall = function(player, payload)
 	return PetService.EquipBall(player, payload)
 end
@@ -566,9 +580,18 @@ Actions.WatchArena = function(player)
 	return ArenaService.Watch(player)
 end
 
+-- ===== Camino de trofeos =====
+Actions.ClaimTrophyReward = function(player, payload)
+	return TrophyService.Claim(player, payload)
+end
+
 -- ===== Renacimientos =====
 Actions.Rebirth = function(player, payload)
-	return RebirthService.Rebirth(player, payload)
+	local ok, message, rerender = RebirthService.Rebirth(player, payload)
+	if ok then
+		PlotService.RefreshNameTag(player)
+	end
+	return ok, message, rerender
 end
 
 -- ===== Recompensa diaria y códigos de regalo =====
@@ -794,7 +817,9 @@ HalloweenService.OnCandy(function(player, amount)
 	MissionService.Track(player, "candy", amount)
 end)
 HalloweenService.Start()
-ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals)
+ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals, result, isMvp)
+	TrophyService.AfterMatch(player, result, goals, isMvp)
+	PlotService.RefreshNameTag(player)
 	MissionService.Track(player, "matches", 1)
 	MissionService.Track(player, "goals", goals)
 	if teamGoals > otherGoals then

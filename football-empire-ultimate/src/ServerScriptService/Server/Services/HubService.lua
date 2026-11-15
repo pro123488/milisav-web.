@@ -25,7 +25,8 @@ local HubService = {}
 
 local notifyRemote = Remotes.Get("Notify")
 local folder
-local seasonLabel, leaderboardLabel
+local seasonLabel
+local boardLabels = {} -- [idClasificación] = TextLabel
 local eggLabels = {} -- [id] = TextLabel con el precio
 
 local DARK = Color3.fromRGB(18, 22, 34)
@@ -172,17 +173,18 @@ local function refreshTexts()
 	end
 end
 
--- Lo llama LeaderboardService con el top 10 mundial
-function HubService.SetLeaderboard(list, available)
-	if not leaderboardLabel then
+-- Lo llama LeaderboardService con el top 10 mundial de cada clasificación
+function HubService.SetLeaderboard(boardId, list, available)
+	local label = boardLabels[boardId]
+	if not label then
 		return
 	end
 	if not available then
-		leaderboardLabel.Text = "La clasificación mundial no está disponible en esta sesión."
+		label.Text = "La clasificación mundial no está disponible en esta sesión."
 		return
 	end
 	if #list == 0 then
-		leaderboardLabel.Text = "Todavía no hay goleadores.\n¡Juega un partido en grupo y sé el primero!"
+		label.Text = "Todavía no hay nadie.\n¡Juega un partido en grupo y sé el primero!"
 		return
 	end
 	local lines = {}
@@ -190,7 +192,7 @@ function HubService.SetLeaderboard(list, available)
 		local medal = position == 1 and "🥇" or (position == 2 and "🥈" or (position == 3 and "🥉" or string.format("%d.", position)))
 		table.insert(lines, string.format("%s %s — <b>%d</b>", medal, entry.name, entry.value))
 	end
-	leaderboardLabel.Text = table.concat(lines, "\n")
+	label.Text = table.concat(lines, "\n")
 end
 
 local function polishLighting()
@@ -235,9 +237,13 @@ function HubService.Start()
 	local seasonBoard, seasonBody = board(CFrame.new(0, 11, 22), Enum.NormalId.Front, "🎟️ PASE DE TEMPORADA", GOLD)
 	seasonLabel = seasonBody
 	openPrompt(seasonBoard, "Ver el pase", "Pase de temporada", "season")
-	local _, topBody = board(CFrame.new(0, 11, -22), Enum.NormalId.Back, "🏆 TOP GOLEADORES DEL MUNDO", Color3.fromRGB(90, 220, 255))
-	leaderboardLabel = topBody
-	leaderboardLabel.Text = "Cargando la clasificación…"
+	local _, goalsBody = board(CFrame.new(0, 11, -22), Enum.NormalId.Back, "⚽ TOP GOLEADORES DEL MUNDO", Color3.fromRGB(90, 220, 255))
+	boardLabels.goals = goalsBody
+	goalsBody.Text = "Cargando la clasificación…"
+	local trophyBoard, trophyBody = board(CFrame.new(30, 11, -22), Enum.NormalId.Back, "🏆 TOP TROFEOS DEL MUNDO", GOLD)
+	boardLabels.trophies = trophyBody
+	trophyBody.Text = "Cargando la clasificación…"
+	openPrompt(trophyBoard, "Ver mi camino", "Camino de trofeos", "trophies")
 	polishLighting()
 	task.spawn(function()
 		while true do

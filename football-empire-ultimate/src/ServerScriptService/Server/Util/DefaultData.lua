@@ -20,6 +20,7 @@ local SeasonConfig = require(Shared.Config.SeasonConfig)
 local RewardConfig = require(Shared.Config.RewardConfig)
 local TutorialConfig = require(Shared.Config.TutorialConfig)
 local RebirthConfig = require(Shared.Config.RebirthConfig)
+local TrophyConfig = require(Shared.Config.TrophyConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 local CommercialConfig = require(Shared.Config.CommercialConfig)
 local SponsorConfig = require(Shared.Config.SponsorConfig)
@@ -80,6 +81,11 @@ function DefaultData.Create(player)
 			arenaGoals = 0,
 			arenaWins = 0,
 		},
+		arena = { -- camino de trofeos de los partidos en grupo
+			trophies = 0,
+			best = 0, -- máximo alcanzado (desbloquea los premios del camino)
+			claimed = {}, -- ["trofeos"] = true
+		},
 		rebirth = { -- renacimientos
 			count = 0,
 			lastAt = 0,
@@ -106,6 +112,8 @@ function DefaultData.Create(player)
 			ball = "classic",
 			hatched = 0,
 			crates = 0,
+			discovered = {}, -- [id de mascota] = true (para el índice; no se pierde al vender)
+			indexClaimed = {}, -- [grupo] = true
 			outfits = {}, -- [id de traje] = true («Tu avatar» y el del club siempre están)
 			outfit = "none",
 			dorsal = nil, -- 1-99; nil = el número propio de cada traje
@@ -684,6 +692,25 @@ function DefaultData.Reconcile(data, player)
 		and (rawCollection.ball == CollectionConfig.DEFAULT_BALL or collection.balls[rawCollection.ball]) then
 		collection.ball = rawCollection.ball
 	end
+	collection.discovered = {}
+	if type(rawCollection.discovered) == "table" then
+		for petId, seen in pairs(rawCollection.discovered) do
+			if CollectionConfig.PetById[petId] and seen == true then
+				collection.discovered[petId] = true
+			end
+		end
+	end
+	for petId in pairs(collection.pets) do
+		collection.discovered[petId] = true -- las que ya tenías cuentan como descubiertas
+	end
+	collection.indexClaimed = {}
+	if type(rawCollection.indexClaimed) == "table" then
+		for _, entry in ipairs(CollectionConfig.IndexRewards) do
+			if rawCollection.indexClaimed[entry.pool] == true then
+				collection.indexClaimed[entry.pool] = true
+			end
+		end
+	end
 	collection.hatched = math.max(0, math.floor(tonumber(rawCollection.hatched) or 0))
 	collection.crates = math.max(0, math.floor(tonumber(rawCollection.crates) or 0))
 	collection.outfits = {}
@@ -703,6 +730,22 @@ function DefaultData.Reconcile(data, player)
 		collection.dorsal = math.floor(rawCollection.dorsal)
 	end
 	data.collection = collection
+
+	-- Camino de trofeos
+	local rawArena = type(data.arena) == "table" and data.arena or {}
+	local trophies = math.max(0, math.floor(tonumber(rawArena.trophies) or 0))
+	data.arena = {
+		trophies = trophies,
+		best = math.max(trophies, math.floor(tonumber(rawArena.best) or 0)),
+		claimed = {},
+	}
+	if type(rawArena.claimed) == "table" then
+		for _, step in ipairs(TrophyConfig.Road) do
+			if rawArena.claimed[tostring(step.at)] == true then
+				data.arena.claimed[tostring(step.at)] = true
+			end
+		end
+	end
 
 	-- Renacimientos
 	local rawRebirth = type(data.rebirth) == "table" and data.rebirth or {}

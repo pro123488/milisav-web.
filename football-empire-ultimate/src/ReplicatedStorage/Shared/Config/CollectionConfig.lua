@@ -124,6 +124,52 @@ CollectionConfig.Crates = {
 	{ id = "elite", name = "Caja de élite", icon = "🎁", cost = 120000, weights = { common = 0, rare = 50, epic = 36, legendary = 11, mythic = 3 } },
 }
 
+-- ===== Mascotas doradas =====
+-- Cada mascota normal tiene una versión dorada que se consigue FUSIONANDO FUSE_COUNT copias.
+-- Se generan aquí (id «gold_<id>», grupo «golden»): ningún huevo las da directamente.
+CollectionConfig.FUSE_COUNT = 5
+CollectionConfig.GOLDEN_BONUS = 2.5 -- multiplica el bonus de la mascota normal
+CollectionConfig.GOLDEN_SELL = 3 -- multiplica el precio de venta
+local GOLD = Color3.fromRGB(255, 205, 60)
+local basePets = {}
+for _, pet in ipairs(CollectionConfig.Pets) do
+	table.insert(basePets, pet)
+end
+for _, pet in ipairs(basePets) do
+	local golden = table.clone(pet)
+	golden.id = "gold_" .. pet.id
+	golden.base = pet.id
+	golden.basePool = pet.pool
+	golden.pool = "golden"
+	golden.golden = true
+	golden.name = pet.name .. " dorado"
+	golden.bonus = math.floor(pet.bonus * CollectionConfig.GOLDEN_BONUS * 100 + 0.5) / 100
+	golden.body = pet.body:Lerp(GOLD, 0.6)
+	golden.accent = GOLD
+	golden.sparkles = Color3.fromRGB(255, 235, 140)
+	table.insert(CollectionConfig.Pets, golden)
+end
+
+-- ÍNDICE: premio (una vez) por haber descubierto todas las mascotas normales de un grupo
+CollectionConfig.IndexRewards = {
+	{ pool = "classic", name = "Clásicas", icon = "🥚", money = 50000, egg = "golden" },
+	{ pool = "jungle", name = "Selva", icon = "🌴", money = 150000, egg = "champion" },
+	{ pool = "ocean", name = "Océano", icon = "🌊", money = 300000, egg = "champion" },
+	{ pool = "rebirth", name = "Renacidas", icon = "🔄", money = 1000000, egg = "rebirth" },
+}
+CollectionConfig.SELL_DUPLICATES_RARITIES = { common = true, rare = true } -- «Vender repetidas» (se queda 1)
+
+-- Mascotas normales de un grupo (las que cuentan para el índice)
+function CollectionConfig.PetsOfPool(pool)
+	local list = {}
+	for _, pet in ipairs(CollectionConfig.Pets) do
+		if not pet.golden and (pet.pool or "classic") == pool then
+			table.insert(list, pet)
+		end
+	end
+	return list
+end
+
 -- ===== Índices y utilidades =====
 local function index(list)
 	local byId = {}

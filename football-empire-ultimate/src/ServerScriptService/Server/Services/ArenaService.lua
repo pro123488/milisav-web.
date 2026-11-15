@@ -925,7 +925,7 @@ local function finish(aborted)
 			local own = info.team == "red" and score.red or score.blue
 			local other = info.team == "red" and score.blue or score.red
 			for _, callback in ipairs(endCallbacks) do
-				task.spawn(callback, player, info.goals, own, other)
+				task.spawn(callback, player, info.goals, own, other, result, player == mvp)
 			end
 		end
 	end

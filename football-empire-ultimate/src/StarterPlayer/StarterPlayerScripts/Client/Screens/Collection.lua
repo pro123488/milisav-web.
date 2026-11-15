@@ -85,45 +85,104 @@ local function renderReveal(add, ctx)
 end
 
 -- Fila de un huevo o de una caja: nombre, probabilidades y botón de abrir
-local function openRow(ctx, item, action, key, luck, discount)
+-- multi = true para los huevos: añade el botón «x3» (abre tres seguidos)
+local function openRow(ctx, item, action, key, luck, discount, multi)
 	local C, Theme, Format = ctx.C, ctx.Theme, ctx.Format
 	local cost = WeeklyConfig.Price(item.cost, discount)
-	local button = C.Button("Abrir · " .. Format.Money(cost), "gold", function()
-		local result = ctx.act(action, { [key] = item.id })
+	local function open(amount)
+		local result = ctx.act(action, { [key] = item.id, amount = amount })
 		if result.ok and result.data then
 			ctx.drafts.lastReveal = result.data
 			ctx.reveal(result.data, item.icon)
 			ctx.navigate("collection", { tab = ctx.params.tab })
 		end
+	end
+	local button = C.Button("Abrir · " .. Format.Money(cost), "gold", function()
+		open(1)
 	end, { Size = UDim2.new(0, 170, 0, 38), AutomaticSize = Enum.AutomaticSize.None })
+	local triple = multi and C.Button("x3 · " .. Format.Short(cost * 3), "gold", function()
+		open(3)
+	end, { Size = UDim2.new(0, 110, 0, 38), AutomaticSize = Enum.AutomaticSize.None }) or nil
 	local rebirths = ctx.state.rebirth and ctx.state.rebirth.count or 0
 	if item.requiresRebirth and rebirths < item.requiresRebirth then
 		C.SetEnabled(button, false, string.format("🔒 Renace %d vez", item.requiresRebirth))
-	elseif ctx.state.economy.money < cost then
-		C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(cost))
+		if triple then
+			C.SetEnabled(triple, false, "🔒")
+		end
+	else
+		if ctx.state.economy.money < cost then
+			C.SetEnabled(button, false, "Sin dinero · " .. Format.Money(cost))
+		end
+		if triple and ctx.state.economy.money < cost * 3 then
+			C.SetEnabled(triple, false)
+		end
 	end
 	local offer = discount > 0 and string.format("  <font color='#FFC400'>−%d %% esta semana</font>", math.floor(discount * 100 + 0.5)) or ""
 	return C.Row({
 		C.Label(string.format("%s <b>%s</b>%s\n<font size='13'>%s</font>", item.icon, item.name, offer, oddsText(item.weights, luck)),
-			{ Size = UDim2.new(1, -190, 0, 0), TextColor3 = Theme.Text }),
+			{ Size = UDim2.new(1, triple and -310 or -190, 0, 0), TextColor3 = Theme.Text }),
 		button,
+		triple,
 	})
+end
+
+-- Índice: premios por descubrir todas las mascotas normales de cada grupo
+local function renderIndex(add, ctx)
+	local C, Theme, Format = ctx.C, ctx.Theme, ctx.Format
+	local collection = ctx.state.collection
+	local card = C.Card({}, { C.Title("📖 Índice de mascotas", 18),
+		C.Label("Descubre todas las mascotas normales de un grupo para ganar su premio (una vez). Venderlas no las quita del índice.",
+			{ TextColor3 = Theme.TextDim, TextSize = 13 }) })
+	for _, entry in ipairs(CollectionConfig.IndexRewards) do
+		local pets = CollectionConfig.PetsOfPool(entry.pool)
+		local found, icons = 0, {}
+		for _, pet in ipairs(pets) do
+			local seen = collection.discovered and collection.discovered[pet.id]
+			if seen then
+				found += 1
+			end
+			table.insert(icons, seen and pet.icon or "❔")
+		end
+		local claimed = collection.indexClaimed and collection.indexClaimed[entry.pool]
+		local complete = found == #pets
+		local button = C.Button(claimed and "✔ Reclamado" or (complete and "Reclamar" or string.format("%d / %d", found, #pets)),
+			complete and not claimed and "gold" or "secondary", function()
+				ctx.act("ClaimPetIndex", { pool = entry.pool })
+			end, { Size = UDim2.new(0, 120, 0, 32), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14 })
+		C.SetEnabled(button, complete and not claimed)
+		local egg = entry.egg and CollectionConfig.EggById[entry.egg]
+		C.Row({
+			C.Label(string.format("%s <b>%s</b>  %s\n<font size='12' color='#8C9BB4'>Premio: %s%s</font>", entry.icon, entry.name, table.concat(icons, ""),
+				Format.Money(entry.money), egg and (" + " .. egg.icon .. " " .. egg.name) or ""), { Size = UDim2.new(1, -140, 0, 0), TextSize = 15 }),
+			button,
+		}).Parent = card
+	end
+	add(card)
 end
 
 local function renderPets(add, ctx)
 	local C, Theme, Format = ctx.C, ctx.Theme, ctx.Format
 	local collection = ctx.state.collection
 	local equipped = collection.equippedPets
-	local discovered = 0
+	local discovered, total = 0, 0
+	for _, pet in ipairs(CollectionConfig.Pets) do
+		if not pet.golden then
+			total += 1
+			if collection.discovered and collection.discovered[pet.id] then
+				discovered += 1
+			end
+		end
+	end
+	local owned = 0
 	for _ in pairs(collection.pets) do
-		discovered += 1
+		owned += 1
 	end
 
 	add(C.Card({ BackgroundColor3 = Theme.Panel }, {
 		C.Row({
 			C.Title(string.format("🐾 Equipadas %d / %d", #equipped, (collection.maxPets or CollectionConfig.MAX_EQUIPPED_PETS)), 18),
 			C.Badge(string.format("Bonus en partidos: +%d%%", math.floor(collection.bonus * 100 + 0.5)), Theme.AccentDark),
-			C.Badge(string.format("Descubiertas %d / %d", discovered, #CollectionConfig.Pets), Theme.CardAlt, Theme.TextDim),
+			C.Badge(string.format("Descubiertas %d / %d", discovered, total), Theme.CardAlt, Theme.TextDim),
 		}, 10),
 		C.Label("Las mascotas equipadas te siguen y suman su bonus a las recompensas de los partidos en grupo. "
 			.. "Se consiguen abriendo huevos con el dinero del club: no se compran con Robux.", { TextColor3 = Theme.TextDim, TextSize = 13 }),
@@ -134,16 +193,24 @@ local function renderPets(add, ctx)
 		C.Label(string.format("🍀 ¡Suerte x%d activa! Las probabilidades de abajo ya la incluyen.", collection.luck), { TextColor3 = Theme.Gold, TextSize = 13 }).Parent = eggs
 	end
 	for _, egg in ipairs(CollectionConfig.Eggs) do
-		openRow(ctx, egg, "HatchEgg", "egg", collection.luck, weeklyDiscount(ctx, "eggDiscount")).Parent = eggs
+		openRow(ctx, egg, "HatchEgg", "egg", collection.luck, weeklyDiscount(ctx, "eggDiscount"), true).Parent = eggs
 	end
 	add(eggs)
+	renderIndex(add, ctx)
 
-	add(C.Title("🎒 Tus mascotas", 18))
-	if discovered == 0 then
+	add(C.Row({
+		C.Title("🎒 Tus mascotas", 18),
+		C.Button("💰 Vender repetidas (comunes y raras)", "ghost", function()
+			ctx.act("SellDuplicatePets")
+		end, { TextSize = 13 }),
+	}, 10))
+	add(C.Label(string.format("✨ Junta %d copias de una mascota y fusiónalas en su versión <b>dorada</b> (x%.1f de bonus).",
+		CollectionConfig.FUSE_COUNT, CollectionConfig.GOLDEN_BONUS), { TextColor3 = Theme.Gold, TextSize = 13 }))
+	if owned == 0 then
 		add(C.Label("Todavía no tienes ninguna. ¡Abre tu primer huevo!", { TextColor3 = Theme.TextMuted }))
 		return
 	end
-	local grid = C.Grid(210, 168, 10)
+	local grid = C.Grid(210, 200, 10)
 	add(grid)
 	for order, pet in ipairs(CollectionConfig.Pets) do
 		local count = collection.pets[pet.id] or 0
@@ -160,12 +227,21 @@ local function renderPets(add, ctx)
 			if not isEquipped and #equipped >= (collection.maxPets or CollectionConfig.MAX_EQUIPPED_PETS) then
 				C.SetEnabled(equipButton, false, "Máx. " .. (collection.maxPets or CollectionConfig.MAX_EQUIPPED_PETS))
 			end
+			local sellValue = rarity.sell * (pet.golden and CollectionConfig.GOLDEN_SELL or 1)
 			addTile(C.Row({
 				equipButton,
-				C.Button("Vender " .. Format.Short(rarity.sell), "ghost", function()
+				C.Button("Vender " .. Format.Short(sellValue), "ghost", function()
 					ctx.act("SellPet", { pet = pet.id })
 				end, { Size = UDim2.new(0, 96, 0, 30), AutomaticSize = Enum.AutomaticSize.None, TextSize = 13 }),
 			}, 6))
+			if not pet.golden and count >= CollectionConfig.FUSE_COUNT then
+				addTile(C.Button(string.format("✨ Fusionar %d → dorada", CollectionConfig.FUSE_COUNT), "gold", function()
+					local result = ctx.act("FusePet", { pet = pet.id })
+					if result.ok and result.data then
+						ctx.reveal(result.data, "✨")
+					end
+				end, { Size = UDim2.new(1, 0, 0, 28), AutomaticSize = Enum.AutomaticSize.None, TextSize = 13 }))
+			end
 			frame.Parent = grid
 		end
 	end

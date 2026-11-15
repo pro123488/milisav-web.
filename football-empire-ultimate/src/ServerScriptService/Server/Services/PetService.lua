@@ -130,6 +130,7 @@ local function hatchInto(player, data, egg)
 	local rarityId = pet.rarity
 	local collection = data.collection
 	collection.pets[pet.id] = math.min(999, (collection.pets[pet.id] or 0) + 1)
+	collection.discovered[pet.id] = true
 	collection.hatched += 1
 	local rarity = CollectionConfig.RarityById[rarityId]
 	local isNew = collection.pets[pet.id] == 1
@@ -139,6 +140,12 @@ local function hatchInto(player, data, egg)
 	return pet, rarity, isNew
 end
 
+local RARITY_ORDER = {}
+for index, rarity in ipairs(CollectionConfig.Rarities) do
+	RARITY_ORDER[rarity.id] = index
+end
+
+-- payload = { egg, amount = 1 | 3 }. Con 3 se abren tres seguidos (cuesta el triple).
 function PetService.Hatch(player, payload)
 	local data = DataService.Get(player)
 	local egg = type(payload) == "table" and type(payload.egg) == "string" and CollectionConfig.EggById[payload.egg]
@@ -148,13 +155,101 @@ function PetService.Hatch(player, payload)
 	if egg.requiresRebirth and data.rebirth.count < egg.requiresRebirth then
 		return false, string.format("El %s se desbloquea al renacer %d vez.", egg.name, egg.requiresRebirth)
 	end
-	local paid, payError = EconomyService.Spend(player, PetService.EggCost(egg), EconomyService.Category.COLLECTION, egg.name)
+	local amount = payload.amount == 3 and 3 or 1
+	local paid, payError = EconomyService.Spend(player, PetService.EggCost(egg) * amount, EconomyService.Category.COLLECTION,
+		amount > 1 and (egg.name .. " x3") or egg.name)
 	if not paid then
 		return false, payError
 	end
-	local pet, rarity, isNew = hatchInto(player, data, egg)
-	return true, string.format("%s ¡%s! Mascota %s%s.", pet.icon, pet.name, rarity.name, isNew and " · ¡NUEVA!" or ""), false,
-		{ kind = "pet", id = pet.id, isNew = isNew }
+	local texts, best = {}, nil
+	for _ = 1, amount do
+		local pet, rarity, isNew = hatchInto(player, data, egg)
+		table.insert(texts, string.format("%s %s (%s)%s", pet.icon, pet.name, rarity.name, isNew and " ¡NUEVA!" or ""))
+		if not best or RARITY_ORDER[pet.rarity] > RARITY_ORDER[best.pet.rarity] or (isNew and not best.isNew and pet.rarity == best.pet.rarity) then
+			best = { pet = pet, isNew = isNew }
+		end
+	end
+	return true, "🥚 " .. table.concat(texts, " · "), false, { kind = "pet", id = best.pet.id, isNew = best.isNew, count = amount }
+end
+
+-- FUSIÓN: FUSE_COUNT copias de una mascota normal se convierten en su versión dorada.
+function PetService.Fuse(player, payload)
+	local data = DataService.Get(player)
+	local pet = type(payload) == "table" and type(payload.pet) == "string" and CollectionConfig.PetById[payload.pet]
+	if not pet or pet.golden then
+		return false, "Esa mascota no se puede fusionar."
+	end
+	local golden = CollectionConfig.PetById["gold_" .. pet.id]
+	local collection = data.collection
+	local count = collection.pets[pet.id] or 0
+	if count < CollectionConfig.FUSE_COUNT then
+		return false, string.format("Necesitas %d %s para fusionarlas (tienes %d).", CollectionConfig.FUSE_COUNT, pet.name, count)
+	end
+	count -= CollectionConfig.FUSE_COUNT
+	collection.pets[pet.id] = count > 0 and count or nil
+	if count == 0 then
+		local index = table.find(collection.equippedPets, pet.id)
+		if index then
+			table.remove(collection.equippedPets, index)
+		end
+	end
+	collection.pets[golden.id] = math.min(999, (collection.pets[golden.id] or 0) + 1)
+	collection.discovered[golden.id] = true
+	PetService.Refresh(player)
+	if pet.rarity == "legendary" or pet.rarity == "mythic" then
+		announce(player, string.format("ha fusionado un %s %s", golden.icon, golden.name))
+	end
+	return true, string.format("✨ ¡Fusión! %s %s (+%d %% en partidos).", golden.icon, golden.name, math.floor(golden.bonus * 100 + 0.5)), false,
+		{ kind = "pet", id = golden.id, isNew = collection.pets[golden.id] == 1 }
+end
+
+-- Vende las copias repetidas de las mascotas comunes y raras (siempre se queda una).
+function PetService.SellDuplicates(player)
+	local data = DataService.Get(player)
+	local collection = data.collection
+	local total, sold = 0, 0
+	for petId, count in pairs(collection.pets) do
+		local pet = CollectionConfig.PetById[petId]
+		if pet and not pet.golden and CollectionConfig.SELL_DUPLICATES_RARITIES[pet.rarity] and count > 1 then
+			local extra = count - 1
+			collection.pets[petId] = 1
+			total += extra * CollectionConfig.RarityById[pet.rarity].sell
+			sold += extra
+		end
+	end
+	if sold == 0 then
+		return false, "No tienes mascotas comunes o raras repetidas."
+	end
+	EconomyService.Earn(player, total, EconomyService.Category.COLLECTION, string.format("Venta de %d repetidas", sold))
+	return true, string.format("💰 Has vendido %d mascotas repetidas por %d $.", sold, total)
+end
+
+-- ÍNDICE: premio por descubrir todas las mascotas normales de un grupo (una vez).
+function PetService.ClaimIndex(player, payload)
+	local data = DataService.Get(player)
+	local poolId = type(payload) == "table" and payload.pool
+	local reward
+	for _, entry in ipairs(CollectionConfig.IndexRewards) do
+		if entry.pool == poolId then
+			reward = entry
+		end
+	end
+	if not reward then
+		return false, "Ese índice no existe."
+	end
+	local collection = data.collection
+	if collection.indexClaimed[reward.pool] then
+		return false, "Ya has reclamado ese premio del índice."
+	end
+	for _, pet in ipairs(CollectionConfig.PetsOfPool(reward.pool)) do
+		if not collection.discovered[pet.id] then
+			return false, string.format("Te falta descubrir %s %s.", pet.icon, pet.name)
+		end
+	end
+	collection.indexClaimed[reward.pool] = true
+	EconomyService.Earn(player, reward.money, EconomyService.Category.PRIZE, "Índice " .. reward.name)
+	local egg = reward.egg and PetService.GrantEgg(player, reward.egg)
+	return true, string.format("📖 ¡Índice %s completo! +%d $%s", reward.name, reward.money, egg and (" · " .. egg) or "")
 end
 
 -- Huevo regalado (recompensa del pase de temporada): se abre al momento, sin cobrar.
@@ -287,7 +382,7 @@ function PetService.SellPet(player, payload)
 			PetService.Refresh(player)
 		end
 	end
-	local value = CollectionConfig.RarityById[pet.rarity].sell
+	local value = CollectionConfig.RarityById[pet.rarity].sell * (pet.golden and CollectionConfig.GOLDEN_SELL or 1)
 	EconomyService.Earn(player, value, EconomyService.Category.COLLECTION, "Venta: " .. pet.name)
 	return true, string.format("%s %s vendida por %d $.", pet.icon, pet.name, value)
 end
@@ -346,6 +441,8 @@ function PetService.BuildState(data)
 		ball = collection.ball,
 		bonus = bonusOf(data),
 		maxPets = PetService.MaxPets(data),
+		discovered = collection.discovered,
+		indexClaimed = collection.indexClaimed,
 		rebirths = data.rebirth.count,
 		hatched = collection.hatched,
 		luck = AdminService.LuckMultiplier(),

@@ -15,6 +15,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage.Shared
 local GameConfig = require(Shared.Config.GameConfig)
 local CosmeticConfig = require(Shared.Config.CosmeticConfig)
+local TrophyConfig = require(Shared.Config.TrophyConfig)
 local StadiumStages = require(Shared.Config.StadiumStages)
 
 local DataService = require(script.Parent.DataService)
@@ -230,7 +231,7 @@ local function updateNameTag(player, data)
 	if not tag then
 		tag = Instance.new("BillboardGui")
 		tag.Name = "FEU_Tag"
-		tag.Size = UDim2.fromOffset(200, 50)
+		tag.Size = UDim2.fromOffset(220, 66)
 		tag.StudsOffset = Vector3.new(0, 2.6, 0)
 		tag.MaxDistance = 80
 		tag.Parent = head
@@ -245,7 +246,7 @@ local function updateNameTag(player, data)
 	local info = PlotService.BuildRenderInfo(player, data)
 	if info.vip then
 		local vip = Instance.new("TextLabel")
-		vip.Size = UDim2.new(0, 70, 0.45, 0)
+		vip.Size = UDim2.new(0, 70, 0.3, 0)
 		vip.BackgroundColor3 = Color3.fromRGB(255, 200, 70)
 		vip.TextColor3 = Color3.fromRGB(40, 25, 0)
 		vip.Font = Enum.Font.GothamBlack
@@ -256,8 +257,21 @@ local function updateNameTag(player, data)
 		corner.CornerRadius = UDim.new(0.4, 0)
 		corner.Parent = vip
 	end
+	-- Rango del camino de trofeos (y renacimientos)
+	local rank = TrophyConfig.Rank(data.arena and data.arena.trophies or 0)
+	local badge = Instance.new("TextLabel")
+	badge.Size = UDim2.new(1, 0, 0.28, 0)
+	badge.BackgroundTransparency = 1
+	badge.TextColor3 = rank.color
+	badge.TextStrokeTransparency = 0.3
+	badge.Font = Enum.Font.GothamBlack
+	badge.TextScaled = true
+	local rebirths = data.rebirth and data.rebirth.count or 0
+	badge.Text = string.format("%s %s · %d🏆%s", rank.icon, rank.name, data.arena and data.arena.trophies or 0,
+		rebirths > 0 and string.format("  🔄%d", rebirths) or "")
+	badge.Parent = tag
 	local club = Instance.new("TextLabel")
-	club.Size = UDim2.new(1, 0, 0.5, 0)
+	club.Size = UDim2.new(1, 0, 0.4, 0)
 	club.BackgroundTransparency = 1
 	club.TextColor3 = Color3.fromRGB(255, 255, 255)
 	club.TextStrokeTransparency = 0.4
@@ -334,6 +348,11 @@ function PlotService.TeleportHome(player)
 	end
 	character:PivotTo(plot.origin * StadiumRenderer.SpawnOffset)
 	return true, "Bienvenido a tu estadio."
+end
+
+-- Vuelve a dibujar el cartel sobre la cabeza (p. ej. al cambiar los trofeos o los renacimientos)
+function PlotService.RefreshNameTag(player)
+	updateNameTag(player, DataService.Get(player))
 end
 
 function PlotService.CharacterAdded(player)
