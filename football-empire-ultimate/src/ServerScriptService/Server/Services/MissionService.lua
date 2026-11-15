@@ -179,6 +179,8 @@ function MissionService.Stat(data, stat)
 		return count
 	elseif stat == "pieces" then
 		return #data.stadium.pieces
+	elseif stat == "likes" then
+		return data.club.likes or 0
 	end
 	return 0
 end

@@ -23,6 +23,7 @@ local TOP = 10
 local BOARDS = {
 	{ id = "goals", store = "FEU_TopGoals_v1", value = function(data) return data.stats.arenaGoals end },
 	{ id = "trophies", store = "FEU_TopTrophies_v1", value = function(data) return data.arena.trophies end },
+	{ id = "likes", store = "FEU_TopLikes_v1", value = function(data) return data.club.likes end },
 }
 
 local stores = {} -- [id] = OrderedDataStore | false

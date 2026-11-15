@@ -244,6 +244,9 @@ function HubService.Start()
 	boardLabels.trophies = trophyBody
 	trophyBody.Text = "Cargando la clasificación…"
 	openPrompt(trophyBoard, "Ver mi camino", "Camino de trofeos", "trophies")
+	local _, likesBody = board(CFrame.new(30, 11, 22), Enum.NormalId.Front, "👍 ESTADIOS MÁS QUERIDOS", Color3.fromRGB(120, 230, 140))
+	boardLabels.likes = likesBody
+	likesBody.Text = "Cargando la clasificación…"
 	polishLighting()
 	task.spawn(function()
 		while true do

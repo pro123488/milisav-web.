@@ -26,6 +26,7 @@ local EconomyService = require(script.Parent.EconomyService)
 local PlotService = require(script.Parent.PlotService)
 local AdminService = require(script.Parent.AdminService)
 local PetService = require(script.Parent.PetService)
+local SocialService = require(script.Parent.SocialService)
 local BallSkin = require(script.Parent.Parent.Util.BallSkin)
 
 local ArenaService = {}
@@ -1024,7 +1025,8 @@ local function rewardFor(player, result, goals)
 	local data = DataService.Get(player)
 	local rebirthBonus = RebirthConfig.ArenaBonus(data and data.rebirth.count or 0)
 	local amount = math.floor((base + goals * Cfg.REWARD_GOAL * AdminService.GoalMultiplier() * (weekly.goalMultiplier or 1))
-		* AdminService.RewardMultiplier() * (weekly.matchMultiplier or 1) * (1 + PetService.Bonus(player) + rebirthBonus))
+		* AdminService.RewardMultiplier() * (weekly.matchMultiplier or 1)
+		* (1 + PetService.Bonus(player) + rebirthBonus + SocialService.FriendBonus(player)))
 	local now = os.time()
 	local log = rewardLog[player.UserId] or {}
 	local recent = {}
@@ -1073,7 +1075,7 @@ local function finish(aborted)
 			end
 			arenaRemote:FireClient(player, "result", {
 				result = result, winner = winner, score = lastResult.score, goals = info.goals, reward = reward,
-				capped = reward == 0, petBonus = PetService.Bonus(player),
+				capped = reward == 0, petBonus = PetService.Bonus(player), friendBonus = SocialService.FriendBonus(player),
 				mvp = mvp and mvp.DisplayName or nil, isMvp = player == mvp,
 			})
 			local own = info.team == "red" and score.red or score.blue

@@ -94,6 +94,10 @@ function DefaultData.Create(player)
 			step = 1, -- índice del paso actual de TutorialConfig.Steps
 			finished = false,
 		},
+		social = { -- «me gusta» dados hoy
+			likeDay = 0,
+			likedToday = {}, -- ["userId"] = true
+		},
 		rewards = { -- recompensa diaria y códigos de regalo
 			lastClaimDay = 0, -- día (UTC) de la última recompensa diaria reclamada
 			lastSpinDay = 0, -- día (UTC) del último giro de la ruleta
@@ -772,6 +776,18 @@ function DefaultData.Reconcile(data, player)
 		step = math.clamp(math.floor(tonumber(rawTutorial.step) or 1), 1, #TutorialConfig.Steps + 1),
 		finished = rawTutorial.finished == true,
 	}
+
+	-- Social: «me gusta» recibidos (en el club) y dados hoy
+	data.club.likes = math.max(0, math.floor(tonumber(data.club.likes) or 0))
+	local rawSocial = type(data.social) == "table" and data.social or {}
+	data.social = { likeDay = math.max(0, math.floor(tonumber(rawSocial.likeDay) or 0)), likedToday = {} }
+	if type(rawSocial.likedToday) == "table" then
+		for key, liked in pairs(rawSocial.likedToday) do
+			if type(key) == "string" and tonumber(key) and liked == true then
+				data.social.likedToday[key] = true
+			end
+		end
+	end
 
 	-- Recompensa diaria y códigos
 	local rawRewards = type(data.rewards) == "table" and data.rewards or {}

@@ -95,6 +95,8 @@ MissionConfig.Achievements = {
 	{ id = "a_golden_10", icon = "🌟", name = "Rey Midas (10 mascotas doradas)", stat = "goldenPets", target = 10, reputation = 5, money = 300000 },
 	{ id = "a_balls_15", icon = "⚽", name = "Coleccionista de balones (15)", stat = "balls", target = 15, reputation = 2, money = 40000 },
 	{ id = "a_pieces_50", icon = "🧱", name = "Arquitecto libre (50 piezas)", stat = "pieces", target = 50, reputation = 2, money = 30000 },
+	{ id = "a_likes_25", icon = "👍", name = "Estadio popular (25 «me gusta»)", stat = "likes", target = 25, reputation = 2, money = 25000 },
+	{ id = "a_likes_250", icon = "💖", name = "Estadio de culto (250 «me gusta»)", stat = "likes", target = 250, reputation = 5, money = 250000 },
 }
 
 function MissionConfig.Daily(id)

@@ -24,9 +24,13 @@ local BuildService = require(script.Parent.BuildService)
 local StadiumRenderer = require(script.Parent.StadiumRenderer)
 local InteractionService = require(script.Parent.InteractionService)
 local HalloweenService = require(script.Parent.HalloweenService)
+local SocialService = require(script.Parent.SocialService)
 local GamePassService = require(script.Parent.GamePassService)
 
 local PlotService = {}
+local attachLikes -- definida más abajo
+local Remotes = require(Shared.Modules.Remotes)
+local notifyRemote = Remotes.Get("Notify")
 
 local plots = {} -- array de { index, origin, model, stadium, owner }
 local playerPlot = {} -- [player] = plot
@@ -221,6 +225,50 @@ function PlotService.BuildRenderInfo(player, data)
 	}
 end
 
+-- Cartel del club: contador de «me gusta» y botón (tecla L) para que los visitantes den uno
+attachLikes = function(plot, owner, data)
+	local sign = plot.stadium:FindFirstChild("ClubSign", true)
+	if not sign then
+		return
+	end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "FEU_Likes"
+	gui.Size = UDim2.fromOffset(120, 34)
+	gui.StudsOffset = Vector3.new(0, 7, 0)
+	gui.MaxDistance = 120
+	gui.Parent = sign
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(20, 25, 40)
+	label.BackgroundTransparency = 0.2
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Text = string.format("👍 %d", data.club.likes)
+	label.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.4, 0)
+	corner.Parent = label
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "LikePrompt"
+	prompt.ActionText = "👍 Me gusta"
+	prompt.ObjectText = "Estadio de " .. owner.DisplayName
+	prompt.KeyboardKeyCode = Enum.KeyCode.L
+	prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+	prompt.UIOffset = Vector2.new(0, -70)
+	prompt.MaxActivationDistance = 20
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = sign
+	prompt.Triggered:Connect(function(player)
+		if player == owner then
+			notifyRemote:FireClient(player, "info", string.format("👍 Tu estadio tiene %d «me gusta». ¡Visita otros estadios y dales el tuyo!", data.club.likes))
+			return
+		end
+		local ok, message = SocialService.Like(player, owner)
+		notifyRemote:FireClient(player, ok and "success" or "error", message)
+	end)
+end
+
 local function updateNameTag(player, data)
 	local character = player.Character
 	local head = character and character:FindFirstChild("Head")
@@ -314,6 +362,7 @@ function PlotService.Render(player)
 		local info = PlotService.BuildRenderInfo(player, data)
 		StadiumRenderer.Render(plot.stadium, plot.origin, info)
 		InteractionService.Attach(plot, player, info.clubName) -- indicaciones E/F en las instalaciones
+		attachLikes(plot, player, data)
 	end)
 	if not ok then
 		warn("[PlotService] Error construyendo el estadio de ", player.Name, ": ", err)
@@ -322,6 +371,17 @@ function PlotService.Render(player)
 	plot.crowdKey = nil
 	local last = data.economy.lastCycle
 	PlotService.UpdateCrowd(player, last and last.occupancy or 0)
+end
+
+-- Contador de «me gusta» encima del cartel del club (se actualiza sin redibujar el estadio)
+function PlotService.RefreshLikes(player)
+	local plot = playerPlot[player]
+	local data = DataService.Get(player)
+	local sign = plot and plot.stadium:FindFirstChild("ClubSign", true)
+	local label = sign and sign:FindFirstChild("FEU_Likes") and sign.FEU_Likes:FindFirstChildOfClass("TextLabel")
+	if label and data then
+		label.Text = string.format("👍 %d", data.club.likes)
+	end
 end
 
 -- Agrupa varios cambios seguidos en una sola reconstrucción.

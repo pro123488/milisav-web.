@@ -490,6 +490,9 @@ function ArenaHud.Init(gui, deps)
 			if (data.petBonus or 0) > 0 and not data.capped then
 				reward ..= string.format(" · 🐾 +%d%%", math.floor(data.petBonus * 100 + 0.5))
 			end
+			if (data.friendBonus or 0) > 0 and not data.capped then
+				reward ..= string.format(" · 👥 +%d%%", math.floor(data.friendBonus * 100 + 0.5))
+			end
 			if data.isMvp then
 				reward ..= " · ⭐ ¡ERES EL MVP!"
 			elseif data.mvp then

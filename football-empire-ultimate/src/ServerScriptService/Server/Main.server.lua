@@ -45,6 +45,7 @@ local PetService = require(Services.PetService)
 local OutfitService = require(Services.OutfitService)
 local SeasonService = require(Services.SeasonService)
 local RewardService = require(Services.RewardService)
+local SocialService = require(Services.SocialService)
 local TutorialService = require(Services.TutorialService)
 local RebirthService = require(Services.RebirthService)
 local TrophyService = require(Services.TrophyService)
@@ -126,6 +127,7 @@ local function buildState(player)
 		weekly = WeeklyConfig.Current(), -- bonus y estadio destacado de la semana
 		rewards = RewardService.BuildState(data), -- recompensa diaria con racha
 		playtime = RewardService.PlaytimeState(player), -- regalos por jugar (esta sesión)
+		social = SocialService.BuildState(player, data), -- amigos conectados y «me gusta»
 		tutorial = TutorialService.BuildState(data), -- primeros pasos guiados
 		rebirth = RebirthService.BuildState(data), -- renacimientos
 		trophies = TrophyService.BuildState(data), -- camino de trofeos
@@ -724,6 +726,7 @@ local function onPlayerAdded(player)
 	end
 	SeasonService.DailyLogin(player)
 	RewardService.PlayerReady(player)
+	task.spawn(SocialService.PlayerAdded, player)
 	-- Autoprueba (solo en Studio, una vez por sesión): informe en la ventana Output
 	if RunService:IsStudio() and not selfTestStarted then
 		selfTestStarted = true
@@ -757,6 +760,7 @@ local function onPlayerRemoving(player)
 	AdminService.PlayerRemoving(player)
 	PetService.PlayerRemoving(player)
 	RewardService.PlayerRemoving(player)
+	SocialService.PlayerRemoving(player)
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -875,6 +879,12 @@ end)
 AdminService.Start()
 HubService.Start()
 LeaderboardService.OnUpdate(HubService.SetLeaderboard)
+SocialService.OnLike(function(owner)
+	PlotService.RefreshLikes(owner)
+	MissionService.EvaluateAchievements(owner)
+	LeaderboardService.Submit(owner)
+	pushState(owner)
+end)
 LeaderboardService.Start()
 SeasonService.Start()
 SeasonService.OnChanged(function(player)

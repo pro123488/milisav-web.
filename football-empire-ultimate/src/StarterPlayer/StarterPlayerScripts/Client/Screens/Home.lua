@@ -161,6 +161,19 @@ function Home.Render(container, ctx)
 		add(card)
 	end
 
+	-- Social: amigos conectados y «me gusta» del estadio
+	local social = state.social
+	if social then
+		add(C.Card({}, {
+			C.Title("👥 Amigos y visitas", 18),
+			C.Label(string.format("👥 Amigos en este servidor: <b>%d</b>%s · 👍 «Me gusta» de tu estadio: <b>%d</b> · Te quedan <b>%d</b> «me gusta» para dar hoy.",
+				social.friends, social.friendBonus > 0 and string.format(" (+%d %% en los partidos en grupo)", math.floor(social.friendBonus * 100 + 0.5)) or "",
+				social.likes, social.likesLeft), { TextSize = 14 }),
+			C.Label("Juega con amigos de Roblox para ganar +10 % por amigo (hasta +30 %). Visita otros estadios (Universo › Visitar) y pulsa L en su cartel para darles «me gusta»: os lleváis dinero los dos.",
+				{ TextSize = 12, TextColor3 = Theme.TextDim }),
+		}))
+	end
+
 	-- Ruleta de la suerte (un giro gratis al día)
 	if daily then
 		local odds = {}
