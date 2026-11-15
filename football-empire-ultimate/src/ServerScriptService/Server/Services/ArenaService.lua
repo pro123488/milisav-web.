@@ -65,8 +65,10 @@ local dribbleCooldown = {} -- [player] = os.clock()
 local rewardLog = {} -- [userId] = { os.time() de partidos premiados }
 local endCallbacks = {}
 local kickFallback = nil
+local powerUps = {} -- piezas de potenciador en el campo
+local lastPowerUp = 0
 
-local passBall, findMate -- definidas más abajo
+local passBall, findMate, updatePowerUps -- definidas más abajo
 
 local function teamInfo(id)
 	return id == "red" and Cfg.TEAMS[1] or Cfg.TEAMS[2]
@@ -368,6 +370,7 @@ local function releaseParticipant(player, teleport)
 		if humanoid then
 			humanoid:SetAttribute("Arena", nil)
 			humanoid:SetAttribute("Frozen", nil)
+			humanoid:SetAttribute("Boost", nil)
 		end
 		local highlight = character and character:FindFirstChild("FEU_TeamHighlight")
 		if highlight then
@@ -607,6 +610,20 @@ local function onKick(player, power, aim)
 	local direction = aimDirection(root, aim)
 	if direction then
 		kickBall(direction, power)
+		if info.superkick then
+			-- Supertiro: más fuerte y con fuego durante un momento
+			info.superkick = nil
+			ball.AssemblyLinearVelocity *= Cfg.SUPERKICK_MULTIPLIER
+			local fire = Instance.new("Fire")
+			fire.Size = 6
+			fire.Heat = 8
+			fire.Color = Color3.fromRGB(255, 120, 30)
+			fire.SecondaryColor = Color3.fromRGB(255, 220, 90)
+			fire.Parent = ball
+			task.delay(1.5, function()
+				fire:Destroy()
+			end)
+		end
 	end
 end
 
@@ -752,6 +769,9 @@ local function updateBots(dt)
 		chaser[team] = best
 	end
 	for _, bot in ipairs(bots) do
+		if (bot.frozenUntil or 0) > os.clock() then
+			continue -- congelado por un potenciador
+		end
 		local sign = defendSign(bot.team)
 		local attackX = -sign * HALF_L
 		local tx, tz, speed
@@ -827,6 +847,7 @@ local function checkBall()
 		local ownGoal = scorer ~= nil and scorer.team ~= pendingGoal
 		if scorer and scorer.player and not ownGoal and participants[scorer.player] then
 			participants[scorer.player].goals += 1
+			ArenaService.Celebrate(scorer.player)
 		end
 		event("goal", {
 			team = pendingGoal,
@@ -841,10 +862,142 @@ local function checkBall()
 	end
 end
 
+-- ===== Potenciadores =====
+
+local function applyPowerUp(player, def)
+	local info = participants[player]
+	local _, _, humanoid = characterOf(player)
+	if not info or not humanoid then
+		return
+	end
+	if def.id == "superkick" then
+		info.superkick = true
+	elseif def.id == "turbo" then
+		humanoid:SetAttribute("Boost", def.speed)
+		task.delay(def.seconds, function()
+			if humanoid.Parent and humanoid:GetAttribute("Boost") == def.speed then
+				humanoid:SetAttribute("Boost", nil)
+			end
+		end)
+	elseif def.id == "freeze" then
+		local untilTime = os.clock() + def.seconds
+		for other, otherInfo in pairs(participants) do
+			if otherInfo.team ~= info.team then
+				local _, _, otherHumanoid = characterOf(other)
+				if otherHumanoid and not otherHumanoid:GetAttribute("Frozen") then
+					otherHumanoid:SetAttribute("Frozen", true)
+					task.delay(def.seconds, function()
+						-- Solo se descongela si no ha empezado un saque (que también congela)
+						if otherHumanoid.Parent and phase == "playing" then
+							otherHumanoid:SetAttribute("Frozen", nil)
+						end
+					end)
+				end
+			end
+		end
+		for _, bot in ipairs(bots) do
+			if bot.team ~= info.team then
+				bot.frozenUntil = untilTime
+			end
+		end
+	end
+	event("powerup", { player = player.DisplayName, team = info.team, icon = def.icon, name = def.name, text = def.text })
+end
+
+local function spawnPowerUp()
+	local def = Cfg.PowerUps[rng:NextInteger(1, #Cfg.PowerUps)]
+	local x = rng:NextNumber(-HALF_L * 0.65, HALF_L * 0.65)
+	local z = rng:NextNumber(-HALF_W * 0.7, HALF_W * 0.7)
+	local piece = part({ Name = "PowerUp", Shape = Enum.PartType.Ball, Size = Vector3.new(3.2, 3.2, 3.2),
+		CFrame = Cfg.ORIGIN * CFrame.new(x, 2.4, z), Color = def.color, Material = Enum.Material.Neon,
+		CanCollide = false, Transparency = 0.15 })
+	piece:SetAttribute("BaseY", 2.4)
+	local light = Instance.new("PointLight")
+	light.Color = def.color
+	light.Range = 14
+	light.Parent = piece
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(110, 40)
+	gui.StudsOffset = Vector3.new(0, 3, 0)
+	gui.MaxDistance = 120
+	gui.Parent = piece
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.3
+	label.Text = def.icon .. " " .. def.name
+	label.Parent = gui
+	local taken = false
+	piece.Touched:Connect(function(hit)
+		if taken or phase ~= "playing" then
+			return
+		end
+		local character = hit:FindFirstAncestorOfClass("Model")
+		local player = character and Players:GetPlayerFromCharacter(character)
+		if player and participants[player] then
+			taken = true
+			local index = table.find(powerUps, piece)
+			if index then
+				table.remove(powerUps, index)
+			end
+			piece:Destroy()
+			applyPowerUp(player, def)
+		end
+	end)
+	table.insert(powerUps, piece)
+end
+
+-- Aparición periódica y animación (flotan arriba y abajo)
+updatePowerUps = function(dt)
+	if phase ~= "playing" then
+		return
+	end
+	if #powerUps < Cfg.POWERUP_MAX and os.clock() - lastPowerUp > Cfg.POWERUP_INTERVAL then
+		lastPowerUp = os.clock()
+		spawnPowerUp()
+	end
+	local t = os.clock()
+	for _, piece in ipairs(powerUps) do
+		local position = piece.Position
+		piece.CFrame = CFrame.new(position.X, Cfg.ORIGIN.Position.Y + piece:GetAttribute("BaseY") + math.sin(t * 3) * 0.6, position.Z)
+	end
+end
+
+-- Celebración: el goleador hace una animación oficial de Roblox (si su avatar es R15)
+function ArenaService.Celebrate(player)
+	local _, _, humanoid = characterOf(player)
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	if not animator or humanoid.RigType ~= Enum.HumanoidRigType.R15 then
+		return
+	end
+	pcall(function()
+		local animation = Instance.new("Animation")
+		animation.AnimationId = "rbxassetid://" .. Cfg.Celebrations[rng:NextInteger(1, #Cfg.Celebrations)]
+		local track = animator:LoadAnimation(animation)
+		track.Priority = Enum.AnimationPriority.Action
+		track:Play()
+		task.delay(Cfg.GOAL_CELEBRATION, function()
+			track:Stop(0.3)
+		end)
+	end)
+end
+
 -- ===== Desarrollo del partido =====
+
+local function clearPowerUps()
+	for _, piece in ipairs(powerUps) do
+		piece:Destroy()
+	end
+	powerUps = {}
+	lastPowerUp = os.clock()
+end
 
 local function kickoff()
 	phase = "kickoff"
+	clearPowerUps()
 	resetBall()
 	for player in pairs(participants) do
 		placeParticipant(player)
@@ -936,6 +1089,7 @@ local function finish(aborted)
 		releaseParticipant(player, true)
 	end
 	clearBots()
+	clearPowerUps()
 	if ball then
 		ball:Destroy()
 		ball = nil
@@ -1125,6 +1279,7 @@ function ArenaService.Start()
 	RunService.Heartbeat:Connect(function(dt)
 		checkBall()
 		updateBots(dt)
+		updatePowerUps(dt)
 	end)
 	-- Bucle de la cola y de los partidos
 	task.spawn(function()

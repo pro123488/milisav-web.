@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: las 12 fases están implementadas** (versión `0.22.0-autoprueba`, con las Actualizaciones 1 a 10). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
+**Estado actual: las 12 fases están implementadas** (versión `0.23.0-potenciadores`, con las Actualizaciones 1 a 11). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -32,6 +32,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | ACTUALIZACIÓN 8 · Ruleta de la suerte, logros y misiones nuevos, mascotas que flotan | [`docs/ACTUALIZACION_8_RULETA_Y_LOGROS.md`](docs/ACTUALIZACION_8_RULETA_Y_LOGROS.md) |
 | ACTUALIZACIÓN 9 · Tanda de penaltis y regalos por jugar | [`docs/ACTUALIZACION_9_PENALTIS_Y_REGALOS.md`](docs/ACTUALIZACION_9_PENALTIS_Y_REGALOS.md) |
 | ACTUALIZACIÓN 10 · Autoprueba en Studio y carga de datos más robusta | [`docs/ACTUALIZACION_10_AUTOPRUEBA.md`](docs/ACTUALIZACION_10_AUTOPRUEBA.md) |
+| ACTUALIZACIÓN 11 · Potenciadores, celebraciones de gol y niveles de mascota | [`docs/ACTUALIZACION_11_POTENCIADORES.md`](docs/ACTUALIZACION_11_POTENCIADORES.md) |
 
 > 💎 Los seis Game Passes están creados en Roblox y sus IDs reales están en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Las ventajas solo se activan cuando Roblox confirma la compra (en el servidor).
 

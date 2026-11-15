@@ -106,6 +106,25 @@ function ArenaConfig.Theme(id)
 	return ArenaConfig.Themes[1]
 end
 
+-- POTENCIADORES: aparecen en el campo durante el partido; se cogen al pasar por encima.
+ArenaConfig.POWERUP_INTERVAL = 18 -- segundos entre apariciones
+ArenaConfig.POWERUP_MAX = 2 -- como mucho a la vez en el campo
+ArenaConfig.PowerUps = {
+	{ id = "superkick", icon = "🔥", name = "Supertiro", color = Color3.fromRGB(255, 110, 30), text = "tu próximo chut sale x1,5 y en llamas" },
+	{ id = "turbo", icon = "⚡", name = "Turbo", color = Color3.fromRGB(255, 230, 60), seconds = 6, speed = 1.4, text = "corres mucho más durante 6 s" },
+	{ id = "freeze", icon = "🧊", name = "Congelar", color = Color3.fromRGB(120, 210, 255), seconds = 1.6, text = "los rivales se quedan congelados 1,6 s" },
+}
+ArenaConfig.SUPERKICK_MULTIPLIER = 1.5
+
+-- CELEBRACIONES DE GOL: animaciones oficiales de Roblox (las de los gestos /e; solo avatares R15)
+ArenaConfig.Celebrations = {
+	507770677, -- R15Cheer
+	507771019, -- R15Dance1A
+	507776043, -- R15Dance2A
+	507770453, -- R15Point
+	507770239, -- R15Wave
+}
+
 -- Plataforma de entrada en la avenida (junto al punto de aparición)
 ArenaConfig.LOBBY_PAD = CFrame.new(40, 0, 0)
 

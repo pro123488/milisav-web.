@@ -174,6 +174,22 @@ function SelfTest.Run(player)
 		expect(WeeklyConfig.ActiveBonus() ~= nil, "no hay bonus esta semana")
 	end)
 
+	check("Potenciadores, celebraciones y niveles de mascota", function()
+		for _, def in ipairs(ArenaConfig.PowerUps) do
+			expect(def.id and def.icon and def.name and def.color, "potenciador incompleto")
+		end
+		for _, id in ipairs(ArenaConfig.Celebrations) do
+			expect(type(id) == "number" and id > 0, "celebración sin ID de animación")
+		end
+		local previous = 0
+		for xp = 0, CollectionConfig.PET_LEVEL_XP[#CollectionConfig.PET_LEVEL_XP] do
+			local level = CollectionConfig.PetLevel(xp)
+			expect(level >= previous, "los niveles de mascota bajan con más experiencia")
+			previous = level
+		end
+		expect(previous == #CollectionConfig.PET_LEVEL_XP, "no se llega al nivel máximo de mascota")
+	end)
+
 	-- 5. Datos guardados: por defecto y rotos
 	local real = DataService.Get(player)
 	check("Datos por defecto", function()

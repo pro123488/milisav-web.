@@ -847,6 +847,7 @@ end)
 HalloweenService.Start()
 ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals, result, isMvp)
 	local trophyDelta = TrophyService.AfterMatch(player, result, goals, isMvp)
+	PetService.AddMatchXp(player, result == "win")
 	if trophyDelta > 0 then
 		MissionService.Track(player, "trophies", trophyDelta)
 	end

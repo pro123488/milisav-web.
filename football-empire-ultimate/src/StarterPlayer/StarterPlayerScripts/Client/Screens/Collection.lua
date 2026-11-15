@@ -204,13 +204,15 @@ local function renderPets(add, ctx)
 			ctx.act("SellDuplicatePets")
 		end, { TextSize = 13 }),
 	}, 10))
-	add(C.Label(string.format("✨ Junta %d copias de una mascota y fusiónalas en su versión <b>dorada</b> (x%.1f de bonus).",
-		CollectionConfig.FUSE_COUNT, CollectionConfig.GOLDEN_BONUS), { TextColor3 = Theme.Gold, TextSize = 13 }))
+	add(C.Label(string.format("✨ Junta %d copias de una mascota y fusiónalas en su versión <b>dorada</b> (x%.1f de bonus). "
+		.. "📈 Las mascotas equipadas suben de nivel jugando partidos en grupo (hasta el nivel %d: +%d %% de bonus).",
+		CollectionConfig.FUSE_COUNT, CollectionConfig.GOLDEN_BONUS, #CollectionConfig.PET_LEVEL_XP,
+		math.floor((#CollectionConfig.PET_LEVEL_XP - 1) * CollectionConfig.PET_LEVEL_BONUS * 100 + 0.5)), { TextColor3 = Theme.Gold, TextSize = 13 }))
 	if owned == 0 then
 		add(C.Label("Todavía no tienes ninguna. ¡Abre tu primer huevo!", { TextColor3 = Theme.TextMuted }))
 		return
 	end
-	local grid = C.Grid(210, 200, 10)
+	local grid = C.Grid(210, 214, 10)
 	add(grid)
 	for order, pet in ipairs(CollectionConfig.Pets) do
 		local count = collection.pets[pet.id] or 0
@@ -220,7 +222,16 @@ local function renderPets(add, ctx)
 			local frame, addTile = tile(ctx, rarity, isEquipped and order or order + 100, false)
 			addTile(C.Label(pet.icon .. (isEquipped and "  ✅" or ""), { TextSize = 30 }))
 			addTile(C.Label(string.format("<b>%s</b>%s", pet.name, count > 1 and string.format("  <font color='#8C9BB4'>x%d</font>", count) or ""), { TextSize = 15 }))
-			addTile(C.Label(string.format("<font color='%s'>%s</font> · +%d%%", rarity.hex, rarity.name, math.floor(pet.bonus * 100 + 0.5)), { TextSize = 13 }))
+			local xp = collection.petXp and collection.petXp[pet.id] or 0
+			local level = CollectionConfig.PetLevel(xp)
+			local bonus = pet.bonus * CollectionConfig.PetLevelMultiplier(xp)
+			addTile(C.Label(string.format("<font color='%s'>%s</font> · <b>Nv %d</b> · +%d%%", rarity.hex, rarity.name, level,
+				math.floor(bonus * 100 + 0.5)), { TextSize = 13 }))
+			local nextXp = CollectionConfig.PET_LEVEL_XP[level + 1]
+			if nextXp then
+				local currentXp = CollectionConfig.PET_LEVEL_XP[level]
+				addTile(C.ProgressBar((xp - currentXp) / (nextXp - currentXp), rarity.color, 5))
+			end
 			local equipButton = C.Button(isEquipped and "Quitar" or "Equipar", isEquipped and "secondary" or "primary", function()
 				ctx.act("EquipPet", { pet = pet.id, equip = not isEquipped })
 			end, { Size = UDim2.new(0, 88, 0, 30), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14 })

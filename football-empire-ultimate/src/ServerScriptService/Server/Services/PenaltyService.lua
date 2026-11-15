@@ -305,6 +305,7 @@ local function run(s)
 		end
 		if s.outcome == "goal" then
 			s.goals += 1
+			ArenaService.Celebrate(player)
 		end
 		send(player, "penaltyshot", { result = s.outcome, shot = shot, goals = s.goals, shots = Cfg.SHOTS })
 		task.wait(1.6)

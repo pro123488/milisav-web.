@@ -170,6 +170,28 @@ function CollectionConfig.PetsOfPool(pool)
 	return list
 end
 
+-- ===== Niveles de mascota =====
+-- Las mascotas EQUIPADAS ganan experiencia en cada partido en grupo y suben de nivel (máx. 10).
+-- Cada nivel por encima del 1 suma un 8 % a su bonus (nivel 10 = x1,72).
+CollectionConfig.PET_XP_MATCH = 1 -- por jugar
+CollectionConfig.PET_XP_WIN = 1 -- extra por ganar
+CollectionConfig.PET_LEVEL_XP = { 0, 3, 7, 12, 18, 25, 33, 42, 52, 63 } -- experiencia total para cada nivel
+CollectionConfig.PET_LEVEL_BONUS = 0.08
+
+function CollectionConfig.PetLevel(xp)
+	local level = 1
+	for index, needed in ipairs(CollectionConfig.PET_LEVEL_XP) do
+		if (xp or 0) >= needed then
+			level = index
+		end
+	end
+	return level
+end
+
+function CollectionConfig.PetLevelMultiplier(xp)
+	return 1 + (CollectionConfig.PetLevel(xp) - 1) * CollectionConfig.PET_LEVEL_BONUS
+end
+
 -- ===== Índices y utilidades =====
 local function index(list)
 	local byId = {}

@@ -149,6 +149,25 @@ function ArenaConfig.Theme(id)
 	return ArenaConfig.Themes[1]
 end
 
+-- POTENCIADORES: aparecen en el campo durante el partido; se cogen al pasar por encima.
+ArenaConfig.POWERUP_INTERVAL = 18 -- segundos entre apariciones
+ArenaConfig.POWERUP_MAX = 2 -- como mucho a la vez en el campo
+ArenaConfig.PowerUps = {
+	{ id = "superkick", icon = "🔥", name = "Supertiro", color = Color3.fromRGB(255, 110, 30), text = "tu próximo chut sale x1,5 y en llamas" },
+	{ id = "turbo", icon = "⚡", name = "Turbo", color = Color3.fromRGB(255, 230, 60), seconds = 6, speed = 1.4, text = "corres mucho más durante 6 s" },
+	{ id = "freeze", icon = "🧊", name = "Congelar", color = Color3.fromRGB(120, 210, 255), seconds = 1.6, text = "los rivales se quedan congelados 1,6 s" },
+}
+ArenaConfig.SUPERKICK_MULTIPLIER = 1.5
+
+-- CELEBRACIONES DE GOL: animaciones oficiales de Roblox (las de los gestos /e; solo avatares R15)
+ArenaConfig.Celebrations = {
+	507770677, -- R15Cheer
+	507771019, -- R15Dance1A
+	507776043, -- R15Dance2A
+	507770453, -- R15Point
+	507770239, -- R15Wave
+}
+
 -- Plataforma de entrada en la avenida (junto al punto de aparición)
 ArenaConfig.LOBBY_PAD = CFrame.new(40, 0, 0)
 
@@ -323,6 +342,28 @@ function CollectionConfig.PetsOfPool(pool)
 		end
 	end
 	return list
+end
+
+-- ===== Niveles de mascota =====
+-- Las mascotas EQUIPADAS ganan experiencia en cada partido en grupo y suben de nivel (máx. 10).
+-- Cada nivel por encima del 1 suma un 8 % a su bonus (nivel 10 = x1,72).
+CollectionConfig.PET_XP_MATCH = 1 -- por jugar
+CollectionConfig.PET_XP_WIN = 1 -- extra por ganar
+CollectionConfig.PET_LEVEL_XP = { 0, 3, 7, 12, 18, 25, 33, 42, 52, 63 } -- experiencia total para cada nivel
+CollectionConfig.PET_LEVEL_BONUS = 0.08
+
+function CollectionConfig.PetLevel(xp)
+	local level = 1
+	for index, needed in ipairs(CollectionConfig.PET_LEVEL_XP) do
+		if (xp or 0) >= needed then
+			level = index
+		end
+	end
+	return level
+end
+
+function CollectionConfig.PetLevelMultiplier(xp)
+	return 1 + (CollectionConfig.PetLevel(xp) - 1) * CollectionConfig.PET_LEVEL_BONUS
 end
 
 -- ===== Índices y utilidades =====
@@ -1015,7 +1056,7 @@ return FootballConfig
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.22.0-autoprueba"
+GameConfig.VERSION = "0.23.0-potenciadores"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
@@ -4606,6 +4647,7 @@ end)
 HalloweenService.Start()
 ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals, result, isMvp)
 	local trophyDelta = TrophyService.AfterMatch(player, result, goals, isMvp)
+	PetService.AddMatchXp(player, result == "win")
 	if trophyDelta > 0 then
 		MissionService.Track(player, "trophies", trophyDelta)
 	end
@@ -5025,8 +5067,10 @@ local dribbleCooldown = {} -- [player] = os.clock()
 local rewardLog = {} -- [userId] = { os.time() de partidos premiados }
 local endCallbacks = {}
 local kickFallback = nil
+local powerUps = {} -- piezas de potenciador en el campo
+local lastPowerUp = 0
 
-local passBall, findMate -- definidas más abajo
+local passBall, findMate, updatePowerUps -- definidas más abajo
 
 local function teamInfo(id)
 	return id == "red" and Cfg.TEAMS[1] or Cfg.TEAMS[2]
@@ -5328,6 +5372,7 @@ local function releaseParticipant(player, teleport)
 		if humanoid then
 			humanoid:SetAttribute("Arena", nil)
 			humanoid:SetAttribute("Frozen", nil)
+			humanoid:SetAttribute("Boost", nil)
 		end
 		local highlight = character and character:FindFirstChild("FEU_TeamHighlight")
 		if highlight then
@@ -5567,6 +5612,20 @@ local function onKick(player, power, aim)
 	local direction = aimDirection(root, aim)
 	if direction then
 		kickBall(direction, power)
+		if info.superkick then
+			-- Supertiro: más fuerte y con fuego durante un momento
+			info.superkick = nil
+			ball.AssemblyLinearVelocity *= Cfg.SUPERKICK_MULTIPLIER
+			local fire = Instance.new("Fire")
+			fire.Size = 6
+			fire.Heat = 8
+			fire.Color = Color3.fromRGB(255, 120, 30)
+			fire.SecondaryColor = Color3.fromRGB(255, 220, 90)
+			fire.Parent = ball
+			task.delay(1.5, function()
+				fire:Destroy()
+			end)
+		end
 	end
 end
 
@@ -5712,6 +5771,9 @@ local function updateBots(dt)
 		chaser[team] = best
 	end
 	for _, bot in ipairs(bots) do
+		if (bot.frozenUntil or 0) > os.clock() then
+			continue -- congelado por un potenciador
+		end
 		local sign = defendSign(bot.team)
 		local attackX = -sign * HALF_L
 		local tx, tz, speed
@@ -5787,6 +5849,7 @@ local function checkBall()
 		local ownGoal = scorer ~= nil and scorer.team ~= pendingGoal
 		if scorer and scorer.player and not ownGoal and participants[scorer.player] then
 			participants[scorer.player].goals += 1
+			ArenaService.Celebrate(scorer.player)
 		end
 		event("goal", {
 			team = pendingGoal,
@@ -5801,10 +5864,142 @@ local function checkBall()
 	end
 end
 
+-- ===== Potenciadores =====
+
+local function applyPowerUp(player, def)
+	local info = participants[player]
+	local _, _, humanoid = characterOf(player)
+	if not info or not humanoid then
+		return
+	end
+	if def.id == "superkick" then
+		info.superkick = true
+	elseif def.id == "turbo" then
+		humanoid:SetAttribute("Boost", def.speed)
+		task.delay(def.seconds, function()
+			if humanoid.Parent and humanoid:GetAttribute("Boost") == def.speed then
+				humanoid:SetAttribute("Boost", nil)
+			end
+		end)
+	elseif def.id == "freeze" then
+		local untilTime = os.clock() + def.seconds
+		for other, otherInfo in pairs(participants) do
+			if otherInfo.team ~= info.team then
+				local _, _, otherHumanoid = characterOf(other)
+				if otherHumanoid and not otherHumanoid:GetAttribute("Frozen") then
+					otherHumanoid:SetAttribute("Frozen", true)
+					task.delay(def.seconds, function()
+						-- Solo se descongela si no ha empezado un saque (que también congela)
+						if otherHumanoid.Parent and phase == "playing" then
+							otherHumanoid:SetAttribute("Frozen", nil)
+						end
+					end)
+				end
+			end
+		end
+		for _, bot in ipairs(bots) do
+			if bot.team ~= info.team then
+				bot.frozenUntil = untilTime
+			end
+		end
+	end
+	event("powerup", { player = player.DisplayName, team = info.team, icon = def.icon, name = def.name, text = def.text })
+end
+
+local function spawnPowerUp()
+	local def = Cfg.PowerUps[rng:NextInteger(1, #Cfg.PowerUps)]
+	local x = rng:NextNumber(-HALF_L * 0.65, HALF_L * 0.65)
+	local z = rng:NextNumber(-HALF_W * 0.7, HALF_W * 0.7)
+	local piece = part({ Name = "PowerUp", Shape = Enum.PartType.Ball, Size = Vector3.new(3.2, 3.2, 3.2),
+		CFrame = Cfg.ORIGIN * CFrame.new(x, 2.4, z), Color = def.color, Material = Enum.Material.Neon,
+		CanCollide = false, Transparency = 0.15 })
+	piece:SetAttribute("BaseY", 2.4)
+	local light = Instance.new("PointLight")
+	light.Color = def.color
+	light.Range = 14
+	light.Parent = piece
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(110, 40)
+	gui.StudsOffset = Vector3.new(0, 3, 0)
+	gui.MaxDistance = 120
+	gui.Parent = piece
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.3
+	label.Text = def.icon .. " " .. def.name
+	label.Parent = gui
+	local taken = false
+	piece.Touched:Connect(function(hit)
+		if taken or phase ~= "playing" then
+			return
+		end
+		local character = hit:FindFirstAncestorOfClass("Model")
+		local player = character and Players:GetPlayerFromCharacter(character)
+		if player and participants[player] then
+			taken = true
+			local index = table.find(powerUps, piece)
+			if index then
+				table.remove(powerUps, index)
+			end
+			piece:Destroy()
+			applyPowerUp(player, def)
+		end
+	end)
+	table.insert(powerUps, piece)
+end
+
+-- Aparición periódica y animación (flotan arriba y abajo)
+updatePowerUps = function(dt)
+	if phase ~= "playing" then
+		return
+	end
+	if #powerUps < Cfg.POWERUP_MAX and os.clock() - lastPowerUp > Cfg.POWERUP_INTERVAL then
+		lastPowerUp = os.clock()
+		spawnPowerUp()
+	end
+	local t = os.clock()
+	for _, piece in ipairs(powerUps) do
+		local position = piece.Position
+		piece.CFrame = CFrame.new(position.X, Cfg.ORIGIN.Position.Y + piece:GetAttribute("BaseY") + math.sin(t * 3) * 0.6, position.Z)
+	end
+end
+
+-- Celebración: el goleador hace una animación oficial de Roblox (si su avatar es R15)
+function ArenaService.Celebrate(player)
+	local _, _, humanoid = characterOf(player)
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	if not animator or humanoid.RigType ~= Enum.HumanoidRigType.R15 then
+		return
+	end
+	pcall(function()
+		local animation = Instance.new("Animation")
+		animation.AnimationId = "rbxassetid://" .. Cfg.Celebrations[rng:NextInteger(1, #Cfg.Celebrations)]
+		local track = animator:LoadAnimation(animation)
+		track.Priority = Enum.AnimationPriority.Action
+		track:Play()
+		task.delay(Cfg.GOAL_CELEBRATION, function()
+			track:Stop(0.3)
+		end)
+	end)
+end
+
 -- ===== Desarrollo del partido =====
+
+local function clearPowerUps()
+	for _, piece in ipairs(powerUps) do
+		piece:Destroy()
+	end
+	powerUps = {}
+	lastPowerUp = os.clock()
+end
 
 local function kickoff()
 	phase = "kickoff"
+	clearPowerUps()
 	resetBall()
 	for player in pairs(participants) do
 		placeParticipant(player)
@@ -5896,6 +6091,7 @@ local function finish(aborted)
 		releaseParticipant(player, true)
 	end
 	clearBots()
+	clearPowerUps()
 	if ball then
 		ball:Destroy()
 		ball = nil
@@ -6085,6 +6281,7 @@ function ArenaService.Start()
 	RunService.Heartbeat:Connect(function(dt)
 		checkBall()
 		updateBots(dt)
+		updatePowerUps(dt)
 	end)
 	-- Bucle de la cola y de los partidos
 	task.spawn(function()
@@ -10961,6 +11158,7 @@ local function run(s)
 		end
 		if s.outcome == "goal" then
 			s.goals += 1
+			ArenaService.Celebrate(player)
 		end
 		send(player, "penaltyshot", { result = s.outcome, shot = shot, goals = s.goals, shots = Cfg.SHOTS })
 		task.wait(1.6)
@@ -11432,10 +11630,32 @@ local function bonusOf(data)
 	for _, petId in ipairs(data.collection.equippedPets) do
 		local pet = CollectionConfig.PetById[petId]
 		if pet then
-			total += pet.bonus
+			total += pet.bonus * CollectionConfig.PetLevelMultiplier(data.collection.petXp[petId])
 		end
 	end
 	return total
+end
+
+-- Experiencia para las mascotas equipadas al terminar un partido en grupo (avisa si suben de nivel)
+function PetService.AddMatchXp(player, won)
+	local data = DataService.Get(player)
+	if not data then
+		return
+	end
+	local gain = CollectionConfig.PET_XP_MATCH + (won and CollectionConfig.PET_XP_WIN or 0)
+	local maxXp = CollectionConfig.PET_LEVEL_XP[#CollectionConfig.PET_LEVEL_XP]
+	for _, petId in ipairs(data.collection.equippedPets) do
+		local pet = CollectionConfig.PetById[petId]
+		if pet then
+			local before = CollectionConfig.PetLevel(data.collection.petXp[petId])
+			data.collection.petXp[petId] = math.min(maxXp, (data.collection.petXp[petId] or 0) + gain)
+			local after = CollectionConfig.PetLevel(data.collection.petXp[petId])
+			if after > before then
+				notifyRemote:FireClient(player, "success", string.format("%s %s sube al nivel %d (+%d %% de bonus)", pet.icon, pet.name, after,
+					math.floor((CollectionConfig.PetLevelMultiplier(data.collection.petXp[petId]) - 1) * 100 + 0.5)))
+			end
+		end
+	end
 end
 
 -- Bonus (fracción) que las mascotas equipadas suman a las recompensas de los partidos en grupo.
@@ -11459,6 +11679,7 @@ function PetService.BuildState(data)
 		bonus = bonusOf(data),
 		maxPets = PetService.MaxPets(data),
 		discovered = collection.discovered,
+		petXp = collection.petXp,
 		indexClaimed = collection.indexClaimed,
 		rebirths = data.rebirth.count,
 		hatched = collection.hatched,
@@ -16196,6 +16417,22 @@ function SelfTest.Run(player)
 		expect(WeeklyConfig.ActiveBonus() ~= nil, "no hay bonus esta semana")
 	end)
 
+	check("Potenciadores, celebraciones y niveles de mascota", function()
+		for _, def in ipairs(ArenaConfig.PowerUps) do
+			expect(def.id and def.icon and def.name and def.color, "potenciador incompleto")
+		end
+		for _, id in ipairs(ArenaConfig.Celebrations) do
+			expect(type(id) == "number" and id > 0, "celebración sin ID de animación")
+		end
+		local previous = 0
+		for xp = 0, CollectionConfig.PET_LEVEL_XP[#CollectionConfig.PET_LEVEL_XP] do
+			local level = CollectionConfig.PetLevel(xp)
+			expect(level >= previous, "los niveles de mascota bajan con más experiencia")
+			previous = level
+		end
+		expect(previous == #CollectionConfig.PET_LEVEL_XP, "no se llega al nivel máximo de mascota")
+	end)
+
 	-- 5. Datos guardados: por defecto y rotos
 	local real = DataService.Get(player)
 	check("Datos por defecto", function()
@@ -16504,6 +16741,7 @@ function DefaultData.Create(player)
 			hatched = 0,
 			crates = 0,
 			discovered = {}, -- [id de mascota] = true (para el índice; no se pierde al vender)
+			petXp = {}, -- [id de mascota] = experiencia (niveles de mascota)
 			indexClaimed = {}, -- [grupo] = true
 			outfits = {}, -- [id de traje] = true («Tu avatar» y el del club siempre están)
 			outfit = "none",
@@ -17095,6 +17333,15 @@ function DefaultData.Reconcile(data, player)
 	for petId in pairs(collection.pets) do
 		collection.discovered[petId] = true -- las que ya tenías cuentan como descubiertas
 	end
+	collection.petXp = {}
+	if type(rawCollection.petXp) == "table" then
+		local maxXp = CollectionConfig.PET_LEVEL_XP[#CollectionConfig.PET_LEVEL_XP]
+		for petId, xp in pairs(rawCollection.petXp) do
+			if CollectionConfig.PetById[petId] and finiteNumber(xp) and xp > 0 then
+				collection.petXp[petId] = math.min(maxXp, math.floor(xp))
+			end
+		end
+	end
 	collection.indexClaimed = {}
 	if type(rawCollection.indexClaimed) == "table" then
 		for _, entry in ipairs(CollectionConfig.IndexRewards) do
@@ -17552,7 +17799,10 @@ local function step(dt)
 	elseif type(hum:GetAttribute("TrickSpeed")) == "number" then
 		target = hum:GetAttribute("TrickSpeed")
 	else
-		target = (sprinting and sprint or walk) * multiplier
+		-- «Boost» lo pone el servidor con el potenciador Turbo de los partidos
+		local boost = hum:GetAttribute("Boost")
+		boost = type(boost) == "number" and math.clamp(boost, 1, 2) or 1
+		target = (sprinting and sprint or walk) * multiplier * boost
 	end
 	if hum.WalkSpeed ~= target then
 		hum.WalkSpeed = target
@@ -19835,13 +20085,15 @@ local function renderPets(add, ctx)
 			ctx.act("SellDuplicatePets")
 		end, { TextSize = 13 }),
 	}, 10))
-	add(C.Label(string.format("✨ Junta %d copias de una mascota y fusiónalas en su versión <b>dorada</b> (x%.1f de bonus).",
-		CollectionConfig.FUSE_COUNT, CollectionConfig.GOLDEN_BONUS), { TextColor3 = Theme.Gold, TextSize = 13 }))
+	add(C.Label(string.format("✨ Junta %d copias de una mascota y fusiónalas en su versión <b>dorada</b> (x%.1f de bonus). "
+		.. "📈 Las mascotas equipadas suben de nivel jugando partidos en grupo (hasta el nivel %d: +%d %% de bonus).",
+		CollectionConfig.FUSE_COUNT, CollectionConfig.GOLDEN_BONUS, #CollectionConfig.PET_LEVEL_XP,
+		math.floor((#CollectionConfig.PET_LEVEL_XP - 1) * CollectionConfig.PET_LEVEL_BONUS * 100 + 0.5)), { TextColor3 = Theme.Gold, TextSize = 13 }))
 	if owned == 0 then
 		add(C.Label("Todavía no tienes ninguna. ¡Abre tu primer huevo!", { TextColor3 = Theme.TextMuted }))
 		return
 	end
-	local grid = C.Grid(210, 200, 10)
+	local grid = C.Grid(210, 214, 10)
 	add(grid)
 	for order, pet in ipairs(CollectionConfig.Pets) do
 		local count = collection.pets[pet.id] or 0
@@ -19851,7 +20103,16 @@ local function renderPets(add, ctx)
 			local frame, addTile = tile(ctx, rarity, isEquipped and order or order + 100, false)
 			addTile(C.Label(pet.icon .. (isEquipped and "  ✅" or ""), { TextSize = 30 }))
 			addTile(C.Label(string.format("<b>%s</b>%s", pet.name, count > 1 and string.format("  <font color='#8C9BB4'>x%d</font>", count) or ""), { TextSize = 15 }))
-			addTile(C.Label(string.format("<font color='%s'>%s</font> · +%d%%", rarity.hex, rarity.name, math.floor(pet.bonus * 100 + 0.5)), { TextSize = 13 }))
+			local xp = collection.petXp and collection.petXp[pet.id] or 0
+			local level = CollectionConfig.PetLevel(xp)
+			local bonus = pet.bonus * CollectionConfig.PetLevelMultiplier(xp)
+			addTile(C.Label(string.format("<font color='%s'>%s</font> · <b>Nv %d</b> · +%d%%", rarity.hex, rarity.name, level,
+				math.floor(bonus * 100 + 0.5)), { TextSize = 13 }))
+			local nextXp = CollectionConfig.PET_LEVEL_XP[level + 1]
+			if nextXp then
+				local currentXp = CollectionConfig.PET_LEVEL_XP[level]
+				addTile(C.ProgressBar((xp - currentXp) / (nextXp - currentXp), rarity.color, 5))
+			end
 			local equipButton = C.Button(isEquipped and "Quitar" or "Equipar", isEquipped and "secondary" or "primary", function()
 				ctx.act("EquipPet", { pet = pet.id, equip = not isEquipped })
 			end, { Size = UDim2.new(0, 88, 0, 30), AutomaticSize = Enum.AutomaticSize.None, TextSize = 14 })
@@ -23734,6 +23995,9 @@ function ArenaHud.Init(gui, deps)
 			else
 				showBanner("❌ ¡Fuera!", Color3.fromRGB(80, 50, 50), 1.6)
 			end
+		elseif kind == "powerup" then
+			local color = data.team == "red" and Color3.fromRGB(150, 50, 50) or Color3.fromRGB(40, 80, 160)
+			showBanner(string.format("%s %s coge %s\n%s", data.icon or "⚡", data.player or "?", data.name or "", data.text or ""), color, 2)
 		elseif kind == "goldengoal" then
 			showBanner("⚡ ¡GOL DE ORO!\nEmpate: el primer gol gana", Color3.fromRGB(150, 110, 10), 3)
 		elseif kind == "result" then

@@ -478,6 +478,9 @@ function ArenaHud.Init(gui, deps)
 			else
 				showBanner("❌ ¡Fuera!", Color3.fromRGB(80, 50, 50), 1.6)
 			end
+		elseif kind == "powerup" then
+			local color = data.team == "red" and Color3.fromRGB(150, 50, 50) or Color3.fromRGB(40, 80, 160)
+			showBanner(string.format("%s %s coge %s\n%s", data.icon or "⚡", data.player or "?", data.name or "", data.text or ""), color, 2)
 		elseif kind == "goldengoal" then
 			showBanner("⚡ ¡GOL DE ORO!\nEmpate: el primer gol gana", Color3.fromRGB(150, 110, 10), 3)
 		elseif kind == "result" then

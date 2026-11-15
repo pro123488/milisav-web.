@@ -100,7 +100,10 @@ local function step(dt)
 	elseif type(hum:GetAttribute("TrickSpeed")) == "number" then
 		target = hum:GetAttribute("TrickSpeed")
 	else
-		target = (sprinting and sprint or walk) * multiplier
+		-- «Boost» lo pone el servidor con el potenciador Turbo de los partidos
+		local boost = hum:GetAttribute("Boost")
+		boost = type(boost) == "number" and math.clamp(boost, 1, 2) or 1
+		target = (sprinting and sprint or walk) * multiplier * boost
 	end
 	if hum.WalkSpeed ~= target then
 		hum.WalkSpeed = target

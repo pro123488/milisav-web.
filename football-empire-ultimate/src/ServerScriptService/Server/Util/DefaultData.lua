@@ -114,6 +114,7 @@ function DefaultData.Create(player)
 			hatched = 0,
 			crates = 0,
 			discovered = {}, -- [id de mascota] = true (para el índice; no se pierde al vender)
+			petXp = {}, -- [id de mascota] = experiencia (niveles de mascota)
 			indexClaimed = {}, -- [grupo] = true
 			outfits = {}, -- [id de traje] = true («Tu avatar» y el del club siempre están)
 			outfit = "none",
@@ -704,6 +705,15 @@ function DefaultData.Reconcile(data, player)
 	end
 	for petId in pairs(collection.pets) do
 		collection.discovered[petId] = true -- las que ya tenías cuentan como descubiertas
+	end
+	collection.petXp = {}
+	if type(rawCollection.petXp) == "table" then
+		local maxXp = CollectionConfig.PET_LEVEL_XP[#CollectionConfig.PET_LEVEL_XP]
+		for petId, xp in pairs(rawCollection.petXp) do
+			if CollectionConfig.PetById[petId] and finiteNumber(xp) and xp > 0 then
+				collection.petXp[petId] = math.min(maxXp, math.floor(xp))
+			end
+		end
 	end
 	collection.indexClaimed = {}
 	if type(rawCollection.indexClaimed) == "table" then

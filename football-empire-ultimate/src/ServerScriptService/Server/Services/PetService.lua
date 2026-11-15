@@ -415,10 +415,32 @@ local function bonusOf(data)
 	for _, petId in ipairs(data.collection.equippedPets) do
 		local pet = CollectionConfig.PetById[petId]
 		if pet then
-			total += pet.bonus
+			total += pet.bonus * CollectionConfig.PetLevelMultiplier(data.collection.petXp[petId])
 		end
 	end
 	return total
+end
+
+-- Experiencia para las mascotas equipadas al terminar un partido en grupo (avisa si suben de nivel)
+function PetService.AddMatchXp(player, won)
+	local data = DataService.Get(player)
+	if not data then
+		return
+	end
+	local gain = CollectionConfig.PET_XP_MATCH + (won and CollectionConfig.PET_XP_WIN or 0)
+	local maxXp = CollectionConfig.PET_LEVEL_XP[#CollectionConfig.PET_LEVEL_XP]
+	for _, petId in ipairs(data.collection.equippedPets) do
+		local pet = CollectionConfig.PetById[petId]
+		if pet then
+			local before = CollectionConfig.PetLevel(data.collection.petXp[petId])
+			data.collection.petXp[petId] = math.min(maxXp, (data.collection.petXp[petId] or 0) + gain)
+			local after = CollectionConfig.PetLevel(data.collection.petXp[petId])
+			if after > before then
+				notifyRemote:FireClient(player, "success", string.format("%s %s sube al nivel %d (+%d %% de bonus)", pet.icon, pet.name, after,
+					math.floor((CollectionConfig.PetLevelMultiplier(data.collection.petXp[petId]) - 1) * 100 + 0.5)))
+			end
+		end
+	end
 end
 
 -- Bonus (fracción) que las mascotas equipadas suman a las recompensas de los partidos en grupo.
@@ -442,6 +464,7 @@ function PetService.BuildState(data)
 		bonus = bonusOf(data),
 		maxPets = PetService.MaxPets(data),
 		discovered = collection.discovered,
+		petXp = collection.petXp,
 		indexClaimed = collection.indexClaimed,
 		rebirths = data.rebirth.count,
 		hatched = collection.hatched,
