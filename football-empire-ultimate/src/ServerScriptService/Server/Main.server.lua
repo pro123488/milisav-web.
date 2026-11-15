@@ -7,6 +7,7 @@
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -52,6 +53,8 @@ local HubService = require(Services.HubService)
 local ArenaService = require(Services.ArenaService)
 local PenaltyService = require(Services.PenaltyService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
+local SelfTest = require(script.Parent.Tests.SelfTest)
+local selfTestStarted = false
 
 local actionRemote = Remotes.Get("Action")
 local stateRemote = Remotes.Get("State")
@@ -721,6 +724,16 @@ local function onPlayerAdded(player)
 	end
 	SeasonService.DailyLogin(player)
 	RewardService.PlayerReady(player)
+	-- Autoprueba (solo en Studio, una vez por sesión): informe en la ventana Output
+	if RunService:IsStudio() and not selfTestStarted then
+		selfTestStarted = true
+		task.delay(3, function()
+			local ok, err = pcall(SelfTest.Run, player)
+			if not ok then
+				warn("[AUTOPRUEBA] ❌ La autoprueba se detuvo: ", err)
+			end
+		end)
+	end
 	pushState(player)
 	if not DataService.IsSaveEnabled(player) then
 		notifyRemote:FireClient(player, "warning", "Guardado desactivado en esta sesión (DataStore no disponible). Tu progreso no se guardará.")

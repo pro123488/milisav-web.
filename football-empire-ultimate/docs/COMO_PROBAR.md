@@ -63,6 +63,9 @@ En `ReplicatedStorage › Shared › Config › GameConfig`:
 Vuelve a dejar los valores originales antes de publicar el juego.
 
 ## 10. Si algo falla
+0. **Mira primero la AUTOPRUEBA.** Unos segundos después de pulsar Play aparece en *Output* una línea que empieza por `[AUTOPRUEBA]`:
+   - `✅ N pruebas correctas` → todo lo que se puede comprobar solo, funciona.
+   - `❌ N pruebas fallan` → debajo sale cada fallo con su motivo. **Copia esas líneas y mándamelas.**
 1. Copia las líneas **rojas** de *Output* (clic derecho › copiar).
 2. Pásamelas junto con lo que estabas haciendo. Con eso puedo localizar y corregir el error.
 

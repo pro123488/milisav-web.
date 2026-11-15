@@ -631,4 +631,10 @@ function PetService.Start()
 	petFolder.Parent = Workspace
 end
 
+
+-- Para la autoprueba de Studio: construye el modelo de una mascota sin equiparla
+function PetService.BuildModel(def, cframe)
+	return buildPet(def, cframe)
+end
+
 return PetService

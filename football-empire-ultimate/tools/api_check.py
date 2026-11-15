@@ -33,7 +33,7 @@ DEFAULT_DEFS = os.path.join(HERE, ".cache", "globalTypes.d.luau")
 # Miembros válidos en cualquier instancia que las definiciones declaran en la base o de forma genérica
 ALWAYS = {"Parent", "Name", "ClassName", "Archivable"}
 # Hijos propios del proyecto a los que se accede por nombre (no son propiedades de Roblox)
-OWN_CHILDREN = {"Shared"}
+OWN_CHILDREN = {"Shared", "Server", "Client"}
 # Variables cuyo nombre indica su tipo en este proyecto
 NAMED = {
     "humanoid": "Humanoid", "hum": "Humanoid", "camera": "Camera", "hrp": "BasePart",

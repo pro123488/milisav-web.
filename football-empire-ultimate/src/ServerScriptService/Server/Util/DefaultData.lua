@@ -351,7 +351,8 @@ end
 
 local function fillMissing(target, template)
 	for key, value in pairs(template) do
-		if target[key] == nil then
+		if target[key] == nil or (type(value) == "table" and type(target[key]) ~= "table") then
+			-- Falta, o es de otro tipo (dato dañado: p. ej. texto donde va una tabla): se rehace
 			target[key] = (type(value) == "table") and table.clone(value) or value
 		elseif type(value) == "table" and type(target[key]) == "table" and next(value) ~= nil then
 			-- solo se rellenan subtablas de tipo diccionario de la plantilla

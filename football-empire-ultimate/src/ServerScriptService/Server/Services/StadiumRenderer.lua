@@ -1550,4 +1550,10 @@ function StadiumRenderer.Render(folder, origin, info)
 	buildPieces(folder, origin, info.pieces, info)
 end
 
+
+-- Para la autoprueba de Studio: ¿tiene dibujo esta pieza?
+function StadiumRenderer.HasPieceBuilder(pieceId)
+	return PieceBuilders[pieceId] ~= nil
+end
+
 return StadiumRenderer
