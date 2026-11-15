@@ -2,7 +2,7 @@
 
 Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo básico y lo conviertes en una potencia mediante construcción, gestión económica, fichajes, partidos y cantera.
 
-**Estado actual: las 12 fases están implementadas** (versión `0.20.0-ruleta`, con las Actualizaciones 1 a 8). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
+**Estado actual: las 12 fases están implementadas** (versión `0.21.0-penaltis`, con las Actualizaciones 1 a 9). El código ha pasado las comprobaciones estáticas, pero **todavía no se ha probado en Roblox Studio**: sigue [`docs/PRUEBAS_INTEGRALES.md`](docs/PRUEBAS_INTEGRALES.md).
 
 **👉 Para probarlo: [`docs/COMO_PROBAR.md`](docs/COMO_PROBAR.md)** — abre `FootballEmpireUltimate.rbxlx` en Roblox Studio y pulsa Play.
 
@@ -30,6 +30,7 @@ Simulador de fútbol para Roblox: empiezas con un club pequeño y un campo bási
 | ACTUALIZACIÓN 6 · Renacimientos, más mascotas, balones, estadios y piezas, y mejor jugabilidad | [`docs/ACTUALIZACION_6_RENACIMIENTOS.md`](docs/ACTUALIZACION_6_RENACIMIENTOS.md) |
 | ACTUALIZACIÓN 7 · Camino de trofeos y mascotas doradas | [`docs/ACTUALIZACION_7_TROFEOS_Y_MASCOTAS_DORADAS.md`](docs/ACTUALIZACION_7_TROFEOS_Y_MASCOTAS_DORADAS.md) |
 | ACTUALIZACIÓN 8 · Ruleta de la suerte, logros y misiones nuevos, mascotas que flotan | [`docs/ACTUALIZACION_8_RULETA_Y_LOGROS.md`](docs/ACTUALIZACION_8_RULETA_Y_LOGROS.md) |
+| ACTUALIZACIÓN 9 · Tanda de penaltis y regalos por jugar | [`docs/ACTUALIZACION_9_PENALTIS_Y_REGALOS.md`](docs/ACTUALIZACION_9_PENALTIS_Y_REGALOS.md) |
 
 > 💎 Los seis Game Passes están creados en Roblox y sus IDs reales están en `src/ReplicatedStorage/Shared/Config/GamePassConfig.lua`. Las ventajas solo se activan cuando Roblox confirma la compra (en el servidor).
 

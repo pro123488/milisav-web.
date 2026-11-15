@@ -64,6 +64,7 @@ local kickCooldown = {} -- [player] = os.clock()
 local dribbleCooldown = {} -- [player] = os.clock()
 local rewardLog = {} -- [userId] = { os.time() de partidos premiados }
 local endCallbacks = {}
+local kickFallback = nil
 
 local passBall, findMate -- definidas más abajo
 
@@ -1009,6 +1010,16 @@ end
 
 -- ===== API pública =====
 
+-- ¿Está jugando o en la cola? (para no mezclarlo con otros minijuegos)
+function ArenaService.IsBusy(player)
+	return participants[player] ~= nil or table.find(queue, player) ~= nil
+end
+
+-- Chuts de jugadores que no están en un partido: los recibe otro minijuego (validado allí)
+function ArenaService.SetKickFallback(callback)
+	kickFallback = callback
+end
+
 function ArenaService.Join(player)
 	if not DataService.Get(player) then
 		return false, "Tu club todavía se está cargando."
@@ -1018,6 +1029,9 @@ function ArenaService.Join(player)
 	end
 	if table.find(queue, player) then
 		return false, "Ya estás en la cola."
+	end
+	if player:GetAttribute("InPenalty") then
+		return false, "Termina primero la tanda de penaltis."
 	end
 	table.insert(queue, player)
 	broadcast()
@@ -1099,7 +1113,11 @@ function ArenaService.Start()
 	end
 	arenaRemote.OnServerEvent:Connect(function(player, kind, a, b)
 		if kind == "kick" then
-			onKick(player, a, b) -- potencia (0..1) y dirección de la cámara
+			if participants[player] then
+				onKick(player, a, b) -- potencia (0..1) y dirección de la cámara
+			elseif kickFallback then
+				kickFallback(player, a, b) -- p. ej. la tanda de penaltis de la plaza
+			end
 		elseif kind == "pass" then
 			onPass(player, a) -- dirección de la cámara
 		end

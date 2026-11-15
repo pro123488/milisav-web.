@@ -42,6 +42,16 @@ RewardConfig.Wheel = {
 	{ label = "¡100.000 $!", color = Color3.fromRGB(220, 40, 70), weight = 1, money = 100000 },
 }
 
+-- REGALOS POR JUGAR: se desbloquean con los minutos de esta sesión (vuelven a empezar al entrar).
+RewardConfig.Playtime = {
+	{ minutes = 5, money = 1500 },
+	{ minutes = 10, egg = "basic" },
+	{ minutes = 15, money = 4000 },
+	{ minutes = 25, crate = "crate" },
+	{ minutes = 40, money = 10000 },
+	{ minutes = 60, egg = "golden" },
+}
+
 function RewardConfig.WheelChance(index)
 	local total = 0
 	for _, segment in ipairs(RewardConfig.Wheel) do
@@ -52,6 +62,10 @@ end
 
 function RewardConfig.Describe(reward)
 	local parts = {}
+	if reward.crate then
+		local crate = CollectionConfig.CrateById[reward.crate]
+		table.insert(parts, string.format("%s %s", crate.icon, crate.name))
+	end
 	if reward.money then
 		table.insert(parts, string.format("💰 %d $", reward.money))
 	end

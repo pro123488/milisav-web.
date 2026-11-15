@@ -133,8 +133,10 @@ local function showBanner(text, color, seconds)
 	end)
 end
 
+local penalty = nil -- { shot, shots, goals } mientras tiras penaltis en la plaza
+
 local function canKick()
-	return state.role == "playing" and state.phase == "playing"
+	return (state.role == "playing" and state.phase == "playing") or penalty ~= nil
 end
 
 local function startCharge()
@@ -178,8 +180,11 @@ local function refresh()
 		joinButton.BackgroundColor3 = Color3.fromRGB(30, 170, 90)
 		joinButton.Size = UDim2.fromOffset(190, 52)
 	end
-	-- Cola
-	if queued then
+	-- Cola (o, si estás en la tanda de penaltis, su marcador)
+	if penalty then
+		queueLabel.Text = string.format("⚽ Penalti %d de %d · goles: %d", penalty.shot, penalty.shots, penalty.goals)
+		queueLabel.Visible = true
+	elseif queued then
 		local countdown = state.countdown and string.format(" · empieza en %d s", state.countdown) or " · esperando a que acabe el partido actual"
 		queueLabel.Text = string.format("⏳ En cola: %d jugador%s%s", state.queue, state.queue == 1 and "" or "es", countdown)
 		queueLabel.Visible = true
@@ -206,7 +211,7 @@ local function refresh()
 		end
 	end
 	if kickButton then
-		kickButton.Visible = playing
+		kickButton.Visible = playing or penalty ~= nil
 		passButton.Visible = playing
 	end
 	-- Espectador: ver el partido desde la grada (y volver)
@@ -448,6 +453,31 @@ function ArenaHud.Init(gui, deps)
 			showBanner(string.format("⚽ ¡GOOOOL DEL %s!\n%s", TEAM_NAMES[data.team] or "?", who), TEAM_COLORS[data.team], 3)
 			playCheer()
 			confetti()
+		elseif kind == "penalty" then
+			penalty = data.active and { shot = data.shot or 1, shots = data.shots or 5, goals = data.goals or 0 } or nil
+			if data.finished then
+				local text = string.format("⚽ Tanda terminada: %d de %d", data.goals, data.shots)
+				if data.reward and data.reward > 0 then
+					text ..= "\n+" .. Format.Money(data.reward)
+				elseif data.cooldown then
+					text ..= string.format("\nPróximo premio en %d min", math.ceil(data.cooldown / 60))
+				end
+				whistleSound:Play()
+				showBanner(text, data.goals == data.shots and Color3.fromRGB(150, 110, 10) or Color3.fromRGB(40, 50, 70), 4)
+			end
+			refresh()
+		elseif kind == "penaltyshot" then
+			if data.result == "goal" then
+				showBanner(string.format("⚽ ¡GOOOL! (%d de %d)", data.goals, data.shot), Color3.fromRGB(30, 140, 70), 1.6)
+				playCheer()
+				confetti()
+			elseif data.result == "saved" then
+				showBanner("🧤 ¡PARADÓN del portero!", Color3.fromRGB(120, 40, 40), 1.6)
+			elseif data.result == "timeout" then
+				showBanner("⏱ Se acabó el tiempo para tirar", Color3.fromRGB(70, 60, 40), 1.6)
+			else
+				showBanner("❌ ¡Fuera!", Color3.fromRGB(80, 50, 50), 1.6)
+			end
 		elseif kind == "goldengoal" then
 			showBanner("⚡ ¡GOL DE ORO!\nEmpate: el primer gol gana", Color3.fromRGB(150, 110, 10), 3)
 		elseif kind == "result" then

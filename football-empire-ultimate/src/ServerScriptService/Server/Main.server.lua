@@ -50,6 +50,7 @@ local TrophyService = require(Services.TrophyService)
 local LeaderboardService = require(Services.LeaderboardService)
 local HubService = require(Services.HubService)
 local ArenaService = require(Services.ArenaService)
+local PenaltyService = require(Services.PenaltyService)
 local RateLimiter = require(script.Parent.Util.RateLimiter)
 
 local actionRemote = Remotes.Get("Action")
@@ -121,6 +122,7 @@ local function buildState(player)
 		season = SeasonService.BuildState(data), -- pase de temporada
 		weekly = WeeklyConfig.Current(), -- bonus y estadio destacado de la semana
 		rewards = RewardService.BuildState(data), -- recompensa diaria con racha
+		playtime = RewardService.PlaytimeState(player), -- regalos por jugar (esta sesión)
 		tutorial = TutorialService.BuildState(data), -- primeros pasos guiados
 		rebirth = RebirthService.BuildState(data), -- renacimientos
 		trophies = TrophyService.BuildState(data), -- camino de trofeos
@@ -599,6 +601,10 @@ Actions.ClaimDaily = function(player)
 	return RewardService.ClaimDaily(player)
 end
 
+Actions.ClaimPlaytime = function(player)
+	return RewardService.ClaimPlaytime(player)
+end
+
 Actions.SpinWheel = function(player)
 	return RewardService.Spin(player)
 end
@@ -714,6 +720,7 @@ local function onPlayerAdded(player)
 		task.spawn(OutfitService.CharacterAdded, player)
 	end
 	SeasonService.DailyLogin(player)
+	RewardService.PlayerReady(player)
 	pushState(player)
 	if not DataService.IsSaveEnabled(player) then
 		notifyRemote:FireClient(player, "warning", "Guardado desactivado en esta sesión (DataStore no disponible). Tu progreso no se guardará.")
@@ -736,6 +743,7 @@ local function onPlayerRemoving(player)
 	LeaderboardService.PlayerRemoving(player) -- guarda sus goles antes de liberar los datos
 	AdminService.PlayerRemoving(player)
 	PetService.PlayerRemoving(player)
+	RewardService.PlayerRemoving(player)
 	DataService.Release(player)
 	PlotService.Release(player)
 end
@@ -865,6 +873,7 @@ PetService.OnBallChanged(function(player, ballId)
 	InteractionService.SetBallSkin(PlotService.GetPlot(player), ballId)
 end)
 ArenaService.Start()
+PenaltyService.Init()
 
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
