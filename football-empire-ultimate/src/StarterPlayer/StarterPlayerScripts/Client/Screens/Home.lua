@@ -161,6 +161,25 @@ function Home.Render(container, ctx)
 		add(card)
 	end
 
+	-- Ruleta de la suerte (un giro gratis al día)
+	if daily then
+		local odds = {}
+		for index, segment in ipairs(RewardConfig.Wheel) do
+			table.insert(odds, string.format("%s %s", segment.label, (function(chance)
+				return chance >= 10 and string.format("%d%%", math.floor(chance + 0.5)) or string.format("%.1f%%", chance)
+			end)(RewardConfig.WheelChance(index))))
+		end
+		local spinButton = C.Button(daily.canSpin and "🎡 ¡Girar gratis!" or "✔ Ya has girado hoy", daily.canSpin and "gold" or "secondary", function()
+			ctx.spinWheel()
+		end)
+		C.SetEnabled(spinButton, daily.canSpin == true)
+		add(C.Card({ BackgroundColor3 = daily.canSpin and Color3.fromRGB(70, 30, 90) or Theme.Card }, {
+			C.Title("🎡 Ruleta de la suerte", 20),
+			C.Label("Un giro gratis cada día. Probabilidades: " .. table.concat(odds, " · "), { TextSize = 12, TextColor3 = Theme.TextDim }),
+			C.Row({ spinButton }, 8),
+		}))
+	end
+
 	-- Esta semana: el bonus y el estadio destacado cambian solos cada lunes
 	local weekly, season = state.weekly, state.season
 	local weeklyBonus = weekly and WeeklyConfig.Bonus(weekly.bonusId)

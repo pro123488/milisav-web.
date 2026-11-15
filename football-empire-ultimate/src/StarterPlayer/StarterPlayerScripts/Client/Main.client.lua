@@ -57,6 +57,8 @@ local ArenaHud = require(UI:WaitForChild("ArenaHud"))
 local AdminPanel = require(UI:WaitForChild("AdminPanel"))
 local RevealOverlay = require(UI:WaitForChild("RevealOverlay"))
 local TutorialTracker = require(UI:WaitForChild("TutorialTracker"))
+local WheelOverlay = require(UI:WaitForChild("WheelOverlay"))
+local PetAnimator = require(script.Parent.Controllers:WaitForChild("PetAnimator"))
 
 local actionRemote = Remotes.Get("Action")
 local stateRemote = Remotes.Get("State")
@@ -88,7 +90,8 @@ local function notify(kind, message)
 end
 ctx.notify = notify
 
-function ctx.act(actionName, payload)
+-- quiet = true: no muestra el mensaje del servidor (p. ej. la ruleta lo enseña al acabar de girar)
+function ctx.act(actionName, payload, quiet)
 	local ok, result = pcall(function()
 		return actionRemote:InvokeServer(actionName, payload)
 	end)
@@ -96,7 +99,7 @@ function ctx.act(actionName, payload)
 		Notifier.Show("error", "No hay conexión con el servidor. Inténtalo de nuevo.")
 		return { ok = false }
 	end
-	if result.message then
+	if result.message and not (quiet and result.ok) then
 		Notifier.Show(result.ok and "success" or "error", result.message)
 	end
 	return result
@@ -432,6 +435,15 @@ Notifier.Init(gui)
 local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = -1 }, player:WaitForChild("PlayerGui"))
 local overlayGui = C.New("ScreenGui", { Name = "FEU_Overlay", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 20 }, player:WaitForChild("PlayerGui"))
 
+-- Ruleta de la suerte: el servidor elige y entrega el premio; aquí solo se anima el giro
+function ctx.spinWheel()
+	local result = ctx.act("SpinWheel", nil, true)
+	if result.ok and type(result.data) == "table" and result.data.index then
+		ctx.close()
+		WheelOverlay.Play(overlayGui, { C = C, Theme = Theme }, result.data.index, result.message or "🎡")
+	end
+end
+
 -- Animación al abrir un huevo o una caja (el resultado ya viene decidido por el servidor)
 function ctx.reveal(result, opener)
 	local item = result.kind == "pet" and CollectionConfig.PetById[result.id] or CollectionConfig.BallById[result.id]
@@ -451,6 +463,7 @@ function ctx.reveal(result, opener)
 end
 
 MovementController.Init(hud, C, Theme)
+PetAnimator.Init()
 ArenaHud.Init(hud, { C = C, Theme = Theme, act = ctx.act, Format = Format })
 AdminPanel.Init(hud, { C = C, Theme = Theme, act = ctx.act })
 TutorialTracker.Init(hud, { C = C, Theme = Theme, navigate = function(screen, params)

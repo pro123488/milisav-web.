@@ -599,6 +599,10 @@ Actions.ClaimDaily = function(player)
 	return RewardService.ClaimDaily(player)
 end
 
+Actions.SpinWheel = function(player)
+	return RewardService.Spin(player)
+end
+
 Actions.RedeemCode = function(player, payload)
 	return RewardService.RedeemCode(player, payload)
 end
@@ -651,6 +655,9 @@ actionRemote.OnServerInvoke = function(player, actionName, payload)
 	end
 	if ok == true and ACTION_METRICS[actionName] then
 		MissionService.Track(player, ACTION_METRICS[actionName], 1)
+	end
+	if ok == true and actionName == "HatchEgg" then
+		MissionService.Track(player, "hatch", type(payload) == "table" and payload.amount == 3 and 3 or 1)
 	end
 	if ok == true and ACTION_XP[actionName] then
 		SeasonService.AddXP(player, SeasonConfig.XP[ACTION_XP[actionName]])
@@ -818,7 +825,11 @@ HalloweenService.OnCandy(function(player, amount)
 end)
 HalloweenService.Start()
 ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals, result, isMvp)
-	TrophyService.AfterMatch(player, result, goals, isMvp)
+	local trophyDelta = TrophyService.AfterMatch(player, result, goals, isMvp)
+	if trophyDelta > 0 then
+		MissionService.Track(player, "trophies", trophyDelta)
+	end
+	MissionService.Track(player, "arena", 1)
 	PlotService.RefreshNameTag(player)
 	MissionService.Track(player, "matches", 1)
 	MissionService.Track(player, "goals", goals)

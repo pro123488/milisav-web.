@@ -96,6 +96,7 @@ function DefaultData.Create(player)
 		},
 		rewards = { -- recompensa diaria y códigos de regalo
 			lastClaimDay = 0, -- día (UTC) de la última recompensa diaria reclamada
+			lastSpinDay = 0, -- día (UTC) del último giro de la ruleta
 			streak = 0,
 			codes = {}, -- [CÓDIGO] = true
 		},
@@ -765,6 +766,7 @@ function DefaultData.Reconcile(data, player)
 	local rawRewards = type(data.rewards) == "table" and data.rewards or {}
 	local rewards = {
 		lastClaimDay = math.max(0, math.floor(tonumber(rawRewards.lastClaimDay) or 0)),
+		lastSpinDay = math.max(0, math.floor(tonumber(rawRewards.lastSpinDay) or 0)),
 		streak = math.max(0, math.floor(tonumber(rawRewards.streak) or 0)),
 		codes = {},
 	}

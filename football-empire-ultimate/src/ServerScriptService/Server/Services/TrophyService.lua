@@ -19,11 +19,11 @@ local TrophyService = {}
 
 local notifyRemote = Remotes.Get("Notify")
 
--- result = "win" | "draw" | "loss"
+-- result = "win" | "draw" | "loss". Devuelve el cambio de trofeos.
 function TrophyService.AfterMatch(player, result, goals, isMvp)
 	local data = DataService.Get(player)
 	if not data then
-		return
+		return 0
 	end
 	local arena = data.arena
 	local before = TrophyConfig.Rank(arena.trophies)
@@ -36,6 +36,7 @@ function TrophyService.AfterMatch(player, result, goals, isMvp)
 	if after.min > before.min then
 		notifyRemote:FireAllClients("info", string.format("%s %s sube al rango %s", after.icon, player.DisplayName, after.name))
 	end
+	return delta
 end
 
 function TrophyService.Trophies(player)

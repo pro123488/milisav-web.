@@ -22,6 +22,9 @@ MissionConfig.Metrics = {
 	promote = "Canteranos subidos al primer equipo",
 	sign = "Fichajes realizados",
 	cycles = "Jornadas completadas",
+	arena = "Partidos en grupo jugados",
+	hatch = "Huevos abiertos",
+	trophies = "Trofeos ganados",
 	friendly = "Amistosos jugados",
 	challenge = "Retos a otros clubes",
 	candy = "Caramelos recogidos",
@@ -39,6 +42,9 @@ MissionConfig.DailyPool = {
 	{ id = "d_friendly", metric = "friendly", target = 2, text = "Juega %d amistosos", money = 2000, reputation = 0 },
 	{ id = "d_challenge", metric = "challenge", target = 1, text = "Reta a %d club(es) del universo", money = 2500, reputation = 1 },
 	{ id = "d_candy", metric = "candy", target = 25, text = "Recoge %d caramelos (Halloween)", money = 2500, reputation = 0, event = "halloween" },
+	{ id = "d_arena", metric = "arena", target = 2, text = "Juega %d partidos en grupo", money = 3000, reputation = 1 },
+	{ id = "d_hatch", metric = "hatch", target = 3, text = "Abre %d huevos de mascota", money = 2500, reputation = 0 },
+	{ id = "d_trophies", metric = "trophies", target = 15, text = "Gana %d trofeos en los partidos en grupo", money = 3500, reputation = 1 },
 }
 
 -- Cadenas de progreso: cada nivel tiene un objetivo acumulado y su recompensa.
@@ -74,6 +80,21 @@ MissionConfig.Achievements = {
 	{ id = "a_network", icon = "🤝", name = "Conectado (50 puntos de red)", stat = "networkPoints", target = 50, reputation = 2, money = 15000 },
 	{ id = "a_candy", icon = "🎃", name = "Rey de los caramelos (300)", stat = "candy", target = 300, reputation = 1, money = 10000 },
 	{ id = "a_rep_100", icon = "⭐", name = "Reputación 100", stat = "reputation", target = 100, reputation = 0, money = 50000 },
+	-- Partidos en grupo, trofeos y renacimientos
+	{ id = "a_arena_goals_50", icon = "🥅", name = "Goleador de barrio (50 goles en grupo)", stat = "arenaGoals", target = 50, reputation = 2, money = 20000 },
+	{ id = "a_arena_goals_500", icon = "🎯", name = "Pichichi (500 goles en grupo)", stat = "arenaGoals", target = 500, reputation = 5, money = 200000 },
+	{ id = "a_rank_gold", icon = "🥇", name = "Rango Oro (250 trofeos)", stat = "trophies", target = 250, reputation = 2, money = 25000 },
+	{ id = "a_rank_diamond", icon = "💎", name = "Rango Diamante (900 trofeos)", stat = "trophies", target = 900, reputation = 4, money = 120000 },
+	{ id = "a_rank_legend", icon = "👑", name = "Rango Leyenda (2.000 trofeos)", stat = "trophies", target = 2000, reputation = 8, money = 500000 },
+	{ id = "a_rebirth_1", icon = "🔄", name = "Renacido", stat = "rebirths", target = 1, reputation = 3, money = 50000 },
+	{ id = "a_rebirth_5", icon = "🔥", name = "Cinco vidas (5 renacimientos)", stat = "rebirths", target = 5, reputation = 6, money = 500000 },
+	-- Colección
+	{ id = "a_pets_10", icon = "🐾", name = "Cuidador (10 mascotas descubiertas)", stat = "petsDiscovered", target = 10, reputation = 1, money = 15000 },
+	{ id = "a_pets_all", icon = "📖", name = "Zoológico completo (las 33 mascotas)", stat = "petsDiscovered", target = 33, reputation = 6, money = 400000 },
+	{ id = "a_golden_1", icon = "✨", name = "Toque de oro (1.ª mascota dorada)", stat = "goldenPets", target = 1, reputation = 2, money = 30000 },
+	{ id = "a_golden_10", icon = "🌟", name = "Rey Midas (10 mascotas doradas)", stat = "goldenPets", target = 10, reputation = 5, money = 300000 },
+	{ id = "a_balls_15", icon = "⚽", name = "Coleccionista de balones (15)", stat = "balls", target = 15, reputation = 2, money = 40000 },
+	{ id = "a_pieces_50", icon = "🧱", name = "Arquitecto libre (50 piezas)", stat = "pieces", target = 50, reputation = 2, money = 30000 },
 }
 
 function MissionConfig.Daily(id)

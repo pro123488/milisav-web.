@@ -585,6 +585,7 @@ function PetService.Refresh(player)
 			local target = Instance.new("Attachment")
 			target.Name = "PetTarget" .. i
 			target.Position = offset
+			target:SetAttribute("Base", offset) -- el cliente del dueño la hace flotar arriba y abajo
 			target.Parent = hrp
 			local anchor = Instance.new("Attachment")
 			anchor.Parent = root

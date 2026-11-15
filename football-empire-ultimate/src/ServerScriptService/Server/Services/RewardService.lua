@@ -31,6 +31,9 @@ end
 
 local function grant(player, reward, note)
 	local got = {}
+	if reward.crate then
+		table.insert(got, PetService.GrantBall(player, reward.crate) or "📦 Ya tienes todos los balones de las cajas")
+	end
 	if reward.money then
 		EconomyService.Earn(player, reward.money, EconomyService.Category.PRIZE, note)
 		table.insert(got, string.format("💰 +%d $", reward.money))
@@ -80,6 +83,33 @@ function RewardService.RedeemCode(player, payload)
 	return true, string.format("🎁 Código %s canjeado: %s", code, grant(player, reward, "Código " .. code))
 end
 
+-- RULETA: el servidor elige el premio (por peso) y lo entrega; el cliente solo anima el giro.
+local rng = Random.new()
+
+function RewardService.Spin(player)
+	local data = DataService.Get(player)
+	local rewards = data.rewards
+	if rewards.lastSpinDay >= today() then
+		return false, "Ya has girado la ruleta hoy. ¡Vuelve mañana!"
+	end
+	local total = 0
+	for _, segment in ipairs(RewardConfig.Wheel) do
+		total += segment.weight
+	end
+	local roll = rng:NextNumber(0, total)
+	local index = #RewardConfig.Wheel
+	for i, segment in ipairs(RewardConfig.Wheel) do
+		roll -= segment.weight
+		if roll < 0 then
+			index = i
+			break
+		end
+	end
+	rewards.lastSpinDay = today()
+	local text = grant(player, RewardConfig.Wheel[index], "Ruleta de la suerte")
+	return true, "🎡 Ruleta: " .. text, false, { index = index }
+end
+
 function RewardService.BuildState(data)
 	local rewards = data.rewards
 	local canClaim = rewards.lastClaimDay < today()
@@ -88,6 +118,7 @@ function RewardService.BuildState(data)
 		canClaim = canClaim,
 		streak = streak,
 		day = RewardConfig.DayOf(streak), -- día (1-7) de la recompensa de hoy
+		canSpin = rewards.lastSpinDay < today(),
 	}
 end
 

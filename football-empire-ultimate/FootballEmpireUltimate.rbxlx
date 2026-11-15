@@ -1015,7 +1015,7 @@ return FootballConfig
 local GameConfig = {}
 
 GameConfig.GAME_NAME = "FOOTBALL EMPIRE ULTIMATE"
-GameConfig.VERSION = "0.19.0-trofeos"
+GameConfig.VERSION = "0.20.0-ruleta"
 GameConfig.CURRENCY = "$"
 
 -- ===== Guardado =====
@@ -1493,6 +1493,9 @@ MissionConfig.Metrics = {
 	promote = "Canteranos subidos al primer equipo",
 	sign = "Fichajes realizados",
 	cycles = "Jornadas completadas",
+	arena = "Partidos en grupo jugados",
+	hatch = "Huevos abiertos",
+	trophies = "Trofeos ganados",
 	friendly = "Amistosos jugados",
 	challenge = "Retos a otros clubes",
 	candy = "Caramelos recogidos",
@@ -1510,6 +1513,9 @@ MissionConfig.DailyPool = {
 	{ id = "d_friendly", metric = "friendly", target = 2, text = "Juega %d amistosos", money = 2000, reputation = 0 },
 	{ id = "d_challenge", metric = "challenge", target = 1, text = "Reta a %d club(es) del universo", money = 2500, reputation = 1 },
 	{ id = "d_candy", metric = "candy", target = 25, text = "Recoge %d caramelos (Halloween)", money = 2500, reputation = 0, event = "halloween" },
+	{ id = "d_arena", metric = "arena", target = 2, text = "Juega %d partidos en grupo", money = 3000, reputation = 1 },
+	{ id = "d_hatch", metric = "hatch", target = 3, text = "Abre %d huevos de mascota", money = 2500, reputation = 0 },
+	{ id = "d_trophies", metric = "trophies", target = 15, text = "Gana %d trofeos en los partidos en grupo", money = 3500, reputation = 1 },
 }
 
 -- Cadenas de progreso: cada nivel tiene un objetivo acumulado y su recompensa.
@@ -1545,6 +1551,21 @@ MissionConfig.Achievements = {
 	{ id = "a_network", icon = "🤝", name = "Conectado (50 puntos de red)", stat = "networkPoints", target = 50, reputation = 2, money = 15000 },
 	{ id = "a_candy", icon = "🎃", name = "Rey de los caramelos (300)", stat = "candy", target = 300, reputation = 1, money = 10000 },
 	{ id = "a_rep_100", icon = "⭐", name = "Reputación 100", stat = "reputation", target = 100, reputation = 0, money = 50000 },
+	-- Partidos en grupo, trofeos y renacimientos
+	{ id = "a_arena_goals_50", icon = "🥅", name = "Goleador de barrio (50 goles en grupo)", stat = "arenaGoals", target = 50, reputation = 2, money = 20000 },
+	{ id = "a_arena_goals_500", icon = "🎯", name = "Pichichi (500 goles en grupo)", stat = "arenaGoals", target = 500, reputation = 5, money = 200000 },
+	{ id = "a_rank_gold", icon = "🥇", name = "Rango Oro (250 trofeos)", stat = "trophies", target = 250, reputation = 2, money = 25000 },
+	{ id = "a_rank_diamond", icon = "💎", name = "Rango Diamante (900 trofeos)", stat = "trophies", target = 900, reputation = 4, money = 120000 },
+	{ id = "a_rank_legend", icon = "👑", name = "Rango Leyenda (2.000 trofeos)", stat = "trophies", target = 2000, reputation = 8, money = 500000 },
+	{ id = "a_rebirth_1", icon = "🔄", name = "Renacido", stat = "rebirths", target = 1, reputation = 3, money = 50000 },
+	{ id = "a_rebirth_5", icon = "🔥", name = "Cinco vidas (5 renacimientos)", stat = "rebirths", target = 5, reputation = 6, money = 500000 },
+	-- Colección
+	{ id = "a_pets_10", icon = "🐾", name = "Cuidador (10 mascotas descubiertas)", stat = "petsDiscovered", target = 10, reputation = 1, money = 15000 },
+	{ id = "a_pets_all", icon = "📖", name = "Zoológico completo (las 33 mascotas)", stat = "petsDiscovered", target = 33, reputation = 6, money = 400000 },
+	{ id = "a_golden_1", icon = "✨", name = "Toque de oro (1.ª mascota dorada)", stat = "goldenPets", target = 1, reputation = 2, money = 30000 },
+	{ id = "a_golden_10", icon = "🌟", name = "Rey Midas (10 mascotas doradas)", stat = "goldenPets", target = 10, reputation = 5, money = 300000 },
+	{ id = "a_balls_15", icon = "⚽", name = "Coleccionista de balones (15)", stat = "balls", target = 15, reputation = 2, money = 40000 },
+	{ id = "a_pieces_50", icon = "🧱", name = "Arquitecto libre (50 piezas)", stat = "pieces", target = 50, reputation = 2, money = 30000 },
 }
 
 function MissionConfig.Daily(id)
@@ -1806,6 +1827,27 @@ RewardConfig.Codes = {
 	MASCOTAS = { egg = "basic" },
 }
 RewardConfig.MAX_CODE_LENGTH = 24
+
+-- RULETA DE LA SUERTE: un giro gratis al día (UTC). weight = probabilidad relativa.
+-- La interfaz muestra las probabilidades reales (weight / suma de weights).
+RewardConfig.Wheel = {
+	{ label = "2.000 $", color = Color3.fromRGB(70, 160, 90), weight = 28, money = 2000 },
+	{ label = "Huevo", color = Color3.fromRGB(240, 220, 170), weight = 14, egg = "basic" },
+	{ label = "5.000 $", color = Color3.fromRGB(60, 130, 220), weight = 20, money = 5000 },
+	{ label = "Caja", color = Color3.fromRGB(170, 110, 60), weight = 10, crate = "crate" },
+	{ label = "15.000 $", color = Color3.fromRGB(150, 80, 220), weight = 10, money = 15000 },
+	{ label = "Pase +60", color = Color3.fromRGB(230, 120, 40), weight = 12, xp = 60 },
+	{ label = "Huevo dorado", color = Color3.fromRGB(255, 200, 50), weight = 5, egg = "golden" },
+	{ label = "¡100.000 $!", color = Color3.fromRGB(220, 40, 70), weight = 1, money = 100000 },
+}
+
+function RewardConfig.WheelChance(index)
+	local total = 0
+	for _, segment in ipairs(RewardConfig.Wheel) do
+		total += segment.weight
+	end
+	return RewardConfig.Wheel[index].weight / total * 100
+end
 
 function RewardConfig.Describe(reward)
 	local parts = {}
@@ -4274,6 +4316,10 @@ Actions.ClaimDaily = function(player)
 	return RewardService.ClaimDaily(player)
 end
 
+Actions.SpinWheel = function(player)
+	return RewardService.Spin(player)
+end
+
 Actions.RedeemCode = function(player, payload)
 	return RewardService.RedeemCode(player, payload)
 end
@@ -4326,6 +4372,9 @@ actionRemote.OnServerInvoke = function(player, actionName, payload)
 	end
 	if ok == true and ACTION_METRICS[actionName] then
 		MissionService.Track(player, ACTION_METRICS[actionName], 1)
+	end
+	if ok == true and actionName == "HatchEgg" then
+		MissionService.Track(player, "hatch", type(payload) == "table" and payload.amount == 3 and 3 or 1)
 	end
 	if ok == true and ACTION_XP[actionName] then
 		SeasonService.AddXP(player, SeasonConfig.XP[ACTION_XP[actionName]])
@@ -4493,7 +4542,11 @@ HalloweenService.OnCandy(function(player, amount)
 end)
 HalloweenService.Start()
 ArenaService.OnMatchEnd(function(player, goals, teamGoals, otherGoals, result, isMvp)
-	TrophyService.AfterMatch(player, result, goals, isMvp)
+	local trophyDelta = TrophyService.AfterMatch(player, result, goals, isMvp)
+	if trophyDelta > 0 then
+		MissionService.Track(player, "trophies", trophyDelta)
+	end
+	MissionService.Track(player, "arena", 1)
 	PlotService.RefreshNameTag(player)
 	MissionService.Track(player, "matches", 1)
 	MissionService.Track(player, "goals", goals)
@@ -9822,6 +9875,29 @@ function MissionService.Stat(data, stat)
 		return data.halloween.total
 	elseif stat == "reputation" then
 		return EconomyFormulas.Reputation(data)
+	elseif stat == "arenaGoals" then
+		return data.stats.arenaGoals or 0
+	elseif stat == "trophies" then
+		return data.arena and data.arena.best or 0
+	elseif stat == "rebirths" then
+		return data.rebirth and data.rebirth.count or 0
+	elseif stat == "petsDiscovered" or stat == "goldenPets" then
+		local count = 0
+		for petId in pairs(data.collection.discovered or {}) do
+			local golden = string.sub(petId, 1, 5) == "gold_"
+			if golden == (stat == "goldenPets") then
+				count += 1
+			end
+		end
+		return count
+	elseif stat == "balls" then
+		local count = 1 -- el clásico
+		for _ in pairs(data.collection.balls) do
+			count += 1
+		end
+		return count
+	elseif stat == "pieces" then
+		return #data.stadium.pieces
 	end
 	return 0
 end
@@ -11083,6 +11159,7 @@ function PetService.Refresh(player)
 			local target = Instance.new("Attachment")
 			target.Name = "PetTarget" .. i
 			target.Position = offset
+			target:SetAttribute("Base", offset) -- el cliente del dueño la hace flotar arriba y abajo
 			target.Parent = hrp
 			local anchor = Instance.new("Attachment")
 			anchor.Parent = root
@@ -11617,6 +11694,9 @@ end
 
 local function grant(player, reward, note)
 	local got = {}
+	if reward.crate then
+		table.insert(got, PetService.GrantBall(player, reward.crate) or "📦 Ya tienes todos los balones de las cajas")
+	end
 	if reward.money then
 		EconomyService.Earn(player, reward.money, EconomyService.Category.PRIZE, note)
 		table.insert(got, string.format("💰 +%d $", reward.money))
@@ -11666,6 +11746,33 @@ function RewardService.RedeemCode(player, payload)
 	return true, string.format("🎁 Código %s canjeado: %s", code, grant(player, reward, "Código " .. code))
 end
 
+-- RULETA: el servidor elige el premio (por peso) y lo entrega; el cliente solo anima el giro.
+local rng = Random.new()
+
+function RewardService.Spin(player)
+	local data = DataService.Get(player)
+	local rewards = data.rewards
+	if rewards.lastSpinDay >= today() then
+		return false, "Ya has girado la ruleta hoy. ¡Vuelve mañana!"
+	end
+	local total = 0
+	for _, segment in ipairs(RewardConfig.Wheel) do
+		total += segment.weight
+	end
+	local roll = rng:NextNumber(0, total)
+	local index = #RewardConfig.Wheel
+	for i, segment in ipairs(RewardConfig.Wheel) do
+		roll -= segment.weight
+		if roll < 0 then
+			index = i
+			break
+		end
+	end
+	rewards.lastSpinDay = today()
+	local text = grant(player, RewardConfig.Wheel[index], "Ruleta de la suerte")
+	return true, "🎡 Ruleta: " .. text, false, { index = index }
+end
+
 function RewardService.BuildState(data)
 	local rewards = data.rewards
 	local canClaim = rewards.lastClaimDay < today()
@@ -11674,6 +11781,7 @@ function RewardService.BuildState(data)
 		canClaim = canClaim,
 		streak = streak,
 		day = RewardConfig.DayOf(streak), -- día (1-7) de la recompensa de hoy
+		canSpin = rewards.lastSpinDay < today(),
 	}
 end
 
@@ -14907,11 +15015,11 @@ local TrophyService = {}
 
 local notifyRemote = Remotes.Get("Notify")
 
--- result = "win" | "draw" | "loss"
+-- result = "win" | "draw" | "loss". Devuelve el cambio de trofeos.
 function TrophyService.AfterMatch(player, result, goals, isMvp)
 	local data = DataService.Get(player)
 	if not data then
-		return
+		return 0
 	end
 	local arena = data.arena
 	local before = TrophyConfig.Rank(arena.trophies)
@@ -14924,6 +15032,7 @@ function TrophyService.AfterMatch(player, result, goals, isMvp)
 	if after.min > before.min then
 		notifyRemote:FireAllClients("info", string.format("%s %s sube al rango %s", after.icon, player.DisplayName, after.name))
 	end
+	return delta
 end
 
 function TrophyService.Trophies(player)
@@ -15595,6 +15704,7 @@ function DefaultData.Create(player)
 		},
 		rewards = { -- recompensa diaria y códigos de regalo
 			lastClaimDay = 0, -- día (UTC) de la última recompensa diaria reclamada
+			lastSpinDay = 0, -- día (UTC) del último giro de la ruleta
 			streak = 0,
 			codes = {}, -- [CÓDIGO] = true
 		},
@@ -16264,6 +16374,7 @@ function DefaultData.Reconcile(data, player)
 	local rawRewards = type(data.rewards) == "table" and data.rewards or {}
 	local rewards = {
 		lastClaimDay = math.max(0, math.floor(tonumber(rawRewards.lastClaimDay) or 0)),
+		lastSpinDay = math.max(0, math.floor(tonumber(rawRewards.lastSpinDay) or 0)),
 		streak = math.max(0, math.floor(tonumber(rawRewards.streak) or 0)),
 		codes = {},
 	}
@@ -16556,7 +16667,7 @@ function Retry.Call(attempts, baseDelay, fn, ...)
 end
 
 return Retry
-]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000007E"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX0000007D"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX0000007C"><Properties><string name="Name">Client</string></Properties><Item class="Folder" referent="RBX00000058"><Properties><string name="Name">Controllers</string></Properties><Item class="ModuleScript" referent="RBX00000055"><Properties><string name="Name">MovementController</string><ProtectedString name="Source"><![CDATA[-- MovementController (ModuleScript)
+]]></ProtectedString></Properties></Item></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000080"><Properties><string name="Name">StarterPlayer</string></Properties><Item class="StarterPlayerScripts" referent="RBX0000007F"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="Folder" referent="RBX0000007E"><Properties><string name="Name">Client</string></Properties><Item class="Folder" referent="RBX00000059"><Properties><string name="Name">Controllers</string></Properties><Item class="ModuleScript" referent="RBX00000055"><Properties><string name="Name">MovementController</string><ProtectedString name="Source"><![CDATA[-- MovementController (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/MovementController
 --
 -- Velocidad del personaje y SPRINT con resistencia:
@@ -16866,7 +16977,40 @@ function MusicController.Init(gui, deps)
 end
 
 return MusicController
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000057"><Properties><string name="Name">PlacementController</string><ProtectedString name="Source"><![CDATA[-- PlacementController (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000057"><Properties><string name="Name">PetAnimator</string><ProtectedString name="Source"><![CDATA[-- PetAnimator (ModuleScript)
+-- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/PetAnimator
+--
+-- Hace que TUS mascotas floten suavemente arriba y abajo mientras te siguen.
+-- Las mascotas siguen unos puntos («PetTarget») del personaje; como su física la simula el
+-- cliente de su dueño, mover esos puntos aquí basta para que todos vean el movimiento.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local PetAnimator = {}
+
+local player = Players.LocalPlayer
+
+function PetAnimator.Init()
+	RunService.RenderStepped:Connect(function()
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root then
+			return
+		end
+		local t = os.clock()
+		for _, child in ipairs(root:GetChildren()) do
+			local base = child:IsA("Attachment") and child:GetAttribute("Base")
+			if typeof(base) == "Vector3" then
+				local phase = (tonumber(string.match(child.Name, "%d+")) or 1) * 1.3
+				child.Position = base + Vector3.new(0, math.sin(t * 2.6 + phase) * 0.45, 0)
+			end
+		end
+	end)
+end
+
+return PetAnimator
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000058"><Properties><string name="Name">PlacementController</string><ProtectedString name="Source"><![CDATA[-- PlacementController (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Controllers/PlacementController
 --
 -- CONSTRUCCIÓN AVANZADA (FASE 2): modo de colocación libre de decoraciones.
@@ -17378,7 +17522,7 @@ function PlacementController.StartPick(ctx, opts)
 end
 
 return PlacementController
-]]></ProtectedString></Properties></Item></Item><Item class="LocalScript" referent="RBX00000059"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (LocalScript)
+]]></ProtectedString></Properties></Item></Item><Item class="LocalScript" referent="RBX0000005A"><Properties><string name="Name">Main</string><ProtectedString name="Source"><![CDATA[-- Main (LocalScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Main
 --
 -- Interfaz principal: barra superior, menú principal adaptable (PC / móvil / tableta),
@@ -17437,6 +17581,8 @@ local ArenaHud = require(UI:WaitForChild("ArenaHud"))
 local AdminPanel = require(UI:WaitForChild("AdminPanel"))
 local RevealOverlay = require(UI:WaitForChild("RevealOverlay"))
 local TutorialTracker = require(UI:WaitForChild("TutorialTracker"))
+local WheelOverlay = require(UI:WaitForChild("WheelOverlay"))
+local PetAnimator = require(script.Parent.Controllers:WaitForChild("PetAnimator"))
 
 local actionRemote = Remotes.Get("Action")
 local stateRemote = Remotes.Get("State")
@@ -17468,7 +17614,8 @@ local function notify(kind, message)
 end
 ctx.notify = notify
 
-function ctx.act(actionName, payload)
+-- quiet = true: no muestra el mensaje del servidor (p. ej. la ruleta lo enseña al acabar de girar)
+function ctx.act(actionName, payload, quiet)
 	local ok, result = pcall(function()
 		return actionRemote:InvokeServer(actionName, payload)
 	end)
@@ -17476,7 +17623,7 @@ function ctx.act(actionName, payload)
 		Notifier.Show("error", "No hay conexión con el servidor. Inténtalo de nuevo.")
 		return { ok = false }
 	end
-	if result.message then
+	if result.message and not (quiet and result.ok) then
 		Notifier.Show(result.ok and "success" or "error", result.message)
 	end
 	return result
@@ -17812,6 +17959,15 @@ Notifier.Init(gui)
 local hud = C.New("ScreenGui", { Name = "FEU_HUD", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = -1 }, player:WaitForChild("PlayerGui"))
 local overlayGui = C.New("ScreenGui", { Name = "FEU_Overlay", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 20 }, player:WaitForChild("PlayerGui"))
 
+-- Ruleta de la suerte: el servidor elige y entrega el premio; aquí solo se anima el giro
+function ctx.spinWheel()
+	local result = ctx.act("SpinWheel", nil, true)
+	if result.ok and type(result.data) == "table" and result.data.index then
+		ctx.close()
+		WheelOverlay.Play(overlayGui, { C = C, Theme = Theme }, result.data.index, result.message or "🎡")
+	end
+end
+
 -- Animación al abrir un huevo o una caja (el resultado ya viene decidido por el servidor)
 function ctx.reveal(result, opener)
 	local item = result.kind == "pet" and CollectionConfig.PetById[result.id] or CollectionConfig.BallById[result.id]
@@ -17831,6 +17987,7 @@ function ctx.reveal(result, opener)
 end
 
 MovementController.Init(hud, C, Theme)
+PetAnimator.Init()
 ArenaHud.Init(hud, { C = C, Theme = Theme, act = ctx.act, Format = Format })
 AdminPanel.Init(hud, { C = C, Theme = Theme, act = ctx.act })
 TutorialTracker.Init(hud, { C = C, Theme = Theme, navigate = function(screen, params)
@@ -18013,7 +18170,7 @@ task.spawn(function()
 		actionRemote:InvokeServer("RefreshShop")
 	end)
 end)
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000070"><Properties><string name="Name">Screens</string></Properties><Item class="ModuleScript" referent="RBX0000005A"><Properties><string name="Name">Academy</string><ProtectedString name="Source"><![CDATA[-- Academy (ModuleScript) · Pantalla "Academia" · CANTERA GENERACIONAL (FASE 4)
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000071"><Properties><string name="Name">Screens</string></Properties><Item class="ModuleScript" referent="RBX0000005B"><Properties><string name="Name">Academy</string><ProtectedString name="Source"><![CDATA[-- Academy (ModuleScript) · Pantalla "Academia" · CANTERA GENERACIONAL (FASE 4)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Academy
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18136,7 +18293,7 @@ function Academy.Render(container, ctx)
 end
 
 return Academy
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005B"><Properties><string name="Name">Achievements</string><ProtectedString name="Source"><![CDATA[-- Achievements (ModuleScript) · Pantalla "Logros" (FASE 10)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005C"><Properties><string name="Name">Achievements</string><ProtectedString name="Source"><![CDATA[-- Achievements (ModuleScript) · Pantalla "Logros" (FASE 10)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Achievements
 
 local Achievements = {}
@@ -18178,7 +18335,7 @@ function Achievements.Render(container, ctx)
 end
 
 return Achievements
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005C"><Properties><string name="Name">Build</string><ProtectedString name="Source"><![CDATA[-- Build (ModuleScript) · Pantalla "Construcción"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005D"><Properties><string name="Name">Build</string><ProtectedString name="Source"><![CDATA[-- Build (ModuleScript) · Pantalla "Construcción"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Build
 -- Pestañas: Instalaciones · Estadio libre (piezas sueltas) · Decoración · Diseños (Constructor Pro).
 -- La interfaz calcula requisitos solo para informar; el servidor valida cada compra.
@@ -18509,7 +18666,7 @@ function Build.Render(container, ctx)
 end
 
 return Build
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005D"><Properties><string name="Name">Club</string><ProtectedString name="Source"><![CDATA[-- Club (ModuleScript) · Pantalla "Mi club"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005E"><Properties><string name="Name">Club</string><ProtectedString name="Source"><![CDATA[-- Club (ModuleScript) · Pantalla "Mi club"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Club
 -- Nombre, abreviatura y apariencia del club (escudo, colores, equipación, efectos).
 
@@ -18686,7 +18843,7 @@ function Club.Render(container, ctx)
 end
 
 return Club
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005E"><Properties><string name="Name">Collection</string><ProtectedString name="Source"><![CDATA[-- Collection (ModuleScript) · Pantalla "Mascotas, balones y trajes"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005F"><Properties><string name="Name">Collection</string><ProtectedString name="Source"><![CDATA[-- Collection (ModuleScript) · Pantalla "Mascotas, balones y trajes"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Collection
 --
 -- Huevos de mascotas y cajas de balones (con sus probabilidades siempre a la vista),
@@ -19111,7 +19268,7 @@ function Collection.Render(container, ctx)
 end
 
 return Collection
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000005F"><Properties><string name="Name">ComingSoon</string><ProtectedString name="Source"><![CDATA[-- ComingSoon (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000060"><Properties><string name="Name">ComingSoon</string><ProtectedString name="Source"><![CDATA[-- ComingSoon (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/ComingSoon
 -- Pantalla honesta para secciones de fases futuras: explica qué incluirán y cuándo.
 -- No contiene botones que finjan funcionar.
@@ -19155,7 +19312,7 @@ function ComingSoon.Render(container, ctx)
 end
 
 return ComingSoon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000060"><Properties><string name="Name">Economy</string><ProtectedString name="Source"><![CDATA[-- Economy (ModuleScript) · Pantalla "Economía"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000061"><Properties><string name="Name">Economy</string><ProtectedString name="Source"><![CDATA[-- Economy (ModuleScript) · Pantalla "Economía"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Economy
 -- Pestañas: Resumen (dinero, deuda, entradas, previsión, historial) · Aficionados (FASE 3)
 -- · Comercial (FASE 3) · Patrocinios (FASE 3).
@@ -19507,7 +19664,7 @@ function Economy.Render(container, ctx)
 end
 
 return Economy
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000061"><Properties><string name="Name">History</string><ProtectedString name="Source"><![CDATA[-- History (ModuleScript) · Pantalla "Historia del club" (FASE 8)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000062"><Properties><string name="Name">History</string><ProtectedString name="Source"><![CDATA[-- History (ModuleScript) · Pantalla "Historia del club" (FASE 8)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/History
 -- Pestañas: Resumen · Temporadas · Jugadores · Récords · Cronología.
 -- Todo procede de acontecimientos reales del juego registrados por el servidor.
@@ -19707,7 +19864,7 @@ function History.Render(container, ctx)
 end
 
 return History
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000062"><Properties><string name="Name">Home</string><ProtectedString name="Source"><![CDATA[-- Home (ModuleScript) · Pantalla "Inicio"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000063"><Properties><string name="Name">Home</string><ProtectedString name="Source"><![CDATA[-- Home (ModuleScript) · Pantalla "Inicio"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Home
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19870,6 +20027,25 @@ function Home.Render(container, ctx)
 		add(card)
 	end
 
+	-- Ruleta de la suerte (un giro gratis al día)
+	if daily then
+		local odds = {}
+		for index, segment in ipairs(RewardConfig.Wheel) do
+			table.insert(odds, string.format("%s %s", segment.label, (function(chance)
+				return chance >= 10 and string.format("%d%%", math.floor(chance + 0.5)) or string.format("%.1f%%", chance)
+			end)(RewardConfig.WheelChance(index))))
+		end
+		local spinButton = C.Button(daily.canSpin and "🎡 ¡Girar gratis!" or "✔ Ya has girado hoy", daily.canSpin and "gold" or "secondary", function()
+			ctx.spinWheel()
+		end)
+		C.SetEnabled(spinButton, daily.canSpin == true)
+		add(C.Card({ BackgroundColor3 = daily.canSpin and Color3.fromRGB(70, 30, 90) or Theme.Card }, {
+			C.Title("🎡 Ruleta de la suerte", 20),
+			C.Label("Un giro gratis cada día. Probabilidades: " .. table.concat(odds, " · "), { TextSize = 12, TextColor3 = Theme.TextDim }),
+			C.Row({ spinButton }, 8),
+		}))
+	end
+
 	-- Esta semana: el bonus y el estadio destacado cambian solos cada lunes
 	local weekly, season = state.weekly, state.season
 	local weeklyBonus = weekly and WeeklyConfig.Bonus(weekly.bonusId)
@@ -19967,7 +20143,7 @@ function Home.Render(container, ctx)
 end
 
 return Home
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000063"><Properties><string name="Name">Leagues</string><ProtectedString name="Source"><![CDATA[-- Leagues (ModuleScript) · Pantalla "Ligas" (FASE 7)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000064"><Properties><string name="Name">Leagues</string><ProtectedString name="Source"><![CDATA[-- Leagues (ModuleScript) · Pantalla "Ligas" (FASE 7)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Leagues
 -- Pestañas: Clasificación · Calendario · Copa · Carrera (objetivos, temporadas y palmarés).
 
@@ -20145,7 +20321,7 @@ function Leagues.Render(container, ctx)
 end
 
 return Leagues
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000064"><Properties><string name="Name">Matches</string><ProtectedString name="Source"><![CDATA[-- Matches (ModuleScript) · Pantalla "Partidos" (FASE 5)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000065"><Properties><string name="Name">Matches</string><ProtectedString name="Source"><![CDATA[-- Matches (ModuleScript) · Pantalla "Partidos" (FASE 5)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Matches
 -- Pestañas: Alineación · Tácticas · Amistosos · Historial.
 -- Todos los partidos son SIMULADOS por el servidor.
@@ -20439,7 +20615,7 @@ function Matches.Render(container, ctx)
 end
 
 return Matches
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000065"><Properties><string name="Name">Missions</string><ProtectedString name="Source"><![CDATA[-- Missions (ModuleScript) · Pantalla "Misiones" (FASE 10)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000066"><Properties><string name="Name">Missions</string><ProtectedString name="Source"><![CDATA[-- Missions (ModuleScript) · Pantalla "Misiones" (FASE 10)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Missions
 
 local Missions = {}
@@ -20497,7 +20673,7 @@ function Missions.Render(container, ctx)
 end
 
 return Missions
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000066"><Properties><string name="Name">Network</string><ProtectedString name="Source"><![CDATA[-- Network (ModuleScript) · Pantalla "Red de clubes" (FASE 9)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000067"><Properties><string name="Name">Network</string><ProtectedString name="Source"><![CDATA[-- Network (ModuleScript) · Pantalla "Red de clubes" (FASE 9)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Network
 -- Pestañas: Amigos · Torneo · Comunidad · Enfrentamientos · Comparar.
 
@@ -20726,7 +20902,7 @@ function Network.Render(container, ctx)
 end
 
 return Network
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000067"><Properties><string name="Name">Rebirth</string><ProtectedString name="Source"><![CDATA[-- Rebirth (ModuleScript) · Pantalla "Renacer"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000068"><Properties><string name="Name">Rebirth</string><ProtectedString name="Source"><![CDATA[-- Rebirth (ModuleScript) · Pantalla "Renacer"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Rebirth
 --
 -- Muestra los bonus actuales, lo que hace falta para el siguiente renacimiento y qué se reinicia.
@@ -20815,7 +20991,7 @@ function Rebirth.Render(container, ctx)
 end
 
 return Rebirth
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000068"><Properties><string name="Name">Season</string><ProtectedString name="Source"><![CDATA[-- Season (ModuleScript) · Pantalla "Pase de temporada"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000069"><Properties><string name="Name">Season</string><ProtectedString name="Source"><![CDATA[-- Season (ModuleScript) · Pantalla "Pase de temporada"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Season
 --
 -- Niveles del pase con sus dos pistas (gratis y premium). Las recompensas se leen de
@@ -20942,7 +21118,7 @@ function Season.Render(container, ctx)
 end
 
 return Season
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000069"><Properties><string name="Name">Settings</string><ProtectedString name="Source"><![CDATA[-- Settings (ModuleScript) · Pantalla "Configuración"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006A"><Properties><string name="Name">Settings</string><ProtectedString name="Source"><![CDATA[-- Settings (ModuleScript) · Pantalla "Configuración"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Settings
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21042,7 +21218,7 @@ function Settings.Render(container, ctx)
 end
 
 return Settings
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006A"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[-- Shop (ModuleScript) · TIENDA PREMIUM
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006B"><Properties><string name="Name">Shop</string><ProtectedString name="Source"><![CDATA[-- Shop (ModuleScript) · TIENDA PREMIUM
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Shop
 --
 -- Muestra los Game Passes con su estado REAL enviado por el servidor:
@@ -21265,7 +21441,7 @@ function Shop.Render(container, ctx)
 end
 
 return Shop
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006B"><Properties><string name="Name">Squad</string><ProtectedString name="Source"><![CDATA[-- Squad (ModuleScript) · Pantalla "Plantilla" (FASE 4)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006C"><Properties><string name="Name">Squad</string><ProtectedString name="Source"><![CDATA[-- Squad (ModuleScript) · Pantalla "Plantilla" (FASE 4)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Squad
 -- Jugadores con estadísticas, contratos, entrenamiento, renovaciones y rescisiones.
 
@@ -21508,7 +21684,7 @@ function Squad.Render(container, ctx)
 end
 
 return Squad
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006C"><Properties><string name="Name">Stadium</string><ProtectedString name="Source"><![CDATA[-- Stadium (ModuleScript) · Pantalla "Mi estadio"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006D"><Properties><string name="Name">Stadium</string><ProtectedString name="Source"><![CDATA[-- Stadium (ModuleScript) · Pantalla "Mi estadio"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Stadium
 -- Resumen del estadio: etapa evolutiva, aforo, atractivo e instalaciones.
 
@@ -21661,7 +21837,7 @@ function Stadium.Render(container, ctx)
 end
 
 return Stadium
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006D"><Properties><string name="Name">Transfers</string><ProtectedString name="Source"><![CDATA[-- Transfers (ModuleScript) · Pantalla "Fichajes" (FASE 6)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006E"><Properties><string name="Name">Transfers</string><ProtectedString name="Source"><![CDATA[-- Transfers (ModuleScript) · Pantalla "Fichajes" (FASE 6)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Transfers
 -- Pestañas: Mercado · Ofertas recibidas · Vender y ceder.
 
@@ -21857,7 +22033,7 @@ function Transfers.Render(container, ctx)
 end
 
 return Transfers
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006E"><Properties><string name="Name">Trophies</string><ProtectedString name="Source"><![CDATA[-- Trophies (ModuleScript) · Pantalla "Camino de trofeos"
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006F"><Properties><string name="Name">Trophies</string><ProtectedString name="Source"><![CDATA[-- Trophies (ModuleScript) · Pantalla "Camino de trofeos"
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Trophies
 --
 -- Rango actual, progreso al siguiente y premios del camino. Los trofeos los suma o resta el
@@ -21948,7 +22124,7 @@ function Trophies.Render(container, ctx)
 end
 
 return Trophies
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000006F"><Properties><string name="Name">Universe</string><ProtectedString name="Source"><![CDATA[-- Universe (ModuleScript) · Pantalla "Universo" (FASE 8)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000070"><Properties><string name="Name">Universe</string><ProtectedString name="Source"><![CDATA[-- Universe (ModuleScript) · Pantalla "Universo" (FASE 8)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/Screens/Universe
 -- Pestañas: Evento · Rankings · Semanal · Directorio.
 
@@ -22103,7 +22279,7 @@ function Universe.Render(container, ctx)
 end
 
 return Universe
-]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000007B"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000071"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[-- AdminPanel (ModuleScript)
+]]></ProtectedString></Properties></Item></Item><Item class="Folder" referent="RBX0000007D"><Properties><string name="Name">UI</string></Properties><Item class="ModuleScript" referent="RBX00000072"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[-- AdminPanel (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/AdminPanel
 --
 -- * Panel «🛡️ ADMIN» (solo aparece si el SERVIDOR dice que eres admin): lanza eventos
@@ -22292,7 +22468,7 @@ function AdminPanel.Init(gui, deps)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000072"><Properties><string name="Name">ArenaHud</string><ProtectedString name="Source"><![CDATA[-- ArenaHud (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000073"><Properties><string name="Name">ArenaHud</string><ProtectedString name="Source"><![CDATA[-- ArenaHud (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/ArenaHud
 --
 -- Interfaz de los PARTIDOS EN GRUPO:
@@ -22765,7 +22941,7 @@ function ArenaHud.Init(gui, deps)
 end
 
 return ArenaHud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000073"><Properties><string name="Name">Components</string><ProtectedString name="Source"><![CDATA[-- Components (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000074"><Properties><string name="Name">Components</string><ProtectedString name="Source"><![CDATA[-- Components (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Components
 -- Fábrica de elementos de interfaz reutilizables (todo por código, sin assets externos).
 
@@ -23098,7 +23274,7 @@ function C.OptionTile(title, subtitle, opts, extra)
 end
 
 return C
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000074"><Properties><string name="Name">InvitePrompt</string><ProtectedString name="Source"><![CDATA[-- InvitePrompt (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000075"><Properties><string name="Name">InvitePrompt</string><ProtectedString name="Source"><![CDATA[-- InvitePrompt (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/InvitePrompt
 -- Ventana para aceptar o rechazar una invitación a partido de otro club del servidor (FASE 9).
 
@@ -23155,7 +23331,7 @@ function InvitePrompt.Show(ctx, info, onResult)
 end
 
 return InvitePrompt
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000075"><Properties><string name="Name">MatchViewer</string><ProtectedString name="Source"><![CDATA[-- MatchViewer (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000076"><Properties><string name="Name">MatchViewer</string><ProtectedString name="Source"><![CDATA[-- MatchViewer (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/MatchViewer
 --
 -- Reproduce el RESUMEN de un partido simulado que ya ha calculado el servidor.
@@ -23318,7 +23494,7 @@ function MatchViewer.Show(result)
 end
 
 return MatchViewer
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000076"><Properties><string name="Name">Notifier</string><ProtectedString name="Source"><![CDATA[-- Notifier (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000077"><Properties><string name="Name">Notifier</string><ProtectedString name="Source"><![CDATA[-- Notifier (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Notifier
 -- Notificaciones emergentes (toasts) apiladas en la esquina superior.
 
@@ -23395,7 +23571,7 @@ function Notifier.Show(kind, message, duration)
 end
 
 return Notifier
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000077"><Properties><string name="Name">Premium</string><ProtectedString name="Source"><![CDATA[-- Premium (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000078"><Properties><string name="Name">Premium</string><ProtectedString name="Source"><![CDATA[-- Premium (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Premium
 -- Ayudas de INTERFAZ para mostrar opciones bloqueadas por Game Pass.
 -- Solo deciden qué se muestra: el servidor vuelve a validar cada acción.
@@ -23436,7 +23612,7 @@ function Premium.OnLockedClick(ctx, item)
 end
 
 return Premium
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000078"><Properties><string name="Name">RevealOverlay</string><ProtectedString name="Source"><![CDATA[-- RevealOverlay (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000079"><Properties><string name="Name">RevealOverlay</string><ProtectedString name="Source"><![CDATA[-- RevealOverlay (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/RevealOverlay
 --
 -- Animación al abrir un huevo o una caja: el huevo tiembla, hay un destello y aparece lo que
@@ -23567,7 +23743,7 @@ function RevealOverlay.Play(gui, deps, info)
 end
 
 return RevealOverlay
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000079"><Properties><string name="Name">Theme</string><ProtectedString name="Source"><![CDATA[-- Theme (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000007A"><Properties><string name="Name">Theme</string><ProtectedString name="Source"><![CDATA[-- Theme (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/Theme
 -- Paleta y tipografía de la interfaz: estilo futbolístico moderno (noche de estadio).
 
@@ -23604,7 +23780,7 @@ Theme.NotifyColors = {
 }
 
 return Theme
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000007A"><Properties><string name="Name">TutorialTracker</string><ProtectedString name="Source"><![CDATA[-- TutorialTracker (ModuleScript)
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000007B"><Properties><string name="Name">TutorialTracker</string><ProtectedString name="Source"><![CDATA[-- TutorialTracker (ModuleScript)
 -- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/TutorialTracker
 --
 -- Indicador de «Primeros pasos» en pantalla: muestra el paso actual de la guía y su premio.
@@ -23664,4 +23840,140 @@ function TutorialTracker.Init(gui, deps)
 end
 
 return TutorialTracker
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000007C"><Properties><string name="Name">WheelOverlay</string><ProtectedString name="Source"><![CDATA[-- WheelOverlay (ModuleScript)
+-- Ubicación: StarterPlayer/StarterPlayerScripts/Client/UI/WheelOverlay
+--
+-- Animación de la RULETA DE LA SUERTE: la rueda gira varias vueltas y se para en el premio que
+-- YA ha elegido y entregado el servidor (index). Solo es una animación.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local RewardConfig = require(Shared.Config.RewardConfig)
+local SoundConfig = require(Shared.Config.SoundConfig)
+
+local WheelOverlay = {}
+
+local RADIUS = 150
+local sound
+
+function WheelOverlay.Play(gui, deps, index, resultText)
+	local C, Theme = deps.C, deps.Theme
+	local old = gui:FindFirstChild("WheelOverlay")
+	if old then
+		old:Destroy()
+	end
+	local segments = RewardConfig.Wheel
+	local step = 360 / #segments
+
+	local overlay = C.New("TextButton", {
+		Name = "WheelOverlay",
+		Text = "",
+		AutoButtonColor = false,
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.35,
+		ZIndex = 60,
+	}, gui)
+	local wheel = C.New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.fromOffset(RADIUS * 2, RADIUS * 2),
+		BackgroundColor3 = Color3.fromRGB(25, 28, 40),
+		ZIndex = 61,
+		Children = { C.Corner(UDim.new(1, 0)), C.Stroke(Theme.Gold, 4, 0) },
+	}, overlay)
+	-- Cada premio es una «porción» (rectángulo de color desde el centro) con su texto
+	for i, segment in ipairs(segments) do
+		local angle = (i - 1) * step
+		-- Ángulo 0 = arriba, creciendo en sentido horario (igual que la rotación de la rueda)
+		local rad = math.rad(angle)
+		local half = (RADIUS - 8) / 2
+		local spoke = C.New("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, math.sin(rad) * half, 0.5, -math.cos(rad) * half),
+			Size = UDim2.fromOffset(math.floor(2 * math.pi * RADIUS / #segments) - 6, RADIUS - 8),
+			Rotation = angle,
+			BackgroundColor3 = segment.color,
+			BackgroundTransparency = 0.05,
+			ZIndex = 62,
+			Children = { C.Corner(UDim.new(0, 10)) },
+		}, wheel)
+		C.New("TextLabel", {
+			Size = UDim2.new(1, 0, 0.45, 0),
+			BackgroundTransparency = 1,
+			Text = segment.label,
+			Font = Theme.FontBlack,
+			TextScaled = true,
+			TextColor3 = Color3.new(1, 1, 1),
+			TextStrokeTransparency = 0.3,
+			ZIndex = 63,
+		}, spoke)
+	end
+	C.New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(46, 46),
+		BackgroundColor3 = Theme.Gold,
+		ZIndex = 64,
+		Children = { C.Corner(UDim.new(1, 0)) },
+	}, wheel)
+	-- Puntero fijo arriba
+	C.New("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 0.45, -RADIUS + 14),
+		Size = UDim2.fromOffset(60, 50),
+		BackgroundTransparency = 1,
+		Text = "🔻",
+		TextSize = 44,
+		ZIndex = 65,
+	}, overlay)
+	local result = C.New("TextLabel", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.45, RADIUS + 18),
+		Size = UDim2.fromOffset(600, 40),
+		BackgroundTransparency = 1,
+		Text = "🎡 Girando…",
+		TextSize = 26,
+		Font = Theme.FontBlack,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextStrokeTransparency = 0.4,
+		ZIndex = 65,
+	}, overlay)
+
+	-- El premio «index» tiene que acabar arriba: la rueda gira -ángulo del premio (+ vueltas)
+	local target = 360 * 5 - (index - 1) * step
+	local tween = TweenService:Create(wheel, TweenInfo.new(3.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Rotation = target })
+	tween:Play()
+	local closed = false
+	overlay.Activated:Connect(function()
+		if overlay:GetAttribute("Done") then
+			closed = true
+			overlay:Destroy()
+		end
+	end)
+	tween.Completed:Connect(function()
+		if closed then
+			return
+		end
+		result.Text = resultText
+		overlay:SetAttribute("Done", true)
+		if not sound then
+			sound = Instance.new("Sound")
+			sound.SoundId = "rbxassetid://" .. SoundConfig.REVEAL
+			sound.Volume = 0.7
+			sound.Parent = SoundService
+		end
+		sound:Play()
+		task.delay(3, function()
+			if not closed and overlay.Parent then
+				overlay:Destroy()
+			end
+		end)
+	end)
+end
+
+return WheelOverlay
 ]]></ProtectedString></Properties></Item></Item></Item></Item></Item></roblox>

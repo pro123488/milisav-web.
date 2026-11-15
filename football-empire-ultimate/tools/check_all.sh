@@ -6,4 +6,5 @@ python3 tools/luau_check.py src
 python3 tools/field_check.py src
 python3 tools/security_check.py src
 python3 tools/api_check.py src
+python3 tools/contract_check.py src
 python3 tools/build_place.py

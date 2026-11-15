@@ -29,6 +29,27 @@ RewardConfig.Codes = {
 }
 RewardConfig.MAX_CODE_LENGTH = 24
 
+-- RULETA DE LA SUERTE: un giro gratis al día (UTC). weight = probabilidad relativa.
+-- La interfaz muestra las probabilidades reales (weight / suma de weights).
+RewardConfig.Wheel = {
+	{ label = "2.000 $", color = Color3.fromRGB(70, 160, 90), weight = 28, money = 2000 },
+	{ label = "Huevo", color = Color3.fromRGB(240, 220, 170), weight = 14, egg = "basic" },
+	{ label = "5.000 $", color = Color3.fromRGB(60, 130, 220), weight = 20, money = 5000 },
+	{ label = "Caja", color = Color3.fromRGB(170, 110, 60), weight = 10, crate = "crate" },
+	{ label = "15.000 $", color = Color3.fromRGB(150, 80, 220), weight = 10, money = 15000 },
+	{ label = "Pase +60", color = Color3.fromRGB(230, 120, 40), weight = 12, xp = 60 },
+	{ label = "Huevo dorado", color = Color3.fromRGB(255, 200, 50), weight = 5, egg = "golden" },
+	{ label = "¡100.000 $!", color = Color3.fromRGB(220, 40, 70), weight = 1, money = 100000 },
+}
+
+function RewardConfig.WheelChance(index)
+	local total = 0
+	for _, segment in ipairs(RewardConfig.Wheel) do
+		total += segment.weight
+	end
+	return RewardConfig.Wheel[index].weight / total * 100
+end
+
 function RewardConfig.Describe(reward)
 	local parts = {}
 	if reward.money then

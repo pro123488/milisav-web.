@@ -156,6 +156,29 @@ function MissionService.Stat(data, stat)
 		return data.halloween.total
 	elseif stat == "reputation" then
 		return EconomyFormulas.Reputation(data)
+	elseif stat == "arenaGoals" then
+		return data.stats.arenaGoals or 0
+	elseif stat == "trophies" then
+		return data.arena and data.arena.best or 0
+	elseif stat == "rebirths" then
+		return data.rebirth and data.rebirth.count or 0
+	elseif stat == "petsDiscovered" or stat == "goldenPets" then
+		local count = 0
+		for petId in pairs(data.collection.discovered or {}) do
+			local golden = string.sub(petId, 1, 5) == "gold_"
+			if golden == (stat == "goldenPets") then
+				count += 1
+			end
+		end
+		return count
+	elseif stat == "balls" then
+		local count = 1 -- el clásico
+		for _ in pairs(data.collection.balls) do
+			count += 1
+		end
+		return count
+	elseif stat == "pieces" then
+		return #data.stadium.pieces
 	end
 	return 0
 end
